@@ -1562,37 +1562,25 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Phase 23 Fix 3 — filter row below H1. EJ5 — HoverTipsToggle
-          sits to the right of the GlobalFilterBar, in the same row,
-          aligned with the filter pill baseline. */}
-      <div
-        style={{
-          padding: "4px 24px 0",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <GlobalFilterBar
-            filters={globalFilters}
-            onChange={setGlobalFilters}
-            sections={["tags", "spreadTypes", "depth", "reversed"]}
-            userTags={userTags}
-            drawerOpen={globalDrawerOpen}
-            onDrawerOpenChange={setGlobalDrawerOpen}
-            timeRange={{
-              value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
-              options: TIMEFRAME_OPTIONS.map((o) => ({
-                value: o.value,
-                label: o.label,
-              })),
-              onChange: (v) =>
-                setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
-            }}
-          />
-        </div>
-        <HoverTipsToggle />
+      {/* Phase 23 Fix 3 — filter row below H1. */}
+      <div style={{ padding: "4px 24px 0" }}>
+        <GlobalFilterBar
+          filters={globalFilters}
+          onChange={setGlobalFilters}
+          sections={["tags", "spreadTypes", "depth", "reversed"]}
+          userTags={userTags}
+          drawerOpen={globalDrawerOpen}
+          onDrawerOpenChange={setGlobalDrawerOpen}
+          timeRange={{
+            value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+            options: TIMEFRAME_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+            })),
+            onChange: (v) =>
+              setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
+          }}
+        />
       </div>
 
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
@@ -1620,6 +1608,21 @@ export function ConstellationPage() {
             position: "relative",
           }}
         >
+          {/* EJ6 — HoverTipsToggle floats in the dark space above the
+              right side of the constellation web, where the empty
+              negative space sits between the hero card and the right
+              column. Absolute-positioned so it doesn't push layout
+              and lives "inside" the constellation surface visually. */}
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              right: 8,
+              zIndex: 2,
+            }}
+          >
+            <HoverTipsToggle />
+          </div>
           <ConstellationWeb
             heroPick={heroPick}
             constellation={constellationData}
@@ -2833,7 +2836,7 @@ export function ConstellationPage() {
       {/* EG — slot card badge hint popover ("This card has appeared in N
           of your past readings."). Same RichPopover style as the card
           meaning popover, replacing the prior native title="" tooltip. */}
-      {activePopover?.kind === "badge-hint" && hoverTipsOn && (
+      {activePopover?.kind === "badge-hint" && (
         <RichPopover
           open
           anchorX={activePopover.anchorX}
@@ -2845,7 +2848,6 @@ export function ConstellationPage() {
           }
           chainedContent={<BadgeLegend />}
           chainedTitle="About badges"
-            extraTopRightControl={<HoverTipsGear />}
           maxWidth={240}
         >
           <div
@@ -2886,7 +2888,7 @@ export function ConstellationPage() {
           has any visual signals active (gold hero fill, ring, dashed,
           teal trace), an ⓘ icon appears in the corner and chains to a
           color legend explaining each signal active on THIS cell. */}
-      {activePopover?.kind === "day-cell" && hoverTipsOn && (() => {
+      {activePopover?.kind === "day-cell" && (() => {
         return (
           <RichPopover
             open
@@ -2899,7 +2901,6 @@ export function ConstellationPage() {
             }
             chainedContent={<ColorLegend />}
             chainedTitle="What the colors mean"
-            extraTopRightControl={<HoverTipsGear />}
             maxWidth={300}
           >
             <div
@@ -2919,7 +2920,7 @@ export function ConstellationPage() {
           right-column chips (LAST SEEN / TIME PATTERN / FREQUENCY /
           MOON PHASE / REVERSED). Same dark style as the other rich
           popovers. No ⓘ — the tooltip IS the explanation. */}
-      {activePopover?.kind === "chip-hint" && hoverTipsOn && (
+      {activePopover?.kind === "chip-hint" && (
         <RichPopover
           open
           anchorX={activePopover.anchorX}
@@ -2956,7 +2957,7 @@ export function ConstellationPage() {
       {/* EH — Constellation badge popovers (gold hero badge + teal
           selection badge in the SVG web). Each shows a count + brief
           description, and chains to the constellation legend. */}
-      {activePopover?.kind === "constellation-badge" && hoverTipsOn && (
+      {activePopover?.kind === "constellation-badge" && (
         <RichPopover
           open
           anchorX={activePopover.anchorX}
@@ -2968,7 +2969,6 @@ export function ConstellationPage() {
           }
           chainedContent={<ConstellationLegend />}
           chainedTitle="How the constellation works"
-            extraTopRightControl={<HoverTipsGear />}
           maxWidth={280}
         >
           <div

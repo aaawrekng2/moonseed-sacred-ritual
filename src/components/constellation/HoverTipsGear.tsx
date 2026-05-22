@@ -94,6 +94,20 @@ export function HoverTipsGear() {
             boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
           }}
         >
+          <div
+            style={{
+              padding: "6px 10px 4px",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption, 11px)",
+              color: "var(--color-foreground-muted, var(--color-foreground))",
+              opacity: 0.7,
+              borderBottom: "1px solid var(--border-subtle)",
+              marginBottom: 4,
+            }}
+          >
+            Hide hover tips for…
+          </div>
           <button
             type="button"
             role="menuitem"

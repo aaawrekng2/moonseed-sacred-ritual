@@ -400,7 +400,13 @@ function ConstellationSvg({
         const heroInTeal = tealSet.has(constellation.heroCardId);
         return (
           <g>
-            <foreignObject x={pos.x} y={pos.y} width={pos.w} height={pos.h}>
+            <foreignObject
+              x={pos.x}
+              y={pos.y}
+              width={pos.w}
+              height={pos.h}
+              style={{ overflow: "visible" }}
+            >
               <button
                 type="button"
                 onClick={() => onCardClick(constellation.heroCardId)}
@@ -622,6 +628,7 @@ function ConstellationSvg({
               y={pos.y}
               width={pos.w}
               height={pos.h}
+              style={{ overflow: "visible" }}
             >
               <button
                 type="button"
@@ -665,7 +672,7 @@ function ConstellationSvg({
                     borderRadius: 4,
                     overflow: "hidden",
                     boxShadow: inTeal
-                      ? `0 0 0 2px ${TRACE_VAR}`
+                      ? `0 0 0 4px ${TRACE_VAR}, 0 0 12px 2px ${TRACE_VAR}`
                       : undefined,
                   }}
                 >
