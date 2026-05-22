@@ -96,4 +96,16 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   } else {
     root.style.removeProperty("--card-emphasis-filter");
   }
+  // EC — teal trace color. Default teal #5cead4 contrasts well against
+  // most themes, but collides with cool/cyan-family themes (Cups Tide
+  // accent is cyan, Pentacles & Moss is green). For those, override to
+  // a warm coral so the teal trace stays visible. Implemented as a
+  // theme override (NOT a separate CommunityTheme field) so adding new
+  // themes doesn't require a schema change.
+  const COOL_HUE_THEMES = new Set(["cups-tide", "pentacles-moss"]);
+  if (COOL_HUE_THEMES.has(theme.key)) {
+    root.style.setProperty("--trace-color", "#fb7185");
+  } else {
+    root.style.removeProperty("--trace-color");
+  }
 }

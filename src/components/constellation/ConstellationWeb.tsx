@@ -61,12 +61,22 @@ type Props = {
   /** DZ — click the gold draw-count badge on the hero card.
    *  Parent opens the readings modal scoped to all hero readings. */
   onHeroBadgeClick?: () => void;
+  /** EC — tooltip text for the gold hero badge. Format:
+   *  "N PULLS · [Hero Card Name]". Parent provides because
+   *  ConstellationWeb doesn't have access to card names. When omitted,
+   *  falls back to a generic "View all N readings with this card". */
+  heroBadgeTooltip?: string;
   /** DZ — match-count badge displayed on the FIRST-clicked teal card
    *  when 2+ teal cards are selected. Same visual language as the
-   *  hero badge but teal-tinted. Null = hide. */
+   *  hero badge but teal-tinted. Null = hide.
+   *  EC — `tooltip` is now passed through so the parent can format
+   *  the unit-aware label ("N PULLS · Card A, Card B" or
+   *  "N DAYS · Card A, Card B") since ConstellationWeb doesn't have
+   *  access to card names or the same-pull/same-day pill state. */
   tealBadge?: {
     cardId: number;
     count: number;
+    tooltip?: string;
   } | null;
   /** DZ — click the teal match-count badge. Parent opens the readings
    *  modal scoped to the current teal selection. */
@@ -77,7 +87,18 @@ type Box = { x: number; y: number; w: number; h: number };
 
 /** Phase 24 — teal trace color used across constellation cards, calendar day
  * cells, and readings panel for the multi-card co-occurrence query. */
+/**
+ * EC — Default trace color for the teal selection / discovery hints.
+ * Overridable per-theme via the `--trace-color` CSS variable, set in
+ * applyCommunityTheme(). Themes whose accent is in the cyan/green
+ * family override to a warm coral so the trace stays visible.
+ *
+ * Exported for callers that need the hex literal (e.g. passing as a
+ * prop to non-DOM consumers). DOM consumers should prefer
+ * var(--trace-color, #5cead4) directly in their style.
+ */
 export const TRACE_COLOR = "#5cead4";
+const TRACE_VAR = "var(--trace-color, #5cead4)";
 
 function getCardPosition(
   cardId: number,
@@ -108,6 +129,7 @@ export function ConstellationWeb({
   onCardDragStart = undefined,
   onCardHover = undefined,
   onHeroBadgeClick = undefined,
+  heroBadgeTooltip = undefined,
   tealBadge = null,
   onTealBadgeClick = undefined,
 }: Props) {
@@ -152,11 +174,6 @@ export function ConstellationWeb({
           candidateIds={candidateIds}
           heroPick={heroPick}
           heroDrawCount={heroDrawCount}
-          onCardDragStart={onCardDragStart}
-          onCardHover={onCardHover}
-          onHeroBadgeClick={onHeroBadgeClick}
-          tealBadge={tealBadge}
-          onTealBadgeClick={onTealBadgeClick}
         />
       )}
     </div>
@@ -170,11 +187,6 @@ function ConstellationSvg({
   candidateIds,
   heroPick,
   heroDrawCount,
-  onCardDragStart,
-  onCardHover,
-  onHeroBadgeClick,
-  tealBadge,
-  onTealBadgeClick,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -182,15 +194,6 @@ function ConstellationSvg({
   candidateIds: number[];
   heroPick: ManualPick;
   heroDrawCount: number | null;
-  onCardDragStart?: (cardId: number) => void;
-  onCardHover?: (
-    cardId: number | null,
-    clientX: number,
-    clientY: number,
-  ) => void;
-  onHeroBadgeClick?: () => void;
-  tealBadge?: { cardId: number; count: number } | null;
-  onTealBadgeClick?: () => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
@@ -230,7 +233,7 @@ function ConstellationSvg({
           ? 2.5
           : Math.max(1, Math.min(5, weight * 5));
         const opacity = isTealLine ? 0.95 : 0.2 + weight * 0.7;
-        const stroke = isTealLine ? TRACE_COLOR : "var(--accent, var(--gold))";
+        const stroke = isTealLine ? TRACE_VAR : "var(--accent, var(--gold))";
         return (
           <line
             key={`${pair.a}-${pair.b}-${i}`}
@@ -308,6 +311,12 @@ function ConstellationSvg({
                   deckId={heroPick.deckId ?? undefined}
                   size="custom"
                   widthPx={pos.w}
+                  /* EC — opt out of native lazy loading. Inside SVG
+                     foreignObject the browser's lazy heuristics can
+                     stall image fetches, causing 1-5s skeleton delays
+                     when the seeker swaps heroes. eager=true triggers
+                     immediate fetch + high fetchPriority. */
+                  eager
                 />
               </button>
             </foreignObject>
@@ -319,7 +328,7 @@ function ConstellationSvg({
                 height={pos.h + 10}
                 rx={8}
                 fill="none"
-                stroke={TRACE_COLOR}
+                stroke={TRACE_VAR}
                 strokeWidth={2.5}
                 pointerEvents="none"
               />
@@ -347,12 +356,14 @@ function ConstellationSvg({
                   }
                   aria-label={
                     onHeroBadgeClick
-                      ? `View all ${heroDrawCount} readings with this card`
+                      ? (heroBadgeTooltip ??
+                        `View all ${heroDrawCount} readings with this card`)
                       : undefined
                   }
                   title={
                     onHeroBadgeClick
-                      ? `View all ${heroDrawCount} readings with this card`
+                      ? (heroBadgeTooltip ??
+                        `View all ${heroDrawCount} readings with this card`)
                       : undefined
                   }
                   disabled={!onHeroBadgeClick}
@@ -401,13 +412,13 @@ function ConstellationSvg({
                       e.stopPropagation();
                       onTealBadgeClick?.();
                     }}
-                    aria-label={`View ${tealBadge.count} readings with selected cards`}
-                    title={`View ${tealBadge.count} readings with selected cards`}
+                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
+                    title={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
                     style={{
                       width: 32,
                       height: 32,
                       borderRadius: 9999,
-                      background: TRACE_COLOR,
+                      background: TRACE_VAR,
                       border:
                         "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
                       boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
@@ -481,6 +492,9 @@ function ConstellationSvg({
                   cardId={c.cardId}
                   size="custom"
                   widthPx={pos.w}
+                  /* EC — see hero card comment above. Same fix applies
+                     to all companion cards. */
+                  eager
                 />
               </button>
             </foreignObject>
@@ -492,7 +506,7 @@ function ConstellationSvg({
                 height={pos.h + 6}
                 rx={6}
                 fill="none"
-                stroke={TRACE_COLOR}
+                stroke={TRACE_VAR}
                 strokeWidth={2}
                 pointerEvents="none"
               />
@@ -526,13 +540,13 @@ function ConstellationSvg({
                       e.stopPropagation();
                       onTealBadgeClick?.();
                     }}
-                    aria-label={`View ${tealBadge.count} readings with selected cards`}
-                    title={`View ${tealBadge.count} readings with selected cards`}
+                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
+                    title={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
                     style={{
                       width: 28,
                       height: 28,
                       borderRadius: 9999,
-                      background: TRACE_COLOR,
+                      background: TRACE_VAR,
                       border:
                         "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
                       boxShadow: "0 1px 3px rgba(0,0,0,0.35)",

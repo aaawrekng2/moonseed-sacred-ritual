@@ -97,6 +97,12 @@ export function DeleteDataModal({
   const [textConfirm, setTextConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // EC — when a partial deletion (NO sign-in-account) succeeds, the
+  // modal stays open and shows an inline success state. Seeker clicks
+  // Close to dismiss. They stay signed in. No banner on sign-in.
+  // When the seeker DID check sign-in-account, the modal never reaches
+  // this state — it triggers a sign-out and hard nav to /.
+  const [done, setDone] = useState(false);
 
   // Reset state every time the modal opens.
   useEffect(() => {
@@ -111,6 +117,7 @@ export function DeleteDataModal({
     setTextConfirm("");
     setError(null);
     setSubmitting(false);
+    setDone(false);
 
     // Probe MFA state. Only verified TOTP factors count.
     void (async () => {
@@ -209,22 +216,31 @@ export function DeleteDataModal({
         console.warn("[DeleteDataModal] partial failures", result.failures);
       }
 
-      // Set the banner flag and sign out. If the auth user itself was
-      // deleted, signOutAndClear will fail silently (already gone),
-      // but we still want to clear the local session and land on the
-      // sign-in screen.
-      try {
-        window.sessionStorage.setItem(SS_DELETED_BANNER, "1");
-      } catch {
-        /* private mode */
+      // EC — branch on whether the seeker chose to close their account.
+      // Full delete (signin_account checked): set banner flag, sign out,
+      // hard-nav to /. The auth gate then surfaces "Your data has been
+      // deleted. So sorry to see you go."
+      // Partial delete (signin_account NOT checked): seeker stays signed
+      // in. Show inline success state in the modal; they click Close to
+      // dismiss. No banner, no sign-out.
+      if (scope.signin_account) {
+        try {
+          window.sessionStorage.setItem(SS_DELETED_BANNER, "1");
+        } catch {
+          /* private mode */
+        }
+        try {
+          await signOutAndClear();
+        } catch {
+          /* already signed out / account gone */
+        }
+        // Force a hard navigation so the auth gate fully re-renders.
+        window.location.href = "/";
+        return;
       }
-      try {
-        await signOutAndClear();
-      } catch {
-        /* already signed out / account gone */
-      }
-      // Force a hard navigation so the auth gate fully re-renders.
-      window.location.href = "/";
+      // Partial deletion path — show inline success.
+      setDone(true);
+      setSubmitting(false);
     } catch (e) {
       console.error("[DeleteDataModal] submit threw", e);
       setError("Something went wrong. Please try again.");
@@ -249,6 +265,78 @@ export function DeleteDataModal({
           gap: 14,
         }}
       >
+        {done ? (
+          // EC — inline success state. Shown when a partial delete (no
+          // sign-in-account) completed successfully. Seeker stays
+          // signed in; no banner, no sign-out. They click Close to
+          // dismiss.
+          <>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: 14,
+                borderRadius: 10,
+                background:
+                  "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                border:
+                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+                flexDirection: "column",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: 16,
+                  color: "var(--color-foreground)",
+                }}
+              >
+                Your selected data has been deleted.
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                  opacity: 0.8,
+                  lineHeight: 1.4,
+                }}
+              >
+                You're still signed in. Closing this will return you to
+                Settings.
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                paddingTop: 4,
+              }}
+            >
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  padding: "8px 18px",
+                  borderRadius: 9999,
+                  background:
+                    "color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+                  border:
+                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 70%, transparent)",
+                  color: "var(--color-foreground)",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        ) : (
+        <>
         {/* Scary copy */}
         <div
           style={{
@@ -535,6 +623,8 @@ export function DeleteDataModal({
             {submitting ? "Deleting…" : "Delete my selected data"}
           </button>
         </div>
+        </>
+        )}
       </div>
     </Modal>
   );
