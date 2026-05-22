@@ -634,10 +634,28 @@ export function ConstellationPage() {
         : picks.length - 1;
   const heroPick = heroIdx === null ? null : picks[heroIdx];
 
+  // EJ9 — slot → constellation drag state.
+  // `dragOverConstellationCardId` is the constellation card currently
+  // under the cursor during a drag (hero or companion); drives the
+  // subtle drop-target highlight in ConstellationWeb.
+  // `companionOverrides` is a session-only map: companion position index
+  // (0..6) → cardId. Applied client-side over the fetched constellation
+  // before passing to ConstellationWeb. Wiped whenever the hero changes
+  // (see effect alongside teal reset). Never persisted.
+  const [dragOverConstellationCardId, setDragOverConstellationCardId] =
+    useState<number | null>(null);
+  const [companionOverrides, setCompanionOverrides] = useState<
+    Map<number, number>
+  >(() => new Map());
+
   // Reset teal selection whenever the hero changes — the constellation web
   // re-renders against the new hero's top companions, so prior teal cards
   // may not even be present anymore. DP — skip on initial mount so persisted
   // teal selection survives the first render's hero resolution.
+  // EJ9 — also wipe companionOverrides on hero change. The override map is
+  // keyed by companion position relative to a specific hero; when the hero
+  // changes the positions map to different companions, so the overrides
+  // wouldn't make sense to carry forward.
   const heroInitRef = useRef(true);
   useEffect(() => {
     if (heroInitRef.current) {
@@ -645,6 +663,7 @@ export function ConstellationPage() {
       return;
     }
     setTealSelectedIds([]);
+    setCompanionOverrides(new Map());
   }, [heroPick?.cardIndex]);
 
   // 1. Chip stats
@@ -730,6 +749,137 @@ export function ConstellationPage() {
   }, [heroPick?.cardIndex, user?.id, effectiveTz, filterKey, filterPayload]);
 
   const placedIds = picks.map((p) => p.cardIndex);
+
+  // EJ9 — apply session-only companionOverrides to the fetched
+  // constellation. The override map is keyed by companion position index
+  // (0..6) → cardId. For each override entry:
+  //   - If the cardId is already at another companion index in the
+  //     fetched constellation, swap those two entries (positions swap
+  //     visually). Pair counts are keyed by cardId so they automatically
+  //     follow the swap.
+  //   - Otherwise replace the entry at that position with a synthetic
+  //     companion: { cardId, coCount: 0, lifetimeCount: 0 }. The
+  //     displaced companion drops out of the visible constellation; any
+  //     lines that referenced the displaced card disappear because its
+  //     cardId is no longer in any `companions` entry. The new card has
+  //     no lines because pairCounts (computed server-side) doesn't
+  //     include the new card in its node set.
+  //
+  // The fetched constellationData is never mutated — a shallow copy is
+  // built each render with a new `companions` array.
+  const displayedConstellation = useMemo(() => {
+    if (!constellationData) return null;
+    if (companionOverrides.size === 0) return constellationData;
+    const next = [...constellationData.companions];
+    for (const [posIdx, cardId] of companionOverrides) {
+      if (posIdx < 0 || posIdx >= next.length) continue;
+      const currentAtPos = next[posIdx];
+      if (!currentAtPos) continue;
+      if (currentAtPos.cardId === cardId) continue;
+      const existingIdx = next.findIndex((c) => c.cardId === cardId);
+      if (existingIdx !== -1) {
+        // Swap the two entries.
+        const tmp = next[posIdx];
+        next[posIdx] = next[existingIdx];
+        next[existingIdx] = tmp;
+      } else {
+        // Replace with a synthetic companion. Caller knows ×N will be
+        // 0 because we don't have the dropped card's coCount data
+        // client-side; the spec accepts this as the trade-off for
+        // session-only override without a server round-trip.
+        next[posIdx] = {
+          cardId,
+          coCount: 0,
+          lifetimeCount: 0,
+        };
+      }
+    }
+    return {
+      ...constellationData,
+      companions: next,
+    };
+  }, [constellationData, companionOverrides]);
+
+  // EJ9 — handler invoked when a slot card is dropped onto a constellation
+  // card (hero or companion). `targetCardId` identifies the constellation
+  // position (cardId at that position); `droppedCardId` is the card from
+  // the slot drag.
+  const handleConstellationDrop = (
+    targetCardId: number,
+    droppedCardId: number,
+  ) => {
+    setDragOverConstellationCardId(null);
+    if (!Number.isFinite(droppedCardId) || droppedCardId < 0) return;
+    if (!displayedConstellation) return;
+
+    // Identify drop target type by the cardId-at-position.
+    const isHeroPosition = targetCardId === displayedConstellation.heroCardId;
+    const droppedIsHero =
+      droppedCardId === displayedConstellation.heroCardId;
+
+    if (isHeroPosition) {
+      // Drop on hero position == "make this card the hero." Behaves
+      // identically to clicking the dropped card's slot to promote it.
+      // The dropped card MUST be in picks (since the drag originated
+      // from a slot). If for any reason it isn't, this is a no-op.
+      const slotIdx = picks.findIndex((p) => p.cardIndex === droppedCardId);
+      if (slotIdx !== -1) {
+        setFocusedSlotIdx(slotIdx);
+      }
+      return;
+    }
+
+    if (droppedIsHero) {
+      // Drop the CURRENT hero onto a companion position. Per spec: swap
+      // — the target card becomes the new hero. If the target card is
+      // already in picks, focus that slot. Otherwise add the target
+      // card to picks (so a slot exists to focus), then focus it.
+      // Wiping companionOverrides happens automatically via the
+      // hero-change useEffect.
+      const targetSlotIdx = picks.findIndex(
+        (p) => p.cardIndex === targetCardId,
+      );
+      if (targetSlotIdx !== -1) {
+        setFocusedSlotIdx(targetSlotIdx);
+      } else {
+        // Append target to picks, then focus the new slot.
+        setPicks((prev) => {
+          const next = [...prev];
+          next.push({
+            id: Date.now(),
+            cardIndex: targetCardId,
+            isReversed: false,
+            deckId: null,
+            cardName: TAROT_DECK[targetCardId] ?? null,
+          });
+          setFocusedSlotIdx(next.length - 1);
+          return next;
+        });
+      }
+      return;
+    }
+
+    // Drop on a companion position (non-hero target, non-hero dropped).
+    // Locate the target's position in the displayed companions array;
+    // that's the slot we're overriding.
+    const targetPosIdx = displayedConstellation.companions.findIndex(
+      (c) => c.cardId === targetCardId,
+    );
+    if (targetPosIdx === -1) return;
+
+    // No-op if the dropped card already sits at the target position.
+    if (
+      displayedConstellation.companions[targetPosIdx]?.cardId === droppedCardId
+    ) {
+      return;
+    }
+
+    setCompanionOverrides((prev) => {
+      const next = new Map(prev);
+      next.set(targetPosIdx, droppedCardId);
+      return next;
+    });
+  };
 
   // Phase 23 Fix 5 — per-card draw counts for slot badges.
   const [drawCounts, setDrawCounts] = useState<CardDrawCounts | null>(null);
@@ -1630,7 +1780,7 @@ export function ConstellationPage() {
           </div>
           <ConstellationWeb
             heroPick={heroPick}
-            constellation={constellationData}
+            constellation={displayedConstellation}
             onCardClick={(cardId) =>
               setTealSelectedIds((prev) =>
                 prev.includes(cardId)
@@ -1647,6 +1797,9 @@ export function ConstellationPage() {
             }
             onCardDragStart={(cardId) => setDraggingCardId(cardId)}
             onCardHover={handleConstellationHover}
+            onConstellationDrop={handleConstellationDrop}
+            dragOverTargetId={dragOverConstellationCardId}
+            onConstellationDragOver={setDragOverConstellationCardId}
             onHeroBadgeClick={() => {
               // EC — gold hero badge opens the readings modal scoped to
               // ALL pulls containing the hero. Teal selection is NOT
@@ -1928,6 +2081,29 @@ export function ConstellationPage() {
                 return (
                   <div
                     key={pick.id}
+                    draggable
+                    onDragStart={(e) => {
+                      // EJ9 — drag a slot card so it can be dropped on a
+                      // constellation card. Same payload format used by
+                      // the existing constellation→slot drag, so the
+                      // ConstellationWeb drop handlers (which read
+                      // application/x-tarotseed-cardid) can also accept
+                      // these drags. effectAllowed=copy matches the
+                      // semantics locked in EJ9 spec — drag from slot
+                      // does NOT remove the card from the slot.
+                      e.dataTransfer.effectAllowed = "copy";
+                      e.dataTransfer.setData(
+                        "application/x-tarotseed-cardid",
+                        String(pick.cardIndex),
+                      );
+                      setDraggingCardId(pick.cardIndex);
+                    }}
+                    onDragEnd={() => {
+                      // Always clear drag state on end (drop OR cancel).
+                      setDraggingCardId(null);
+                      setDragOverSlotIdx(null);
+                      setDragOverConstellationCardId(null);
+                    }}
                     style={{
                       position: "relative",
                       width: slotW,
@@ -1938,6 +2114,7 @@ export function ConstellationPage() {
                       outlineOffset: 3,
                       borderRadius: 6,
                       transition: "outline 120ms ease",
+                      cursor: "grab",
                     }}
                     onMouseEnter={(e) => {
                       setHoveredSlotIdx(idx);
