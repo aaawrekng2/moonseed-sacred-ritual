@@ -1620,7 +1620,7 @@ function CompanionsAndJournal({
                 ? getCardName(heroPick.cardIndex)
                 : "this card";
               const companionName = getCardName(c.cardId);
-              const tooltipText = `${heroName} and ${companionName} have appeared together in ${c.count} of your readings.`;
+              const tooltipText = `${heroName} and ${companionName} have appeared together in ${c.count} of your spreads (matching your filters).`;
               return (
                 <button
                   key={c.cardId}
@@ -2532,33 +2532,46 @@ function OverlapStrip({
                     matchCount === maxMatchInCalendar &&
                     pullSet.size > 1;
                   const dateLabel = formatDateLong(`${day.date}T00:00:00`);
-                  // Phase 20 Fix 10 — Option B percent-first tooltip format.
                   const heroName =
                     heroCardId != null ? getCardName(heroCardId) : "";
-                  const pct =
-                    pullCardIds.length > 0
-                      ? Math.round((matchCount / pullCardIds.length) * 100)
-                      : 0;
-                  let tooltipText: string;
-                  if (matchCount <= 0 && day.heroDrawn && heroCardId != null) {
-                    tooltipText = `You drew ${heroName} on ${dateLabel}`;
-                  } else if (matchCount > 0 && day.heroDrawn && heroCardId != null) {
-                    if (isPerfectMatch) {
-                      tooltipText = `100% Match · all ${pullCardIds.length} of these cards were drawn on ${dateLabel} (includes your hero ${heroName})`;
-                    } else {
-                      tooltipText = `${pct}% Match · ${matchCount} of ${pullCardIds.length} of these cards were drawn on ${dateLabel} (includes your hero ${heroName})`;
-                    }
-                  } else if (matchCount > 0) {
-                    if (isPerfectMatch) {
-                      tooltipText = `100% Match · all ${pullCardIds.length} of these cards were drawn on ${dateLabel}`;
-                    } else if (isBestAvailable) {
-                      tooltipText = `${pct}% Match · ${matchCount} of ${pullCardIds.length} of these cards were drawn on ${dateLabel} (best in your calendar)`;
-                    } else {
-                      tooltipText = `${pct}% Match · ${matchCount} of ${pullCardIds.length} of these cards were also drawn on ${dateLabel}`;
-                    }
-                  } else {
-                    tooltipText = dateLabel;
+                  // EJ10 — stacked tooltip lines, replacing the prior
+                  // flat "X% Match · Y of N of these cards were drawn
+                  // on date" sentence. Each active signal becomes its
+                  // own line in the rich popover:
+                  //   line 1 — date header (always)
+                  //   line 2 — hero day fact (when day.heroDrawn)
+                  //   line 3 — spread match fact (when matchCount > 0)
+                  //   line 4 — asterism fact (when tealTraceHit)
+                  // Joined with newlines; the popover renders them as
+                  // separate lines via whiteSpace: pre-line. Native
+                  // title="" fallback (legacy /draw/classic) renders
+                  // the newlines too in modern browsers.
+                  const lines: string[] = [dateLabel];
+                  if (day.heroDrawn && heroCardId != null) {
+                    lines.push(`You drew ${heroName} here.`);
                   }
+                  if (matchCount > 0) {
+                    if (isPerfectMatch) {
+                      lines.push(
+                        `Your full spread (all ${pullCardIds.length} cards) was drawn here.`,
+                      );
+                    } else if (isBestAvailable) {
+                      lines.push(
+                        `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here — the best match in your calendar.`,
+                      );
+                    } else {
+                      lines.push(
+                        `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here.`,
+                      );
+                    }
+                  }
+                  if (tealTraceHit && tealSet.size >= 2) {
+                    const starWord = tealSet.size === 1 ? "star" : "stars";
+                    lines.push(
+                      `Your asterism (${tealSet.size} ${starWord}) all met here.`,
+                    );
+                  }
+                  const tooltipText = lines.join("\n");
                   return (
                     <div
                       key={day.date}

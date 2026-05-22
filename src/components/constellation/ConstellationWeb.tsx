@@ -415,7 +415,7 @@ function ConstellationSvg({
             opacity={opacity}
             style={{ cursor: "help" }}
           >
-            <title>{`${getCardName(pair.a)} + ${getCardName(pair.b)} — drawn together ${pair.count} ${pair.count === 1 ? "time" : "times"}`}</title>
+            <title>{`${getCardName(pair.a)} + ${getCardName(pair.b)} — co-occurred in ${pair.count} ${pair.count === 1 ? "spread" : "spreads"} (matching your filters)`}</title>
           </line>
         );
       })}
