@@ -758,15 +758,33 @@ export function ConstellationPage() {
     setHoverCardId(cardId);
     if (cardId !== null) {
       cancelPopoverDismiss();
-      setHoverCoords({ x: clientX, y: clientY });
-      // EG — claim the unified popover slot. Any other popover
-      // (badge-hint, day-cell) is suppressed.
-      setActivePopover({
-        kind: "card-meaning",
-        key: String(cardId),
-        anchorX: clientX,
-        anchorY: clientY,
+      // EI — only update anchor coords when the popover OPENS for a
+      // new card. Subsequent mousemove events over the same card
+      // would otherwise cause the popover to follow the cursor (since
+      // its lockedPos doesn't kick in until the cursor enters the
+      // popover itself). Update coords on first claim only.
+      setActivePopover((prev) => {
+        if (
+          prev &&
+          prev.kind === "card-meaning" &&
+          prev.key === String(cardId)
+        ) {
+          return prev;
+        }
+        return {
+          kind: "card-meaning",
+          key: String(cardId),
+          anchorX: clientX,
+          anchorY: clientY,
+        };
       });
+      // Track coords for backward-compat consumers that still read
+      // hoverCoords directly (none currently, but keep in sync).
+      setHoverCoords((prev) =>
+        prev.x === clientX && prev.y === clientY
+          ? prev
+          : { x: clientX, y: clientY },
+      );
     } else {
       // EH — schedule, don't immediately close. Lets the cursor travel
       // to the popover and the ⓘ icon without dismissing.
@@ -2676,12 +2694,13 @@ export function ConstellationPage() {
         const active =
           activePopover?.kind === "card-meaning" && hoverCardId !== null;
         const m = hoverCardId !== null ? TAROT_MEANINGS[hoverCardId] : null;
-        if (!m) return null;
+        if (!m || !active || activePopover?.kind !== "card-meaning")
+          return null;
         return (
           <RichPopover
             open={active}
-            anchorX={hoverCoords.x}
-            anchorY={hoverCoords.y}
+            anchorX={activePopover.anchorX}
+            anchorY={activePopover.anchorY}
             onClose={() => {
               setHoverCardId(null);
               closeActivePopover("card-meaning");

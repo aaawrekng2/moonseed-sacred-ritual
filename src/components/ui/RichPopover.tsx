@@ -103,8 +103,14 @@ export function RichPopover({
   const finalTop = lockedPos?.y ?? initialTop;
 
   return createPortal(
+    // EI — invisible hover-bridge wrapper. The visible popover sits
+    // inside this wrapper with 20px of transparent margin. mouseEnter/
+    // Leave fire when cursor enters/leaves the LARGER area, which
+    // catches cursors traveling from the source element through the
+    // 16px gap into the popover. Without this, approaching the popover
+    // from any direction other than "directly across the gap" caused
+    // the dismiss timer to fire before the cursor reached the popover.
     <div
-      role="tooltip"
       onMouseEnter={() => {
         onCancelDismiss();
         if (!lockedPos) setLockedPos({ x: finalLeft, y: finalTop });
@@ -112,27 +118,33 @@ export function RichPopover({
       onMouseLeave={onScheduleDismiss}
       style={{
         position: "fixed",
-        left: finalLeft,
-        top: finalTop,
+        // Position the wrapper offset by the hover-bridge margin so
+        // the visible popover lands where it always did.
+        left: finalLeft - 20,
+        top: finalTop - 20,
         zIndex: "var(--z-toast)" as unknown as number,
-        // CRITICAL — pointerEvents MUST be auto so the popover receives
-        // its own mouseEnter/Leave events. Without this the popover is
-        // unreachable. Previous EG version had pointerEvents: 'none'
-        // when there was no chainedContent, which prevented hover-
-        // bridge from working entirely.
         pointerEvents: "auto",
-        maxWidth,
-        padding: "12px 14px",
-        borderRadius: 10,
-        background: "var(--surface-card)",
-        border: "1px solid var(--border-default)",
-        boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        color: "var(--color-foreground)",
+        // Transparent padding extends the hit area. The popover
+        // visual is rendered inside as a positioned child.
+        padding: 20,
       }}
     >
+      <div
+        role="tooltip"
+        style={{
+          maxWidth,
+          padding: "12px 14px",
+          borderRadius: 10,
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-default)",
+          boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          color: "var(--color-foreground)",
+          position: "relative",
+        }}
+      >
       {showChained ? (
         <>
           <div
@@ -217,6 +229,7 @@ export function RichPopover({
           )}
         </>
       )}
+      </div>
     </div>,
     document.body,
   );
