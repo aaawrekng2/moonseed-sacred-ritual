@@ -424,7 +424,6 @@ function ConstellationSvg({
                   )
                 }
                 onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
-                title={getCardName(constellation.heroCardId)}
                 style={{
                   width: pos.w,
                   height: pos.h,
@@ -630,7 +629,6 @@ function ConstellationSvg({
                   onCardHover?.(c.cardId, e.clientX, e.clientY)
                 }
                 onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
-                title={getCardName(c.cardId)}
                 style={{
                   width: pos.w,
                   height: pos.h,
