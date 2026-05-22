@@ -1,50 +1,49 @@
 /**
- * RichPopover — EH (replaces EG version).
+ * RichPopover — EG.
  *
- * Portal-rendered dark popover. Two modes:
- *   1. PRIMARY: anchored near a hover/touch point. Once the cursor enters
- *      the popover, position locks so the cursor can travel to the
- *      chained-ⓘ icon without the popover chasing away.
- *   2. CHAINED: hover the ⓘ → primary fades, secondary appears in the
- *      same locked position with the legend content.
+ * A portal-rendered dark popover with two modes:
+ *   1. PRIMARY: anchored near a hover/touch point. Cursor-follow position
+ *      until the cursor enters the popover, at which point position locks
+ *      so the user can travel to the chained-ⓘ icon.
+ *   2. CHAINED: when the seeker hovers the ⓘ icon, primary fades and a
+ *      secondary popover appears in the same locked position with deeper
+ *      content (e.g. a color legend).
  *
- * The dismiss-timer lives in the PARENT, not here. The popover calls
- * `onCancelDismiss()` when the cursor enters it and `onScheduleDismiss()`
- * when the cursor leaves. The parent uses the same scheduler for source-
- * element mouseLeave events. That shared scheduler is what lets the
- * cursor cross the gap from source → popover without dismissing.
+ * Convention:
+ * - PC: hover triggers open. Mouse-leave the source AND the popover both
+ *   dismiss (with a small forgiveness delay so users can travel to ⓘ).
+ * - Tablet/touch: long-press the source triggers open. Tap outside or
+ *   long-release dismisses.
  *
- * Industry pattern: Apple, Notion, Linear. Replace-style chained tooltip
- * with hover-bridge dismiss forgiveness.
+ * Industry pattern: Apple Calendar / Stocks, Notion @mentions, Linear
+ * issue cards. Replace-style chained-tooltip — primary fades, secondary
+ * appears in the same position so the cursor doesn't have to re-target.
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Info, X as XIcon } from "lucide-react";
 
+const DISMISS_DELAY_MS = 150;
+
 export type RichPopoverProps = {
   /** Whether the popover should be visible. */
   open: boolean;
   /** Source anchor coords (cursor or touched element). Used to initially
-   * position the popover. */
+   * position the popover. Once the cursor enters the popover, position
+   * locks. */
   anchorX: number;
   anchorY: number;
-  /** Called when user explicitly dismisses (Escape key). The parent's
-   * own dismiss-scheduler handles mouse-leave-based dismissal. */
+  /** Called when the popover should dismiss (mouse-leave timeout fires,
+   * Escape pressed, or outside-tap on touch). */
   onClose: () => void;
-  /** Cancel a pending dismiss (cursor entered popover or stayed in
-   * its hover-bridge area). */
-  onCancelDismiss: () => void;
-  /** Schedule a dismiss (cursor left popover). */
-  onScheduleDismiss: () => void;
-  /** Primary content. */
+  /** Primary content (the default popover body). */
   children: React.ReactNode;
-  /** Optional chained content. When provided, an ⓘ icon appears in the
-   * top-right of the primary popover; hovering it swaps to the chained
-   * content. */
+  /** Optional: when present, a small ⓘ icon appears in the top-right of
+   * the primary popover. Hovering the icon swaps to the chained content. */
   chainedContent?: React.ReactNode;
-  /** Title for the chained content. */
+  /** Title for the chained content (e.g. "Color guide"). */
   chainedTitle?: string;
-  /** Max width in px. */
+  /** Max width in px. Defaults to 280. */
   maxWidth?: number;
 };
 
@@ -53,19 +52,17 @@ export function RichPopover({
   anchorX,
   anchorY,
   onClose,
-  onCancelDismiss,
-  onScheduleDismiss,
   children,
   chainedContent,
   chainedTitle = "Color guide",
   maxWidth = 280,
 }: RichPopoverProps) {
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   // Lock position once the cursor enters the popover so the user can
   // travel to the ⓘ icon without the popover chasing them away.
-  const [lockedPos, setLockedPos] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [lockedPos, setLockedPos] = useState<{ x: number; y: number } | null>(null);
   const [showChained, setShowChained] = useState(false);
+  const dismissTimerRef = useRef<number | null>(null);
 
   // Reset internal state when the popover closes externally.
   useEffect(() => {
@@ -102,25 +99,38 @@ export function RichPopover({
   const finalLeft = lockedPos?.x ?? initialLeft;
   const finalTop = lockedPos?.y ?? initialTop;
 
+  const clearDismiss = () => {
+    if (dismissTimerRef.current !== null) {
+      window.clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+  };
+  const scheduleDismiss = () => {
+    clearDismiss();
+    dismissTimerRef.current = window.setTimeout(() => {
+      onClose();
+    }, DISMISS_DELAY_MS);
+  };
+
   return createPortal(
     <div
+      ref={popoverRef}
       role="tooltip"
       onMouseEnter={() => {
-        onCancelDismiss();
+        clearDismiss();
         if (!lockedPos) setLockedPos({ x: finalLeft, y: finalTop });
       }}
-      onMouseLeave={onScheduleDismiss}
+      onMouseLeave={scheduleDismiss}
       style={{
         position: "fixed",
         left: finalLeft,
         top: finalTop,
         zIndex: "var(--z-toast)" as unknown as number,
-        // CRITICAL — pointerEvents MUST be auto so the popover receives
-        // its own mouseEnter/Leave events. Without this the popover is
-        // unreachable. Previous EG version had pointerEvents: 'none'
-        // when there was no chainedContent, which prevented hover-
-        // bridge from working entirely.
-        pointerEvents: "auto",
+        // Allow pointer events so the user can hover the ⓘ icon and
+        // reach the chained content. The source element's own
+        // mouseLeave handler is responsible for closing when the
+        // cursor leaves the entire group.
+        pointerEvents: chainedContent ? "auto" : "none",
         maxWidth,
         padding: "12px 14px",
         borderRadius: 10,
@@ -135,6 +145,7 @@ export function RichPopover({
     >
       {showChained ? (
         <>
+          {/* Chained / legend content header with a close-back arrow */}
           <div
             style={{
               display: "flex",
@@ -158,7 +169,7 @@ export function RichPopover({
               type="button"
               aria-label="Back"
               onClick={() => setShowChained(false)}
-              onMouseEnter={onCancelDismiss}
+              onMouseEnter={clearDismiss}
               style={{
                 appearance: "none",
                 background: "transparent",
@@ -185,7 +196,7 @@ export function RichPopover({
               type="button"
               aria-label="More info"
               onMouseEnter={() => {
-                onCancelDismiss();
+                clearDismiss();
                 setShowChained(true);
               }}
               onFocus={() => setShowChained(true)}

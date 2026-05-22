@@ -174,236 +174,6 @@ function LegendRow({
   );
 }
 
-// EH — full color legend for the calendar surface. Always shows every
-// signal; the seeker reads it once and remembers.
-function ColorLegend() {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 3,
-              background: "var(--gold, var(--accent))",
-              opacity: 0.9,
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-            }}
-          />
-        }
-        label="Gold fill · day you drew the hero card"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 3,
-              background: "var(--accent, var(--gold))",
-              opacity: 0.5,
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-            }}
-          />
-        }
-        label="Accent fill · some of your pull cards appeared here (brighter = more)"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 3,
-              border: "2px solid var(--accent, var(--gold))",
-            }}
-          />
-        }
-        label="Solid ring · 100% match · all your pull cards co-occurred"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 3,
-              border: "1.5px dashed var(--accent, var(--gold))",
-            }}
-          />
-        }
-        label="Dashed ring · best partial match in your calendar"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 3,
-              border: "2px solid var(--trace-color, #5cead4)",
-            }}
-          />
-        }
-        label="Teal outline · your trace selection co-occurred here"
-      />
-    </div>
-  );
-}
-
-// EH — explains the constellation web's lines and badges.
-function ConstellationLegend() {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <LegendRow
-        swatch={
-          <svg width={26} height={10}>
-            <line
-              x1={1}
-              y1={5}
-              x2={25}
-              y2={5}
-              stroke="var(--accent, var(--gold))"
-              strokeWidth={2}
-            />
-          </svg>
-        }
-        label="Accent line · this card has co-occurred with the hero in past readings"
-      />
-      <LegendRow
-        swatch={
-          <svg width={26} height={10}>
-            <line
-              x1={1}
-              y1={5}
-              x2={25}
-              y2={5}
-              stroke="var(--trace-color, #5cead4)"
-              strokeWidth={2}
-            />
-          </svg>
-        }
-        label="Teal line · click cards to trace — these connect to candidates that also co-occur"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 9999,
-              background: "var(--gold, var(--accent))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 18%, transparent)",
-            }}
-          />
-        }
-        label="Gold hero badge · pulls containing the hero card"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 9999,
-              background: "var(--trace-color, #5cead4)",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 18%, transparent)",
-            }}
-          />
-        }
-        label="Teal badge · pulls or days where your selection co-occurred"
-      />
-    </div>
-  );
-}
-
-// EH — explains slot card badges (the circular count on each slot).
-function BadgeLegend() {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9999,
-              background:
-                "color-mix(in oklab, var(--accent, var(--gold)) 35%, var(--surface-card))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 10,
-              color: "var(--color-foreground)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            n
-          </div>
-        }
-        label="Number · how many of your past readings include this card"
-      />
-      <LegendRow
-        swatch={
-          <div style={{ display: "flex", gap: 4 }}>
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 9999,
-                background:
-                  "color-mix(in oklab, var(--accent, var(--gold)) 18%, var(--surface-card))",
-              }}
-            />
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 9999,
-                background:
-                  "color-mix(in oklab, var(--accent, var(--gold)) 55%, var(--surface-card))",
-              }}
-            />
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 9999,
-                background:
-                  "color-mix(in oklab, var(--accent, var(--gold)) 90%, var(--surface-card))",
-              }}
-            />
-          </div>
-        }
-        label="Intensity · brighter badge = drawn more times among your slot cards"
-      />
-      <LegendRow
-        swatch={
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9999,
-              background: "var(--gold, var(--accent))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-            }}
-          />
-        }
-        label="Gold badge · marks the focused slot (your hero card)"
-      />
-    </div>
-  );
-}
-
 export function ConstellationPage() {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -757,7 +527,6 @@ export function ConstellationPage() {
   ) => {
     setHoverCardId(cardId);
     if (cardId !== null) {
-      cancelPopoverDismiss();
       setHoverCoords({ x: clientX, y: clientY });
       // EG — claim the unified popover slot. Any other popover
       // (badge-hint, day-cell) is suppressed.
@@ -768,9 +537,7 @@ export function ConstellationPage() {
         anchorY: clientY,
       });
     } else {
-      // EH — schedule, don't immediately close. Lets the cursor travel
-      // to the popover and the ⓘ icon without dismissing.
-      schedulePopoverDismiss("card-meaning");
+      closeActivePopover("card-meaning");
     }
   };
 
@@ -783,12 +550,7 @@ export function ConstellationPage() {
   //   "card-meaning" — constellation card hover (TAROT_MEANINGS)
   //   "badge-hint"   — slot card badge hover ("appeared in N readings")
   //   "day-cell"     — calendar day cell hover / long-press
-  type ActivePopoverKind =
-    | "card-meaning"
-    | "badge-hint"
-    | "day-cell"
-    | "chip-hint"
-    | "constellation-badge";
+  type ActivePopoverKind = "card-meaning" | "badge-hint" | "day-cell";
   // EG — payload varies by kind. badge-hint stores count + card name
   // so the popover can render without re-looking-up picks. day-cell
   // stores the date so the popover can derive its narrative + signals.
@@ -815,53 +577,11 @@ export function ConstellationPage() {
         date: string;
         signals: DayCellSignals;
         tooltipText: string;
-      }
-    | {
-        kind: "chip-hint";
-        key: string;
-        anchorX: number;
-        anchorY: number;
-        label: string;
-        tooltip: string;
-      }
-    | {
-        kind: "constellation-badge";
-        key: string;
-        anchorX: number;
-        anchorY: number;
-        // "hero" = gold hero badge; "teal" = teal selection badge
-        variant: "hero" | "teal";
-        count: number;
-        modeOrPullsLabel: string;
-        cardLabel: string;
       };
   const [activePopover, setActivePopover] = useState<ActivePopoverState | null>(
     null,
   );
-  // EH — shared dismiss timer for the unified popover. Used by source
-  // mouseLeave handlers AND by the popover itself so the cursor can
-  // travel from source → popover without dismissing. Both schedule
-  // and both can cancel.
-  const popoverDismissTimerRef = useRef<number | null>(null);
-  const cancelPopoverDismiss = () => {
-    if (popoverDismissTimerRef.current !== null) {
-      window.clearTimeout(popoverDismissTimerRef.current);
-      popoverDismissTimerRef.current = null;
-    }
-  };
-  const schedulePopoverDismiss = (kind?: ActivePopoverKind, key?: string) => {
-    cancelPopoverDismiss();
-    popoverDismissTimerRef.current = window.setTimeout(() => {
-      setActivePopover((prev) => {
-        if (!prev) return prev;
-        if (kind && prev.kind !== kind) return prev;
-        if (key && prev.key !== key) return prev;
-        return null;
-      });
-    }, 180);
-  };
   const closeActivePopover = (kind?: ActivePopoverKind, key?: string) => {
-    cancelPopoverDismiss();
     setActivePopover((prev) => {
       if (!prev) return prev;
       // Only close if the caller "owns" the popover (same kind+key), or
@@ -1651,55 +1371,6 @@ export function ConstellationPage() {
               setModalMode("teal");
               setReadingsModalOpen(true);
             }}
-            onHeroBadgeHover={(clientX, clientY) => {
-              if (!heroPick) return;
-              const heroName =
-                heroPick.cardName ??
-                TAROT_DECK[heroPick.cardIndex] ??
-                "this card";
-              const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
-              cancelPopoverDismiss();
-              setActivePopover({
-                kind: "constellation-badge",
-                key: `hero-${heroPick.cardIndex}`,
-                anchorX: clientX,
-                anchorY: clientY,
-                variant: "hero",
-                count,
-                modeOrPullsLabel: count === 1 ? "1 PULL" : `${count} PULLS`,
-                cardLabel: heroName,
-              });
-            }}
-            onHeroBadgeHoverEnd={() =>
-              schedulePopoverDismiss("constellation-badge")
-            }
-            onTealBadgeHover={(clientX, clientY) => {
-              const names = tealSelectedIds
-                .map((id) => TAROT_DECK[id] ?? "Card")
-                .join(", ");
-              const unit =
-                overlapMode === "pull"
-                  ? tealCount === 1
-                    ? "1 PULL"
-                    : `${tealCount} PULLS`
-                  : tealCount === 1
-                    ? "1 DAY"
-                    : `${tealCount} DAYS`;
-              cancelPopoverDismiss();
-              setActivePopover({
-                kind: "constellation-badge",
-                key: `teal-${tealSelectedIds.join(",")}`,
-                anchorX: clientX,
-                anchorY: clientY,
-                variant: "teal",
-                count: tealCount,
-                modeOrPullsLabel: unit,
-                cardLabel: names,
-              });
-            }}
-            onTealBadgeHoverEnd={() =>
-              schedulePopoverDismiss("constellation-badge")
-            }
           />
         </div>
         <div
@@ -1779,22 +1450,7 @@ export function ConstellationPage() {
             );
           })()}
           {heroPick ? (
-            <ChipGrid
-              heroPick={heroPick}
-              stats={cardStats}
-              onChipHover={(info) => {
-                cancelPopoverDismiss();
-                setActivePopover({
-                  kind: "chip-hint",
-                  key: info.label,
-                  anchorX: info.anchorX,
-                  anchorY: info.anchorY,
-                  label: info.label,
-                  tooltip: info.tooltip,
-                });
-              }}
-              onChipHoverEnd={() => schedulePopoverDismiss("chip-hint")}
-            />
+            <ChipGrid heroPick={heroPick} stats={cardStats} />
           ) : (
             <p
               style={{
@@ -2084,8 +1740,7 @@ export function ConstellationPage() {
                           <div
                             role="img"
                             aria-label={`Appeared in ${count} past readings`}
-                            onMouseEnter={(e) => {
-                              cancelPopoverDismiss();
+                            onMouseEnter={(e) =>
                               setActivePopover({
                                 kind: "badge-hint",
                                 key: String(pick.id),
@@ -2096,13 +1751,10 @@ export function ConstellationPage() {
                                   pick.cardName ??
                                   TAROT_DECK[pick.cardIndex] ??
                                   "this card",
-                              });
-                            }}
+                              })
+                            }
                             onMouseLeave={() =>
-                              schedulePopoverDismiss(
-                                "badge-hint",
-                                String(pick.id),
-                              )
+                              closeActivePopover("badge-hint", String(pick.id))
                             }
                             style={{
                               position: "absolute",
@@ -2331,8 +1983,7 @@ export function ConstellationPage() {
           onDayClick={(date) => setDayPopover({ open: true, date })}
           showOlder={showOlder}
           onShowOlderChange={setShowOlder}
-          onDayHover={(info) => {
-            cancelPopoverDismiss();
+          onDayHover={(info) =>
             setActivePopover({
               kind: "day-cell",
               key: info.date,
@@ -2341,10 +1992,10 @@ export function ConstellationPage() {
               date: info.date,
               signals: info.signals,
               tooltipText: info.tooltipText,
-            });
-          }}
+            })
+          }
           onDayHoverEnd={(date) =>
-            schedulePopoverDismiss("day-cell", date)
+            closeActivePopover("day-cell", date)
           }
         />
       </div>
@@ -2686,12 +2337,6 @@ export function ConstellationPage() {
               setHoverCardId(null);
               closeActivePopover("card-meaning");
             }}
-            onCancelDismiss={cancelPopoverDismiss}
-            onScheduleDismiss={() =>
-              schedulePopoverDismiss("card-meaning")
-            }
-            chainedContent={<ConstellationLegend />}
-            chainedTitle="How the constellation works"
           >
             <div
               style={{
@@ -2792,12 +2437,6 @@ export function ConstellationPage() {
           anchorX={activePopover.anchorX}
           anchorY={activePopover.anchorY}
           onClose={() => closeActivePopover("badge-hint")}
-          onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() =>
-            schedulePopoverDismiss("badge-hint")
-          }
-          chainedContent={<BadgeLegend />}
-          chainedTitle="About badges"
           maxWidth={240}
         >
           <div
@@ -2839,17 +2478,115 @@ export function ConstellationPage() {
           teal trace), an ⓘ icon appears in the corner and chains to a
           color legend explaining each signal active on THIS cell. */}
       {activePopover?.kind === "day-cell" && (() => {
+        const s = activePopover.signals;
+        const hasAnySignal =
+          s.heroDrawn ||
+          s.matchCount > 0 ||
+          s.isPerfectMatch ||
+          s.isBestAvailable ||
+          s.tealTraceHit;
+        const legend = hasAnySignal ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {s.heroDrawn && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      background: "var(--gold, var(--accent))",
+                      opacity: 0.9,
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                    }}
+                  />
+                }
+                label={
+                  s.heroName
+                    ? `Hero card: ${s.heroName}`
+                    : "Hero card drawn here"
+                }
+              />
+            )}
+            {s.matchCount > 0 && !s.isPerfectMatch && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      background: "var(--accent, var(--gold))",
+                      opacity:
+                        0.15 +
+                        (s.matchCount /
+                          Math.max(1, s.pullSize)) *
+                          0.8,
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                    }}
+                  />
+                }
+                label={`${Math.round(
+                  (s.matchCount / Math.max(1, s.pullSize)) * 100,
+                )}% match · ${s.matchCount} of ${s.pullSize} from your pull`}
+              />
+            )}
+            {s.isPerfectMatch && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      border: "2px solid var(--accent, var(--gold))",
+                    }}
+                  />
+                }
+                label="100% match · all your pull cards co-occurred here"
+              />
+            )}
+            {s.isBestAvailable && !s.isPerfectMatch && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      border: "1.5px dashed var(--accent, var(--gold))",
+                    }}
+                  />
+                }
+                label="Best partial match in your calendar"
+              />
+            )}
+            {s.tealTraceHit && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      border: "2px solid var(--trace-color, #5cead4)",
+                    }}
+                  />
+                }
+                label="Teal trace · all your selected cards co-occurred here"
+              />
+            )}
+          </div>
+        ) : null;
         return (
           <RichPopover
             open
             anchorX={activePopover.anchorX}
             anchorY={activePopover.anchorY}
             onClose={() => closeActivePopover("day-cell")}
-            onCancelDismiss={cancelPopoverDismiss}
-            onScheduleDismiss={() =>
-              schedulePopoverDismiss("day-cell")
-            }
-            chainedContent={<ColorLegend />}
+            chainedContent={legend ?? undefined}
             chainedTitle="What the colors mean"
             maxWidth={300}
           >
@@ -2866,114 +2603,6 @@ export function ConstellationPage() {
           </RichPopover>
         );
       })()}
-      {/* EH — Chip hint popover. Replaces native title="" on the
-          right-column chips (LAST SEEN / TIME PATTERN / FREQUENCY /
-          MOON PHASE / REVERSED). Same dark style as the other rich
-          popovers. No ⓘ — the tooltip IS the explanation. */}
-      {activePopover?.kind === "chip-hint" && (
-        <RichPopover
-          open
-          anchorX={activePopover.anchorX}
-          anchorY={activePopover.anchorY}
-          onClose={() => closeActivePopover("chip-hint")}
-          onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() => schedulePopoverDismiss("chip-hint")}
-          maxWidth={260}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 10,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "var(--accent, var(--gold))",
-              opacity: 0.9,
-            }}
-          >
-            {activePopover.label}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: 12,
-              color: "var(--color-foreground)",
-              lineHeight: 1.4,
-            }}
-          >
-            {activePopover.tooltip}
-          </div>
-        </RichPopover>
-      )}
-      {/* EH — Constellation badge popovers (gold hero badge + teal
-          selection badge in the SVG web). Each shows a count + brief
-          description, and chains to the constellation legend. */}
-      {activePopover?.kind === "constellation-badge" && (
-        <RichPopover
-          open
-          anchorX={activePopover.anchorX}
-          anchorY={activePopover.anchorY}
-          onClose={() => closeActivePopover("constellation-badge")}
-          onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() =>
-            schedulePopoverDismiss("constellation-badge")
-          }
-          chainedContent={<ConstellationLegend />}
-          chainedTitle="How the constellation works"
-          maxWidth={280}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: 14,
-              color: "var(--color-foreground)",
-              lineHeight: 1.2,
-            }}
-          >
-            {activePopover.variant === "hero"
-              ? `Gold hero badge`
-              : `Teal selection badge`}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: 12,
-              color: "var(--color-foreground)",
-              opacity: 0.85,
-              lineHeight: 1.4,
-            }}
-          >
-            {activePopover.variant === "hero" ? (
-              <>
-                {activePopover.count} pulls contain{" "}
-                <span
-                  style={{
-                    fontStyle: "italic",
-                    color: "var(--accent, var(--gold))",
-                  }}
-                >
-                  {activePopover.cardLabel}
-                </span>{" "}
-                in your history.
-              </>
-            ) : (
-              <>
-                {activePopover.modeOrPullsLabel} where your selection
-                co-occurred:{" "}
-                <span
-                  style={{
-                    fontStyle: "italic",
-                    color: "var(--accent, var(--gold))",
-                  }}
-                >
-                  {activePopover.cardLabel}
-                </span>
-                .
-              </>
-            )}
-          </div>
-        </RichPopover>
-      )}
       {/* DY — journaling-prompts modal. Lists the curated 3-5 prompts
           for the hero card; click a prompt to insert it into the notes
           textarea + close. Uses the canonical branded Modal. */}
