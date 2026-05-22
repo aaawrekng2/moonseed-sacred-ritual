@@ -208,11 +208,7 @@ function ConstellationSvg({
   heroPick: ManualPick;
   heroDrawCount: number | null;
   onCardDragStart?: (cardId: number) => void;
-  onCardHover?: (
-    cardId: number | null,
-    clientX: number,
-    clientY: number,
-  ) => void;
+  onCardHover?: (cardId: number | null, clientX: number, clientY: number) => void;
   onHeroBadgeClick?: () => void;
   heroBadgeTooltip?: string;
   tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
@@ -225,60 +221,71 @@ function ConstellationSvg({
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
 
-  // EE — pink-line dedupe. The seeker asked for a cleaner web: each
-  // non-teal card should receive at most ONE baseline (pink) line. Hero
-  // ALWAYS wins — if a companion co-occurs with the hero, its single
-  // pink slot is the hero connection. For companions that somehow have
-  // no hero connection (rare; can happen with stale data), the slot
-  // falls to the pair with the highest co-occurrence count.
+  // EE2 — teal-line dedupe. Baseline (pink/accent) co-occurrence lines
+  // are unchanged: every pair, full mesh, as before.
   //
-  // Teal/discovery (cyan) lines are NOT subject to this cap — they're
-  // a separate visual layer. Pink lines between two teal-selected
-  // cards also aren't capped, since teal cards aren't "non-teal."
+  // What IS deduped is the teal discovery-hint lines that appear when
+  // 2+ cards are in the teal selection. Each candidate card should
+  // receive at most ONE teal line. Priority for which teal source wins:
+  //   1. Hero, if hero is in the teal selection AND co-occurs with the
+  //      candidate.
+  //   2. Otherwise, the teal-selected source with the highest
+  //      co-occurrence count for that candidate.
+  //   3. Tie-break: lowest source card id (deterministic).
   //
-  // Algorithm:
-  //   1. Sort pairs: hero-containing pairs first (descending count),
-  //      then non-hero pairs (descending count).
-  //   2. Walk in order. For each pair, draw the line IF neither
-  //      non-teal endpoint already has a pink line. Otherwise skip.
-  //   3. Cyan lines bypass the cap entirely.
-  const allowedPairIndices = useMemo(() => {
-    const heroId = constellation.heroCardId;
-    const ordered = constellation.pairCounts
-      .map((pair, originalIndex) => ({ pair, originalIndex }))
-      .sort((p1, p2) => {
-        const p1HasHero = p1.pair.a === heroId || p1.pair.b === heroId;
-        const p2HasHero = p2.pair.a === heroId || p2.pair.b === heroId;
-        if (p1HasHero !== p2HasHero) return p1HasHero ? -1 : 1;
-        return p2.pair.count - p1.pair.count;
-      });
-
-    const baselineLineCount = new Map<number, number>();
+  // Pairs that WOULD have rendered as teal but lose this contest fall
+  // back to baseline (pink/accent) rendering automatically — they just
+  // don't get added to `allowedTealPairs`.
+  const allowedTealPairs = useMemo(() => {
     const allowed = new Set<number>();
+    if (tealSet.size < 2) return allowed;
 
-    for (const { pair, originalIndex } of ordered) {
+    const heroId = constellation.heroCardId;
+    // For each candidate, find the best teal source per the priority
+    // rules above. Then mark the (source, candidate) pair as the allowed
+    // teal line.
+    const bestTealForCandidate = new Map<number, { src: number; idx: number; count: number }>();
+
+    constellation.pairCounts.forEach((pair, originalIndex) => {
       const aIsTeal = tealSet.has(pair.a);
       const bIsTeal = tealSet.has(pair.b);
       const aIsCandidate = candidateSet.has(pair.a);
       const bIsCandidate = candidateSet.has(pair.b);
-      const isTealLine =
-        (aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate);
-      if (isTealLine) {
-        // Cyan discovery line — always allowed, never counted.
-        allowed.add(originalIndex);
-        continue;
+      // Identify (source, candidate) for this pair, if it's a teal line.
+      let src: number | null = null;
+      let cand: number | null = null;
+      if (aIsTeal && bIsCandidate) {
+        src = pair.a;
+        cand = pair.b;
+      } else if (bIsTeal && aIsCandidate) {
+        src = pair.b;
+        cand = pair.a;
       }
-      // Baseline pink line. Enforce the one-pink-per-non-teal-card cap.
-      const aCapBlocks =
-        !aIsTeal && (baselineLineCount.get(pair.a) ?? 0) >= 1;
-      const bCapBlocks =
-        !bIsTeal && (baselineLineCount.get(pair.b) ?? 0) >= 1;
-      if (aCapBlocks || bCapBlocks) continue;
-      allowed.add(originalIndex);
-      if (!aIsTeal)
-        baselineLineCount.set(pair.a, (baselineLineCount.get(pair.a) ?? 0) + 1);
-      if (!bIsTeal)
-        baselineLineCount.set(pair.b, (baselineLineCount.get(pair.b) ?? 0) + 1);
+      if (src === null || cand === null) return;
+
+      const existing = bestTealForCandidate.get(cand);
+      const srcIsHero = src === heroId;
+      const existingSrcIsHero = existing ? existing.src === heroId : false;
+
+      // Priority rules:
+      //   hero beats non-hero unconditionally
+      //   otherwise: higher count wins
+      //   tie on count: lower src id wins
+      const wins = (() => {
+        if (!existing) return true;
+        if (srcIsHero && !existingSrcIsHero) return true;
+        if (!srcIsHero && existingSrcIsHero) return false;
+        if (pair.count !== existing.count) return pair.count > existing.count;
+        return src < existing.src;
+      })();
+
+      if (wins) {
+        bestTealForCandidate.set(cand, { src, idx: originalIndex, count: pair.count });
+      }
+    });
+
+    for (const entry of bestTealForCandidate.values()) {
+      allowed.add(entry.idx);
     }
     return allowed;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -300,8 +307,6 @@ function ConstellationSvg({
     >
       {/* Lines first */}
       {constellation.pairCounts.map((pair, i) => {
-        // EE — skip pairs filtered out by the pink-line dedupe.
-        if (!allowedPairIndices.has(i)) return null;
         const a = getCardPosition(pair.a, constellation);
         const b = getCardPosition(pair.b, constellation);
         if (a.w === 0 || b.w === 0) return null;
@@ -317,8 +322,14 @@ function ConstellationSvg({
         // two already-selected teal cards stay at their normal accent weight
         // so the trace doesn't get visually crowded; lines disappear entirely
         // when there are no candidates left to suggest.
+        // EE2 — additionally require membership in allowedTealPairs so
+        // each candidate receives at most ONE teal line (hero priority,
+        // then highest co-occurrence, then lowest source id). Pairs that
+        // would otherwise have been teal but lost the dedupe contest
+        // fall back to baseline rendering automatically.
         const isTealLine =
-          (aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate);
+          ((aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate)) &&
+          allowedTealPairs.has(i);
         const strokeWidth = isTealLine
           ? 2.5
           : Math.max(1, Math.min(5, weight * 5));
