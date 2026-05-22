@@ -5,6 +5,7 @@
  * cards arrange around it. Weighted lines connect every pair, with
  * stroke width + opacity proportional to lifetime co-pull count.
  */
+import { useMemo } from "react";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
 import type { CardConstellation } from "@/lib/quicklog.functions";
@@ -214,11 +215,7 @@ function ConstellationSvg({
   ) => void;
   onHeroBadgeClick?: () => void;
   heroBadgeTooltip?: string;
-  tealBadge?: {
-    cardId: number;
-    count: number;
-    tooltip?: string;
-  } | null;
+  tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
   onTealBadgeClick?: () => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
@@ -227,6 +224,71 @@ function ConstellationSvg({
   );
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
+
+  // EE — pink-line dedupe. The seeker asked for a cleaner web: each
+  // non-teal card should receive at most ONE baseline (pink) line. Hero
+  // ALWAYS wins — if a companion co-occurs with the hero, its single
+  // pink slot is the hero connection. For companions that somehow have
+  // no hero connection (rare; can happen with stale data), the slot
+  // falls to the pair with the highest co-occurrence count.
+  //
+  // Teal/discovery (cyan) lines are NOT subject to this cap — they're
+  // a separate visual layer. Pink lines between two teal-selected
+  // cards also aren't capped, since teal cards aren't "non-teal."
+  //
+  // Algorithm:
+  //   1. Sort pairs: hero-containing pairs first (descending count),
+  //      then non-hero pairs (descending count).
+  //   2. Walk in order. For each pair, draw the line IF neither
+  //      non-teal endpoint already has a pink line. Otherwise skip.
+  //   3. Cyan lines bypass the cap entirely.
+  const allowedPairIndices = useMemo(() => {
+    const heroId = constellation.heroCardId;
+    const ordered = constellation.pairCounts
+      .map((pair, originalIndex) => ({ pair, originalIndex }))
+      .sort((p1, p2) => {
+        const p1HasHero = p1.pair.a === heroId || p1.pair.b === heroId;
+        const p2HasHero = p2.pair.a === heroId || p2.pair.b === heroId;
+        if (p1HasHero !== p2HasHero) return p1HasHero ? -1 : 1;
+        return p2.pair.count - p1.pair.count;
+      });
+
+    const baselineLineCount = new Map<number, number>();
+    const allowed = new Set<number>();
+
+    for (const { pair, originalIndex } of ordered) {
+      const aIsTeal = tealSet.has(pair.a);
+      const bIsTeal = tealSet.has(pair.b);
+      const aIsCandidate = candidateSet.has(pair.a);
+      const bIsCandidate = candidateSet.has(pair.b);
+      const isTealLine =
+        (aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate);
+      if (isTealLine) {
+        // Cyan discovery line — always allowed, never counted.
+        allowed.add(originalIndex);
+        continue;
+      }
+      // Baseline pink line. Enforce the one-pink-per-non-teal-card cap.
+      const aCapBlocks =
+        !aIsTeal && (baselineLineCount.get(pair.a) ?? 0) >= 1;
+      const bCapBlocks =
+        !bIsTeal && (baselineLineCount.get(pair.b) ?? 0) >= 1;
+      if (aCapBlocks || bCapBlocks) continue;
+      allowed.add(originalIndex);
+      if (!aIsTeal)
+        baselineLineCount.set(pair.a, (baselineLineCount.get(pair.a) ?? 0) + 1);
+      if (!bIsTeal)
+        baselineLineCount.set(pair.b, (baselineLineCount.get(pair.b) ?? 0) + 1);
+    }
+    return allowed;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    constellation.heroCardId,
+    constellation.pairCounts,
+    // Stringify Sets to give useMemo a stable dep value.
+    [...tealSet].sort().join(","),
+    [...candidateSet].sort().join(","),
+  ]);
 
   return (
     <svg
@@ -238,6 +300,8 @@ function ConstellationSvg({
     >
       {/* Lines first */}
       {constellation.pairCounts.map((pair, i) => {
+        // EE — skip pairs filtered out by the pink-line dedupe.
+        if (!allowedPairIndices.has(i)) return null;
         const a = getCardPosition(pair.a, constellation);
         const b = getCardPosition(pair.b, constellation);
         if (a.w === 0 || b.w === 0) return null;
