@@ -207,11 +207,11 @@ function ConstellationSvg({
   candidateIds: number[];
   heroPick: ManualPick;
   heroDrawCount: number | null;
-  onCardDragStart?: (cardId: number, e: React.PointerEvent) => void;
-  onCardHover?: (cardId: number | null) => void;
+  onCardDragStart?: (cardId: number) => void;
+  onCardHover?: (cardId: number | null, clientX: number, clientY: number) => void;
   onHeroBadgeClick?: () => void;
   heroBadgeTooltip?: string;
-  tealBadge?: { count: number; label?: string } | null;
+  tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
   onTealBadgeClick?: () => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
