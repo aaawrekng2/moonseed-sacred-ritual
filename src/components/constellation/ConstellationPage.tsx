@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, RotateCw, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, Pencil, Pin, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -71,6 +71,7 @@ import { getLunationContaining } from "@/lib/lunation";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
 import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
+import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
 import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
 import { SPREADS, SPREAD_STORAGE_KEY, getSpread, type SpreadKey } from "@/lib/spreads";
 import { EMPTY_GLOBAL_FILTERS, countActiveFilters, type GlobalFilters } from "@/lib/filters.types";
@@ -1490,6 +1491,20 @@ export function ConstellationPage() {
     });
   }, [savePopoverSectionPrefs]);
 
+  // EJ20 — pinned card modals. Each entry is a cardId the seeker has
+  // pinned via the pushpin button on the card popover. Pinned cards
+  // appear as floating draggable modals docked at the bottom of the
+  // viewport, side-by-side, so the seeker can compare multiple cards
+  // without holding the hover state.
+  const [pinnedCards, setPinnedCards] = useState<number[]>([]);
+  const pinCard = useCallback((cardId: number) => {
+    setPinnedCards((prev) => (prev.includes(cardId) ? prev : [...prev, cardId]));
+  }, []);
+  const unpinCard = useCallback((cardId: number) => {
+    setPinnedCards((prev) => prev.filter((id) => id !== cardId));
+  }, []);
+  const isPinned = useCallback((cardId: number) => pinnedCards.includes(cardId), [pinnedCards]);
+
   // Phase 19 Fix 10 — port the Echo detection to /constellation.
   const echo = useEcho(picks, overlap, overlapMode);
   const participatingSet = useMemo(
@@ -2010,6 +2025,908 @@ export function ConstellationPage() {
       setFocusedSlotIdx(next.length - 1);
       return next;
     });
+  };
+
+  // EJ20 — renderCardPopoverInner extracts the IIFE body so both
+  // the hover popover and the pinned modal can render the same
+  // content tree for a given cardId. Hover passes editable: true;
+  // pinned modals pass editable: false so edit-mode toggles are
+  // disabled (sections still respect the seeker's saved prefs).
+  const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => {
+    const m = TAROT_MEANINGS[cardId];
+    if (!m) return null;
+    const effectiveEditable = opts.editable && popoverEditMode;
+    // EI5 — drive popover purely from activePopover state. cardId
+    // is derived from activePopover.key (which is stable while
+    // cursor stays on the same card). Removing the hoverCardId
+    // gating means the popover survives source mouseLeave; the
+    // shared dismiss timer + hover-bridge are what close it.
+    // EJ17 — derived popover data, all from existing state.
+    const meta = getCardMeta(cardId);
+    const rank = drawCounts?.perCardRank?.[cardId];
+    const universeSize = drawCounts?.rankUniverseSize ?? 0;
+    const count = drawCounts?.perCard?.[cardId] ?? 0;
+    // Roman numeral for majors (cardId 0..21). Pips and courts get
+    // their rank label from card-astrology.
+    const ROMAN = [
+      "0",
+      "I",
+      "II",
+      "III",
+      "IV",
+      "V",
+      "VI",
+      "VII",
+      "VIII",
+      "IX",
+      "X",
+      "XI",
+      "XII",
+      "XIII",
+      "XIV",
+      "XV",
+      "XVI",
+      "XVII",
+      "XVIII",
+      "XIX",
+      "XX",
+      "XXI",
+    ];
+    const isMajor = cardId >= 0 && cardId <= 21;
+    const numeralOrRank = isMajor ? ROMAN[cardId] : (meta?.rankLabel ?? null);
+    // Subtitle: "Major · Pisces" for majors, "Cups · Water" for pips.
+    const subtitleParts: string[] = [];
+    if (isMajor) {
+      subtitleParts.push("Major");
+    } else if (meta?.suit) {
+      subtitleParts.push(meta.suit);
+    }
+    if (m.zodiac) subtitleParts.push(m.zodiac);
+    else if (m.planet) subtitleParts.push(m.planet);
+    else if (meta?.planetOrSign) subtitleParts.push(meta.planetOrSign);
+    else if (meta?.element) subtitleParts.push(meta.element);
+    const subtitle = subtitleParts.join(" · ");
+    // First / last seen in the filtered universe. Derived from
+    // overlap.readingsByDate. If overlap isn't loaded yet, both
+    // are null and the timeline row hides.
+    let firstSeenIso: string | null = null;
+    let lastSeenIso: string | null = null;
+    if (overlap?.readingsByDate) {
+      const all = Object.values(overlap.readingsByDate).flat();
+      const matching = all.filter((r) => r.cardIds.includes(cardId));
+      if (matching.length > 0) {
+        const sorted = [...matching].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        firstSeenIso = sorted[0].createdAt;
+        lastSeenIso = sorted[sorted.length - 1].createdAt;
+      }
+    }
+    // Companion chips: for the hero card we have direct top-7 data
+    // from the server in constellationData. For other cards, EJ18
+    // sources companions from the batched popoverDataMap. When map
+    // hasn't loaded yet, no companion section renders for non-hero
+    // cards (graceful degradation).
+    const isHeroCard = displayedConstellation && cardId === displayedConstellation.heroCardId;
+    const topCompanions: Array<{ cardId: number; coCount: number }> = [];
+    if (isHeroCard && displayedConstellation) {
+      for (const c of displayedConstellation.companions.slice(0, 3)) {
+        if (c.coCount > 0) {
+          topCompanions.push({ cardId: c.cardId, coCount: c.coCount });
+        }
+      }
+    } else if (popoverDataMap?.[cardId]) {
+      for (const c of popoverDataMap[cardId].companionsTop3) {
+        topCompanions.push({ cardId: c.cardId, coCount: c.count });
+      }
+    }
+    // EJ18 — derived from the batched popover data fetch. All
+    // sections gracefully degrade when popoverDataMap is null
+    // (loading) or the cardId isn't in the map (not requested).
+    const pd: CardPopoverData | undefined = popoverDataMap?.[cardId];
+    const reversedPct = pd?.reversedPct ?? null;
+    const topMoonPhase = pd?.topMoonPhase ?? null;
+    const topTimeBucket = pd?.topTimeBucket ?? null;
+    const monthCounts = pd?.monthCounts ?? null;
+    const longestGapDays = pd?.longestGapDays ?? null;
+    const avgSpacingDays = pd?.avgSpacingDays ?? null;
+    const topTag = pd?.topTag ?? null;
+    // Moon phase glyph helper. The 4 buckets we surface map to:
+    //   waxing crescent, first quarter, waxing gibbous → "waxing"
+    //   full moon → "full"
+    //   waning gibbous, last quarter, waning crescent → "waning"
+    //   new moon → "new"
+    const moonPhaseLabel = topMoonPhase?.phase ?? null;
+    const timeBucketLabel = topTimeBucket
+      ? topTimeBucket.bucket === "morning"
+        ? "in the morning"
+        : topTimeBucket.bucket === "afternoon"
+          ? "in the afternoon"
+          : topTimeBucket.bucket === "evening"
+            ? "in the evening"
+            : "late at night"
+      : null;
+    // EJ19 — section wrapper. In default mode: section renders
+    // only when visible (hidden by user pref returns null). In
+    // edit mode: section ALWAYS renders, dimmed to 35% if hidden,
+    // with a small "—" / "+" toggle button overlaid in the
+    // top-right corner. Click toggle to flip visibility (live;
+    // commit happens on Save / click-outside).
+    const popoverSection = (
+      id: CardPopoverSectionId,
+      content: React.ReactNode,
+    ): React.ReactNode => {
+      const visible = isSectionVisible(id);
+      if (!effectiveEditable && !visible) return null;
+      if (!effectiveEditable) return content;
+      return (
+        <div
+          key={`section-${id}`}
+          style={{
+            position: "relative",
+            opacity: visible ? 1 : 0.35,
+            transition: "opacity 160ms ease",
+            border: visible
+              ? "1px dashed transparent"
+              : "1px dashed color-mix(in oklab, var(--color-foreground) 18%, transparent)",
+            borderRadius: 6,
+            padding: visible ? 0 : 6,
+            margin: visible ? 0 : -6,
+          }}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSection(id);
+            }}
+            aria-label={visible ? `Hide ${SECTION_LABELS[id]}` : `Show ${SECTION_LABELS[id]}`}
+            title={visible ? `Hide ${SECTION_LABELS[id]}` : `Show ${SECTION_LABELS[id]}`}
+            style={{
+              position: "absolute",
+              top: -6,
+              right: -6,
+              zIndex: 2,
+              width: 16,
+              height: 16,
+              borderRadius: 9999,
+              background: "var(--surface-elevated, var(--surface-card))",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 20%, transparent)",
+              color: "var(--color-foreground)",
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 11,
+              lineHeight: 1,
+              fontFamily: "var(--font-display)",
+              fontWeight: 300,
+            }}
+          >
+            {visible ? "−" : "+"}
+          </button>
+          {content}
+        </div>
+      );
+    };
+    return (
+      <>
+        {/* Header — name + roman numeral, subtitle of arcana/sign */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "var(--color-foreground)",
+              lineHeight: 1.15,
+            }}
+          >
+            {m.name}
+          </div>
+          {numeralOrRank && (
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 10,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "var(--accent, var(--gold))",
+                opacity: 0.85,
+                flexShrink: 0,
+              }}
+            >
+              {numeralOrRank}
+            </div>
+          )}
+        </div>
+        {subtitle && (
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 10,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.7,
+              marginTop: -4,
+            }}
+          >
+            {subtitle}
+          </div>
+        )}
+
+        {/* Stat strip — rank + pull count + reversed %. Reversed
+            % only shows when EJ18 popoverDataMap is loaded for
+            this card; otherwise the grid drops to 2 columns. */}
+        {popoverSection(
+          "stat-strip",
+          drawCounts && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                  borderRadius: 6,
+                  padding: "8px 4px",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: 18,
+                    color: "var(--color-foreground)",
+                    lineHeight: 1,
+                  }}
+                >
+                  {rank ? `#${rank}` : "—"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.7,
+                    marginTop: 3,
+                  }}
+                >
+                  {rank ? `Rank of ${universeSize}` : "Unranked"}
+                </div>
+              </div>
+              <div
+                style={{
+                  background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                  borderRadius: 6,
+                  padding: "8px 4px",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: 18,
+                    color: "var(--color-foreground)",
+                    lineHeight: 1,
+                  }}
+                >
+                  {count}
+                </div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.7,
+                    marginTop: 3,
+                  }}
+                >
+                  {count === 1 ? "Pull" : "Pulls"}
+                </div>
+              </div>
+              {reversedPct !== null && (
+                <div
+                  style={{
+                    background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                    borderRadius: 6,
+                    padding: "8px 4px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: 18,
+                      color: "var(--color-foreground)",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {`${Math.round(reversedPct * 100)}%`}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.7,
+                      marginTop: 3,
+                    }}
+                  >
+                    Reversed
+                  </div>
+                </div>
+              )}
+            </div>
+          ),
+        )}
+
+        {/* EJ18 — Moon phase row. Shows the moon phase under which
+            this card most often appears in the filtered universe. */}
+        {popoverSection(
+          "moon-phase",
+          moonPhaseLabel && topMoonPhase && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 11,
+                color: "var(--color-foreground)",
+                opacity: 0.92,
+              }}
+            >
+              {/* EJ20 — phase-specific moon glyph. Earlier the
+                  same waxing-gibbous-ish shape rendered regardless
+                  of phase. Now each of the 8 phase names maps to
+                  its own SVG composition. Convention: lit side on
+                  the RIGHT for waxing, LEFT for waning, full lit
+                  for Full Moon, fully dark outline for New Moon. */}
+              {(() => {
+                const accent = "var(--accent, var(--gold))";
+                const darkFill = "var(--background, #0b0a14)";
+                const phase = topMoonPhase.phase;
+                return (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 22 22"
+                    fill="none"
+                    aria-hidden
+                    style={{ flexShrink: 0 }}
+                  >
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="9"
+                      fill={phase === "New Moon" ? "none" : accent}
+                      stroke={accent}
+                      strokeWidth="0.8"
+                      opacity={phase === "New Moon" ? 0.5 : 1}
+                    />
+                    {phase === "Waxing Crescent" && (
+                      <ellipse cx="9" cy="11" rx="7.5" ry="9" fill={darkFill} />
+                    )}
+                    {phase === "First Quarter" && (
+                      <rect x="2" y="2" width="9" height="18" fill={darkFill} />
+                    )}
+                    {phase === "Waxing Gibbous" && (
+                      <ellipse cx="6.5" cy="11" rx="3.5" ry="9" fill={darkFill} />
+                    )}
+                    {phase === "Waning Gibbous" && (
+                      <ellipse cx="15.5" cy="11" rx="3.5" ry="9" fill={darkFill} />
+                    )}
+                    {phase === "Last Quarter" && (
+                      <rect x="11" y="2" width="9" height="18" fill={darkFill} />
+                    )}
+                    {phase === "Waning Crescent" && (
+                      <ellipse cx="13" cy="11" rx="7.5" ry="9" fill={darkFill} />
+                    )}
+                  </svg>
+                );
+              })()}
+              <div>
+                Most under{" "}
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  {moonPhaseLabel}
+                </span>
+              </div>
+            </div>
+          ),
+        )}
+
+        {/* EJ18 — Time-of-day row. Bucketed: morning / afternoon /
+            evening / night, based on the seeker's tz. */}
+        {popoverSection(
+          "time-of-day",
+          timeBucketLabel && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 11,
+                color: "var(--color-foreground)",
+                opacity: 0.92,
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 22 22"
+                fill="none"
+                aria-hidden
+                style={{ flexShrink: 0, opacity: 0.7 }}
+              >
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="7.5"
+                  fill="none"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="1.2"
+                />
+                <line
+                  x1="11"
+                  y1="6.5"
+                  x2="11"
+                  y2="11"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="1"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="11"
+                  y1="11"
+                  x2="13.5"
+                  y2="11"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="0.7"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div>
+                Most often drawn{" "}
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  {timeBucketLabel}
+                </span>
+              </div>
+            </div>
+          ),
+        )}
+
+        {/* EJ18 — 12-month frequency sparkline. Each bar = one
+            month, oldest left, current right. Opacity scales
+            with count relative to the max month. Empty months
+            render as a low-opacity sliver to preserve the
+            rhythm of the chart. */}
+        {popoverSection(
+          "sparkline",
+          monthCounts && monthCounts.some((n) => n > 0) && (
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 2,
+                  alignItems: "flex-end",
+                  height: 30,
+                  marginBottom: 4,
+                }}
+              >
+                {(() => {
+                  const max = Math.max(1, ...monthCounts);
+                  return monthCounts.map((n, i) => {
+                    const frac = n / max;
+                    const heightPct = Math.max(8, frac * 100);
+                    const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
+                    return (
+                      <div
+                        key={`spark-${i}`}
+                        style={{
+                          flex: 1,
+                          height: `${heightPct}%`,
+                          background: "var(--accent, var(--gold))",
+                          opacity,
+                          borderRadius: 1,
+                        }}
+                      />
+                    );
+                  });
+                })()}
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.6,
+                }}
+              >
+                12-Month Frequency
+              </div>
+            </div>
+          ),
+        )}
+
+        {/* Upright meaning */}
+        {popoverSection(
+          "meanings",
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.9,
+                }}
+              >
+                Upright
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 11.5,
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                  lineHeight: 1.35,
+                }}
+              >
+                {m.uprightKeywords.join(", ")}.
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {m.uprightMeaning}
+              </div>
+            </div>
+
+            {/* Reversed meaning */}
+            {allowReversed && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 10,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.9,
+                  }}
+                >
+                  Reversed
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 11.5,
+                    color: "var(--color-foreground)",
+                    opacity: 0.85,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {m.reversedKeywords.join(", ")}.
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 12,
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {m.reversedMeaning}
+                </div>
+              </div>
+            )}
+          </>,
+        )}
+
+        {/* Companion chips. Only shown when the hovered card is
+            the hero (we have its top-7 from server data). For
+            non-hero cards, EJ18 adds per-card companion data. */}
+        {popoverSection(
+          "companions",
+          topCompanions.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                borderTop:
+                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                paddingTop: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.85,
+                }}
+              >
+                Most often appears with
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                }}
+              >
+                {topCompanions.map((c) => (
+                  <span
+                    key={c.cardId}
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11,
+                      padding: "3px 8px",
+                      background:
+                        "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                      borderRadius: 999,
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    {TAROT_DECK[c.cardId] ?? `Card ${c.cardId}`}{" "}
+                    <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.coCount}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ),
+        )}
+
+        {/* Timeline — first/last seen. Hidden when overlap hasn't
+            loaded yet or the card has never been drawn in the
+            filtered universe. EJ18 will add longest-gap and
+            avg-spacing using new server data. */}
+        {popoverSection(
+          "timeline",
+          (firstSeenIso || lastSeenIso || longestGapDays !== null || avgSpacingDays !== null) && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+                borderTop:
+                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                paddingTop: 8,
+                fontSize: 11,
+                color: "var(--color-foreground)",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    opacity: 0.7,
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                  }}
+                >
+                  First seen
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    marginTop: 2,
+                  }}
+                >
+                  {firstSeenIso ? formatDateShort(firstSeenIso) : "—"}
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    opacity: 0.7,
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                  }}
+                >
+                  Last seen
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    marginTop: 2,
+                  }}
+                >
+                  {lastSeenIso ? formatTimeAgo(lastSeenIso) : "—"}
+                </div>
+              </div>
+              {longestGapDays !== null && (
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                    }}
+                  >
+                    Longest gap
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      marginTop: 2,
+                    }}
+                  >
+                    {longestGapDays === 1 ? "1 day" : `${longestGapDays} days`}
+                  </div>
+                </div>
+              )}
+              {avgSpacingDays !== null && (
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                    }}
+                  >
+                    Avg spacing
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      marginTop: 2,
+                    }}
+                  >
+                    {`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+                  </div>
+                </div>
+              )}
+            </div>
+          ),
+        )}
+
+        {/* EJ18 — Tag bias. Shows the tag the seeker has used most
+            often with this card relative to their baseline usage of
+            that tag. Multiplier indicates the over-index strength. */}
+        {popoverSection(
+          "tag-bias",
+          topTag && (
+            <div
+              style={{
+                borderTop:
+                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                paddingTop: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.85,
+                  marginBottom: 4,
+                }}
+              >
+                Most under tag
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                }}
+              >
+                <span style={{ fontStyle: "italic" }}>{topTag.tag}</span>{" "}
+                <span style={{ opacity: 0.55, fontSize: 10 }}>— {topTag.multiplier}× baseline</span>
+              </div>
+            </div>
+          ),
+        )}
+
+        {/* EJ19 — edit mode footer. Visible only while in edit
+            mode. The Save button commits sectionPrefs and exits
+            edit mode. Click-outside the popover also commits
+            (handled by the popover's onClose). The footer also
+            surfaces hint text so seekers know how to undo. */}
+        {effectiveEditable && (
+          <div
+            style={{
+              borderTop:
+                "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
+              paddingTop: 10,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 10.5,
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+                textAlign: "center",
+              }}
+            >
+              Tap the dot on a section to hide it. Click Save when done.
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                commitPopoverEditMode();
+              }}
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--gold, var(--accent))",
+                background: "color-mix(in oklab, var(--gold, var(--accent)) 14%, transparent)",
+                border:
+                  "1px solid color-mix(in oklab, var(--gold, var(--accent)) 40%, transparent)",
+                borderRadius: 6,
+                padding: "6px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Save
+            </button>
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -3437,193 +4354,16 @@ export function ConstellationPage() {
           longest gap, avg spacing, tag bias). EJ19 adds edit mode
           + Supabase prefs for per-section visibility. */}
       {(() => {
-        // EI5 — drive popover purely from activePopover state. cardId
-        // is derived from activePopover.key (which is stable while
-        // cursor stays on the same card). Removing the hoverCardId
-        // gating means the popover survives source mouseLeave; the
-        // shared dismiss timer + hover-bridge are what close it.
         if (activePopover?.kind !== "card-meaning") return null;
         if (!hoverTipsOn) return null;
         const cardId = Number(activePopover.key);
         if (!Number.isFinite(cardId)) return null;
-        const m = TAROT_MEANINGS[cardId];
-        if (!m) return null;
-        // EJ17 — derived popover data, all from existing state.
-        const meta = getCardMeta(cardId);
-        const rank = drawCounts?.perCardRank?.[cardId];
-        const universeSize = drawCounts?.rankUniverseSize ?? 0;
-        const count = drawCounts?.perCard?.[cardId] ?? 0;
-        // Roman numeral for majors (cardId 0..21). Pips and courts get
-        // their rank label from card-astrology.
-        const ROMAN = [
-          "0",
-          "I",
-          "II",
-          "III",
-          "IV",
-          "V",
-          "VI",
-          "VII",
-          "VIII",
-          "IX",
-          "X",
-          "XI",
-          "XII",
-          "XIII",
-          "XIV",
-          "XV",
-          "XVI",
-          "XVII",
-          "XVIII",
-          "XIX",
-          "XX",
-          "XXI",
-        ];
-        const isMajor = cardId >= 0 && cardId <= 21;
-        const numeralOrRank = isMajor ? ROMAN[cardId] : (meta?.rankLabel ?? null);
-        // Subtitle: "Major · Pisces" for majors, "Cups · Water" for pips.
-        const subtitleParts: string[] = [];
-        if (isMajor) {
-          subtitleParts.push("Major");
-        } else if (meta?.suit) {
-          subtitleParts.push(meta.suit);
-        }
-        if (m.zodiac) subtitleParts.push(m.zodiac);
-        else if (m.planet) subtitleParts.push(m.planet);
-        else if (meta?.planetOrSign) subtitleParts.push(meta.planetOrSign);
-        else if (meta?.element) subtitleParts.push(meta.element);
-        const subtitle = subtitleParts.join(" · ");
-        // First / last seen in the filtered universe. Derived from
-        // overlap.readingsByDate. If overlap isn't loaded yet, both
-        // are null and the timeline row hides.
-        let firstSeenIso: string | null = null;
-        let lastSeenIso: string | null = null;
-        if (overlap?.readingsByDate) {
-          const all = Object.values(overlap.readingsByDate).flat();
-          const matching = all.filter((r) => r.cardIds.includes(cardId));
-          if (matching.length > 0) {
-            const sorted = [...matching].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-            firstSeenIso = sorted[0].createdAt;
-            lastSeenIso = sorted[sorted.length - 1].createdAt;
-          }
-        }
-        // Companion chips: for the hero card we have direct top-7 data
-        // from the server in constellationData. For other cards, EJ18
-        // sources companions from the batched popoverDataMap. When map
-        // hasn't loaded yet, no companion section renders for non-hero
-        // cards (graceful degradation).
-        const isHeroCard = displayedConstellation && cardId === displayedConstellation.heroCardId;
-        const topCompanions: Array<{ cardId: number; coCount: number }> = [];
-        if (isHeroCard && displayedConstellation) {
-          for (const c of displayedConstellation.companions.slice(0, 3)) {
-            if (c.coCount > 0) {
-              topCompanions.push({ cardId: c.cardId, coCount: c.coCount });
-            }
-          }
-        } else if (popoverDataMap?.[cardId]) {
-          for (const c of popoverDataMap[cardId].companionsTop3) {
-            topCompanions.push({ cardId: c.cardId, coCount: c.count });
-          }
-        }
-        // EJ18 — derived from the batched popover data fetch. All
-        // sections gracefully degrade when popoverDataMap is null
-        // (loading) or the cardId isn't in the map (not requested).
-        const pd: CardPopoverData | undefined = popoverDataMap?.[cardId];
-        const reversedPct = pd?.reversedPct ?? null;
-        const topMoonPhase = pd?.topMoonPhase ?? null;
-        const topTimeBucket = pd?.topTimeBucket ?? null;
-        const monthCounts = pd?.monthCounts ?? null;
-        const longestGapDays = pd?.longestGapDays ?? null;
-        const avgSpacingDays = pd?.avgSpacingDays ?? null;
-        const topTag = pd?.topTag ?? null;
-        // Moon phase glyph helper. The 4 buckets we surface map to:
-        //   waxing crescent, first quarter, waxing gibbous → "waxing"
-        //   full moon → "full"
-        //   waning gibbous, last quarter, waning crescent → "waning"
-        //   new moon → "new"
-        const moonPhaseLabel = topMoonPhase?.phase ?? null;
-        const timeBucketLabel = topTimeBucket
-          ? topTimeBucket.bucket === "morning"
-            ? "in the morning"
-            : topTimeBucket.bucket === "afternoon"
-              ? "in the afternoon"
-              : topTimeBucket.bucket === "evening"
-                ? "in the evening"
-                : "late at night"
-          : null;
-        // EJ19 — section wrapper. In default mode: section renders
-        // only when visible (hidden by user pref returns null). In
-        // edit mode: section ALWAYS renders, dimmed to 35% if hidden,
-        // with a small "—" / "+" toggle button overlaid in the
-        // top-right corner. Click toggle to flip visibility (live;
-        // commit happens on Save / click-outside).
-        const popoverSection = (
-          id: CardPopoverSectionId,
-          content: React.ReactNode,
-        ): React.ReactNode => {
-          const visible = isSectionVisible(id);
-          if (!popoverEditMode && !visible) return null;
-          if (!popoverEditMode) return content;
-          return (
-            <div
-              key={`section-${id}`}
-              style={{
-                position: "relative",
-                opacity: visible ? 1 : 0.35,
-                transition: "opacity 160ms ease",
-                border: visible
-                  ? "1px dashed transparent"
-                  : "1px dashed color-mix(in oklab, var(--color-foreground) 18%, transparent)",
-                borderRadius: 6,
-                padding: visible ? 0 : 6,
-                margin: visible ? 0 : -6,
-              }}
-            >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleSection(id);
-                }}
-                aria-label={visible ? `Hide ${SECTION_LABELS[id]}` : `Show ${SECTION_LABELS[id]}`}
-                title={visible ? `Hide ${SECTION_LABELS[id]}` : `Show ${SECTION_LABELS[id]}`}
-                style={{
-                  position: "absolute",
-                  top: -6,
-                  right: -6,
-                  zIndex: 2,
-                  width: 16,
-                  height: 16,
-                  borderRadius: 9999,
-                  background: "var(--surface-elevated, var(--surface-card))",
-                  border: "1px solid color-mix(in oklab, var(--color-foreground) 20%, transparent)",
-                  color: "var(--color-foreground)",
-                  cursor: "pointer",
-                  padding: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  lineHeight: 1,
-                  fontFamily: "var(--font-display)",
-                  fontWeight: 300,
-                }}
-              >
-                {visible ? "−" : "+"}
-              </button>
-              {content}
-            </div>
-          );
-        };
         return (
           <RichPopover
             open
             anchorX={activePopover.anchorX}
             anchorY={activePopover.anchorY}
             onClose={() => {
-              // EJ19 — closing the popover while in edit mode auto-
-              // commits the current sectionPrefs (click-outside =
-              // save). Then dismiss the popover.
               if (popoverEditMode) {
                 commitPopoverEditMode();
               }
@@ -3635,10 +4375,35 @@ export function ConstellationPage() {
             chainedTitle="How the constellation works"
             extraTopRightControl={
               <>
-                {/* EJ19 — edit-mode gear. Toggling on switches the
-                    popover into an inline-editor mode where each
-                    section can be hidden via a small "—" button.
-                    Toggling off (Save) commits sectionPrefs. */}
+                {/* EJ20 — pin to screen as a draggable modal */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pinCard(cardId);
+                    closeActivePopover("card-meaning");
+                  }}
+                  aria-label="Pin to screen"
+                  title={
+                    isPinned(cardId) ? "Already pinned" : "Pin to screen — compare side-by-side"
+                  }
+                  disabled={isPinned(cardId)}
+                  style={{
+                    padding: 2,
+                    border: "none",
+                    background: "transparent",
+                    cursor: isPinned(cardId) ? "default" : "pointer",
+                    color: isPinned(cardId)
+                      ? "var(--accent, var(--gold))"
+                      : "var(--color-foreground-muted, var(--color-foreground))",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    opacity: isPinned(cardId) ? 0.85 : 0.7,
+                  }}
+                >
+                  <Pin size={13} strokeWidth={1.5} />
+                </button>
+                {/* EJ19 — edit-mode gear */}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -3654,740 +4419,43 @@ export function ConstellationPage() {
                   }
                   title={popoverEditMode ? "Save and exit edit mode" : "Edit which sections show"}
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 18,
-                    height: 18,
-                    padding: 0,
-                    background: "transparent",
+                    padding: 2,
                     border: "none",
+                    background: "transparent",
                     cursor: "pointer",
                     color: popoverEditMode
                       ? "var(--gold, var(--accent))"
                       : "var(--color-foreground-muted, var(--color-foreground))",
+                    display: "inline-flex",
+                    alignItems: "center",
                     opacity: 0.85,
-                    marginRight: 4,
                   }}
                 >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
+                  <Pencil size={13} strokeWidth={1.5} />
                 </button>
                 <HoverTipsGear />
               </>
             }
             maxWidth={320}
           >
-            {/* Header — name + roman numeral, subtitle of arcana/sign */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontStyle: "italic",
-                  fontSize: 18,
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.15,
-                }}
-              >
-                {m.name}
-              </div>
-              {numeralOrRank && (
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: "var(--accent, var(--gold))",
-                    opacity: 0.85,
-                    flexShrink: 0,
-                  }}
-                >
-                  {numeralOrRank}
-                </div>
-              )}
-            </div>
-            {subtitle && (
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 10,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "var(--accent, var(--gold))",
-                  opacity: 0.7,
-                  marginTop: -4,
-                }}
-              >
-                {subtitle}
-              </div>
-            )}
-
-            {/* Stat strip — rank + pull count + reversed %. Reversed
-                % only shows when EJ18 popoverDataMap is loaded for
-                this card; otherwise the grid drops to 2 columns. */}
-            {popoverSection(
-              "stat-strip",
-              drawCounts && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
-                    gap: 6,
-                  }}
-                >
-                  <div
-                    style={{
-                      background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                      borderRadius: 6,
-                      padding: "8px 4px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontStyle: "italic",
-                        fontSize: 18,
-                        color: "var(--color-foreground)",
-                        lineHeight: 1,
-                      }}
-                    >
-                      {rank ? `#${rank}` : "—"}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                        opacity: 0.7,
-                        marginTop: 3,
-                      }}
-                    >
-                      {rank ? `Rank of ${universeSize}` : "Unranked"}
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                      borderRadius: 6,
-                      padding: "8px 4px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontStyle: "italic",
-                        fontSize: 18,
-                        color: "var(--color-foreground)",
-                        lineHeight: 1,
-                      }}
-                    >
-                      {count}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                        opacity: 0.7,
-                        marginTop: 3,
-                      }}
-                    >
-                      {count === 1 ? "Pull" : "Pulls"}
-                    </div>
-                  </div>
-                  {reversedPct !== null && (
-                    <div
-                      style={{
-                        background:
-                          "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                        borderRadius: 6,
-                        padding: "8px 4px",
-                        textAlign: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontStyle: "italic",
-                          fontSize: 18,
-                          color: "var(--color-foreground)",
-                          lineHeight: 1,
-                        }}
-                      >
-                        {`${Math.round(reversedPct * 100)}%`}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: "0.12em",
-                          textTransform: "uppercase",
-                          color: "var(--accent, var(--gold))",
-                          opacity: 0.7,
-                          marginTop: 3,
-                        }}
-                      >
-                        Reversed
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ),
-            )}
-
-            {/* EJ18 — Moon phase row. Shows the moon phase under which
-                this card most often appears in the filtered universe. */}
-            {popoverSection(
-              "moon-phase",
-              moonPhaseLabel && topMoonPhase && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 11,
-                    color: "var(--color-foreground)",
-                    opacity: 0.92,
-                  }}
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 22 22"
-                    fill="none"
-                    aria-hidden
-                    style={{ flexShrink: 0 }}
-                  >
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="9"
-                      fill="none"
-                      stroke="var(--accent, var(--gold))"
-                      strokeWidth="0.8"
-                      opacity="0.4"
-                    />
-                    <path
-                      d="M11 2 A 9 9 0 0 1 11 20 A 5 9 0 0 1 11 2"
-                      fill="var(--accent, var(--gold))"
-                      opacity="0.85"
-                    />
-                  </svg>
-                  <div>
-                    Most under{" "}
-                    <span
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        color: "var(--color-foreground)",
-                      }}
-                    >
-                      {moonPhaseLabel}
-                    </span>
-                  </div>
-                </div>
-              ),
-            )}
-
-            {/* EJ18 — Time-of-day row. Bucketed: morning / afternoon /
-                evening / night, based on the seeker's tz. */}
-            {popoverSection(
-              "time-of-day",
-              timeBucketLabel && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 11,
-                    color: "var(--color-foreground)",
-                    opacity: 0.92,
-                  }}
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 22 22"
-                    fill="none"
-                    aria-hidden
-                    style={{ flexShrink: 0, opacity: 0.7 }}
-                  >
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="7.5"
-                      fill="none"
-                      stroke="var(--accent, var(--gold))"
-                      strokeWidth="1.2"
-                    />
-                    <line
-                      x1="11"
-                      y1="6.5"
-                      x2="11"
-                      y2="11"
-                      stroke="var(--accent, var(--gold))"
-                      strokeWidth="1"
-                      strokeLinecap="round"
-                    />
-                    <line
-                      x1="11"
-                      y1="11"
-                      x2="13.5"
-                      y2="11"
-                      stroke="var(--accent, var(--gold))"
-                      strokeWidth="0.7"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div>
-                    Most often drawn{" "}
-                    <span
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        color: "var(--color-foreground)",
-                      }}
-                    >
-                      {timeBucketLabel}
-                    </span>
-                  </div>
-                </div>
-              ),
-            )}
-
-            {/* EJ18 — 12-month frequency sparkline. Each bar = one
-                month, oldest left, current right. Opacity scales
-                with count relative to the max month. Empty months
-                render as a low-opacity sliver to preserve the
-                rhythm of the chart. */}
-            {popoverSection(
-              "sparkline",
-              monthCounts && monthCounts.some((n) => n > 0) && (
-                <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 2,
-                      alignItems: "flex-end",
-                      height: 30,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {(() => {
-                      const max = Math.max(1, ...monthCounts);
-                      return monthCounts.map((n, i) => {
-                        const frac = n / max;
-                        const heightPct = Math.max(8, frac * 100);
-                        const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
-                        return (
-                          <div
-                            key={`spark-${i}`}
-                            style={{
-                              flex: 1,
-                              height: `${heightPct}%`,
-                              background: "var(--accent, var(--gold))",
-                              opacity,
-                              borderRadius: 1,
-                            }}
-                          />
-                        );
-                      });
-                    })()}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.6,
-                    }}
-                  >
-                    12-Month Frequency
-                  </div>
-                </div>
-              ),
-            )}
-
-            {/* Upright meaning */}
-            {popoverSection(
-              "meanings",
-              <>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 10,
-                      letterSpacing: "0.18em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.9,
-                    }}
-                  >
-                    Upright
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 11.5,
-                      color: "var(--color-foreground)",
-                      opacity: 0.85,
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {m.uprightKeywords.join(", ")}.
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontSize: 12,
-                      color: "var(--color-foreground)",
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {m.uprightMeaning}
-                  </div>
-                </div>
-
-                {/* Reversed meaning */}
-                {allowReversed && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: 10,
-                        letterSpacing: "0.18em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                        opacity: 0.9,
-                      }}
-                    >
-                      Reversed
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 11.5,
-                        color: "var(--color-foreground)",
-                        opacity: 0.85,
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      {m.reversedKeywords.join(", ")}.
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 12,
-                        color: "var(--color-foreground)",
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {m.reversedMeaning}
-                    </div>
-                  </div>
-                )}
-              </>,
-            )}
-
-            {/* Companion chips. Only shown when the hovered card is
-                the hero (we have its top-7 from server data). For
-                non-hero cards, EJ18 adds per-card companion data. */}
-            {popoverSection(
-              "companions",
-              topCompanions.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    borderTop:
-                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
-                    paddingTop: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 10,
-                      letterSpacing: "0.14em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.85,
-                    }}
-                  >
-                    Most often appears with
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 6,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {topCompanions.map((c) => (
-                      <span
-                        key={c.cardId}
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: 11,
-                          padding: "3px 8px",
-                          background:
-                            "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
-                          borderRadius: 999,
-                          color: "var(--color-foreground)",
-                        }}
-                      >
-                        {TAROT_DECK[c.cardId] ?? `Card ${c.cardId}`}{" "}
-                        <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.coCount}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ),
-            )}
-
-            {/* Timeline — first/last seen. Hidden when overlap hasn't
-                loaded yet or the card has never been drawn in the
-                filtered universe. EJ18 will add longest-gap and
-                avg-spacing using new server data. */}
-            {popoverSection(
-              "timeline",
-              (firstSeenIso ||
-                lastSeenIso ||
-                longestGapDays !== null ||
-                avgSpacingDays !== null) && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8,
-                    borderTop:
-                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
-                    paddingTop: 8,
-                    fontSize: 11,
-                    color: "var(--color-foreground)",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        opacity: 0.7,
-                        fontSize: 9,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                      }}
-                    >
-                      First seen
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        marginTop: 2,
-                      }}
-                    >
-                      {firstSeenIso ? formatDateShort(firstSeenIso) : "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        opacity: 0.7,
-                        fontSize: 9,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                      }}
-                    >
-                      Last seen
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        marginTop: 2,
-                      }}
-                    >
-                      {lastSeenIso ? formatTimeAgo(lastSeenIso) : "—"}
-                    </div>
-                  </div>
-                  {longestGapDays !== null && (
-                    <div>
-                      <div
-                        style={{
-                          opacity: 0.7,
-                          fontSize: 9,
-                          letterSpacing: "0.12em",
-                          textTransform: "uppercase",
-                          color: "var(--accent, var(--gold))",
-                        }}
-                      >
-                        Longest gap
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          marginTop: 2,
-                        }}
-                      >
-                        {longestGapDays === 1 ? "1 day" : `${longestGapDays} days`}
-                      </div>
-                    </div>
-                  )}
-                  {avgSpacingDays !== null && (
-                    <div>
-                      <div
-                        style={{
-                          opacity: 0.7,
-                          fontSize: 9,
-                          letterSpacing: "0.12em",
-                          textTransform: "uppercase",
-                          color: "var(--accent, var(--gold))",
-                        }}
-                      >
-                        Avg spacing
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          marginTop: 2,
-                        }}
-                      >
-                        {`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ),
-            )}
-
-            {/* EJ18 — Tag bias. Shows the tag the seeker has used most
-                often with this card relative to their baseline usage of
-                that tag. Multiplier indicates the over-index strength. */}
-            {popoverSection(
-              "tag-bias",
-              topTag && (
-                <div
-                  style={{
-                    borderTop:
-                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
-                    paddingTop: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 10,
-                      letterSpacing: "0.14em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.85,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Most under tag
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontSize: 12,
-                      color: "var(--color-foreground)",
-                    }}
-                  >
-                    <span style={{ fontStyle: "italic" }}>{topTag.tag}</span>{" "}
-                    <span style={{ opacity: 0.55, fontSize: 10 }}>
-                      — {topTag.multiplier}× baseline
-                    </span>
-                  </div>
-                </div>
-              ),
-            )}
-
-            {/* EJ19 — edit mode footer. Visible only while in edit
-                mode. The Save button commits sectionPrefs and exits
-                edit mode. Click-outside the popover also commits
-                (handled by the popover's onClose). The footer also
-                surfaces hint text so seekers know how to undo. */}
-            {popoverEditMode && (
-              <div
-                style={{
-                  borderTop:
-                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
-                  paddingTop: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "stretch",
-                  gap: 6,
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 10.5,
-                    color: "var(--color-foreground)",
-                    opacity: 0.7,
-                    textAlign: "center",
-                  }}
-                >
-                  Tap the dot on a section to hide it. Click Save when done.
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    commitPopoverEditMode();
-                  }}
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: 13,
-                    color: "var(--gold, var(--accent))",
-                    background: "color-mix(in oklab, var(--gold, var(--accent)) 14%, transparent)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--gold, var(--accent)) 40%, transparent)",
-                    borderRadius: 6,
-                    padding: "6px 14px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Save
-                </button>
-              </div>
-            )}
+            {renderCardPopoverInner(cardId, { editable: true })}
           </RichPopover>
         );
       })()}
+      {/* EJ20 — pinned card modals. One floating draggable modal
+          per cardId in pinnedCards. The seeker can drag any one
+          freely; default position auto-docks to the bottom of
+          the viewport, side-by-side in pin order. */}
+      {pinnedCards.map((pinnedCardId, idx) => (
+        <PinnedCardModal
+          key={`pinned-${pinnedCardId}`}
+          cardId={pinnedCardId}
+          index={idx}
+          onClose={() => unpinCard(pinnedCardId)}
+        >
+          {renderCardPopoverInner(pinnedCardId, { editable: false })}
+        </PinnedCardModal>
+      ))}
       {/* EG — slot card badge hint popover ("This card has appeared in N
           of your past readings."). Same RichPopover style as the card
           meaning popover, replacing the prior native title="" tooltip. */}

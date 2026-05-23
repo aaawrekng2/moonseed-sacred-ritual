@@ -45,8 +45,7 @@ function readState(): State {
     if (!raw) return DEFAULT_STATE;
     const parsed = JSON.parse(raw) as Partial<State>;
     const enabled = typeof parsed.enabled === "boolean" ? parsed.enabled : true;
-    const snoozedUntil =
-      typeof parsed.snoozedUntil === "number" ? parsed.snoozedUntil : null;
+    const snoozedUntil = typeof parsed.snoozedUntil === "number" ? parsed.snoozedUntil : null;
     // Auto-clear elapsed snoozes on read so consumers don't have to.
     if (snoozedUntil !== null && Date.now() >= snoozedUntil) {
       const next: State = { enabled, snoozedUntil: null };
@@ -149,8 +148,22 @@ export function useConstellationHoverTips(): HoverTipsApi {
   }, []);
 
   const toggle = useCallback(() => {
+    // EJ20 — when snoozed (effectiveEnabled=false because of a future
+    // snoozedUntil), the toggle previously only flipped the `enabled`
+    // bit, which had no visible effect. Clicking the toggle now ALSO
+    // clears any active snooze when turning ON, so the seeker can
+    // always re-enable from the toggle alone regardless of snooze
+    // state.
     const current = readState();
-    writeState({ enabled: !current.enabled, snoozedUntil: current.snoozedUntil });
+    const currentlyEffective =
+      current.enabled && (current.snoozedUntil === null || Date.now() >= current.snoozedUntil);
+    if (currentlyEffective) {
+      // Turning OFF — keep snooze as-is.
+      writeState({ enabled: false, snoozedUntil: current.snoozedUntil });
+    } else {
+      // Turning ON — clear any snooze AND set enabled.
+      writeState({ enabled: true, snoozedUntil: null });
+    }
   }, []);
 
   const snoozeFor = useCallback((durationMs: number) => {
@@ -178,8 +191,7 @@ export function useConstellationHoverTips(): HoverTipsApi {
   // nothing. Inverted the comparison: tips are effectively on only
   // when there is no snooze OR the snooze has already elapsed.
   const effectiveEnabled =
-    state.enabled &&
-    (state.snoozedUntil === null || Date.now() >= state.snoozedUntil);
+    state.enabled && (state.snoozedUntil === null || Date.now() >= state.snoozedUntil);
 
   return {
     enabled: state.enabled,
