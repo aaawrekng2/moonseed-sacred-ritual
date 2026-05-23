@@ -717,6 +717,10 @@ export type CardPopoverData = {
     count: number;
     total: number;
   } | null;
+  // EJ21 — moved from the right-side data card into the hover popover.
+  // Most-common day of the week the card appears on, with count out of
+  // total draws of this card in the filtered universe.
+  topDayOfWeek: { day: string; count: number; total: number } | null;
   monthCounts: number[]; // length 12
   companionsTop3: Array<{ cardId: number; count: number }>;
   longestGapDays: number | null;
@@ -807,6 +811,7 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
           reversedPct: null,
           topMoonPhase: null,
           topTimeBucket: null,
+          topDayOfWeek: null,
           monthCounts: new Array(12).fill(0),
           companionsTop3: [],
           longestGapDays: null,
@@ -863,6 +868,42 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
       for (const [bucket, count] of bucketCounts) {
         if (!topTimeBucket || count > topTimeBucket.count) {
           topTimeBucket = { bucket, count, total: matches.length };
+        }
+      }
+
+      // EJ21 — day-of-week distribution (moved from the right-side
+      // data card into the hover popover). Uses dayOfWeekInTz so the
+      // buckets respect the seeker's timezone.
+      const DAY_NAMES = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const dowCounts = new Map<number, number>();
+      for (const r of matches) {
+        const d = dayOfWeekInTz(new Date(r.created_at), data.tz);
+        dowCounts.set(d, (dowCounts.get(d) ?? 0) + 1);
+      }
+      let topDayOfWeek: CardPopoverData["topDayOfWeek"] = null;
+      if (dowCounts.size > 0) {
+        let bestDay = -1;
+        let bestN = 0;
+        for (const [d, n] of dowCounts) {
+          if (n > bestN) {
+            bestDay = d;
+            bestN = n;
+          }
+        }
+        if (bestDay >= 0) {
+          topDayOfWeek = {
+            day: DAY_NAMES[bestDay],
+            count: bestN,
+            total: matches.length,
+          };
         }
       }
 
@@ -946,6 +987,7 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
         reversedPct,
         topMoonPhase,
         topTimeBucket,
+        topDayOfWeek,
         monthCounts,
         companionsTop3,
         longestGapDays,
