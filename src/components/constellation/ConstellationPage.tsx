@@ -14,11 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
@@ -45,11 +41,7 @@ import {
   type PasteOutcome,
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
-import {
-  ConstellationWeb,
-  SVG_H,
-  SVG_W,
-} from "@/components/constellation/ConstellationWeb";
+import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
@@ -76,17 +68,8 @@ import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
 import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
-import {
-  SPREADS,
-  SPREAD_STORAGE_KEY,
-  getSpread,
-  type SpreadKey,
-} from "@/lib/spreads";
-import {
-  EMPTY_GLOBAL_FILTERS,
-  countActiveFilters,
-  type GlobalFilters,
-} from "@/lib/filters.types";
+import { SPREADS, SPREAD_STORAGE_KEY, getSpread, type SpreadKey } from "@/lib/spreads";
+import { EMPTY_GLOBAL_FILTERS, countActiveFilters, type GlobalFilters } from "@/lib/filters.types";
 import { useConfirm } from "@/hooks/use-confirm";
 
 // DR — slot row sized for the right column. Width is computed responsively
@@ -158,13 +141,7 @@ function loadPersisted(): Partial<PersistedState> | null {
 
 // EG — a single line in the chained legend popover. Mini visual swatch
 // on the left, short label on the right.
-function LegendRow({
-  swatch,
-  label,
-}: {
-  swatch: React.ReactNode;
-  label: string;
-}) {
+function LegendRow({ swatch, label }: { swatch: React.ReactNode; label: string }) {
   return (
     <div
       style={{
@@ -197,10 +174,7 @@ function SpreadDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const [coords, setCoords] = useState<{ left: number; top: number } | null>(
-    null,
-  );
-  const current = SPREADS.find((s) => s.key === value) ?? SPREADS[0];
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -227,32 +201,24 @@ function SpreadDropdown({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Pick a spread type"
-        title={
-          current.key === "none"
-            ? "Pick a spread type to label each slot"
-            : `${current.label} — ${current.descriptor}`
-        }
+        title="Pick a spread type to label each slot"
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 4,
-          padding: "0 6px",
+          justifyContent: "center",
+          padding: 0,
+          width: 18,
           height: 18,
           background: "transparent",
           border: "none",
           cursor: "pointer",
           color: "var(--color-foreground-muted, var(--color-foreground))",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: 12,
           opacity: 0.7,
-          whiteSpace: "nowrap",
           flexShrink: 0,
         }}
       >
-        <span>{current.label}</span>
         <ChevronDown
-          size={11}
+          size={14}
           strokeWidth={1.5}
           style={{
             transform: open ? "rotate(180deg)" : "none",
@@ -299,9 +265,7 @@ function SpreadDropdown({
                     border: "none",
                     borderRadius: 4,
                     cursor: "pointer",
-                    color: active
-                      ? "var(--gold, var(--accent))"
-                      : "var(--color-foreground)",
+                    color: active ? "var(--gold, var(--accent))" : "var(--color-foreground)",
                     fontFamily: "var(--font-serif)",
                     fontStyle: "italic",
                     fontSize: "var(--text-body-sm, 13px)",
@@ -332,8 +296,7 @@ function ColorLegend() {
               borderRadius: 3,
               background: "var(--gold, var(--accent))",
               opacity: 0.9,
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
             }}
           />
         }
@@ -348,8 +311,7 @@ function ColorLegend() {
               borderRadius: 3,
               background: "var(--accent, var(--gold))",
               opacity: 0.5,
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
             }}
           />
         }
@@ -440,8 +402,7 @@ function ConstellationLegend() {
               height: 14,
               borderRadius: 9999,
               background: "var(--gold, var(--accent))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 18%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 18%, transparent)",
             }}
           />
         }
@@ -455,8 +416,7 @@ function ConstellationLegend() {
               height: 14,
               borderRadius: 9999,
               background: "var(--trace-color, #5cead4)",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 18%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 18%, transparent)",
             }}
           />
         }
@@ -479,8 +439,7 @@ function BadgeLegend() {
               borderRadius: 9999,
               background:
                 "color-mix(in oklab, var(--accent, var(--gold)) 35%, var(--surface-card))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: 10,
@@ -537,8 +496,7 @@ function BadgeLegend() {
               height: 18,
               borderRadius: 9999,
               background: "var(--gold, var(--accent))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
             }}
           />
         }
@@ -602,12 +560,9 @@ export function ConstellationPage() {
     const persisted = loadPersisted();
     if (!persisted) return;
     if (persisted.picks?.length) setPicks(persisted.picks);
-    if (persisted.focusedSlotIdx !== undefined)
-      setFocusedSlotIdx(persisted.focusedSlotIdx);
-    if (persisted.tealSelectedIds?.length)
-      setTealSelectedIds(persisted.tealSelectedIds);
-    if (persisted.backdateISO)
-      setBackdate(new Date(persisted.backdateISO));
+    if (persisted.focusedSlotIdx !== undefined) setFocusedSlotIdx(persisted.focusedSlotIdx);
+    if (persisted.tealSelectedIds?.length) setTealSelectedIds(persisted.tealSelectedIds);
+    if (persisted.backdateISO) setBackdate(new Date(persisted.backdateISO));
     if (persisted.globalFilters) setGlobalFilters(persisted.globalFilters);
     if (persisted.overlapMode) setOverlapMode(persisted.overlapMode);
     if (persisted.question) setQuestion(persisted.question);
@@ -639,7 +594,6 @@ export function ConstellationPage() {
         .limit(50);
       if (cancelled) return;
       if (error) {
-        // eslint-disable-next-line no-console
         console.warn("[ConstellationPage] tag fetch failed", error);
         return;
       }
@@ -656,10 +610,7 @@ export function ConstellationPage() {
     };
   }, []);
 
-  const filterPayload = useMemo(
-    () => toFilterPayload(globalFilters),
-    [globalFilters],
-  );
+  const filterPayload = useMemo(() => toFilterPayload(globalFilters), [globalFilters]);
   const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
 
   // DR — readings modal open state.
@@ -700,9 +651,7 @@ export function ConstellationPage() {
     try {
       const { data: row, error } = await supabase
         .from("readings")
-        .select(
-          "id, created_at, card_ids, card_orientations, question, note",
-        )
+        .select("id, created_at, card_ids, card_orientations, question, note")
         .eq("id", readingId)
         .maybeSingle();
       if (error || !row) {
@@ -756,10 +705,7 @@ export function ConstellationPage() {
       if (total <= 0) return;
       // EJ12 — 11 gaps for 12 slots (was 9 gaps for 10).
       const target = Math.floor((total - COMPACT_SLOT_GAP * 11) / 12);
-      const clamped = Math.max(
-        COMPACT_SLOT_MIN_W,
-        Math.min(COMPACT_SLOT_MAX_W, target),
-      );
+      const clamped = Math.max(COMPACT_SLOT_MIN_W, Math.min(COMPACT_SLOT_MAX_W, target));
       setSlotW(clamped);
     };
     compute();
@@ -785,11 +731,12 @@ export function ConstellationPage() {
   // (0..6) → cardId. Applied client-side over the fetched constellation
   // before passing to ConstellationWeb. Wiped whenever the hero changes
   // (see effect alongside teal reset). Never persisted.
-  const [dragOverConstellationCardId, setDragOverConstellationCardId] =
-    useState<number | null>(null);
-  const [companionOverrides, setCompanionOverrides] = useState<
-    Map<number, number>
-  >(() => new Map());
+  const [dragOverConstellationCardId, setDragOverConstellationCardId] = useState<number | null>(
+    null,
+  );
+  const [companionOverrides, setCompanionOverrides] = useState<Map<number, number>>(
+    () => new Map(),
+  );
 
   // EJ12 — selected tarot spread type (drives the labels under the slot
   // row). Default "none" = no labels. Persists per device in
@@ -893,8 +840,7 @@ export function ConstellationPage() {
   }, [heroPick?.cardIndex, user?.id, effectiveTz, filterKey, filterPayload]);
 
   // 3. Constellation data
-  const [constellationData, setConstellationData] =
-    useState<CardConstellation | null>(null);
+  const [constellationData, setConstellationData] = useState<CardConstellation | null>(null);
   useEffect(() => {
     if (!user?.id || !heroPick) {
       setConstellationData(null);
@@ -975,18 +921,14 @@ export function ConstellationPage() {
   // card (hero or companion). `targetCardId` identifies the constellation
   // position (cardId at that position); `droppedCardId` is the card from
   // the slot drag.
-  const handleConstellationDrop = (
-    targetCardId: number,
-    droppedCardId: number,
-  ) => {
+  const handleConstellationDrop = (targetCardId: number, droppedCardId: number) => {
     setDragOverConstellationCardId(null);
     if (!Number.isFinite(droppedCardId) || droppedCardId < 0) return;
     if (!displayedConstellation) return;
 
     // Identify drop target type by the cardId-at-position.
     const isHeroPosition = targetCardId === displayedConstellation.heroCardId;
-    const droppedIsHero =
-      droppedCardId === displayedConstellation.heroCardId;
+    const droppedIsHero = droppedCardId === displayedConstellation.heroCardId;
 
     if (isHeroPosition) {
       // Drop on hero position == "make this card the hero." Behaves
@@ -1007,9 +949,7 @@ export function ConstellationPage() {
       // card to picks (so a slot exists to focus), then focus it.
       // Wiping companionOverrides happens automatically via the
       // hero-change useEffect.
-      const targetSlotIdx = picks.findIndex(
-        (p) => p.cardIndex === targetCardId,
-      );
+      const targetSlotIdx = picks.findIndex((p) => p.cardIndex === targetCardId);
       if (targetSlotIdx !== -1) {
         setFocusedSlotIdx(targetSlotIdx);
       } else {
@@ -1039,9 +979,7 @@ export function ConstellationPage() {
     if (targetPosIdx === -1) return;
 
     // No-op if the dropped card already sits at the target position.
-    if (
-      displayedConstellation.companions[targetPosIdx]?.cardId === droppedCardId
-    ) {
+    if (displayedConstellation.companions[targetPosIdx]?.cardId === droppedCardId) {
       return;
     }
 
@@ -1079,11 +1017,7 @@ export function ConstellationPage() {
     x: 0,
     y: 0,
   });
-  const handleConstellationHover = (
-    cardId: number | null,
-    clientX: number,
-    clientY: number,
-  ) => {
+  const handleConstellationHover = (cardId: number | null, clientX: number, clientY: number) => {
     if (cardId !== null) {
       cancelPopoverDismiss();
       // EI5 — single source of truth: activePopover. We no longer write
@@ -1094,11 +1028,7 @@ export function ConstellationPage() {
       // card claims the popover at any new coords (idempotent on
       // cardId), so cursor movement within a single card is a no-op.
       setActivePopover((prev) => {
-        if (
-          prev &&
-          prev.kind === "card-meaning" &&
-          prev.key === String(cardId)
-        ) {
+        if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
           return prev;
         }
         return {
@@ -1176,9 +1106,7 @@ export function ConstellationPage() {
         modeOrPullsLabel: string;
         cardLabel: string;
       };
-  const [activePopover, setActivePopover] = useState<ActivePopoverState | null>(
-    null,
-  );
+  const [activePopover, setActivePopover] = useState<ActivePopoverState | null>(null);
   // EH — shared dismiss timer for the unified popover. Used by source
   // mouseLeave handlers AND by the popover itself so the cursor can
   // travel from source → popover without dismissing. Both schedule
@@ -1290,7 +1218,10 @@ export function ConstellationPage() {
       for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
       let ok = true;
       for (const id of tealSet) {
-        if (!sameDayCards.has(id)) { ok = false; break; }
+        if (!sameDayCards.has(id)) {
+          ok = false;
+          break;
+        }
       }
       if (ok) out.push(...readings);
       void date;
@@ -1312,7 +1243,10 @@ export function ConstellationPage() {
       for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
       let ok = true;
       for (const id of tealSet) {
-        if (!sameDayCards.has(id)) { ok = false; break; }
+        if (!sameDayCards.has(id)) {
+          ok = false;
+          break;
+        }
       }
       if (ok) count += 1;
     }
@@ -1325,15 +1259,8 @@ export function ConstellationPage() {
   // (PULLS or DAYS, all caps).
   const tealCount = useMemo(() => {
     if (tealSelectedIds.length < 2) return 0;
-    return overlapMode === "pull"
-      ? tealMatchedReadings.length
-      : tealMatchedDayCount;
-  }, [
-    tealSelectedIds.length,
-    overlapMode,
-    tealMatchedReadings.length,
-    tealMatchedDayCount,
-  ]);
+    return overlapMode === "pull" ? tealMatchedReadings.length : tealMatchedDayCount;
+  }, [tealSelectedIds.length, overlapMode, tealMatchedReadings.length, tealMatchedDayCount]);
 
   // EC — Backwards-compat alias. Some existing call sites reference
   // matchedReadings; they now resolve to the hero-anchored list since
@@ -1362,18 +1289,30 @@ export function ConstellationPage() {
             const sameDay = new Set(day.sameDayCardIds);
             let ok = true;
             for (const id of tealSet) {
-              if (!sameDay.has(id)) { ok = false; break; }
+              if (!sameDay.has(id)) {
+                ok = false;
+                break;
+              }
             }
-            if (ok && sameDay.has(cardId)) { hit = true; break outer; }
+            if (ok && sameDay.has(cardId)) {
+              hit = true;
+              break outer;
+            }
           } else {
             const readings = overlap.readingsByDate?.[day.date] ?? [];
             for (const r of readings) {
               const ids = new Set(r.cardIds);
               let ok = true;
               for (const id of tealSet) {
-                if (!ids.has(id)) { ok = false; break; }
+                if (!ids.has(id)) {
+                  ok = false;
+                  break;
+                }
               }
-              if (ok && ids.has(cardId)) { hit = true; break outer; }
+              if (ok && ids.has(cardId)) {
+                hit = true;
+                break outer;
+              }
             }
           }
         }
@@ -1415,14 +1354,10 @@ export function ConstellationPage() {
   // DY — journaling-prompts modal trigger.
   const [promptsModalOpen, setPromptsModalOpen] = useState(false);
   // DY — Save to Journal lifecycle.
-  const [saveStatus, setSaveStatus] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   // DY — inline AI reading lifecycle.
-  const [aiStatus, setAiStatus] = useState<
-    "idle" | "loading" | "ready" | "error"
-  >("idle");
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [aiInterpretation, setAiInterpretation] = useState<{
     overview: string;
     positions: { position: string; card: string; interpretation: string }[];
@@ -1477,9 +1412,7 @@ export function ConstellationPage() {
 
   // DY — derive the spread mode from the pick count. Matches /draw's
   // manual-entry mapping: 1 = single, 3 = three, 10 = celtic, else custom.
-  const derivedSpreadMode = useMemo<
-    "single" | "three" | "celtic" | "custom"
-  >(() => {
+  const derivedSpreadMode = useMemo<"single" | "three" | "celtic" | "custom">(() => {
     if (picks.length === 1) return "single";
     if (picks.length === 3) return "three";
     if (picks.length === 10) return "celtic";
@@ -1576,10 +1509,7 @@ export function ConstellationPage() {
         question,
         backdateISO: backdate ? backdate.toISOString() : null,
       };
-      window.sessionStorage.setItem(
-        "tarotseed:constellation-handoff",
-        JSON.stringify(payload),
-      );
+      window.sessionStorage.setItem("tarotseed:constellation-handoff", JSON.stringify(payload));
       window.localStorage.removeItem(LS_KEY);
     } catch {
       /* sessionStorage may be unavailable; swallow */
@@ -1616,10 +1546,7 @@ export function ConstellationPage() {
       return next;
     });
   };
-  const deckCards = useMemo(
-    () => TAROT_DECK.map((name, idx) => ({ cardId: idx, name })),
-    [],
-  );
+  const deckCards = useMemo(() => TAROT_DECK.map((name, idx) => ({ cardId: idx, name })), []);
 
   // DP — drag-and-drop state. `draggingCardId` is set when a constellation
   // card starts being dragged. `dragOverSlotIdx` is the slot currently
@@ -1685,12 +1612,9 @@ export function ConstellationPage() {
 
   const handleToggleReverse = (slotIdx: number) => {
     setPicks((prev) =>
-      prev.map((p, i) =>
-        i === slotIdx ? { ...p, isReversed: !p.isReversed } : p,
-      ),
+      prev.map((p, i) => (i === slotIdx ? { ...p, isReversed: !p.isReversed } : p)),
     );
   };
-
 
   const handleSlotDrop = async (slotIdx: number, cardId: number) => {
     setDraggingCardId(null);
@@ -1713,9 +1637,7 @@ export function ConstellationPage() {
       // useConfirm hook is provided by ConfirmProvider at the app root.
       const ok = await confirm({
         title: "Replace this card?",
-        description: `Swap out ${
-          occupant.cardName ?? `card ${occupant.cardIndex}`
-        }?`,
+        description: `Swap out ${occupant.cardName ?? `card ${occupant.cardIndex}`}?`,
         confirmLabel: "Replace",
         cancelLabel: "Keep",
         destructive: true,
@@ -1824,9 +1746,7 @@ export function ConstellationPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             type="button"
-            onClick={() =>
-              requestNavigate(() => navigate({ to: "/draw/classic" }))
-            }
+            onClick={() => requestNavigate(() => navigate({ to: "/draw/classic" }))}
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
@@ -1902,8 +1822,7 @@ export function ConstellationPage() {
               value: o.value,
               label: o.label,
             })),
-            onChange: (v) =>
-              setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
+            onChange: (v) => setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
           }}
         />
       </div>
@@ -1959,17 +1878,13 @@ export function ConstellationPage() {
             constellation={displayedConstellation}
             onCardClick={(cardId) =>
               setTealSelectedIds((prev) =>
-                prev.includes(cardId)
-                  ? prev.filter((x) => x !== cardId)
-                  : [...prev, cardId],
+                prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
               )
             }
             tealSelectedIds={tealSelectedIds}
             candidateIds={candidateIds}
             heroDrawCount={
-              heroPick && drawCounts
-                ? (drawCounts.perCard[heroPick.cardIndex] ?? null)
-                : null
+              heroPick && drawCounts ? (drawCounts.perCard[heroPick.cardIndex] ?? null) : null
             }
             onCardDragStart={(cardId) => setDraggingCardId(cardId)}
             onCardHover={handleConstellationHover}
@@ -1988,10 +1903,7 @@ export function ConstellationPage() {
               // Always PULLS regardless of the same-pull/same-day pill
               // (gold badge is hero-anchored and pull-anchored).
               if (!heroPick) return undefined;
-              const heroName =
-                heroPick.cardName ??
-                TAROT_DECK[heroPick.cardIndex] ??
-                "this card";
+              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
               const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
               const unit = count === 1 ? "SPREAD" : "SPREADS";
               return `${count} ${unit} · ${heroName}`;
@@ -2005,9 +1917,14 @@ export function ConstellationPage() {
                     // in the tooltip + modal title (PULLS or DAYS).
                     count: tealCount,
                     tooltip: (() => {
-                      const unit = overlapMode === "pull"
-                        ? (tealCount === 1 ? "SPREAD" : "SPREADS")
-                        : (tealCount === 1 ? "DAY" : "DAYS");
+                      const unit =
+                        overlapMode === "pull"
+                          ? tealCount === 1
+                            ? "SPREAD"
+                            : "SPREADS"
+                          : tealCount === 1
+                            ? "DAY"
+                            : "DAYS";
                       const names = tealSelectedIds
                         .map((id) => TAROT_DECK[id] ?? "Card")
                         .join(", ");
@@ -2022,10 +1939,7 @@ export function ConstellationPage() {
             }}
             onHeroBadgeHover={(clientX, clientY) => {
               if (!heroPick) return;
-              const heroName =
-                heroPick.cardName ??
-                TAROT_DECK[heroPick.cardIndex] ??
-                "this card";
+              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
               const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
               cancelPopoverDismiss();
               setActivePopover({
@@ -2039,13 +1953,9 @@ export function ConstellationPage() {
                 cardLabel: heroName,
               });
             }}
-            onHeroBadgeHoverEnd={() =>
-              schedulePopoverDismiss("constellation-badge")
-            }
+            onHeroBadgeHoverEnd={() => schedulePopoverDismiss("constellation-badge")}
             onTealBadgeHover={(clientX, clientY) => {
-              const names = tealSelectedIds
-                .map((id) => TAROT_DECK[id] ?? "Card")
-                .join(", ");
+              const names = tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
               const unit =
                 overlapMode === "pull"
                   ? tealCount === 1
@@ -2066,9 +1976,7 @@ export function ConstellationPage() {
                 cardLabel: names,
               });
             }}
-            onTealBadgeHoverEnd={() =>
-              schedulePopoverDismiss("constellation-badge")
-            }
+            onTealBadgeHoverEnd={() => schedulePopoverDismiss("constellation-badge")}
           />
         </div>
         <div
@@ -2085,68 +1993,66 @@ export function ConstellationPage() {
               Appends "· N FILTER(S)" as a clickable link when any
               fly-out filters are active; clicking opens the existing
               filter drawer. Hidden entirely when no hero card. */}
-          {heroPick && (() => {
-            const heroName =
-              heroPick.cardName ??
-              TAROT_DECK[heroPick.cardIndex] ??
-              "this card";
-            const tr = globalFilters.timeRange ?? DEFAULT_TIMEFRAME;
-            // Natural-language time range copy.
-            const trText = (() => {
-              if (tr === "all") return "All Data";
-              if (tr === "365d") return "1 Year of Data";
-              if (tr === "180d") return "6 Months of Data";
-              if (tr === "90d") return "3 Months of Data";
-              if (tr === "30d") return "1 Month of Data";
-              if (tr === "7d") return "Last 7 Days of Data";
-              const m = /^(\d+)d$/.exec(tr);
-              return m ? `Last ${m[1]} Days of Data` : "Data";
-            })();
-            const filterN = countActiveFilters(globalFilters);
-            return (
-              <h2
-                style={{
-                  margin: 0,
-                  fontFamily: "var(--font-display)",
-                  fontStyle: "italic",
-                  fontSize: 15,
-                  lineHeight: 1.2,
-                  color: "var(--color-foreground)",
-                  opacity: 0.92,
-                }}
-              >
-                {trText} on {heroName}
-                {filterN > 0 && (
-                  <>
-                    {" · "}
-                    <button
-                      type="button"
-                      onClick={() => setGlobalDrawerOpen(true)}
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: 12,
-                        letterSpacing: "0.16em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                        background: "transparent",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.filter = "brightness(1.25)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.filter = "";
-                      }}
-                    >
-                      {filterN} {filterN === 1 ? "Filter" : "Filters"}
-                    </button>
-                  </>
-                )}
-              </h2>
-            );
-          })()}
+          {heroPick &&
+            (() => {
+              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
+              const tr = globalFilters.timeRange ?? DEFAULT_TIMEFRAME;
+              // Natural-language time range copy.
+              const trText = (() => {
+                if (tr === "all") return "All Data";
+                if (tr === "365d") return "1 Year of Data";
+                if (tr === "180d") return "6 Months of Data";
+                if (tr === "90d") return "3 Months of Data";
+                if (tr === "30d") return "1 Month of Data";
+                if (tr === "7d") return "Last 7 Days of Data";
+                const m = /^(\d+)d$/.exec(tr);
+                return m ? `Last ${m[1]} Days of Data` : "Data";
+              })();
+              const filterN = countActiveFilters(globalFilters);
+              return (
+                <h2
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: 15,
+                    lineHeight: 1.2,
+                    color: "var(--color-foreground)",
+                    opacity: 0.92,
+                  }}
+                >
+                  {trText} on {heroName}
+                  {filterN > 0 && (
+                    <>
+                      {" · "}
+                      <button
+                        type="button"
+                        onClick={() => setGlobalDrawerOpen(true)}
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontSize: 12,
+                          letterSpacing: "0.16em",
+                          textTransform: "uppercase",
+                          color: "var(--accent, var(--gold))",
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.filter = "brightness(1.25)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.filter = "";
+                        }}
+                      >
+                        {filterN} {filterN === 1 ? "Filter" : "Filters"}
+                      </button>
+                    </>
+                  )}
+                </h2>
+              );
+            })()}
           {heroPick ? (
             <ChipGrid
               heroPick={heroPick}
@@ -2170,8 +2076,7 @@ export function ConstellationPage() {
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 fontSize: 13,
-                color:
-                  "var(--color-foreground-muted, var(--color-foreground))",
+                color: "var(--color-foreground-muted, var(--color-foreground))",
                 margin: 0,
                 opacity: 0.7,
               }}
@@ -2220,9 +2125,7 @@ export function ConstellationPage() {
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
-                        const raw = e.dataTransfer.getData(
-                          "application/x-tarotseed-cardid",
-                        );
+                        const raw = e.dataTransfer.getData("application/x-tarotseed-cardid");
                         const id = raw ? Number(raw) : draggingCardId;
                         if (id !== null && Number.isFinite(id)) {
                           handleSlotDrop(idx, id);
@@ -2243,8 +2146,7 @@ export function ConstellationPage() {
                           ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
                           : "transparent",
                         cursor: "pointer",
-                        color:
-                          "var(--color-foreground-muted, var(--color-foreground))",
+                        color: "var(--color-foreground-muted, var(--color-foreground))",
                         fontSize: 14,
                         transition: "background 120ms ease",
                       }}
@@ -2254,10 +2156,8 @@ export function ConstellationPage() {
                   );
                 }
                 const isFocused = idx === heroIdx;
-                const inEcho =
-                  echo.active && participatingSet.has(pick.cardIndex);
-                const showControls =
-                  hoveredSlotIdx === idx || focusedSlotIdx === idx;
+                const inEcho = echo.active && participatingSet.has(pick.cardIndex);
+                const showControls = hoveredSlotIdx === idx || focusedSlotIdx === idx;
                 return (
                   <div
                     key={pick.id}
@@ -2288,9 +2188,7 @@ export function ConstellationPage() {
                       position: "relative",
                       width: slotW,
                       flexShrink: 0,
-                      outline: isDropTarget
-                        ? "2px dashed var(--accent, var(--gold))"
-                        : "none",
+                      outline: isDropTarget ? "2px dashed var(--accent, var(--gold))" : "none",
                       outlineOffset: 3,
                       borderRadius: 6,
                       transition: "outline 120ms ease",
@@ -2298,18 +2196,10 @@ export function ConstellationPage() {
                     }}
                     onMouseEnter={(e) => {
                       setHoveredSlotIdx(idx);
-                      handleConstellationHover(
-                        pick.cardIndex,
-                        e.clientX,
-                        e.clientY,
-                      );
+                      handleConstellationHover(pick.cardIndex, e.clientX, e.clientY);
                     }}
                     onMouseMove={(e) =>
-                      handleConstellationHover(
-                        pick.cardIndex,
-                        e.clientX,
-                        e.clientY,
-                      )
+                      handleConstellationHover(pick.cardIndex, e.clientX, e.clientY)
                     }
                     onMouseLeave={(e) => {
                       setHoveredSlotIdx((cur) => (cur === idx ? null : cur));
@@ -2326,9 +2216,7 @@ export function ConstellationPage() {
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
-                      const raw = e.dataTransfer.getData(
-                        "application/x-tarotseed-cardid",
-                      );
+                      const raw = e.dataTransfer.getData("application/x-tarotseed-cardid");
                       const id = raw ? Number(raw) : draggingCardId;
                       if (id !== null && Number.isFinite(id)) {
                         handleSlotDrop(idx, id);
@@ -2376,9 +2264,7 @@ export function ConstellationPage() {
                         border: "none",
                         cursor: "pointer",
                         borderRadius: 5,
-                        outline: isFocused
-                          ? "2px solid var(--accent, var(--gold))"
-                          : "none",
+                        outline: isFocused ? "2px solid var(--accent, var(--gold))" : "none",
                         outlineOffset: 2,
                         display: "block",
                       }}
@@ -2433,14 +2319,8 @@ export function ConstellationPage() {
                           e.stopPropagation();
                           handleToggleReverse(idx);
                         }}
-                        aria-label={
-                          pick.isReversed
-                            ? "Flip upright"
-                            : "Flip reversed"
-                        }
-                        title={
-                          pick.isReversed ? "Flip upright" : "Flip reversed"
-                        }
+                        aria-label={pick.isReversed ? "Flip upright" : "Flip reversed"}
+                        title={pick.isReversed ? "Flip upright" : "Flip reversed"}
                         style={{
                           position: "absolute",
                           top: -6,
@@ -2460,9 +2340,7 @@ export function ConstellationPage() {
                           alignItems: "center",
                           justifyContent: "center",
                           boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
-                          transform: pick.isReversed
-                            ? "rotate(180deg)"
-                            : "none",
+                          transform: pick.isReversed ? "rotate(180deg)" : "none",
                           transition: "transform 160ms ease",
                         }}
                       >
@@ -2473,18 +2351,14 @@ export function ConstellationPage() {
                       drawCounts.perCard[pick.cardIndex] !== undefined &&
                       (() => {
                         const count = drawCounts.perCard[pick.cardIndex];
-                        const effectiveOpacity = isFocused
-                          ? 0.9
-                          : badgeOpacity(count, picksMax);
+                        const effectiveOpacity = isFocused ? 0.9 : badgeOpacity(count, picksMax);
                         const pct = Math.round(effectiveOpacity * 100);
                         const baseColor = isFocused
                           ? "var(--gold, var(--accent))"
                           : "var(--accent, var(--gold))";
                         const bg = `color-mix(in oklab, ${baseColor} ${pct}%, var(--surface-card) ${100 - pct}%)`;
                         const textColor =
-                          effectiveOpacity > 0.5
-                            ? "var(--background)"
-                            : "var(--color-foreground)";
+                          effectiveOpacity > 0.5 ? "var(--background)" : "var(--color-foreground)";
                         return (
                           <div
                             role="img"
@@ -2498,16 +2372,11 @@ export function ConstellationPage() {
                                 anchorY: e.clientY,
                                 count,
                                 cardName:
-                                  pick.cardName ??
-                                  TAROT_DECK[pick.cardIndex] ??
-                                  "this card",
+                                  pick.cardName ?? TAROT_DECK[pick.cardIndex] ?? "this card",
                               });
                             }}
                             onMouseLeave={() =>
-                              schedulePopoverDismiss(
-                                "badge-hint",
-                                String(pick.id),
-                              )
+                              schedulePopoverDismiss("badge-hint", String(pick.id))
                             }
                             style={{
                               position: "absolute",
@@ -2557,10 +2426,7 @@ export function ConstellationPage() {
                 marginBottom: 10,
               }}
             >
-              <SpreadDropdown
-                value={spreadKey}
-                onChange={setSpreadKeyPersisted}
-              />
+              <SpreadDropdown value={spreadKey} onChange={setSpreadKeyPersisted} />
               <div
                 style={{
                   display: "flex",
@@ -2570,7 +2436,18 @@ export function ConstellationPage() {
                 }}
               >
                 {Array.from({ length: 12 }).map((_, idx) => {
-                  const name = spread.slotNames[idx];
+                  // EJ14 — long name shown when it fits (≤6 chars
+                  // including spaces); otherwise the short form.
+                  // Both source from the spread definition; the long
+                  // name is always used in the hover tip so the seeker
+                  // can decode the abbreviation.
+                  const longName = spread.slotNames[idx];
+                  const shortName = spread.slotNamesShort[idx];
+                  const display = longName
+                    ? longName.length <= 6
+                      ? longName
+                      : (shortName ?? longName)
+                    : undefined;
                   return (
                     <div
                       key={`slot-label-${idx}`}
@@ -2582,21 +2459,16 @@ export function ConstellationPage() {
                         fontStyle: "italic",
                         fontSize: 12,
                         textAlign: "center",
-                        color:
-                          "var(--color-foreground-muted, var(--color-foreground))",
-                        opacity: name ? 0.7 : 0,
+                        color: "var(--color-foreground-muted, var(--color-foreground))",
+                        opacity: display ? 0.7 : 0,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        cursor: name ? "help" : "default",
+                        cursor: display ? "help" : "default",
                       }}
-                      title={
-                        name
-                          ? `${name} — ${spread.descriptor}`
-                          : undefined
-                      }
+                      title={longName ? `${longName} — ${spread.descriptor}` : undefined}
                     >
-                      {name ?? "\u00a0"}
+                      {display ?? "\u00a0"}
                     </div>
                   );
                 })}
@@ -2698,8 +2570,7 @@ export function ConstellationPage() {
                     padding: "8px 10px",
                     borderRadius: 8,
                     border: "1px solid var(--border-subtle)",
-                    background:
-                      "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
+                    background: "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
                     color: "var(--color-foreground)",
                     fontFamily: "var(--font-serif)",
                     fontStyle: "italic",
@@ -2713,19 +2584,14 @@ export function ConstellationPage() {
                   onClick={() => setPromptsModalOpen(true)}
                   disabled={!heroPick}
                   aria-label="Browse journaling prompts"
-                  title={
-                    heroPick
-                      ? "Browse journaling prompts"
-                      : "Focus a card to see its prompts"
-                  }
+                  title={heroPick ? "Browse journaling prompts" : "Focus a card to see its prompts"}
                   style={{
                     flexShrink: 0,
                     width: 36,
                     height: 36,
                     borderRadius: 8,
                     border: "1px solid var(--border-subtle)",
-                    background:
-                      "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
+                    background: "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
                     color: "var(--accent, var(--gold))",
                     cursor: heroPick ? "pointer" : "not-allowed",
                     opacity: heroPick ? 1 : 0.4,
@@ -2752,8 +2618,7 @@ export function ConstellationPage() {
                   padding: "8px 10px",
                   borderRadius: 8,
                   border: "1px solid var(--border-subtle)",
-                  background:
-                    "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
+                  background: "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
                   color: "var(--color-foreground)",
                   fontFamily: "var(--font-serif)",
                   fontSize: "var(--text-body-sm, 0.85rem)",
@@ -2810,9 +2675,7 @@ export function ConstellationPage() {
               tooltipText: info.tooltipText,
             });
           }}
-          onDayHoverEnd={(date) =>
-            schedulePopoverDismiss("day-cell", date)
-          }
+          onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
         />
       </div>
 
@@ -2826,11 +2689,7 @@ export function ConstellationPage() {
       )}
       {picks.length >= 2 && (
         <div style={{ padding: "0 24px" }}>
-          <PullHistoryPill
-            picks={picks}
-            practice={practice}
-            constellation={constellationState}
-          />
+          <PullHistoryPill picks={picks} practice={practice} constellation={constellationState} />
         </div>
       )}
       <div style={{ padding: "0 24px", marginTop: 32 }}>
@@ -2864,10 +2723,7 @@ export function ConstellationPage() {
             }}
           >
             {picks.map((p) => (
-              <div
-                key={`bigpull-${p.id}`}
-                style={{ width: 96, flexShrink: 0 }}
-              >
+              <div key={`bigpull-${p.id}`} style={{ width: 96, flexShrink: 0 }}>
                 <CardImage
                   variant="face"
                   cardId={p.cardIndex}
@@ -2895,10 +2751,7 @@ export function ConstellationPage() {
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: 14,
-              cursor:
-                !canSubmit || aiStatus === "loading"
-                  ? "not-allowed"
-                  : "pointer",
+              cursor: !canSubmit || aiStatus === "loading" ? "not-allowed" : "pointer",
               opacity: !canSubmit || aiStatus === "loading" ? 0.55 : 1,
             }}
           >
@@ -3022,9 +2875,7 @@ export function ConstellationPage() {
               deckId={undefined}
               excludeCardIds={placedIds}
               title="Pick a card"
-              drawCountTimeRange={
-                globalFilters.timeRange ?? DEFAULT_TIMEFRAME
-              }
+              drawCountTimeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
               onCancel={() => setPickerOpen(false)}
               onSelect={(cardIndex, isReversed, _deckId, cardName) => {
                 setFocusedSlotIdx(picks.length);
@@ -3066,12 +2917,9 @@ export function ConstellationPage() {
           // Card-name list wraps; no truncation, no "+ N more".
           if (modalMode === "teal") {
             const n = tealCount;
-            const unit = overlapMode === "pull"
-              ? (n === 1 ? "SPREAD" : "SPREADS")
-              : (n === 1 ? "DAY" : "DAYS");
-            const tealNames = tealSelectedIds
-              .map((id) => TAROT_DECK[id] ?? "Card")
-              .join(", ");
+            const unit =
+              overlapMode === "pull" ? (n === 1 ? "SPREAD" : "SPREADS") : n === 1 ? "DAY" : "DAYS";
+            const tealNames = tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
             return `${n} ${unit} with ${tealNames}`;
           }
           // Hero mode (default).
@@ -3083,9 +2931,7 @@ export function ConstellationPage() {
           if (!heroName) return "Recent Spreads";
           return `${n} ${unit} with ${heroName}`;
         })()}
-        matches={
-          modalMode === "teal" ? tealMatchedReadings : heroMatchedReadings
-        }
+        matches={modalMode === "teal" ? tealMatchedReadings : heroMatchedReadings}
         filtersActive={countActiveFilters(globalFilters) > 0}
         onClearFilters={() => {
           setGlobalFilters((prev) => ({
@@ -3102,10 +2948,7 @@ export function ConstellationPage() {
         }}
         onRowClick={(readingId) => {
           try {
-            window.sessionStorage.setItem(
-              "tarotseed:open-reading-id",
-              readingId,
-            );
+            window.sessionStorage.setItem("tarotseed:open-reading-id", readingId);
           } catch {
             /* swallow */
           }
@@ -3160,9 +3003,7 @@ export function ConstellationPage() {
               closeActivePopover("card-meaning");
             }}
             onCancelDismiss={cancelPopoverDismiss}
-            onScheduleDismiss={() =>
-              schedulePopoverDismiss("card-meaning")
-            }
+            onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
             chainedContent={<ConstellationLegend />}
             chainedTitle="How the constellation works"
             extraTopRightControl={<HoverTipsGear />}
@@ -3215,9 +3056,7 @@ export function ConstellationPage() {
               </div>
             </div>
             {allowReversed && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 3 }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 <div
                   style={{
                     fontFamily: "var(--font-display)",
@@ -3267,9 +3106,7 @@ export function ConstellationPage() {
           anchorY={activePopover.anchorY}
           onClose={() => closeActivePopover("badge-hint")}
           onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() =>
-            schedulePopoverDismiss("badge-hint")
-          }
+          onScheduleDismiss={() => schedulePopoverDismiss("badge-hint")}
           chainedContent={<BadgeLegend />}
           chainedTitle="About badges"
           maxWidth={240}
@@ -3312,40 +3149,39 @@ export function ConstellationPage() {
           has any visual signals active (gold hero fill, ring, dashed,
           teal trace), an ⓘ icon appears in the corner and chains to a
           color legend explaining each signal active on THIS cell. */}
-      {activePopover?.kind === "day-cell" && (() => {
-        return (
-          <RichPopover
-            open
-            anchorX={activePopover.anchorX}
-            anchorY={activePopover.anchorY}
-            onClose={() => closeActivePopover("day-cell")}
-            onCancelDismiss={cancelPopoverDismiss}
-            onScheduleDismiss={() =>
-              schedulePopoverDismiss("day-cell")
-            }
-            chainedContent={<ColorLegend />}
-            chainedTitle="What the colors mean"
-            maxWidth={300}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                color: "var(--color-foreground)",
-                lineHeight: 1.4,
-                // EJ10 — render newlines in the multi-line stacked
-                // tooltip text (built in OverlapStrip day-cell logic)
-                // as actual line breaks. No layout shift on
-                // single-line tooltips (date-only); just enables
-                // multi-line where the source string contains \n.
-                whiteSpace: "pre-line",
-              }}
+      {activePopover?.kind === "day-cell" &&
+        (() => {
+          return (
+            <RichPopover
+              open
+              anchorX={activePopover.anchorX}
+              anchorY={activePopover.anchorY}
+              onClose={() => closeActivePopover("day-cell")}
+              onCancelDismiss={cancelPopoverDismiss}
+              onScheduleDismiss={() => schedulePopoverDismiss("day-cell")}
+              chainedContent={<ColorLegend />}
+              chainedTitle="What the colors mean"
+              maxWidth={300}
             >
-              {activePopover.tooltipText}
-            </div>
-          </RichPopover>
-        );
-      })()}
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                  lineHeight: 1.4,
+                  // EJ10 — render newlines in the multi-line stacked
+                  // tooltip text (built in OverlapStrip day-cell logic)
+                  // as actual line breaks. No layout shift on
+                  // single-line tooltips (date-only); just enables
+                  // multi-line where the source string contains \n.
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {activePopover.tooltipText}
+              </div>
+            </RichPopover>
+          );
+        })()}
       {/* EH — Chip hint popover. Replaces native title="" on the
           right-column chips (LAST SEEN / TIME PATTERN / FREQUENCY /
           MOON PHASE / REVERSED). Same dark style as the other rich
@@ -3394,9 +3230,7 @@ export function ConstellationPage() {
           anchorY={activePopover.anchorY}
           onClose={() => closeActivePopover("constellation-badge")}
           onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() =>
-            schedulePopoverDismiss("constellation-badge")
-          }
+          onScheduleDismiss={() => schedulePopoverDismiss("constellation-badge")}
           chainedContent={<ConstellationLegend />}
           chainedTitle="How the constellation works"
           maxWidth={280}
@@ -3410,9 +3244,7 @@ export function ConstellationPage() {
               lineHeight: 1.2,
             }}
           >
-            {activePopover.variant === "hero"
-              ? `Gold hero badge`
-              : `Teal asterism badge`}
+            {activePopover.variant === "hero" ? `Gold hero badge` : `Teal asterism badge`}
           </div>
           <div
             style={{
@@ -3438,7 +3270,8 @@ export function ConstellationPage() {
               </>
             ) : (
               <>
-                {activePopover.modeOrPullsLabel} matching your filters where your asterism co-occurred:{" "}
+                {activePopover.modeOrPullsLabel} matching your filters where your asterism
+                co-occurred:{" "}
                 <span
                   style={{
                     fontStyle: "italic",
@@ -3468,9 +3301,7 @@ export function ConstellationPage() {
         size="sm"
       >
         {(() => {
-          const prompts = heroPick
-            ? resolvePromptsForFirstCard(heroPick.cardIndex)
-            : null;
+          const prompts = heroPick ? resolvePromptsForFirstCard(heroPick.cardIndex) : null;
           if (!prompts || prompts.length === 0) {
             return (
               <div
@@ -3502,9 +3333,7 @@ export function ConstellationPage() {
                   type="button"
                   onClick={() => {
                     setNote((prev) =>
-                      prev.trim() === ""
-                        ? `${p}\n\n`
-                        : `${prev.replace(/\s+$/, "")}\n\n${p}\n\n`,
+                      prev.trim() === "" ? `${p}\n\n` : `${prev.replace(/\s+$/, "")}\n\n${p}\n\n`,
                     );
                     setPromptsModalOpen(false);
                   }}
@@ -3512,8 +3341,7 @@ export function ConstellationPage() {
                     textAlign: "left",
                     padding: "10px 12px",
                     borderRadius: 8,
-                    background:
-                      "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
+                    background: "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
                     border: "1px solid var(--border-subtle)",
                     color: "var(--color-foreground)",
                     cursor: "pointer",
@@ -3536,11 +3364,7 @@ export function ConstellationPage() {
       <Modal
         open={dayPopover.open}
         onClose={() => setDayPopover({ open: false, date: null })}
-        title={
-          dayPopover.date
-            ? formatDateShort(`${dayPopover.date}T00:00:00`)
-            : "Spreads"
-        }
+        title={dayPopover.date ? formatDateShort(`${dayPopover.date}T00:00:00`) : "Spreads"}
         subtitle={(() => {
           if (!dayPopover.date) return undefined;
           const list = overlap?.readingsByDate?.[dayPopover.date] ?? [];
@@ -3581,8 +3405,7 @@ export function ConstellationPage() {
                   .slice(0, 5)
                   .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
                   .join(" · ");
-                const extra =
-                  r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
+                const extra = r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
                 return (
                   <button
                     key={r.id}
@@ -3592,8 +3415,7 @@ export function ConstellationPage() {
                       textAlign: "left",
                       padding: "10px 12px",
                       borderRadius: 8,
-                      background:
-                        "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
+                      background: "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
                       border: "1px solid var(--border-subtle)",
                       color: "var(--color-foreground)",
                       cursor: "pointer",
@@ -3633,8 +3455,7 @@ export function ConstellationPage() {
                       style={{
                         fontFamily: "var(--font-serif)",
                         fontSize: 11,
-                        color:
-                          "var(--color-foreground-muted, var(--color-foreground))",
+                        color: "var(--color-foreground-muted, var(--color-foreground))",
                         opacity: 0.85,
                         lineHeight: 1.35,
                       }}
@@ -3798,14 +3619,11 @@ function ReadingsModal({
                   fontFamily: "var(--font-serif)",
                   fontStyle: "italic",
                   fontSize: 13,
-                  color:
-                    "var(--color-foreground-muted, var(--color-foreground))",
+                  color: "var(--color-foreground-muted, var(--color-foreground))",
                   opacity: 0.85,
                 }}
               >
-                {filtersActive
-                  ? "No spreads match these filters."
-                  : "No matching spreads."}
+                {filtersActive ? "No spreads match these filters." : "No matching spreads."}
               </p>
               {filtersActive && onClearFilters && (
                 <button
@@ -3832,9 +3650,7 @@ function ReadingsModal({
           ) : (
             matches.map((r) => {
               const date = formatDateShort(r.createdAt);
-              const cardsLabel = r.cardIds
-                .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
-                .join(" · ");
+              const cardsLabel = r.cardIds.map((id) => TAROT_DECK[id] ?? `Card ${id}`).join(" · ");
               const hasQuestion = !!(r.question && r.question.trim());
               return (
                 <button
@@ -3874,8 +3690,7 @@ function ReadingsModal({
                         letterSpacing: "0.2em",
                         textTransform: "uppercase",
                         fontFamily: "var(--font-serif)",
-                        color:
-                          "var(--color-foreground-muted, var(--color-foreground))",
+                        color: "var(--color-foreground-muted, var(--color-foreground))",
                         opacity: 0.75,
                         flexShrink: 0,
                         lineHeight: 1.3,
@@ -3910,8 +3725,7 @@ function ReadingsModal({
                         fontSize: 11,
                         fontFamily: "var(--font-serif)",
                         fontStyle: "italic",
-                        color:
-                          "var(--color-foreground-muted, var(--color-foreground))",
+                        color: "var(--color-foreground-muted, var(--color-foreground))",
                         opacity: 0.85,
                         width: "100%",
                         lineHeight: 1.4,
@@ -3932,9 +3746,7 @@ function ReadingsModal({
       </div>
     </div>
   );
-  return typeof document === "undefined"
-    ? null
-    : createPortal(node, document.body);
+  return typeof document === "undefined" ? null : createPortal(node, document.body);
 }
 
 function UnsavedChangesModal({
@@ -4011,8 +3823,8 @@ function UnsavedChangesModal({
             lineHeight: 1.5,
           }}
         >
-          You have cards placed here. Your selection is saved on this device
-          and will be here when you return.
+          You have cards placed here. Your selection is saved on this device and will be here when
+          you return.
         </p>
         <label
           style={{
@@ -4065,10 +3877,8 @@ function UnsavedChangesModal({
             onClick={() => onConfirm(suppress)}
             style={{
               padding: "8px 16px",
-              background:
-                "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
-              border:
-                "1px solid color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
+              background: "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
               borderRadius: 6,
               color: "var(--color-foreground)",
               fontFamily: "var(--font-serif)",
@@ -4083,7 +3893,5 @@ function UnsavedChangesModal({
       </div>
     </div>
   );
-  return typeof document === "undefined"
-    ? null
-    : createPortal(node, document.body);
+  return typeof document === "undefined" ? null : createPortal(node, document.body);
 }

@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EJ12";
+export const APP_VERSION_LETTER = "EJ14";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
@@ -54,9 +54,7 @@ export function publishMistLevel(level: number): void {
   if (typeof window === "undefined") return;
   const clamped = Math.max(0, Math.min(4, Math.round(level)));
   window.localStorage.setItem(MIST_KEY, String(clamped));
-  window.dispatchEvent(
-    new CustomEvent<number>(MIST_EVENT, { detail: clamped }),
-  );
+  window.dispatchEvent(new CustomEvent<number>(MIST_EVENT, { detail: clamped }));
 }
 
 export function DevOverlay() {
