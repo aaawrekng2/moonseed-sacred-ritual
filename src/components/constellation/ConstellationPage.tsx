@@ -72,6 +72,7 @@ import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
 import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
+import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
 import { SPREADS, SPREAD_STORAGE_KEY, getSpread, type SpreadKey } from "@/lib/spreads";
 import { EMPTY_GLOBAL_FILTERS, countActiveFilters, type GlobalFilters } from "@/lib/filters.types";
@@ -1367,6 +1368,7 @@ export function ConstellationPage() {
     | "stat-strip"
     | "moon-phase"
     | "time-of-day"
+    | "day-of-week"
     | "meanings"
     | "sparkline"
     | "companions"
@@ -1376,6 +1378,7 @@ export function ConstellationPage() {
     "stat-strip",
     "moon-phase",
     "time-of-day",
+    "day-of-week",
     "meanings",
     "sparkline",
     "companions",
@@ -1386,6 +1389,7 @@ export function ConstellationPage() {
     "stat-strip": "Stats",
     "moon-phase": "Moon phase",
     "time-of-day": "Time of day",
+    "day-of-week": "Day of week",
     meanings: "Meanings",
     sparkline: "12-month frequency",
     companions: "Companions",
@@ -2125,6 +2129,7 @@ export function ConstellationPage() {
     const reversedPct = pd?.reversedPct ?? null;
     const topMoonPhase = pd?.topMoonPhase ?? null;
     const topTimeBucket = pd?.topTimeBucket ?? null;
+    const topDayOfWeek = pd?.topDayOfWeek ?? null;
     const monthCounts = pd?.monthCounts ?? null;
     const longestGapDays = pd?.longestGapDays ?? null;
     const avgSpacingDays = pd?.avgSpacingDays ?? null;
@@ -2392,55 +2397,14 @@ export function ConstellationPage() {
                 opacity: 0.92,
               }}
             >
-              {/* EJ20 — phase-specific moon glyph. Earlier the
-                  same waxing-gibbous-ish shape rendered regardless
-                  of phase. Now each of the 8 phase names maps to
-                  its own SVG composition. Convention: lit side on
-                  the RIGHT for waxing, LEFT for waning, full lit
-                  for Full Moon, fully dark outline for New Moon. */}
-              {(() => {
-                const accent = "var(--accent, var(--gold))";
-                const darkFill = "var(--background, #0b0a14)";
-                const phase = topMoonPhase.phase;
-                return (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 22 22"
-                    fill="none"
-                    aria-hidden
-                    style={{ flexShrink: 0 }}
-                  >
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="9"
-                      fill={phase === "New Moon" ? "none" : accent}
-                      stroke={accent}
-                      strokeWidth="0.8"
-                      opacity={phase === "New Moon" ? 0.5 : 1}
-                    />
-                    {phase === "Waxing Crescent" && (
-                      <ellipse cx="9" cy="11" rx="7.5" ry="9" fill={darkFill} />
-                    )}
-                    {phase === "First Quarter" && (
-                      <rect x="2" y="2" width="9" height="18" fill={darkFill} />
-                    )}
-                    {phase === "Waxing Gibbous" && (
-                      <ellipse cx="6.5" cy="11" rx="3.5" ry="9" fill={darkFill} />
-                    )}
-                    {phase === "Waning Gibbous" && (
-                      <ellipse cx="15.5" cy="11" rx="3.5" ry="9" fill={darkFill} />
-                    )}
-                    {phase === "Last Quarter" && (
-                      <rect x="11" y="2" width="9" height="18" fill={darkFill} />
-                    )}
-                    {phase === "Waning Crescent" && (
-                      <ellipse cx="13" cy="11" rx="7.5" ry="9" fill={darkFill} />
-                    )}
-                  </svg>
-                );
-              })()}
+              {/* EJ21 — use the canonical <MoonPhaseIcon> component
+                  from src/components/moon. Earlier inline SVGs hand-
+                  rolled by Claude had geometry bugs (waxing/waning
+                  crescent/gibbous looked the same or wrong). The
+                  canonical component handles all 8 phases correctly
+                  with proper pearl gradient + glow + accurate
+                  crescent/gibbous paths. */}
+              <MoonPhaseIcon phase={topMoonPhase.phase} size={20} />
               <div>
                 Most under{" "}
                 <span
@@ -2517,6 +2481,94 @@ export function ConstellationPage() {
                   }}
                 >
                   {timeBucketLabel}
+                </span>
+              </div>
+            </div>
+          ),
+        )}
+
+        {/* EJ21 — Day of week. Moved from the right-side data card
+            into the hover popover. Shows the day this card most
+            commonly appears on (e.g. "Most often on Sundays · 4 of 11"). */}
+        {popoverSection(
+          "day-of-week",
+          topDayOfWeek && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 11,
+                color: "var(--color-foreground)",
+                opacity: 0.92,
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 22 22"
+                fill="none"
+                aria-hidden
+                style={{ flexShrink: 0, opacity: 0.75 }}
+              >
+                {/* Tiny calendar glyph */}
+                <rect
+                  x="3"
+                  y="5"
+                  width="16"
+                  height="14"
+                  rx="2"
+                  fill="none"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="1.2"
+                />
+                <line
+                  x1="3"
+                  y1="9"
+                  x2="19"
+                  y2="9"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="1"
+                />
+                <line
+                  x1="7"
+                  y1="3"
+                  x2="7"
+                  y2="7"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="15"
+                  y1="3"
+                  x2="15"
+                  y2="7"
+                  stroke="var(--accent, var(--gold))"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+                <circle cx="11" cy="13" r="1.5" fill="var(--accent, var(--gold))" />
+              </svg>
+              <div>
+                Most often on{" "}
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  {topDayOfWeek.day}s
+                </span>
+                <span
+                  style={{
+                    opacity: 0.55,
+                    marginLeft: 6,
+                    fontSize: 10,
+                  }}
+                >
+                  {topDayOfWeek.count} of {topDayOfWeek.total}
                 </span>
               </div>
             </div>
@@ -3236,102 +3288,11 @@ export function ConstellationPage() {
             height: "100%",
           }}
         >
-          {/* DX — data header replaces the old "X readings with this card"
-              pill. Reflects the active timeRange + hero card name.
-              Appends "· N FILTER(S)" as a clickable link when any
-              fly-out filters are active; clicking opens the existing
-              filter drawer. Hidden entirely when no hero card. */}
-          {heroPick &&
-            (() => {
-              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
-              const tr = globalFilters.timeRange ?? DEFAULT_TIMEFRAME;
-              // Natural-language time range copy.
-              const trText = (() => {
-                if (tr === "all") return "All Data";
-                if (tr === "365d") return "1 Year of Data";
-                if (tr === "180d") return "6 Months of Data";
-                if (tr === "90d") return "3 Months of Data";
-                if (tr === "30d") return "1 Month of Data";
-                if (tr === "7d") return "Last 7 Days of Data";
-                const m = /^(\d+)d$/.exec(tr);
-                return m ? `Last ${m[1]} Days of Data` : "Data";
-              })();
-              const filterN = countActiveFilters(globalFilters);
-              return (
-                <h2
-                  style={{
-                    margin: 0,
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: 15,
-                    lineHeight: 1.2,
-                    color: "var(--color-foreground)",
-                    opacity: 0.92,
-                  }}
-                >
-                  {trText} on {heroName}
-                  {filterN > 0 && (
-                    <>
-                      {" · "}
-                      <button
-                        type="button"
-                        onClick={() => setGlobalDrawerOpen(true)}
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: 12,
-                          letterSpacing: "0.16em",
-                          textTransform: "uppercase",
-                          color: "var(--accent, var(--gold))",
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.filter = "brightness(1.25)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.filter = "";
-                        }}
-                      >
-                        {filterN} {filterN === 1 ? "Filter" : "Filters"}
-                      </button>
-                    </>
-                  )}
-                </h2>
-              );
-            })()}
-          {heroPick ? (
-            <ChipGrid
-              heroPick={heroPick}
-              stats={cardStats}
-              onChipHover={(info) => {
-                cancelPopoverDismiss();
-                setActivePopover({
-                  kind: "chip-hint",
-                  key: info.label,
-                  anchorX: info.anchorX,
-                  anchorY: info.anchorY,
-                  label: info.label,
-                  tooltip: info.tooltip,
-                });
-              }}
-              onChipHoverEnd={() => schedulePopoverDismiss("chip-hint")}
-            />
-          ) : (
-            <p
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color: "var(--color-foreground-muted, var(--color-foreground))",
-                margin: 0,
-                opacity: 0.7,
-              }}
-            >
-              add a card to see its patterns.
-            </p>
-          )}
+          {/* EJ21 — right-side data card removed entirely. The "1
+              Year of Data on..." header and the ChipGrid below it
+              (LAST SEEN, TIME PATTERN, FREQUENCY, MOON PHASE,
+              REVERSED) all moved into the card hover popover
+              instead. Frequency dropped (unreliable data). */}
 
           {/* DV — slot row + date + paste flow naturally below chips. No
               longer pinned to bottom; the right column's natural height is
