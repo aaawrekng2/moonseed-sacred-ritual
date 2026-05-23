@@ -245,6 +245,12 @@ export type QuickLogOverlap = {
     string,
     Array<{ id: string; createdAt: string; question: string | null; cardIds: number[] }>
   >;
+  /**
+   * Most-recent ISO timestamp this seeker drew each card, within the
+   * 12-month window queried above. Used by the slim hover card on
+   * Constellation to show "last seen N days ago".
+   */
+  cardLastDrawnAt: Record<number, string>;
 };
 
 function daysInMonth(year: number, month1: number): number {
