@@ -1093,7 +1093,12 @@ export function ConstellationPage() {
     x: 0,
     y: 0,
   });
-  const handleConstellationHover = (cardId: number | null, clientX: number, clientY: number) => {
+  const handleConstellationHover = (
+    cardId: number | null,
+    clientX: number,
+    clientY: number,
+    targetRect?: DOMRect | null,
+  ) => {
     if (cardId !== null) {
       cancelPopoverDismiss();
       // EI5 — single source of truth: activePopover. We no longer write
@@ -1114,12 +1119,20 @@ export function ConstellationPage() {
         // EJ22 — a new card popover opens in slim mode by default.
         // The seeker can click the slim to escalate to the rich
         // popover. Switching between cards re-enters slim mode.
-        setPopoverMode("slim");
+        // EJ23 — UNLESS we're in edit mode, in which case we stay
+        // in rich mode so the seeker's edits persist as they hover
+        // between cards. Edit mode is intentionally sticky.
+        if (!popoverEditMode) {
+          setPopoverMode("slim");
+        } else {
+          setPopoverMode("rich");
+        }
         return {
           kind: "card-meaning",
           key: String(cardId),
           anchorX: clientX,
           anchorY: clientY,
+          targetRect: targetRect ?? null,
         };
       });
     } else {
@@ -1156,6 +1169,11 @@ export function ConstellationPage() {
         key: string;
         anchorX: number;
         anchorY: number;
+        // EJ23 — optional target bounding rectangle. When present,
+        // RichPopover uses preferred-placement positioning (above
+        // the card) instead of cursor-anchored placement, so the
+        // popover never overlaps the card or its badges.
+        targetRect?: DOMRect | null;
       }
     | {
         kind: "badge-hint";
@@ -1655,6 +1673,11 @@ export function ConstellationPage() {
   // a second flag to switch between slim and rich rendering.
   const [popoverMode, setPopoverMode] = useState<"slim" | "rich">("slim");
   const escalateToRich = useCallback(() => setPopoverMode("rich"), []);
+  // EJ23 — delay timer for opening the slim hover. 450ms matches
+  // GitHub/Linear hover-card delay — long enough that an accidental
+  // cursor pass-over doesn't fire, short enough that intentional
+  // hovers feel responsive.
+  const slimHoverDelayRef = useRef<number>(0);
 
   // EJ20 — pinned card modals. Each entry is a cardId the seeker has
   // pinned via the pushpin button on the card popover. Pinned cards
@@ -2222,155 +2245,358 @@ export function ConstellationPage() {
             ? "evening"
             : "night"
       : null;
-    // Slim chip — one small "label · value" pair. Compact, readable
-    // at a glance. Tokens only — no hardcoded colors/sizes.
-    const Chip = ({ label, value }: { label: string; value: React.ReactNode }) => (
-      <div
+    // EJ23 — minimal horizontal chip. Tiny glyph (icon) + value. The
+    // glyph identifies WHAT the value is; the native title attribute
+    // provides the full descriptor on hover so the seeker can still
+    // read "what does this mean". No row labels — too noisy.
+    const MiniChip = ({
+      glyph,
+      value,
+      title,
+    }: {
+      glyph: React.ReactNode;
+      value: React.ReactNode;
+      title: string;
+    }) => (
+      <span
+        title={title}
         style={{
           display: "inline-flex",
-          alignItems: "baseline",
-          gap: 4,
+          alignItems: "center",
+          gap: 3,
           fontFamily: "var(--font-serif)",
           fontSize: 11,
-          lineHeight: 1.3,
           color: "var(--color-foreground)",
+          cursor: "help",
         }}
       >
         <span
+          aria-hidden
           style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 9,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
             color: "var(--accent, var(--gold))",
             opacity: 0.7,
+            display: "inline-flex",
+            alignItems: "center",
           }}
         >
-          {label}
+          {glyph}
         </span>
         <span style={{ fontStyle: "italic" }}>{value}</span>
-      </div>
+      </span>
     );
-    // Build the visible chip list in stable order so the seeker's
-    // mental model of "where is X" stays consistent.
+    // Build chips in stable order.
     const chips: React.ReactNode[] = [];
     if (isSlimItemVisible("count")) {
-      chips.push(<Chip key="count" label="Pulls" value={count} />);
+      chips.push(
+        <MiniChip
+          key="count"
+          glyph={
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+              <circle cx="8" cy="8" r="3.5" />
+            </svg>
+          }
+          value={count}
+          title={`Pull count: ${count}`}
+        />,
+      );
     }
     if (isSlimItemVisible("last-seen") && lastSeenIso) {
-      chips.push(<Chip key="last-seen" label="Last seen" value={formatTimeAgo(lastSeenIso)} />);
+      chips.push(
+        <MiniChip
+          key="last-seen"
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <circle cx="8" cy="8" r="6" />
+              <line x1="8" y1="8" x2="8" y2="5" strokeLinecap="round" />
+              <line x1="8" y1="8" x2="10.5" y2="8" strokeLinecap="round" />
+            </svg>
+          }
+          value={formatTimeAgo(lastSeenIso)}
+          title={`Last seen: ${formatTimeAgo(lastSeenIso)}`}
+        />,
+      );
     }
     if (isSlimItemVisible("reversed") && reversedPct !== null) {
       chips.push(
-        <Chip key="reversed" label="Reversed" value={`${Math.round(reversedPct * 100)}%`} />,
+        <MiniChip
+          key="reversed"
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <path d="M4 6 L8 2 L12 6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M12 10 L8 14 L4 10" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          }
+          value={`${Math.round(reversedPct * 100)}%`}
+          title={`Reversed: ${Math.round(reversedPct * 100)}%`}
+        />,
       );
     }
     if (isSlimItemVisible("rank") && rank && universeSize > 0) {
-      chips.push(<Chip key="rank" label="Rank" value={`#${rank} of ${universeSize}`} />);
+      chips.push(
+        <MiniChip
+          key="rank"
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <path
+                d="M3 14 L3 9 L7 9 L7 14 M7 14 L7 6 L11 6 L11 14 M11 14 L11 3 L15 3 L15 14"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          }
+          value={`#${rank}`}
+          title={`Rank: #${rank} of ${universeSize}`}
+        />,
+      );
     }
     if (isSlimItemVisible("moon-phase") && topMoonPhase) {
-      chips.push(<Chip key="moon-phase" label="Moon" value={topMoonPhase.phase} />);
+      chips.push(
+        <MiniChip
+          key="moon-phase"
+          glyph={
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+              <path d="M8 1 A 7 7 0 0 1 8 15 A 4 7 0 0 0 8 1" />
+            </svg>
+          }
+          value={topMoonPhase.phase
+            .split(" ")
+            .map((w) => w[0])
+            .join("")}
+          title={`Most under: ${topMoonPhase.phase}`}
+        />,
+      );
     }
     if (isSlimItemVisible("time-of-day") && timeBucketLabel) {
-      chips.push(<Chip key="time-of-day" label="Time" value={timeBucketLabel} />);
+      chips.push(
+        <MiniChip
+          key="time-of-day"
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <circle cx="8" cy="8" r="6" />
+            </svg>
+          }
+          value={timeBucketLabel}
+          title={`Most often drawn in the ${timeBucketLabel}`}
+        />,
+      );
     }
     if (isSlimItemVisible("day-of-week") && topDayOfWeek) {
-      chips.push(<Chip key="day-of-week" label="Day" value={`${topDayOfWeek.day}s`} />);
+      chips.push(
+        <MiniChip
+          key="day-of-week"
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <rect x="2" y="4" width="12" height="10" rx="1" />
+              <line x1="2" y1="7" x2="14" y2="7" />
+            </svg>
+          }
+          value={topDayOfWeek.day.slice(0, 3)}
+          title={`Most often on ${topDayOfWeek.day}s (${topDayOfWeek.count} of ${topDayOfWeek.total})`}
+        />,
+      );
     }
     if (isSlimItemVisible("longest-gap") && longestGapDays !== null) {
       chips.push(
-        <Chip
+        <MiniChip
           key="longest-gap"
-          label="Longest gap"
-          value={`${longestGapDays} ${longestGapDays === 1 ? "day" : "days"}`}
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <line x1="2" y1="8" x2="14" y2="8" strokeLinecap="round" />
+              <line x1="2" y1="5" x2="2" y2="11" strokeLinecap="round" />
+              <line x1="14" y1="5" x2="14" y2="11" strokeLinecap="round" />
+            </svg>
+          }
+          value={`${longestGapDays}d`}
+          title={`Longest gap: ${longestGapDays} ${longestGapDays === 1 ? "day" : "days"}`}
         />,
       );
     }
     if (isSlimItemVisible("avg-spacing") && avgSpacingDays !== null) {
       chips.push(
-        <Chip
+        <MiniChip
           key="avg-spacing"
-          label="Avg spacing"
-          value={`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <line x1="2" y1="8" x2="14" y2="8" strokeLinecap="round" strokeDasharray="2 2" />
+            </svg>
+          }
+          value={`${avgSpacingDays}d`}
+          title={`Avg spacing: ${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
         />,
       );
     }
     if (isSlimItemVisible("tag-bias") && topTag) {
       chips.push(
-        <Chip key="tag-bias" label="Tag" value={`${topTag.tag} · ${topTag.multiplier}×`} />,
+        <MiniChip
+          key="tag-bias"
+          glyph={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <path d="M2 7 L7 2 L14 2 L14 9 L9 14 L2 7Z" strokeLinejoin="round" />
+              <circle cx="11" cy="5" r="0.8" fill="currentColor" />
+            </svg>
+          }
+          value={`${topTag.tag} ${topTag.multiplier}×`}
+          title={`Tag bias: ${topTag.tag} appears ${topTag.multiplier}× more often with this card than baseline`}
+        />,
       );
     }
     return (
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          padding: "8px 10px",
-          minWidth: 180,
-          maxWidth: 280,
+          alignItems: "center",
+          gap: 8,
+          padding: "4px 8px",
         }}
       >
-        {/* Card name + numeral header — tiny version. */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: 14,
-              color: "var(--color-foreground)",
-              lineHeight: 1.15,
-            }}
-          >
-            {m.name}
-          </div>
-        </div>
-        {chips.length > 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            {chips}
-          </div>
-        ) : (
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 10.5,
-              color: "var(--color-foreground)",
-              opacity: 0.55,
-            }}
-          >
-            Tap to see meaning
-          </div>
-        )}
-        {/* Affordance — click to expand. Subtle but visible. */}
+        {/* Card name — small, italic. */}
         <div
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: 9.5,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "var(--accent, var(--gold))",
-            opacity: 0.55,
-            marginTop: 2,
-            textAlign: "right",
+            fontSize: 12,
+            color: "var(--color-foreground)",
+            whiteSpace: "nowrap",
+            opacity: 0.9,
           }}
         >
-          Click for more ›
+          {m.name}
         </div>
+        {chips.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 8,
+              flex: 1,
+            }}
+          >
+            {chips.map((chip, i) => (
+              <span key={`chip-wrap-${i}`} style={{ display: "inline-flex", alignItems: "center" }}>
+                {i > 0 && (
+                  <span
+                    aria-hidden
+                    style={{
+                      color: "var(--color-foreground)",
+                      opacity: 0.25,
+                      marginRight: 8,
+                      fontSize: 10,
+                    }}
+                  >
+                    ·
+                  </span>
+                )}
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
+        {/* ⓘ button — opens the rich popover. Replaces the older
+            "Click for more ›" text affordance per industry-standard
+            tooltip pattern. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            escalateToRich();
+          }}
+          aria-label="Open full card details"
+          title="Open full card details"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 18,
+            height: 18,
+            padding: 0,
+            background: "transparent",
+            border: "none",
+            color: "var(--accent, var(--gold))",
+            cursor: "pointer",
+            opacity: 0.75,
+            borderRadius: 9999,
+            flexShrink: 0,
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden
+          >
+            <circle cx="8" cy="8" r="6.5" />
+            <line x1="8" y1="7" x2="8" y2="11" strokeLinecap="round" />
+            <circle cx="8" cy="5" r="0.5" fill="currentColor" />
+          </svg>
+        </button>
       </div>
     );
   };
@@ -3009,38 +3235,10 @@ export function ConstellationPage() {
                         );
                       })}
                     </div>
-                    {/* Month-letter axis row. Low opacity, current
-                        month slightly emphasized. */}
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 2,
-                        alignItems: "center",
-                        marginBottom: 3,
-                      }}
-                    >
-                      {monthSlots.map((slot, i) => {
-                        const isCurrent = i === monthSlots.length - 1;
-                        return (
-                          <div
-                            key={`spark-axis-${i}`}
-                            title={slot.label}
-                            style={{
-                              flex: 1,
-                              textAlign: "center",
-                              fontFamily: "var(--font-display)",
-                              fontSize: 8.5,
-                              letterSpacing: "0.04em",
-                              color: "var(--color-foreground)",
-                              opacity: isCurrent ? 0.7 : 0.35,
-                              fontWeight: isCurrent ? 600 : 400,
-                            }}
-                          >
-                            {slot.letter}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {/* EJ23 — month-letter axis row removed. The
+                        bars carry a native title attribute with full
+                        month+year+pull count, which the seeker hovers
+                        to find out which month any bar represents. */}
                   </>
                 );
               })()}
@@ -3835,13 +4033,37 @@ export function ConstellationPage() {
                     }}
                     onMouseEnter={(e) => {
                       setHoveredSlotIdx(idx);
-                      handleConstellationHover(pick.cardIndex, e.clientX, e.clientY);
+                      // EJ23 — hover delay 450ms (industry standard for
+                      // intentional vs accidental hover, matches GitHub
+                      // hover cards). Passes the target rect so the
+                      // popover positions above the card instead of
+                      // covering it. Clears any pending delay on
+                      // mouseleave or fast cursor moves.
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const cx = e.clientX;
+                      const cy = e.clientY;
+                      const cardIdLocal = pick.cardIndex;
+                      window.clearTimeout(slimHoverDelayRef.current);
+                      slimHoverDelayRef.current = window.setTimeout(() => {
+                        handleConstellationHover(cardIdLocal, cx, cy, rect);
+                      }, 450);
                     }}
-                    onMouseMove={(e) =>
-                      handleConstellationHover(pick.cardIndex, e.clientX, e.clientY)
-                    }
+                    onMouseMove={(e) => {
+                      // EJ23 — if the popover is already open for this
+                      // card, refresh the rect (covers minor card
+                      // reflows). Otherwise no-op — the delayed open
+                      // is in flight.
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const popoverOpen =
+                        activePopover?.kind === "card-meaning" &&
+                        activePopover.key === String(pick.cardIndex);
+                      if (popoverOpen) {
+                        handleConstellationHover(pick.cardIndex, e.clientX, e.clientY, rect);
+                      }
+                    }}
                     onMouseLeave={(e) => {
                       setHoveredSlotIdx((cur) => (cur === idx ? null : cur));
+                      window.clearTimeout(slimHoverDelayRef.current);
                       handleConstellationHover(null, e.clientX, e.clientY);
                     }}
                     onDragOver={(e) => {
@@ -4759,6 +4981,7 @@ export function ConstellationPage() {
               open
               anchorX={activePopover.anchorX}
               anchorY={activePopover.anchorY}
+              targetRect={activePopover.targetRect}
               onClose={() => closeActivePopover("card-meaning")}
               onCancelDismiss={cancelPopoverDismiss}
               onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
@@ -4793,6 +5016,7 @@ export function ConstellationPage() {
             open
             anchorX={activePopover.anchorX}
             anchorY={activePopover.anchorY}
+            targetRect={activePopover.targetRect}
             onClose={() => {
               if (popoverEditMode) {
                 commitPopoverEditMode();

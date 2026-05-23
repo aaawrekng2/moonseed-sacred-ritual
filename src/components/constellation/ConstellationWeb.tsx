@@ -32,13 +32,13 @@ const HERO_Y = 0;
 export const SVG_W = 540;
 export const SVG_H = 484;
 const COMPANION_POSITIONS = [
-  { x: 95,  y: 94 },   // upper-left      (shifted up 20)
-  { x: 385, y: 94 },   // upper-right     (shifted up 20)
-  { x: 30,  y: 224 },  // mid-far-left    (shifted up 20)
-  { x: 450, y: 224 },  // mid-far-right   (shifted up 20)
-  { x: 120, y: 344 },  // lower-left      (shifted up 20)
-  { x: 360, y: 344 },  // lower-right     (shifted up 20)
-  { x: 240, y: 364 },  // bottom-center   (shifted up 20)
+  { x: 95, y: 94 }, // upper-left      (shifted up 20)
+  { x: 385, y: 94 }, // upper-right     (shifted up 20)
+  { x: 30, y: 224 }, // mid-far-left    (shifted up 20)
+  { x: 450, y: 224 }, // mid-far-right   (shifted up 20)
+  { x: 120, y: 344 }, // lower-left      (shifted up 20)
+  { x: 360, y: 344 }, // lower-right     (shifted up 20)
+  { x: 240, y: 364 }, // bottom-center   (shifted up 20)
 ];
 
 type Props = {
@@ -59,11 +59,14 @@ type Props = {
   /** DP — drag a constellation card to a slot. Caller wires drop targets. */
   onCardDragStart?: (cardId: number) => void;
   /** DY — hover lifecycle for the parent's tooltip overlay.
-   *  Called with (cardId | null, clientX, clientY) — null on leave. */
+   *  Called with (cardId | null, clientX, clientY, targetRect?) — null on leave.
+   *  EJ23 — targetRect added so parent can position popovers above the
+   *  card rather than overlapping it. */
   onCardHover?: (
     cardId: number | null,
     clientX: number,
     clientY: number,
+    targetRect?: DOMRect | null,
   ) => void;
   /** DZ — click the gold draw-count badge on the hero card.
    *  Parent opens the readings modal scoped to all hero readings. */
@@ -128,10 +131,7 @@ type Box = { x: number; y: number; w: number; h: number };
 export const TRACE_COLOR = "#5cead4";
 const TRACE_VAR = "var(--trace-color, #5cead4)";
 
-function getCardPosition(
-  cardId: number,
-  constellation: CardConstellation,
-): Box {
+function getCardPosition(cardId: number, constellation: CardConstellation): Box {
   if (cardId === constellation.heroCardId) {
     return { x: (SVG_W - HERO_W) / 2, y: HERO_Y, w: HERO_W, h: HERO_H };
   }
@@ -260,6 +260,7 @@ function ConstellationSvg({
     cardId: number | null,
     clientX: number,
     clientY: number,
+    targetRect?: DOMRect | null,
   ) => void;
   onHeroBadgeClick?: () => void;
   heroBadgeTooltip?: string;
@@ -273,17 +274,11 @@ function ConstellationSvg({
   onHeroBadgeHoverEnd?: () => void;
   onTealBadgeHover?: (clientX: number, clientY: number) => void;
   onTealBadgeHoverEnd?: () => void;
-  onConstellationDrop?: (
-    targetCardId: number,
-    droppedCardId: number,
-  ) => void;
+  onConstellationDrop?: (targetCardId: number, droppedCardId: number) => void;
   dragOverTargetId?: number | null;
   onConstellationDragOver?: (cardId: number | null) => void;
 }) {
-  const maxPair = constellation.pairCounts.reduce(
-    (m, p) => (p.count > m ? p.count : m),
-    0,
-  );
+  const maxPair = constellation.pairCounts.reduce((m, p) => (p.count > m ? p.count : m), 0);
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
 
@@ -405,11 +400,8 @@ function ConstellationSvg({
         // would otherwise have been teal but lost the dedupe contest
         // fall back to baseline rendering automatically.
         const isTealLine =
-          ((aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate)) &&
-          allowedTealPairs.has(i);
-        const strokeWidth = isTealLine
-          ? 2.5
-          : Math.max(1, Math.min(5, weight * 5));
+          ((aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate)) && allowedTealPairs.has(i);
+        const strokeWidth = isTealLine ? 2.5 : Math.max(1, Math.min(5, weight * 5));
         const opacity = isTealLine ? 0.95 : 0.2 + weight * 0.7;
         const stroke = isTealLine ? TRACE_VAR : "var(--accent, var(--gold))";
         return (
@@ -431,10 +423,7 @@ function ConstellationSvg({
 
       {/* Hero card — clickable; participates in teal selection when clicked. */}
       {(() => {
-        const pos = getCardPosition(
-          constellation.heroCardId,
-          constellation,
-        );
+        const pos = getCardPosition(constellation.heroCardId, constellation);
         const heroInTeal = tealSet.has(constellation.heroCardId);
         return (
           <g>
@@ -474,9 +463,7 @@ function ConstellationSvg({
                   if (!onConstellationDrop) return;
                   e.preventDefault();
                   e.stopPropagation();
-                  const raw = e.dataTransfer.getData(
-                    "application/x-tarotseed-cardid",
-                  );
+                  const raw = e.dataTransfer.getData("application/x-tarotseed-cardid");
                   const id = raw ? Number(raw) : null;
                   onConstellationDragOver?.(null);
                   if (id !== null && Number.isFinite(id)) {
@@ -488,6 +475,7 @@ function ConstellationSvg({
                     constellation.heroCardId,
                     e.clientX,
                     e.clientY,
+                    e.currentTarget.getBoundingClientRect(),
                   )
                 }
                 onMouseMove={(e) =>
@@ -495,6 +483,7 @@ function ConstellationSvg({
                     constellation.heroCardId,
                     e.clientX,
                     e.clientY,
+                    e.currentTarget.getBoundingClientRect(),
                   )
                 }
                 onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
@@ -523,7 +512,7 @@ function ConstellationSvg({
                     position: "relative",
                   }}
                 >
-                {/* EJ7 — solid backdrop sized to the actual rendered
+                  {/* EJ7 — solid backdrop sized to the actual rendered
                     image, extending 2px on every side, plus a 4px outer
                     glow. Only shown when this card is in the asterism.
                     Rendered as an absolute span BEHIND the image-clip
@@ -532,67 +521,66 @@ function ConstellationSvg({
                     CardImage inside it), so the backdrop hugs the
                     actual rendered card no matter what aspect the deck
                     uses. */}
-                {heroInTeal && (
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      top: -2,
-                      left: -2,
-                      width: pos.w + 4,
-                      height: "calc(100% + 4px)",
-                      borderRadius: 8,
-                      background: TRACE_VAR,
-                      boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
-                      zIndex: 0,
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
-                {/* EJ9 — drop-target highlight: subtle accent ring +
+                  {heroInTeal && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: -2,
+                        left: -2,
+                        width: pos.w + 4,
+                        height: "calc(100% + 4px)",
+                        borderRadius: 8,
+                        background: TRACE_VAR,
+                        boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
+                        zIndex: 0,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                  {/* EJ9 — drop-target highlight: subtle accent ring +
                     glow when a slot card is being dragged over this
                     card. Sits above the teal backdrop so the seeker
                     sees the cue regardless of teal state. */}
-                {dragOverTargetId === constellation.heroCardId && (
+                  {dragOverTargetId === constellation.heroCardId && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: -4,
+                        left: -4,
+                        width: pos.w + 8,
+                        height: "calc(100% + 8px)",
+                        borderRadius: 10,
+                        border: "2px solid var(--accent, var(--gold))",
+                        boxShadow:
+                          "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                        zIndex: 2,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
                   <span
-                    aria-hidden
                     style={{
-                      position: "absolute",
-                      top: -4,
-                      left: -4,
-                      width: pos.w + 8,
-                      height: "calc(100% + 8px)",
-                      borderRadius: 10,
-                      border:
-                        "2px solid var(--accent, var(--gold))",
-                      boxShadow:
-                        "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                      zIndex: 2,
-                      pointerEvents: "none",
+                      display: "inline-block",
+                      width: pos.w,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      position: "relative",
+                      zIndex: 1,
                     }}
-                  />
-                )}
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: pos.w,
-                    borderRadius: 6,
-                    overflow: "hidden",
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                <CardImage
-                  variant="face"
-                  cardId={constellation.heroCardId}
-                  reversed={heroPick.isReversed}
-                  deckId={heroPick.deckId ?? undefined}
-                  size="custom"
-                  widthPx={pos.w}
-                  eager
-                />
-                </span>
-                {/* EJ7 — hero gold badge nested INSIDE the inner span
+                  >
+                    <CardImage
+                      variant="face"
+                      cardId={constellation.heroCardId}
+                      reversed={heroPick.isReversed}
+                      deckId={heroPick.deckId ?? undefined}
+                      size="custom"
+                      widthPx={pos.w}
+                      eager
+                    />
+                  </span>
+                  {/* EJ7 — hero gold badge nested INSIDE the inner span
                     so it anchors to the actual image bottom-right (the
                     span hugs the image). Previously the badge lived in
                     a sibling foreignObject anchored to the SLOT
@@ -602,114 +590,56 @@ function ConstellationSvg({
                     because nesting <button> inside <button> is invalid
                     HTML. stopPropagation prevents the slot click from
                     firing. */}
-                {heroDrawCount !== null && heroDrawCount !== undefined && (
-                  <div
-                    role={onHeroBadgeClick ? "button" : undefined}
-                    tabIndex={onHeroBadgeClick ? 0 : undefined}
-                    onClick={
-                      onHeroBadgeClick
-                        ? (e) => {
-                            e.stopPropagation();
-                            onHeroBadgeClick();
-                          }
-                        : undefined
-                    }
-                    onMouseEnter={
-                      onHeroBadgeHover
-                        ? (e) => {
-                            e.stopPropagation();
-                            onHeroBadgeHover(e.clientX, e.clientY);
-                          }
-                        : undefined
-                    }
-                    onMouseLeave={(e) => {
-                      e.stopPropagation();
-                      onHeroBadgeHoverEnd?.();
-                    }}
-                    aria-label={
-                      onHeroBadgeClick
-                        ? (heroBadgeTooltip ??
-                          `View all ${heroDrawCount} spreads with this card`)
-                        : undefined
-                    }
-                    title={
-                      onHeroBadgeHover
-                        ? undefined
-                        : onHeroBadgeClick
-                          ? (heroBadgeTooltip ??
-                            `View all ${heroDrawCount} spreads with this card`)
-                          : undefined
-                    }
-                    style={{
-                      position: "absolute",
-                      bottom: -10,
-                      right: -10,
-                      width: 32,
-                      height: 32,
-                      borderRadius: 9999,
-                      background:
-                        "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
-                      border:
-                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--background)",
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 13,
-                      lineHeight: 1,
-                      cursor: onHeroBadgeClick ? "pointer" : "default",
-                      padding: 0,
-                      zIndex: 2,
-                    }}
-                  >
-                    {heroDrawCount}
-                  </div>
-                )}
-                {/* EJ7 — asterism (teal) badge: same treatment, anchored
-                    to image TOP-right. */}
-                {tealBadge &&
-                  tealBadge.cardId === constellation.heroCardId &&
-                  tealBadge.count > 0 && (
+                  {heroDrawCount !== null && heroDrawCount !== undefined && (
                     <div
-                      role={onTealBadgeClick ? "button" : undefined}
-                      tabIndex={onTealBadgeClick ? 0 : undefined}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onTealBadgeClick?.();
-                      }}
-                      onMouseEnter={
-                        onTealBadgeHover
+                      role={onHeroBadgeClick ? "button" : undefined}
+                      tabIndex={onHeroBadgeClick ? 0 : undefined}
+                      onClick={
+                        onHeroBadgeClick
                           ? (e) => {
                               e.stopPropagation();
-                              onTealBadgeHover(e.clientX, e.clientY);
+                              onHeroBadgeClick();
                             }
                           : undefined
                       }
+                      onMouseEnter={(e) => {
+                        e.stopPropagation();
+                        // EJ23 — dismiss any card-meaning popover the
+                        // moment the cursor enters the badge area, so
+                        // the popover doesn't overlap and block clicks.
+                        // Parent's onCardHover(null) closes the popover
+                        // via the scheduled dismiss. Then the badge's
+                        // own onHeroBadgeHover (if any) fires to show
+                        // the chip-style hint.
+                        onCardHover?.(null, e.clientX, e.clientY);
+                        onHeroBadgeHover?.(e.clientX, e.clientY);
+                      }}
                       onMouseLeave={(e) => {
                         e.stopPropagation();
-                        onTealBadgeHoverEnd?.();
+                        onHeroBadgeHoverEnd?.();
                       }}
                       aria-label={
-                        tealBadge.tooltip ??
-                        `View ${tealBadge.count} spreads with selected cards`
+                        onHeroBadgeClick
+                          ? (heroBadgeTooltip ?? `View all ${heroDrawCount} spreads with this card`)
+                          : undefined
                       }
                       title={
-                        onTealBadgeHover
+                        onHeroBadgeHover
                           ? undefined
-                          : (tealBadge.tooltip ??
-                            `View ${tealBadge.count} spreads with selected cards`)
+                          : onHeroBadgeClick
+                            ? (heroBadgeTooltip ??
+                              `View all ${heroDrawCount} spreads with this card`)
+                            : undefined
                       }
                       style={{
                         position: "absolute",
-                        top: -10,
+                        bottom: -10,
                         right: -10,
                         width: 32,
                         height: 32,
                         borderRadius: 9999,
-                        background: TRACE_VAR,
+                        background:
+                          "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
                         border:
                           "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
@@ -721,14 +651,81 @@ function ConstellationSvg({
                         fontStyle: "italic",
                         fontSize: 13,
                         lineHeight: 1,
-                        cursor: "pointer",
+                        cursor: onHeroBadgeClick ? "pointer" : "default",
                         padding: 0,
-                        zIndex: 2,
+                        // EJ23 — beat the card popover's portal z-index
+                        // so a click on the badge is never intercepted
+                        // by an overlapping popover. Popover lives at
+                        // --z-toast which is 300+ via tokens; the badge
+                        // sits at 1000 here to be unambiguously above.
+                        zIndex: 1000,
                       }}
                     >
-                      {tealBadge.count}
+                      {heroDrawCount}
                     </div>
                   )}
+                  {/* EJ7 — asterism (teal) badge: same treatment, anchored
+                    to image TOP-right. */}
+                  {tealBadge &&
+                    tealBadge.cardId === constellation.heroCardId &&
+                    tealBadge.count > 0 && (
+                      <div
+                        role={onTealBadgeClick ? "button" : undefined}
+                        tabIndex={onTealBadgeClick ? 0 : undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTealBadgeClick?.();
+                        }}
+                        onMouseEnter={(e) => {
+                          e.stopPropagation();
+                          // EJ23 — dismiss any card-meaning popover the
+                          // moment the cursor enters the badge area so
+                          // the popover doesn't overlap and block clicks.
+                          onCardHover?.(null, e.clientX, e.clientY);
+                          onTealBadgeHover?.(e.clientX, e.clientY);
+                        }}
+                        onMouseLeave={(e) => {
+                          e.stopPropagation();
+                          onTealBadgeHoverEnd?.();
+                        }}
+                        aria-label={
+                          tealBadge.tooltip ?? `View ${tealBadge.count} spreads with selected cards`
+                        }
+                        title={
+                          onTealBadgeHover
+                            ? undefined
+                            : (tealBadge.tooltip ??
+                              `View ${tealBadge.count} spreads with selected cards`)
+                        }
+                        style={{
+                          position: "absolute",
+                          top: -10,
+                          right: -10,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 9999,
+                          background: TRACE_VAR,
+                          border:
+                            "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "var(--background)",
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 13,
+                          lineHeight: 1,
+                          cursor: "pointer",
+                          padding: 0,
+                          // EJ23 — beat the popover's portal z-index so
+                          // a click on the teal badge is never blocked.
+                          zIndex: 1000,
+                        }}
+                      >
+                        {tealBadge.count}
+                      </div>
+                    )}
                 </span>
               </button>
             </foreignObject>
@@ -768,10 +765,7 @@ function ConstellationSvg({
                 onDragStart={(e) => {
                   if (!onCardDragStart) return;
                   e.dataTransfer.effectAllowed = "copy";
-                  e.dataTransfer.setData(
-                    "application/x-tarotseed-cardid",
-                    String(c.cardId),
-                  );
+                  e.dataTransfer.setData("application/x-tarotseed-cardid", String(c.cardId));
                   onCardDragStart(c.cardId);
                 }}
                 onDragOver={(e) => {
@@ -789,9 +783,7 @@ function ConstellationSvg({
                   if (!onConstellationDrop) return;
                   e.preventDefault();
                   e.stopPropagation();
-                  const raw = e.dataTransfer.getData(
-                    "application/x-tarotseed-cardid",
-                  );
+                  const raw = e.dataTransfer.getData("application/x-tarotseed-cardid");
                   const id = raw ? Number(raw) : null;
                   onConstellationDragOver?.(null);
                   if (id !== null && Number.isFinite(id)) {
@@ -799,10 +791,20 @@ function ConstellationSvg({
                   }
                 }}
                 onMouseEnter={(e) =>
-                  onCardHover?.(c.cardId, e.clientX, e.clientY)
+                  onCardHover?.(
+                    c.cardId,
+                    e.clientX,
+                    e.clientY,
+                    e.currentTarget.getBoundingClientRect(),
+                  )
                 }
                 onMouseMove={(e) =>
-                  onCardHover?.(c.cardId, e.clientX, e.clientY)
+                  onCardHover?.(
+                    c.cardId,
+                    e.clientX,
+                    e.clientY,
+                    e.currentTarget.getBoundingClientRect(),
+                  )
                 }
                 onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
                 style={{
@@ -828,69 +830,66 @@ function ConstellationSvg({
                     position: "relative",
                   }}
                 >
-                {inTeal && (
+                  {inTeal && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: -2,
+                        left: -2,
+                        width: pos.w + 4,
+                        height: "calc(100% + 4px)",
+                        borderRadius: 6,
+                        background: TRACE_VAR,
+                        boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
+                        zIndex: 0,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                  {/* EJ9 — drop-target highlight on companion cards. */}
+                  {dragOverTargetId === c.cardId && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: -4,
+                        left: -4,
+                        width: pos.w + 8,
+                        height: "calc(100% + 8px)",
+                        borderRadius: 8,
+                        border: "2px solid var(--accent, var(--gold))",
+                        boxShadow:
+                          "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                        zIndex: 2,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
                   <span
-                    aria-hidden
                     style={{
-                      position: "absolute",
-                      top: -2,
-                      left: -2,
-                      width: pos.w + 4,
-                      height: "calc(100% + 4px)",
-                      borderRadius: 6,
-                      background: TRACE_VAR,
-                      boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
-                      zIndex: 0,
-                      pointerEvents: "none",
+                      display: "inline-block",
+                      width: pos.w,
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      position: "relative",
+                      zIndex: 1,
                     }}
-                  />
-                )}
-                {/* EJ9 — drop-target highlight on companion cards. */}
-                {dragOverTargetId === c.cardId && (
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      top: -4,
-                      left: -4,
-                      width: pos.w + 8,
-                      height: "calc(100% + 8px)",
-                      borderRadius: 8,
-                      border:
-                        "2px solid var(--accent, var(--gold))",
-                      boxShadow:
-                        "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                      zIndex: 2,
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: pos.w,
-                    borderRadius: 4,
-                    overflow: "hidden",
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                <CardImage
-                  variant="face"
-                  cardId={c.cardId}
-                  size="custom"
-                  widthPx={pos.w}
-                  /* EC — see hero card comment above. Same fix applies
+                  >
+                    <CardImage
+                      variant="face"
+                      cardId={c.cardId}
+                      size="custom"
+                      widthPx={pos.w}
+                      /* EC — see hero card comment above. Same fix applies
                      to all companion cards. */
-                  eager
-                />
-                </span>
-                {/* EJ7 — companion asterism badge nested inside the
+                      eager
+                    />
+                  </span>
+                  {/* EJ7 — companion asterism badge nested inside the
                     button so it anchors to the actual rendered card
                     image top-right (same fix as the hero badges). */}
-                {tealBadge &&
-                  tealBadge.cardId === c.cardId &&
-                  tealBadge.count > 0 && (
+                  {tealBadge && tealBadge.cardId === c.cardId && tealBadge.count > 0 && (
                     <div
                       role={onTealBadgeClick ? "button" : undefined}
                       tabIndex={onTealBadgeClick ? 0 : undefined}
@@ -911,8 +910,7 @@ function ConstellationSvg({
                         onTealBadgeHoverEnd?.();
                       }}
                       aria-label={
-                        tealBadge.tooltip ??
-                        `View ${tealBadge.count} spreads with selected cards`
+                        tealBadge.tooltip ?? `View ${tealBadge.count} spreads with selected cards`
                       }
                       title={
                         onTealBadgeHover
