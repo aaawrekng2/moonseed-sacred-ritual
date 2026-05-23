@@ -8,6 +8,7 @@
 import { useMemo } from "react";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
+import { useActiveDeckCornerRadius } from "@/lib/active-deck";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
@@ -292,6 +293,12 @@ function ConstellationSvg({
   const maxPair = constellation.pairCounts.reduce((m, p) => (p.count > m ? p.count : m), 0);
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
+  // EJ27 — read the active deck's seeker-chosen corner radius (stored
+  // as a 0-15% value via the deck-import slider). Used to size the
+  // selection highlight's borderRadius so its outer silhouette matches
+  // the image's baked-in rounded corners. Falls back to 4% if the deck
+  // has no override saved (matches APP_DEFAULT_CARD_RADIUS_PCT).
+  const deckRadiusPct = useActiveDeckCornerRadius() ?? 4;
 
   // EE2 — teal-line dedupe. Baseline (pink/accent) co-occurrence lines
   // are unchanged: every pair, full mesh, as before.
@@ -535,26 +542,23 @@ function ConstellationSvg({
                   {heroInTeal && (
                     <span
                       aria-hidden
+                      className="tarotseed-constellation-breathe"
                       style={{
-                        // EJ26 — solid trace fill, 2px outset on every
-                        // side, blur-only shadow (no spread). Generic
-                        // across all decks: 2px is image-file-relative,
-                        // not deck-specific. The blur-only shadow fades
-                        // softly without painting solid color outward.
-                        // borderRadius bumped to 8 to match the outset
-                        // (card wrap is 6, +2px outset = 8 for clean
-                        // edge alignment).
+                        // EJ27 — solid trace fill, 2px outset, NO box-shadow
+                        // glow (the glow was extending visibly past the
+                        // card's bottom and corners). borderRadius derives
+                        // from the seeker's chosen deck corner radius so
+                        // the highlight silhouette matches the image's
+                        // baked-in rounded shape, plus 2px for the outset.
+                        // Breathing animation pulses opacity/scale via
+                        // .tarotseed-constellation-breathe.
                         position: "absolute",
                         top: -2,
                         left: -2,
                         right: -2,
                         bottom: -2,
-                        borderRadius: 8,
+                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 2,
                         background: TRACE_VAR,
-                        boxShadow: [
-                          `0 0 12px 0 color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
-                          `0 0 24px 0 color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
-                        ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
                       }}
@@ -568,17 +572,15 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ26 — matched 2px outset, no-spread shadow.
+                        // EJ27 — matched solid accent fill, no glow.
                         position: "absolute",
                         top: -2,
                         left: -2,
                         right: -2,
                         bottom: -2,
-                        borderRadius: 8,
+                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 2,
                         background:
                           "color-mix(in oklab, var(--accent, var(--gold)) 75%, transparent)",
-                        boxShadow:
-                          "0 0 12px 0 color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
                         zIndex: 2,
                         pointerEvents: "none",
                       }}
@@ -586,10 +588,16 @@ function ConstellationSvg({
                   )}
                   <span
                     style={{
+                      // EJ27 — no borderRadius / overflow:hidden. The
+                      // image is pre-processed at deck-import time with
+                      // a baked rounded alpha mask (FD/FE pipeline) so
+                      // its transparent corners ARE the card silhouette.
+                      // Adding a CSS clip on top forced a second
+                      // different rounded rectangle to interact with
+                      // the baked shape, creating visible corner wedges
+                      // when the two radii didn't match.
                       display: "inline-block",
                       width: pos.w,
-                      borderRadius: 6,
-                      overflow: "hidden",
                       position: "relative",
                       zIndex: 1,
                     }}
@@ -854,22 +862,18 @@ function ConstellationSvg({
                   {inTeal && (
                     <span
                       aria-hidden
+                      className="tarotseed-constellation-breathe"
                       style={{
-                        // EJ26 — 2px outset, no-spread shadow. Matches
-                        // hero block. See hero comment for rationale.
-                        // Smaller borderRadius (6) because companions
-                        // use 4 on the card wrap, +2px outset = 6.
+                        // EJ27 — matched hero treatment. Solid trace fill,
+                        // 2px outset, deck-derived radius, no glow,
+                        // breathing animation.
                         position: "absolute",
                         top: -2,
                         left: -2,
                         right: -2,
                         bottom: -2,
-                        borderRadius: 6,
+                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 2,
                         background: TRACE_VAR,
-                        boxShadow: [
-                          `0 0 12px 0 color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
-                          `0 0 24px 0 color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
-                        ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
                       }}
@@ -880,17 +884,15 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ26 — matched 2px outset, no-spread shadow.
+                        // EJ27 — matched solid accent fill, no glow.
                         position: "absolute",
                         top: -2,
                         left: -2,
                         right: -2,
                         bottom: -2,
-                        borderRadius: 6,
+                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 2,
                         background:
                           "color-mix(in oklab, var(--accent, var(--gold)) 75%, transparent)",
-                        boxShadow:
-                          "0 0 12px 0 color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
                         zIndex: 2,
                         pointerEvents: "none",
                       }}
@@ -898,10 +900,10 @@ function ConstellationSvg({
                   )}
                   <span
                     style={{
+                      // EJ27 — no borderRadius / overflow:hidden. Image
+                      // carries its own baked rounding via alpha channel.
                       display: "inline-block",
                       width: pos.w,
-                      borderRadius: 4,
-                      overflow: "hidden",
                       position: "relative",
                       zIndex: 1,
                     }}
