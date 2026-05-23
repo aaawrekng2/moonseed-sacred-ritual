@@ -1353,6 +1353,143 @@ export function ConstellationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, visibleCardIds, effectiveTz, filterKey]);
 
+  // EJ19 — per-seeker visibility prefs for the card popover sections.
+  // Stored in user_preferences.card_popover_sections as a flat
+  // Record<sectionId, boolean>. Missing keys default to true (visible).
+  // localStorage mirrors the DB so anonymous seekers and pre-hydration
+  // renders get a sensible value without flicker.
+  //
+  // Section IDs (NOT toggleable: header is always shown):
+  //   stat-strip · moon-phase · time-of-day · meanings · sparkline
+  //   companions · timeline · tag-bias
+  type CardPopoverSectionId =
+    | "stat-strip"
+    | "moon-phase"
+    | "time-of-day"
+    | "meanings"
+    | "sparkline"
+    | "companions"
+    | "timeline"
+    | "tag-bias";
+  const ALL_SECTION_IDS: CardPopoverSectionId[] = [
+    "stat-strip",
+    "moon-phase",
+    "time-of-day",
+    "meanings",
+    "sparkline",
+    "companions",
+    "timeline",
+    "tag-bias",
+  ];
+  const SECTION_LABELS: Record<CardPopoverSectionId, string> = {
+    "stat-strip": "Stats",
+    "moon-phase": "Moon phase",
+    "time-of-day": "Time of day",
+    meanings: "Meanings",
+    sparkline: "12-month frequency",
+    companions: "Companions",
+    timeline: "Timeline",
+    "tag-bias": "Tag bias",
+  };
+  const CARD_POPOVER_SECTIONS_LS_KEY = "tarotseed:card-popover-sections";
+  const [sectionPrefs, setSectionPrefs] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(CARD_POPOVER_SECTIONS_LS_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
+  // EJ19 — hydrate sectionPrefs from Supabase on mount. Falls back
+  // silently to the localStorage value already in state.
+  const sectionPrefsHydratedRef = useRef(false);
+  useEffect(() => {
+    if (sectionPrefsHydratedRef.current) return;
+    if (!user?.id) return;
+    sectionPrefsHydratedRef.current = true;
+    void supabase
+      .from("user_preferences")
+      .select("card_popover_sections")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return;
+        const dbPrefs =
+          (data as { card_popover_sections?: Record<string, boolean> } | null)
+            ?.card_popover_sections ?? null;
+        if (dbPrefs && typeof dbPrefs === "object") {
+          setSectionPrefs(dbPrefs);
+          try {
+            window.localStorage.setItem(CARD_POPOVER_SECTIONS_LS_KEY, JSON.stringify(dbPrefs));
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+  }, [user?.id]);
+  // EJ19 — persist sectionPrefs. Writes localStorage immediately and
+  // Supabase in the background. Called on Save button click + on
+  // click-outside while edit mode is active.
+  const savePopoverSectionPrefs = useCallback(
+    (next: Record<string, boolean>) => {
+      try {
+        window.localStorage.setItem(CARD_POPOVER_SECTIONS_LS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      if (!user?.id) return;
+      // Upsert pattern mirrored from Hint.tsx — select, then update or
+      // insert. Silent on errors so the seeker isn't bothered by
+      // background sync hiccups; localStorage is the source of truth
+      // in-session.
+      void supabase
+        .from("user_preferences")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data: existing }) => {
+          if (existing) {
+            return supabase
+              .from("user_preferences")
+              .update({ card_popover_sections: next } as never)
+              .eq("user_id", user.id);
+          }
+          return supabase
+            .from("user_preferences")
+            .insert({ user_id: user.id, card_popover_sections: next } as never);
+        });
+    },
+    [user?.id],
+  );
+  // EJ19 — edit mode flag. When true, the popover renders inline
+  // section toggles (Stripe-style "—" buttons) and a Save button.
+  // Save commits sectionPrefs via savePopoverSectionPrefs and exits
+  // edit mode. Click-outside also commits and exits.
+  const [popoverEditMode, setPopoverEditMode] = useState(false);
+  // Section visibility helper: hidden when explicitly false in prefs.
+  // Missing key = visible by default.
+  const isSectionVisible = useCallback(
+    (id: CardPopoverSectionId) => sectionPrefs[id] !== false,
+    [sectionPrefs],
+  );
+  const toggleSection = useCallback((id: CardPopoverSectionId) => {
+    setSectionPrefs((prev) => {
+      const currentlyVisible = prev[id] !== false;
+      return { ...prev, [id]: !currentlyVisible };
+    });
+  }, []);
+  const commitPopoverEditMode = useCallback(() => {
+    setPopoverEditMode(false);
+    // Use the latest state via the functional setter pattern.
+    setSectionPrefs((current) => {
+      savePopoverSectionPrefs(current);
+      return current;
+    });
+  }, [savePopoverSectionPrefs]);
+
   // Phase 19 Fix 10 — port the Echo detection to /constellation.
   const echo = useEcho(picks, overlap, overlapMode);
   const participatingSet = useMemo(
@@ -3414,19 +3551,143 @@ export function ConstellationPage() {
                 ? "in the evening"
                 : "late at night"
           : null;
+        // EJ19 — section wrapper. In default mode: section renders
+        // only when visible (hidden by user pref returns null). In
+        // edit mode: section ALWAYS renders, dimmed to 35% if hidden,
+        // with a small "—" / "+" toggle button overlaid in the
+        // top-right corner. Click toggle to flip visibility (live;
+        // commit happens on Save / click-outside).
+        const popoverSection = (
+          id: CardPopoverSectionId,
+          content: React.ReactNode,
+        ): React.ReactNode => {
+          const visible = isSectionVisible(id);
+          if (!popoverEditMode && !visible) return null;
+          if (!popoverEditMode) return content;
+          return (
+            <div
+              key={`section-${id}`}
+              style={{
+                position: "relative",
+                opacity: visible ? 1 : 0.35,
+                transition: "opacity 160ms ease",
+                border: visible
+                  ? "1px dashed transparent"
+                  : "1px dashed color-mix(in oklab, var(--color-foreground) 18%, transparent)",
+                borderRadius: 6,
+                padding: visible ? 0 : 6,
+                margin: visible ? 0 : -6,
+              }}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSection(id);
+                }}
+                aria-label={visible ? `Hide ${SECTION_LABELS[id]}` : `Show ${SECTION_LABELS[id]}`}
+                title={visible ? `Hide ${SECTION_LABELS[id]}` : `Show ${SECTION_LABELS[id]}`}
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  zIndex: 2,
+                  width: 16,
+                  height: 16,
+                  borderRadius: 9999,
+                  background: "var(--surface-elevated, var(--surface-card))",
+                  border: "1px solid color-mix(in oklab, var(--color-foreground) 20%, transparent)",
+                  color: "var(--color-foreground)",
+                  cursor: "pointer",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  lineHeight: 1,
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 300,
+                }}
+              >
+                {visible ? "−" : "+"}
+              </button>
+              {content}
+            </div>
+          );
+        };
         return (
           <RichPopover
             open
             anchorX={activePopover.anchorX}
             anchorY={activePopover.anchorY}
             onClose={() => {
+              // EJ19 — closing the popover while in edit mode auto-
+              // commits the current sectionPrefs (click-outside =
+              // save). Then dismiss the popover.
+              if (popoverEditMode) {
+                commitPopoverEditMode();
+              }
               closeActivePopover("card-meaning");
             }}
             onCancelDismiss={cancelPopoverDismiss}
             onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
             chainedContent={<ConstellationLegend />}
             chainedTitle="How the constellation works"
-            extraTopRightControl={<HoverTipsGear />}
+            extraTopRightControl={
+              <>
+                {/* EJ19 — edit-mode gear. Toggling on switches the
+                    popover into an inline-editor mode where each
+                    section can be hidden via a small "—" button.
+                    Toggling off (Save) commits sectionPrefs. */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (popoverEditMode) {
+                      commitPopoverEditMode();
+                    } else {
+                      setPopoverEditMode(true);
+                    }
+                  }}
+                  aria-label={
+                    popoverEditMode ? "Save section preferences" : "Edit visible sections"
+                  }
+                  title={popoverEditMode ? "Save and exit edit mode" : "Edit which sections show"}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 18,
+                    height: 18,
+                    padding: 0,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: popoverEditMode
+                      ? "var(--gold, var(--accent))"
+                      : "var(--color-foreground-muted, var(--color-foreground))",
+                    opacity: 0.85,
+                    marginRight: 4,
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+                <HoverTipsGear />
+              </>
+            }
             maxWidth={320}
           >
             {/* Header — name + roman numeral, subtitle of arcana/sign */}
@@ -3484,79 +3745,16 @@ export function ConstellationPage() {
             {/* Stat strip — rank + pull count + reversed %. Reversed
                 % only shows when EJ18 popoverDataMap is loaded for
                 this card; otherwise the grid drops to 2 columns. */}
-            {drawCounts && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
-                  gap: 6,
-                }}
-              >
+            {popoverSection(
+              "stat-strip",
+              drawCounts && (
                 <div
                   style={{
-                    background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                    borderRadius: 6,
-                    padding: "8px 4px",
-                    textAlign: "center",
+                    display: "grid",
+                    gridTemplateColumns: reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
+                    gap: 6,
                   }}
                 >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontStyle: "italic",
-                      fontSize: 18,
-                      color: "var(--color-foreground)",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {rank ? `#${rank}` : "—"}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.7,
-                      marginTop: 3,
-                    }}
-                  >
-                    {rank ? `Rank of ${universeSize}` : "Unranked"}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                    borderRadius: 6,
-                    padding: "8px 4px",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontStyle: "italic",
-                      fontSize: 18,
-                      color: "var(--color-foreground)",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {count}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.7,
-                      marginTop: 3,
-                    }}
-                  >
-                    {count === 1 ? "Pull" : "Pulls"}
-                  </div>
-                </div>
-                {reversedPct !== null && (
                   <div
                     style={{
                       background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
@@ -3574,7 +3772,7 @@ export function ConstellationPage() {
                         lineHeight: 1,
                       }}
                     >
-                      {`${Math.round(reversedPct * 100)}%`}
+                      {rank ? `#${rank}` : "—"}
                     </div>
                     <div
                       style={{
@@ -3586,125 +3784,198 @@ export function ConstellationPage() {
                         marginTop: 3,
                       }}
                     >
-                      Reversed
+                      {rank ? `Rank of ${universeSize}` : "Unranked"}
                     </div>
                   </div>
-                )}
-              </div>
+                  <div
+                    style={{
+                      background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                      borderRadius: 6,
+                      padding: "8px 4px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontStyle: "italic",
+                        fontSize: 18,
+                        color: "var(--color-foreground)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {count}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 9,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                        opacity: 0.7,
+                        marginTop: 3,
+                      }}
+                    >
+                      {count === 1 ? "Pull" : "Pulls"}
+                    </div>
+                  </div>
+                  {reversedPct !== null && (
+                    <div
+                      style={{
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                        borderRadius: 6,
+                        padding: "8px 4px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontStyle: "italic",
+                          fontSize: 18,
+                          color: "var(--color-foreground)",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {`${Math.round(reversedPct * 100)}%`}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 9,
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                          color: "var(--accent, var(--gold))",
+                          opacity: 0.7,
+                          marginTop: 3,
+                        }}
+                      >
+                        Reversed
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ),
             )}
 
             {/* EJ18 — Moon phase row. Shows the moon phase under which
                 this card most often appears in the filtered universe. */}
-            {moonPhaseLabel && topMoonPhase && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 11,
-                  color: "var(--color-foreground)",
-                  opacity: 0.92,
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 22 22"
-                  fill="none"
-                  aria-hidden
-                  style={{ flexShrink: 0 }}
+            {popoverSection(
+              "moon-phase",
+              moonPhaseLabel && topMoonPhase && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 11,
+                    color: "var(--color-foreground)",
+                    opacity: 0.92,
+                  }}
                 >
-                  <circle
-                    cx="11"
-                    cy="11"
-                    r="9"
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 22 22"
                     fill="none"
-                    stroke="var(--accent, var(--gold))"
-                    strokeWidth="0.8"
-                    opacity="0.4"
-                  />
-                  <path
-                    d="M11 2 A 9 9 0 0 1 11 20 A 5 9 0 0 1 11 2"
-                    fill="var(--accent, var(--gold))"
-                    opacity="0.85"
-                  />
-                </svg>
-                <div>
-                  Most under{" "}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      color: "var(--color-foreground)",
-                    }}
+                    aria-hidden
+                    style={{ flexShrink: 0 }}
                   >
-                    {moonPhaseLabel}
-                  </span>
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="9"
+                      fill="none"
+                      stroke="var(--accent, var(--gold))"
+                      strokeWidth="0.8"
+                      opacity="0.4"
+                    />
+                    <path
+                      d="M11 2 A 9 9 0 0 1 11 20 A 5 9 0 0 1 11 2"
+                      fill="var(--accent, var(--gold))"
+                      opacity="0.85"
+                    />
+                  </svg>
+                  <div>
+                    Most under{" "}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      {moonPhaseLabel}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ),
             )}
 
             {/* EJ18 — Time-of-day row. Bucketed: morning / afternoon /
                 evening / night, based on the seeker's tz. */}
-            {timeBucketLabel && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 11,
-                  color: "var(--color-foreground)",
-                  opacity: 0.92,
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 22 22"
-                  fill="none"
-                  aria-hidden
-                  style={{ flexShrink: 0, opacity: 0.7 }}
+            {popoverSection(
+              "time-of-day",
+              timeBucketLabel && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 11,
+                    color: "var(--color-foreground)",
+                    opacity: 0.92,
+                  }}
                 >
-                  <circle
-                    cx="11"
-                    cy="11"
-                    r="7.5"
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 22 22"
                     fill="none"
-                    stroke="var(--accent, var(--gold))"
-                    strokeWidth="1.2"
-                  />
-                  <line
-                    x1="11"
-                    y1="6.5"
-                    x2="11"
-                    y2="11"
-                    stroke="var(--accent, var(--gold))"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="11"
-                    y1="11"
-                    x2="13.5"
-                    y2="11"
-                    stroke="var(--accent, var(--gold))"
-                    strokeWidth="0.7"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div>
-                  Most often drawn{" "}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      color: "var(--color-foreground)",
-                    }}
+                    aria-hidden
+                    style={{ flexShrink: 0, opacity: 0.7 }}
                   >
-                    {timeBucketLabel}
-                  </span>
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="7.5"
+                      fill="none"
+                      stroke="var(--accent, var(--gold))"
+                      strokeWidth="1.2"
+                    />
+                    <line
+                      x1="11"
+                      y1="6.5"
+                      x2="11"
+                      y2="11"
+                      stroke="var(--accent, var(--gold))"
+                      strokeWidth="1"
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1="11"
+                      y1="11"
+                      x2="13.5"
+                      y2="11"
+                      stroke="var(--accent, var(--gold))"
+                      strokeWidth="0.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div>
+                    Most often drawn{" "}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      {timeBucketLabel}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ),
             )}
 
             {/* EJ18 — 12-month frequency sparkline. Each bar = one
@@ -3712,250 +3983,218 @@ export function ConstellationPage() {
                 with count relative to the max month. Empty months
                 render as a low-opacity sliver to preserve the
                 rhythm of the chart. */}
-            {monthCounts && monthCounts.some((n) => n > 0) && (
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 2,
-                    alignItems: "flex-end",
-                    height: 30,
-                    marginBottom: 4,
-                  }}
-                >
-                  {(() => {
-                    const max = Math.max(1, ...monthCounts);
-                    return monthCounts.map((n, i) => {
-                      const frac = n / max;
-                      const heightPct = Math.max(8, frac * 100);
-                      const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
-                      return (
-                        <div
-                          key={`spark-${i}`}
-                          style={{
-                            flex: 1,
-                            height: `${heightPct}%`,
-                            background: "var(--accent, var(--gold))",
-                            opacity,
-                            borderRadius: 1,
-                          }}
-                        />
-                      );
-                    });
-                  })()}
+            {popoverSection(
+              "sparkline",
+              monthCounts && monthCounts.some((n) => n > 0) && (
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 2,
+                      alignItems: "flex-end",
+                      height: 30,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {(() => {
+                      const max = Math.max(1, ...monthCounts);
+                      return monthCounts.map((n, i) => {
+                        const frac = n / max;
+                        const heightPct = Math.max(8, frac * 100);
+                        const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
+                        return (
+                          <div
+                            key={`spark-${i}`}
+                            style={{
+                              flex: 1,
+                              height: `${heightPct}%`,
+                              background: "var(--accent, var(--gold))",
+                              opacity,
+                              borderRadius: 1,
+                            }}
+                          />
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.6,
+                    }}
+                  >
+                    12-Month Frequency
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 9,
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    color: "var(--accent, var(--gold))",
-                    opacity: 0.6,
-                  }}
-                >
-                  12-Month Frequency
-                </div>
-              </div>
+              ),
             )}
 
             {/* Upright meaning */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 10,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "var(--accent, var(--gold))",
-                  opacity: 0.9,
-                }}
-              >
-                Upright
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 11.5,
-                  color: "var(--color-foreground)",
-                  opacity: 0.85,
-                  lineHeight: 1.35,
-                }}
-              >
-                {m.uprightKeywords.join(", ")}.
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: 12,
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {m.uprightMeaning}
-              </div>
-            </div>
+            {popoverSection(
+              "meanings",
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.9,
+                    }}
+                  >
+                    Upright
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11.5,
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {m.uprightKeywords.join(", ")}.
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      color: "var(--color-foreground)",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {m.uprightMeaning}
+                  </div>
+                </div>
 
-            {/* Reversed meaning */}
-            {allowReversed && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: "var(--accent, var(--gold))",
-                    opacity: 0.9,
-                  }}
-                >
-                  Reversed
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 11.5,
-                    color: "var(--color-foreground)",
-                    opacity: 0.85,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {m.reversedKeywords.join(", ")}.
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 12,
-                    color: "var(--color-foreground)",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {m.reversedMeaning}
-                </div>
-              </div>
+                {/* Reversed meaning */}
+                {allowReversed && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: 10,
+                        letterSpacing: "0.18em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                        opacity: 0.9,
+                      }}
+                    >
+                      Reversed
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 11.5,
+                        color: "var(--color-foreground)",
+                        opacity: 0.85,
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {m.reversedKeywords.join(", ")}.
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 12,
+                        color: "var(--color-foreground)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {m.reversedMeaning}
+                    </div>
+                  </div>
+                )}
+              </>,
             )}
 
             {/* Companion chips. Only shown when the hovered card is
                 the hero (we have its top-7 from server data). For
                 non-hero cards, EJ18 adds per-card companion data. */}
-            {topCompanions.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                  borderTop:
-                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
-                  paddingTop: 8,
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 10,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: "var(--accent, var(--gold))",
-                    opacity: 0.85,
-                  }}
-                >
-                  Most often appears with
-                </div>
+            {popoverSection(
+              "companions",
+              topCompanions.length > 0 && (
                 <div
                   style={{
                     display: "flex",
+                    flexDirection: "column",
                     gap: 6,
-                    flexWrap: "wrap",
+                    borderTop:
+                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                    paddingTop: 8,
                   }}
                 >
-                  {topCompanions.map((c) => (
-                    <span
-                      key={c.cardId}
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 11,
-                        padding: "3px 8px",
-                        background:
-                          "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
-                        borderRadius: 999,
-                        color: "var(--color-foreground)",
-                      }}
-                    >
-                      {TAROT_DECK[c.cardId] ?? `Card ${c.cardId}`}{" "}
-                      <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.coCount}</span>
-                    </span>
-                  ))}
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 10,
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.85,
+                    }}
+                  >
+                    Most often appears with
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {topCompanions.map((c) => (
+                      <span
+                        key={c.cardId}
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 11,
+                          padding: "3px 8px",
+                          background:
+                            "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                          borderRadius: 999,
+                          color: "var(--color-foreground)",
+                        }}
+                      >
+                        {TAROT_DECK[c.cardId] ?? `Card ${c.cardId}`}{" "}
+                        <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.coCount}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ),
             )}
 
             {/* Timeline — first/last seen. Hidden when overlap hasn't
                 loaded yet or the card has never been drawn in the
                 filtered universe. EJ18 will add longest-gap and
                 avg-spacing using new server data. */}
-            {(firstSeenIso ||
-              lastSeenIso ||
-              longestGapDays !== null ||
-              avgSpacingDays !== null) && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 8,
-                  borderTop:
-                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
-                  paddingTop: 8,
-                  fontSize: 11,
-                  color: "var(--color-foreground)",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                    }}
-                  >
-                    First seen
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      marginTop: 2,
-                    }}
-                  >
-                    {firstSeenIso ? formatDateShort(firstSeenIso) : "—"}
-                  </div>
-                </div>
-                <div>
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                    }}
-                  >
-                    Last seen
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      marginTop: 2,
-                    }}
-                  >
-                    {lastSeenIso ? formatTimeAgo(lastSeenIso) : "—"}
-                  </div>
-                </div>
-                {longestGapDays !== null && (
+            {popoverSection(
+              "timeline",
+              (firstSeenIso ||
+                lastSeenIso ||
+                longestGapDays !== null ||
+                avgSpacingDays !== null) && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8,
+                    borderTop:
+                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                    paddingTop: 8,
+                    fontSize: 11,
+                    color: "var(--color-foreground)",
+                  }}
+                >
                   <div>
                     <div
                       style={{
@@ -3966,7 +4205,7 @@ export function ConstellationPage() {
                         color: "var(--accent, var(--gold))",
                       }}
                     >
-                      Longest gap
+                      First seen
                     </div>
                     <div
                       style={{
@@ -3975,11 +4214,9 @@ export function ConstellationPage() {
                         marginTop: 2,
                       }}
                     >
-                      {longestGapDays === 1 ? "1 day" : `${longestGapDays} days`}
+                      {firstSeenIso ? formatDateShort(firstSeenIso) : "—"}
                     </div>
                   </div>
-                )}
-                {avgSpacingDays !== null && (
                   <div>
                     <div
                       style={{
@@ -3990,7 +4227,7 @@ export function ConstellationPage() {
                         color: "var(--accent, var(--gold))",
                       }}
                     >
-                      Avg spacing
+                      Last seen
                     </div>
                     <div
                       style={{
@@ -3999,49 +4236,153 @@ export function ConstellationPage() {
                         marginTop: 2,
                       }}
                     >
-                      {`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+                      {lastSeenIso ? formatTimeAgo(lastSeenIso) : "—"}
                     </div>
                   </div>
-                )}
-              </div>
+                  {longestGapDays !== null && (
+                    <div>
+                      <div
+                        style={{
+                          opacity: 0.7,
+                          fontSize: 9,
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                          color: "var(--accent, var(--gold))",
+                        }}
+                      >
+                        Longest gap
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          marginTop: 2,
+                        }}
+                      >
+                        {longestGapDays === 1 ? "1 day" : `${longestGapDays} days`}
+                      </div>
+                    </div>
+                  )}
+                  {avgSpacingDays !== null && (
+                    <div>
+                      <div
+                        style={{
+                          opacity: 0.7,
+                          fontSize: 9,
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                          color: "var(--accent, var(--gold))",
+                        }}
+                      >
+                        Avg spacing
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          marginTop: 2,
+                        }}
+                      >
+                        {`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ),
             )}
 
             {/* EJ18 — Tag bias. Shows the tag the seeker has used most
                 often with this card relative to their baseline usage of
                 that tag. Multiplier indicates the over-index strength. */}
-            {topTag && (
+            {popoverSection(
+              "tag-bias",
+              topTag && (
+                <div
+                  style={{
+                    borderTop:
+                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                    paddingTop: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 10,
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.85,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Most under tag
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    <span style={{ fontStyle: "italic" }}>{topTag.tag}</span>{" "}
+                    <span style={{ opacity: 0.55, fontSize: 10 }}>
+                      — {topTag.multiplier}× baseline
+                    </span>
+                  </div>
+                </div>
+              ),
+            )}
+
+            {/* EJ19 — edit mode footer. Visible only while in edit
+                mode. The Save button commits sectionPrefs and exits
+                edit mode. Click-outside the popover also commits
+                (handled by the popover's onClose). The footer also
+                surfaces hint text so seekers know how to undo. */}
+            {popoverEditMode && (
               <div
                 style={{
                   borderTop:
-                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
-                  paddingTop: 8,
+                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
+                  paddingTop: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  gap: 6,
                 }}
               >
                 <div
                   style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 10,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: "var(--accent, var(--gold))",
-                    opacity: 0.85,
-                    marginBottom: 4,
-                  }}
-                >
-                  Most under tag
-                </div>
-                <div
-                  style={{
                     fontFamily: "var(--font-serif)",
-                    fontSize: 12,
+                    fontStyle: "italic",
+                    fontSize: 10.5,
                     color: "var(--color-foreground)",
+                    opacity: 0.7,
+                    textAlign: "center",
                   }}
                 >
-                  <span style={{ fontStyle: "italic" }}>{topTag.tag}</span>{" "}
-                  <span style={{ opacity: 0.55, fontSize: 10 }}>
-                    — {topTag.multiplier}× baseline
-                  </span>
+                  Tap the dot on a section to hide it. Click Save when done.
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    commitPopoverEditMode();
+                  }}
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    color: "var(--gold, var(--accent))",
+                    background: "color-mix(in oklab, var(--gold, var(--accent)) 14%, transparent)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold, var(--accent)) 40%, transparent)",
+                    borderRadius: 6,
+                    padding: "6px 14px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Save
+                </button>
               </div>
             )}
           </RichPopover>
