@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateShort } from "@/lib/dates";
+import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
+import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { saveManualReading } from "@/lib/save-manual-reading.functions";
 import { interpretReading } from "@/lib/interpret.functions";
@@ -3221,11 +3222,14 @@ export function ConstellationPage() {
           if (action) action();
         }}
       />
-      {/* EG — constellation card hover popover. Uses RichPopover so it
-          shares the dark themed style with the other popovers in the
-          app and supports the chained-ⓘ pattern (not used here yet —
-          card meaning has no deeper level). Gated on activePopover so
-          only one popover renders at a time. */}
+      {/* EJ17 — Rich card popover. Replaces the simpler card-meaning
+          popover with a multi-section layout that surfaces stats,
+          meanings, companions, and timeline data in one view. This
+          is phase 1: only sections using already-available client-side
+          data render. EJ18 adds server data for the remaining
+          sections (reversed %, moon phase, time-of-day, sparkline,
+          longest gap, avg spacing, tag bias). EJ19 adds edit mode
+          + Supabase prefs for per-section visibility. */}
       {(() => {
         // EI5 — drive popover purely from activePopover state. cardId
         // is derived from activePopover.key (which is stable while
@@ -3238,6 +3242,79 @@ export function ConstellationPage() {
         if (!Number.isFinite(cardId)) return null;
         const m = TAROT_MEANINGS[cardId];
         if (!m) return null;
+        // EJ17 — derived popover data, all from existing state.
+        const meta = getCardMeta(cardId);
+        const rank = drawCounts?.perCardRank?.[cardId];
+        const universeSize = drawCounts?.rankUniverseSize ?? 0;
+        const count = drawCounts?.perCard?.[cardId] ?? 0;
+        // Roman numeral for majors (cardId 0..21). Pips and courts get
+        // their rank label from card-astrology.
+        const ROMAN = [
+          "0",
+          "I",
+          "II",
+          "III",
+          "IV",
+          "V",
+          "VI",
+          "VII",
+          "VIII",
+          "IX",
+          "X",
+          "XI",
+          "XII",
+          "XIII",
+          "XIV",
+          "XV",
+          "XVI",
+          "XVII",
+          "XVIII",
+          "XIX",
+          "XX",
+          "XXI",
+        ];
+        const isMajor = cardId >= 0 && cardId <= 21;
+        const numeralOrRank = isMajor ? ROMAN[cardId] : (meta?.rankLabel ?? null);
+        // Subtitle: "Major · Pisces" for majors, "Cups · Water" for pips.
+        const subtitleParts: string[] = [];
+        if (isMajor) {
+          subtitleParts.push("Major");
+        } else if (meta?.suit) {
+          subtitleParts.push(meta.suit);
+        }
+        if (m.zodiac) subtitleParts.push(m.zodiac);
+        else if (m.planet) subtitleParts.push(m.planet);
+        else if (meta?.planetOrSign) subtitleParts.push(meta.planetOrSign);
+        else if (meta?.element) subtitleParts.push(meta.element);
+        const subtitle = subtitleParts.join(" · ");
+        // First / last seen in the filtered universe. Derived from
+        // overlap.readingsByDate. If overlap isn't loaded yet, both
+        // are null and the timeline row hides.
+        let firstSeenIso: string | null = null;
+        let lastSeenIso: string | null = null;
+        if (overlap?.readingsByDate) {
+          const all = Object.values(overlap.readingsByDate).flat();
+          const matching = all.filter((r) => r.cardIds.includes(cardId));
+          if (matching.length > 0) {
+            const sorted = [...matching].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+            firstSeenIso = sorted[0].createdAt;
+            lastSeenIso = sorted[sorted.length - 1].createdAt;
+          }
+        }
+        // Companion chips: for the hero card we have direct top-7 data
+        // from the server in constellationData. For other cards, the
+        // companion derivation requires server data (added in EJ18).
+        // Phase 1 shows companions only when the hovered card IS the
+        // hero.
+        const isHeroCard = displayedConstellation && cardId === displayedConstellation.heroCardId;
+        const topCompanions: Array<{ cardId: number; coCount: number }> = [];
+        if (isHeroCard && displayedConstellation) {
+          for (const c of displayedConstellation.companions.slice(0, 3)) {
+            if (c.coCount > 0) {
+              topCompanions.push({ cardId: c.cardId, coCount: c.coCount });
+            }
+          }
+        }
         return (
           <RichPopover
             open
@@ -3251,18 +3328,139 @@ export function ConstellationPage() {
             chainedContent={<ConstellationLegend />}
             chainedTitle="How the constellation works"
             extraTopRightControl={<HoverTipsGear />}
+            maxWidth={320}
           >
+            {/* Header — name + roman numeral, subtitle of arcana/sign */}
             <div
               style={{
-                fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontSize: 14,
-                color: "var(--color-foreground)",
-                lineHeight: 1.2,
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 8,
               }}
             >
-              {m.name}
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: 18,
+                  color: "var(--color-foreground)",
+                  lineHeight: 1.15,
+                }}
+              >
+                {m.name}
+              </div>
+              {numeralOrRank && (
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 10,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.85,
+                    flexShrink: 0,
+                  }}
+                >
+                  {numeralOrRank}
+                </div>
+              )}
             </div>
+            {subtitle && (
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.7,
+                  marginTop: -4,
+                }}
+              >
+                {subtitle}
+              </div>
+            )}
+
+            {/* Stat strip — rank + pull count. Two tiles instead of
+                three for phase 1; reversed % comes in EJ18 once we
+                have orientation data exposed in overlap. */}
+            {drawCounts && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 6,
+                }}
+              >
+                <div
+                  style={{
+                    background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                    borderRadius: 6,
+                    padding: "8px 4px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: 18,
+                      color: "var(--color-foreground)",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {rank ? `#${rank}` : "—"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.7,
+                      marginTop: 3,
+                    }}
+                  >
+                    {rank ? `Rank of ${universeSize}` : "Unranked"}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                    borderRadius: 6,
+                    padding: "8px 4px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: 18,
+                      color: "var(--color-foreground)",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {count}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.7,
+                      marginTop: 3,
+                    }}
+                  >
+                    {count === 1 ? "Pull" : "Pulls"}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Upright meaning */}
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <div
                 style={{
@@ -3299,6 +3497,8 @@ export function ConstellationPage() {
                 {m.uprightMeaning}
               </div>
             </div>
+
+            {/* Reversed meaning */}
             {allowReversed && (
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 <div
@@ -3334,6 +3534,125 @@ export function ConstellationPage() {
                   }}
                 >
                   {m.reversedMeaning}
+                </div>
+              </div>
+            )}
+
+            {/* Companion chips. Only shown when the hovered card is
+                the hero (we have its top-7 from server data). For
+                non-hero cards, EJ18 adds per-card companion data. */}
+            {topCompanions.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  borderTop:
+                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                  paddingTop: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 10,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.85,
+                  }}
+                >
+                  Most often appears with
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {topCompanions.map((c) => (
+                    <span
+                      key={c.cardId}
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 11,
+                        padding: "3px 8px",
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                        borderRadius: 999,
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      {TAROT_DECK[c.cardId] ?? `Card ${c.cardId}`}{" "}
+                      <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.coCount}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Timeline — first/last seen. Hidden when overlap hasn't
+                loaded yet or the card has never been drawn in the
+                filtered universe. EJ18 will add longest-gap and
+                avg-spacing using new server data. */}
+            {(firstSeenIso || lastSeenIso) && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                  borderTop:
+                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                  paddingTop: 8,
+                  fontSize: 11,
+                  color: "var(--color-foreground)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                    }}
+                  >
+                    First seen
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      marginTop: 2,
+                    }}
+                  >
+                    {firstSeenIso ? formatDateShort(firstSeenIso) : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: 9,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                    }}
+                  >
+                    Last seen
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      marginTop: 2,
+                    }}
+                  >
+                    {lastSeenIso ? formatTimeAgo(lastSeenIso) : "—"}
+                  </div>
                 </div>
               </div>
             )}
