@@ -1059,7 +1059,8 @@ export function ConstellationPage() {
     | "badge-hint"
     | "day-cell"
     | "chip-hint"
-    | "constellation-badge";
+    | "constellation-badge"
+    | "slot-label";
   // EG — payload varies by kind. badge-hint stores count + card name
   // so the popover can render without re-looking-up picks. day-cell
   // stores the date so the popover can derive its narrative + signals.
@@ -1105,6 +1106,18 @@ export function ConstellationPage() {
         count: number;
         modeOrPullsLabel: string;
         cardLabel: string;
+      }
+    | {
+        // EJ15 — slot label hover popover. Surfaces the full slot
+        // name and a paragraph-length explanation of what that slot
+        // represents in the currently-selected spread.
+        kind: "slot-label";
+        key: string;
+        anchorX: number;
+        anchorY: number;
+        slotName: string;
+        spreadLabel: string;
+        meaning: string;
       };
   const [activePopover, setActivePopover] = useState<ActivePopoverState | null>(null);
   // EH — shared dismiss timer for the unified popover. Used by source
@@ -2409,24 +2422,42 @@ export function ConstellationPage() {
                 );
               })}
             </div>
-            {/* EJ12 — spread-type dropdown + slot labels row. Dropdown
-                lives on the left; labels align under each slot card by
-                using the same flex/gap structure as the slot row, so
-                even if slotW changes the labels stay vertically lined
-                up under their cards. Empty slots (idx >= slotNames
-                length) render an empty placeholder to preserve the
-                flex layout. Hover tip on each label shows the full
-                name + spread descriptor. */}
+            {/* EJ15 — spread-type dropdown + slot labels row.
+                Labels row is now a PURE MIRROR of the slot row above
+                (same flex layout, same gap, same widths). The chevron
+                no longer sits inside the labels flex — it's absolutely
+                positioned in the gutter just to the LEFT of the labels
+                row, taking ZERO horizontal space within the row. This
+                guarantees each label is centered under its
+                corresponding card. The wrapper is position:relative
+                so the chevron's absolute coords anchor here. The
+                meaning of each slot in the current spread is surfaced
+                via a richly-formatted hover popover (kind:
+                "slot-label") rather than a native browser tooltip. */}
             <div
               style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 6,
+                position: "relative",
                 width: "100%",
                 marginBottom: 10,
               }}
             >
-              <SpreadDropdown value={spreadKey} onChange={setSpreadKeyPersisted} />
+              {/* Chevron, anchored in the gutter to the left of the
+                  labels row. Negative-left pulls it OUT of the row's
+                  width entirely. Right-edge of the chevron sits at
+                  the left edge of the labels row. */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: -22,
+                  top: 0,
+                  height: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <SpreadDropdown value={spreadKey} onChange={setSpreadKeyPersisted} />
+              </div>
               <div
                 style={{
                   display: "flex",
@@ -2439,10 +2470,11 @@ export function ConstellationPage() {
                   // EJ14 — long name shown when it fits (≤6 chars
                   // including spaces); otherwise the short form.
                   // Both source from the spread definition; the long
-                  // name is always used in the hover tip so the seeker
-                  // can decode the abbreviation.
+                  // name is always used in the hover popover so the
+                  // seeker can decode the abbreviation.
                   const longName = spread.slotNames[idx];
                   const shortName = spread.slotNamesShort[idx];
+                  const meaning = spread.slotMeanings[idx];
                   const display = longName
                     ? longName.length <= 6
                       ? longName
@@ -2451,6 +2483,24 @@ export function ConstellationPage() {
                   return (
                     <div
                       key={`slot-label-${idx}`}
+                      onMouseEnter={(e) => {
+                        if (!longName || !meaning) return;
+                        const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        cancelPopoverDismiss();
+                        setActivePopover({
+                          kind: "slot-label",
+                          key: `${spread.key}-${idx}`,
+                          anchorX: r.left + r.width / 2,
+                          anchorY: r.bottom + 4,
+                          slotName: longName,
+                          spreadLabel: spread.label,
+                          meaning,
+                        });
+                      }}
+                      onMouseLeave={() => {
+                        if (!longName) return;
+                        schedulePopoverDismiss("slot-label");
+                      }}
                       style={{
                         width: slotW,
                         flexShrink: 0,
@@ -2466,7 +2516,6 @@ export function ConstellationPage() {
                         textOverflow: "ellipsis",
                         cursor: display ? "help" : "default",
                       }}
-                      title={longName ? `${longName} — ${spread.descriptor}` : undefined}
                     >
                       {display ?? "\u00a0"}
                     </div>
@@ -3217,6 +3266,56 @@ export function ConstellationPage() {
             }}
           >
             {activePopover.tooltip}
+          </div>
+        </RichPopover>
+      )}
+      {/* EJ15 — slot label hover popover. Header is the slot's full
+          long name plus the spread it belongs to; body is the
+          paragraph-length meaning of this slot in this specific
+          spread. Same RichPopover styling as chip-hint. */}
+      {activePopover?.kind === "slot-label" && (
+        <RichPopover
+          open
+          anchorX={activePopover.anchorX}
+          anchorY={activePopover.anchorY}
+          onClose={() => closeActivePopover("slot-label")}
+          onCancelDismiss={cancelPopoverDismiss}
+          onScheduleDismiss={() => schedulePopoverDismiss("slot-label")}
+          maxWidth={340}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 16,
+              color: "var(--color-foreground)",
+              lineHeight: 1.2,
+            }}
+          >
+            {activePopover.slotName}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.9,
+            }}
+          >
+            {activePopover.spreadLabel}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 12.5,
+              color: "var(--color-foreground)",
+              lineHeight: 1.55,
+              opacity: 0.92,
+            }}
+          >
+            {activePopover.meaning}
           </div>
         </RichPopover>
       )}
