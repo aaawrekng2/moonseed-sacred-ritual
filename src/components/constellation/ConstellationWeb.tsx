@@ -529,9 +529,23 @@ function ConstellationSvg({
                     via this auto-height wrapper. */}
                 <span
                   style={{
+                    // EJ29 — kill the inline-block descender gap. When
+                    // an inline-block contains another inline-block, the
+                    // browser reserves invisible line-box descender
+                    // space below the inner element (room for letters
+                    // like g, y, p — even when there are none). That
+                    // space made this wrapper measurably taller than
+                    // the image inside it, so the absolute-positioned
+                    // teal highlight (top:-2, bottom:-2) extended visibly
+                    // past the image's bottom. vertical-align: top on
+                    // the inline-block child + font-size: 0 on this
+                    // parent both eliminate the descender reservation.
                     display: "inline-block",
                     width: pos.w,
                     position: "relative",
+                    verticalAlign: "top",
+                    fontSize: 0,
+                    lineHeight: 0,
                   }}
                 >
                   {/* EJ7 — solid backdrop sized to the actual rendered
@@ -600,10 +614,14 @@ function ConstellationSvg({
                       // different rounded rectangle to interact with
                       // the baked shape, creating visible corner wedges
                       // when the two radii didn't match.
+                      // EJ29 — vertical-align: top eliminates the
+                      // inline-block descender gap below this element
+                      // in the parent's line-box.
                       display: "inline-block",
                       width: pos.w,
                       position: "relative",
                       zIndex: 1,
+                      verticalAlign: "top",
                     }}
                   >
                     <CardImage
@@ -858,9 +876,15 @@ function ConstellationSvg({
                     asterism. */}
                 <span
                   style={{
+                    // EJ29 — see hero comment. font-size/line-height: 0
+                    // on parent + vertical-align: top on inline-block
+                    // child kills the descender gap.
                     display: "inline-block",
                     width: pos.w,
                     position: "relative",
+                    verticalAlign: "top",
+                    fontSize: 0,
+                    lineHeight: 0,
                   }}
                 >
                   {inTeal && (
@@ -905,10 +929,12 @@ function ConstellationSvg({
                     style={{
                       // EJ27 — no borderRadius / overflow:hidden. Image
                       // carries its own baked rounding via alpha channel.
+                      // EJ29 — vertical-align: top removes baseline space.
                       display: "inline-block",
                       width: pos.w,
                       position: "relative",
                       zIndex: 1,
+                      verticalAlign: "top",
                     }}
                   >
                     <CardImage
