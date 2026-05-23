@@ -51,6 +51,7 @@ import {
   getAdminUserReadingCounts,
   listPendingSignups,
   listDetectWeavesAlerts,
+  listUserDecks,
   previewDetectWeavesAdmin,
   resolveDetectWeavesAlert,
   restoreAdminBackup,
@@ -58,6 +59,8 @@ import {
   getEmailLog,
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
+import { DeckInspectModal } from "@/components/admin/DeckInspectModal";
+import { DeckCopyModal } from "@/components/admin/DeckCopyModal";
 import {
   approveFeedback,
   dismissFeedback,
@@ -86,7 +89,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   // Q84 — refresh the session if the access token is missing or
   // expiring within the next minute, so admin server calls never fail
   // intermittently with a stale token.
-  let { data } = await supabase.auth.getSession();
+  const { data } = await supabase.auth.getSession();
   let token = data.session?.access_token;
   const expiresAt = data.session?.expires_at ?? 0;
   const nowSec = Math.floor(Date.now() / 1000);
@@ -95,7 +98,6 @@ async function authHeaders(): Promise<Record<string, string>> {
       const refreshed = await supabase.auth.refreshSession();
       token = refreshed.data.session?.access_token ?? token;
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.warn("[admin] refreshSession failed:", e);
     }
   }
@@ -111,16 +113,26 @@ type Role = "user" | "admin" | "super_admin";
 
 type AdminUser = Awaited<ReturnType<typeof listAdminUsers>>[number];
 
-type Tab =
-  | "dashboard"
-  | "users"
-  | "feedback"
-  | "emails"
-  | "backups"
-  | "audit";
+type Tab = "dashboard" | "users" | "feedback" | "emails" | "backups" | "audit";
 
 const serif = { fontFamily: "var(--font-serif)" } as const;
 const display = { fontFamily: "var(--font-display)" } as const;
+// EJ31 — small ghost-style icon button used for the deck row actions
+// (Download, Copy). Matches the rest of the admin detail page's
+// understated visual language.
+const iconBtn = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 28,
+  height: 28,
+  padding: 0,
+  borderRadius: 6,
+  border: "1px solid var(--border-subtle)",
+  background: "transparent",
+  color: "var(--color-foreground)",
+  cursor: "pointer",
+} as const;
 
 /* ---------------- Page shell ---------------- */
 
@@ -199,9 +211,7 @@ function AdminPage() {
           <Header tab={tab} myRole={myRole} />
           <div className="mt-8">
             {tab === "dashboard" && <DashboardTab />}
-            {tab === "users" && (
-              <UsersTab myRole={myRole} myUserId={user!.id} />
-            )}
+            {tab === "users" && <UsersTab myRole={myRole} myUserId={user!.id} />}
             {tab === "feedback" && <FeedbackTab />}
             {tab === "emails" && <EmailsTab />}
             {tab === "backups" && <BackupsTab />}
@@ -230,8 +240,7 @@ function Header({ tab, myRole }: { tab: Tab; myRole: Role }) {
           fontSize: "var(--text-caption)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         {myRole === "super_admin" ? "Super Admin" : "Admin"}
@@ -262,15 +271,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: "audit", label: "Audit Log" },
 ];
 
-function Sidebar({
-  tab,
-  setTab,
-  myRole,
-}: {
-  tab: Tab;
-  setTab: (t: Tab) => void;
-  myRole: Role;
-}) {
+function Sidebar({ tab, setTab, myRole }: { tab: Tab; setTab: (t: Tab) => void; myRole: Role }) {
   const [devOn, setDevOn] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("tarotseed:dev_mode") === "true";
@@ -312,8 +313,7 @@ function Sidebar({
         style={{
           ...serif,
           fontSize: "var(--text-body)",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
         }}
       >
         Usage
@@ -325,8 +325,7 @@ function Sidebar({
           style={{
             ...serif,
             fontSize: "var(--text-body)",
-            color:
-              "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+            color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
           }}
         >
           <ArrowLeft size={14} strokeWidth={1.5} />
@@ -342,8 +341,7 @@ function Sidebar({
             fontSize: "var(--text-caption)",
             letterSpacing: "0.16em",
             textTransform: "uppercase",
-            color:
-              "color-mix(in oklab, var(--color-foreground) 40%, transparent)",
+            color: "color-mix(in oklab, var(--color-foreground) 40%, transparent)",
           }}
         >
           {myRole === "super_admin" ? "Super Admin" : "Admin"}
@@ -376,9 +374,7 @@ function SidebarItem({
         background: "none",
         border: "none",
         padding: "8px",
-        borderLeft: active
-          ? "2px solid var(--accent, var(--gold))"
-          : "2px solid transparent",
+        borderLeft: active ? "2px solid var(--accent, var(--gold))" : "2px solid transparent",
         cursor: "pointer",
       }}
     >
@@ -387,13 +383,7 @@ function SidebarItem({
   );
 }
 
-function DevModeToggle({
-  devOn,
-  setDevOn,
-}: {
-  devOn: boolean;
-  setDevOn: (v: boolean) => void;
-}) {
+function DevModeToggle({ devOn, setDevOn }: { devOn: boolean; setDevOn: (v: boolean) => void }) {
   return (
     <button
       type="button"
@@ -449,13 +439,7 @@ function DevModeToggle({
   );
 }
 
-function MobileTabBar({
-  tab,
-  setTab,
-}: {
-  tab: Tab;
-  setTab: (t: Tab) => void;
-}) {
+function MobileTabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t px-2 py-2 md:hidden"
@@ -494,8 +478,7 @@ function MobileTabBar({
           fontSize: 10,
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         Usage
@@ -507,8 +490,7 @@ function MobileTabBar({
           fontSize: 10,
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         Back
@@ -545,12 +527,14 @@ function DashboardTab() {
   // 9-6-F — pending signup attempts (email present, not confirmed).
   const [pendingSignups, setPendingSignups] = useState<number | null>(null);
   // Q68 — actual list of unconfirmed signups so admins can see who is stuck.
-  const [pendingList, setPendingList] = useState<Array<{
-    id: string;
-    email: string;
-    created_at: string;
-    last_sign_in_at: string | null;
-  }>>([]);
+  const [pendingList, setPendingList] = useState<
+    Array<{
+      id: string;
+      email: string;
+      created_at: string;
+      last_sign_in_at: string | null;
+    }>
+  >([]);
 
   useEffect(() => {
     void (async () => {
@@ -610,8 +594,7 @@ function DashboardTab() {
             if (r.is_deep_reading) byDay[key].deep += 1;
             else byDay[key].standard += 1;
           }
-          spreadCounts[r.spread_type] =
-            (spreadCounts[r.spread_type] ?? 0) + 1;
+          spreadCounts[r.spread_type] = (spreadCounts[r.spread_type] ?? 0) + 1;
           continue;
         }
         if (t >= todayStart.getTime()) {
@@ -626,8 +609,7 @@ function DashboardTab() {
           month += 1;
           monthIds.add(r.user_id);
         }
-        spreadCounts[r.spread_type] =
-          (spreadCounts[r.spread_type] ?? 0) + 1;
+        spreadCounts[r.spread_type] = (spreadCounts[r.spread_type] ?? 0) + 1;
         // eslint-disable-next-line no-restricted-syntax -- admin metrics: UTC day key matches byDay map above
         const key = new Date(r.created_at).toISOString().slice(0, 10);
         if (byDay[key]) {
@@ -635,9 +617,7 @@ function DashboardTab() {
           else byDay[key].standard += 1;
         }
       }
-      const topSpreadEntry = Object.entries(spreadCounts).sort(
-        (a, b) => b[1] - a[1],
-      )[0];
+      const topSpreadEntry = Object.entries(spreadCounts).sort((a, b) => b[1] - a[1])[0];
 
       // Stale / dormant from `last_reading` on users.
       let stale = 0;
@@ -653,11 +633,7 @@ function DashboardTab() {
       }
 
       const recent = [...users]
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 10);
 
       setStats({
@@ -671,12 +647,8 @@ function DashboardTab() {
         today,
         week,
         month,
-        avgPerActive: monthIds.size
-          ? Math.round((month / monthIds.size) * 10) / 10
-          : 0,
-        topSpread: topSpreadEntry
-          ? { type: topSpreadEntry[0], count: topSpreadEntry[1] }
-          : null,
+        avgPerActive: monthIds.size ? Math.round((month / monthIds.size) * 10) / 10 : 0,
+        topSpread: topSpreadEntry ? { type: topSpreadEntry[0], count: topSpreadEntry[1] } : null,
         daily: Object.entries(byDay).map(([d, v]) => ({
           d: d.slice(5),
           standard: v.standard,
@@ -711,10 +683,7 @@ function DashboardTab() {
     })();
   }, []);
 
-  if (!stats)
-    return (
-      <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading stats…</p>
-    );
+  if (!stats) return <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading stats…</p>;
 
   return (
     <div className="space-y-10">
@@ -734,41 +703,101 @@ function DashboardTab() {
           <SectionTitle>Alerts</SectionTitle>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             {alerts.negativeBalance.length === 0 &&
-             alerts.highCost.length === 0 &&
-             alerts.highUsage.length === 0 &&
-             alerts.orphan.count === 0 && (
-              <div style={{ ...serif, padding: 12, border: "1px solid #2da44e", color: "#2da44e", fontStyle: "italic" }}>
-                No alerts — all systems healthy.
-              </div>
-            )}
+              alerts.highCost.length === 0 &&
+              alerts.highUsage.length === 0 &&
+              alerts.orphan.count === 0 && (
+                <div
+                  style={{
+                    ...serif,
+                    padding: 12,
+                    border: "1px solid #2da44e",
+                    color: "#2da44e",
+                    fontStyle: "italic",
+                  }}
+                >
+                  No alerts — all systems healthy.
+                </div>
+              )}
             {alerts.negativeBalance.length > 0 && (
               <div style={{ ...serif, padding: 12, border: "1px solid #c25450", color: "#e6edf3" }}>
-                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#c25450", marginBottom: 6 }}>Negative balance ({alerts.negativeBalance.length})</div>
+                <div
+                  style={{
+                    ...display,
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "#c25450",
+                    marginBottom: 6,
+                  }}
+                >
+                  Negative balance ({alerts.negativeBalance.length})
+                </div>
                 {alerts.negativeBalance.slice(0, 10).map((u) => (
-                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · deficit {u.deficit}</div>
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>
+                    {u.email} · deficit {u.deficit}
+                  </div>
                 ))}
               </div>
             )}
             {alerts.highCost.length > 0 && (
               <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
-                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>High cost (&gt; ${alerts.costThreshold.toFixed(2)}/mo · {alerts.highCost.length})</div>
+                <div
+                  style={{
+                    ...display,
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "#d4a72c",
+                    marginBottom: 6,
+                  }}
+                >
+                  High cost (&gt; ${alerts.costThreshold.toFixed(2)}/mo · {alerts.highCost.length})
+                </div>
                 {alerts.highCost.slice(0, 10).map((u) => (
-                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · ${u.cost.toFixed(2)} · {u.calls} calls</div>
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>
+                    {u.email} · ${u.cost.toFixed(2)} · {u.calls} calls
+                  </div>
                 ))}
               </div>
             )}
             {alerts.highUsage.length > 0 && (
               <div style={{ ...serif, padding: 12, border: "1px solid #58a6ff", color: "#e6edf3" }}>
-                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#58a6ff", marginBottom: 6 }}>High usage ({alerts.highUsage.length})</div>
+                <div
+                  style={{
+                    ...display,
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "#58a6ff",
+                    marginBottom: 6,
+                  }}
+                >
+                  High usage ({alerts.highUsage.length})
+                </div>
                 {alerts.highUsage.slice(0, 8).map((u) => (
-                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · {u.calls} calls · ${u.cost.toFixed(2)}</div>
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>
+                    {u.email} · {u.calls} calls · ${u.cost.toFixed(2)}
+                  </div>
                 ))}
               </div>
             )}
             {alerts.orphan.count > 0 && (
               <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
-                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>Orphaned AI calls</div>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>{alerts.orphan.count} calls · ${alerts.orphan.totalCost.toFixed(2)} total</div>
+                <div
+                  style={{
+                    ...display,
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "#d4a72c",
+                    marginBottom: 6,
+                  }}
+                >
+                  Orphaned AI calls
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                  {alerts.orphan.count} calls · ${alerts.orphan.totalCost.toFixed(2)} total
+                </div>
               </div>
             )}
           </div>
@@ -781,8 +810,7 @@ function DashboardTab() {
           className="mt-4"
           style={{
             border: "1px solid var(--border-subtle)",
-            background:
-              "color-mix(in oklab, var(--background) 92%, transparent)",
+            background: "color-mix(in oklab, var(--background) 92%, transparent)",
             padding: 16,
           }}
         >
@@ -877,11 +905,7 @@ function DashboardTab() {
           <MiniStat label="Avg / active user" value={stats.avgPerActive} />
           <MiniStat
             label="Top spread"
-            value={
-              stats.topSpread
-                ? `${stats.topSpread.type}: ${stats.topSpread.count}`
-                : "—"
-            }
+            value={stats.topSpread ? `${stats.topSpread.type}: ${stats.topSpread.count}` : "—"}
           />
         </dl>
       </section>
@@ -920,15 +944,12 @@ function DashboardTab() {
             opacity: 0.55,
           }}
         >
-          Users who started signup but haven&rsquo;t confirmed their email.
-          Excluded from the Users tab.
+          Users who started signup but haven&rsquo;t confirmed their email. Excluded from the Users
+          tab.
         </p>
         {pendingList.length > 0 && (
           <div className="mt-4 overflow-x-auto">
-            <table
-              className="w-full"
-              style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-            >
+            <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
               <thead>
                 <tr style={thRow()}>
                   <Th>Email</Th>
@@ -938,17 +959,10 @@ function DashboardTab() {
               </thead>
               <tbody>
                 {pendingList.slice(0, 25).map((u) => (
-                  <tr
-                    key={u.id}
-                    style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                  >
+                  <tr key={u.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                     <Td>{u.email}</Td>
                     <Td>{formatDateLong(u.created_at)}</Td>
-                    <Td>
-                      {u.last_sign_in_at
-                        ? formatDateLong(u.last_sign_in_at)
-                        : "—"}
-                    </Td>
+                    <Td>{u.last_sign_in_at ? formatDateLong(u.last_sign_in_at) : "—"}</Td>
                   </tr>
                 ))}
               </tbody>
@@ -973,10 +987,7 @@ function DashboardTab() {
       <section>
         <SectionTitle>Recent signups</SectionTitle>
         <div className="mt-4 overflow-x-auto">
-          <table
-            className="w-full"
-            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-          >
+          <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
             <thead>
               <tr style={thRow()}>
                 <Th>Email</Th>
@@ -987,18 +998,11 @@ function DashboardTab() {
             </thead>
             <tbody>
               {stats.recent.map((u) => (
-                <tr
-                  key={u.user_id}
-                  style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                >
+                <tr key={u.user_id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                   <Td>{u.email ?? <span style={{ opacity: 0.4 }}>anon</span>}</Td>
                   <Td>{formatDateLong(u.created_at)}</Td>
                   <Td>{u.reading_count}</Td>
-                  <Td>
-                    {u.last_reading
-                      ? formatDateLong(u.last_reading)
-                      : "—"}
-                  </Td>
+                  <Td>{u.last_reading ? formatDateLong(u.last_reading) : "—"}</Td>
                 </tr>
               ))}
             </tbody>
@@ -1075,8 +1079,7 @@ function DashboardMaintenanceSection() {
               margin: 0,
             }}
           >
-            Shorten existing pattern names from verbose AI sentences to 2–3
-            word evocative names.
+            Shorten existing pattern names from verbose AI sentences to 2–3 word evocative names.
           </p>
           {last && (
             <p
@@ -1087,8 +1090,8 @@ function DashboardMaintenanceSection() {
                 marginTop: 6,
               }}
             >
-              Last run: {last.updated} updated · {last.skipped} skipped ·{" "}
-              {last.considered} considered
+              Last run: {last.updated} updated · {last.skipped} skipped · {last.considered}{" "}
+              considered
             </p>
           )}
         </div>
@@ -1106,9 +1109,7 @@ function DashboardMaintenanceSection() {
                 `Backfill complete: ${r.updated} updated, ${r.skipped} skipped, ${r.considered} considered`,
               );
             } catch (e) {
-              toast.error(
-                e instanceof Error ? e.message : "Backfill failed",
-              );
+              toast.error(e instanceof Error ? e.message : "Backfill failed");
             } finally {
               setRunning(false);
             }
@@ -1139,9 +1140,7 @@ function DashboardMaintenanceSection() {
 
 function DetectWeavesPanel() {
   const [userId, setUserId] = useState("");
-  const [busy, setBusy] = useState<
-    "user" | "all" | "preview-user" | "preview-all" | null
-  >(null);
+  const [busy, setBusy] = useState<"user" | "all" | "preview-user" | "preview-all" | null>(null);
   const [result, setResult] = useState<{
     tone: "ok" | "warn" | "err";
     text: string;
@@ -1172,9 +1171,7 @@ function DetectWeavesPanel() {
   } | null>(null);
 
   const validUuid = (v: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      v.trim(),
-    );
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim());
 
   const run = async (scope: "user" | "all") => {
     if (busy) return;
@@ -1188,17 +1185,9 @@ function DetectWeavesPanel() {
     try {
       const res = await runDetectWeavesAdmin({
         headers: await authHeaders(),
-        data:
-          scope === "user"
-            ? { scope: "user", userId: userId.trim() }
-            : { scope: "all" },
+        data: scope === "user" ? { scope: "user", userId: userId.trim() } : { scope: "all" },
       });
-      const tone =
-        res.status === "success"
-          ? "ok"
-          : res.status === "partial"
-            ? "warn"
-            : "err";
+      const tone = res.status === "success" ? "ok" : res.status === "partial" ? "warn" : "err";
       setResult({
         tone,
         text: `Scanned ${res.users_scanned} user${
@@ -1231,10 +1220,7 @@ function DetectWeavesPanel() {
     try {
       const res = await previewDetectWeavesAdmin({
         headers: await authHeaders(),
-        data:
-          scope === "user"
-            ? { scope: "user", userId: userId.trim() }
-            : { scope: "all" },
+        data: scope === "user" ? { scope: "user", userId: userId.trim() } : { scope: "all" },
       });
       setPreview({
         scope,
@@ -1276,8 +1262,7 @@ function DetectWeavesPanel() {
         className="mt-4"
         style={{
           border: "1px solid var(--border-subtle)",
-          background:
-            "color-mix(in oklab, var(--background) 92%, transparent)",
+          background: "color-mix(in oklab, var(--background) 92%, transparent)",
           padding: 16,
           display: "flex",
           flexDirection: "column",
@@ -1292,14 +1277,11 @@ function DetectWeavesPanel() {
             margin: 0,
           }}
         >
-          Re-run weave detection on demand. Each run is logged with timing,
-          counts, and any per-user errors.
+          Re-run weave detection on demand. Each run is logged with timing, counts, and any per-user
+          errors.
         </p>
 
-        <div
-          className="flex flex-col gap-2 md:flex-row md:items-center"
-          style={{ gap: 8 }}
-        >
+        <div className="flex flex-col gap-2 md:flex-row md:items-center" style={{ gap: 8 }}>
           <input
             type="text"
             placeholder="User UUID"
@@ -1332,8 +1314,7 @@ function DetectWeavesPanel() {
               border: "1px solid var(--accent, var(--gold))",
               background: "transparent",
               color: "var(--accent, var(--gold))",
-              cursor:
-                busy !== null || !userId.trim() ? "default" : "pointer",
+              cursor: busy !== null || !userId.trim() ? "default" : "pointer",
               opacity: busy !== null || !userId.trim() ? 0.5 : 1,
             }}
           >
@@ -1360,10 +1341,7 @@ function DetectWeavesPanel() {
           </button>
         </div>
 
-        <div
-          className="flex flex-col gap-2 md:flex-row md:items-center"
-          style={{ gap: 8 }}
-        >
+        <div className="flex flex-col gap-2 md:flex-row md:items-center" style={{ gap: 8 }}>
           <span
             style={{
               ...serif,
@@ -1389,8 +1367,7 @@ function DetectWeavesPanel() {
               border: "1px solid var(--border-subtle)",
               background: "transparent",
               color: "var(--foreground)",
-              cursor:
-                busy !== null || !userId.trim() ? "default" : "pointer",
+              cursor: busy !== null || !userId.trim() ? "default" : "pointer",
               opacity: busy !== null || !userId.trim() ? 0.5 : 1,
             }}
           >
@@ -1467,15 +1444,11 @@ function DetectWeavesPanel() {
                 </div>
                 <div style={{ marginTop: 2, opacity: 0.85 }}>
                   {u.error ? (
-                    <span style={{ color: "oklch(0.7 0.18 25)" }}>
-                      error: {u.error}
-                    </span>
+                    <span style={{ color: "oklch(0.7 0.18 25)" }}>error: {u.error}</span>
                   ) : (
                     <>
                       <strong>{u.inserted}</strong> new ·{" "}
-                      <span style={{ opacity: 0.7 }}>
-                        {u.existing} already existed
-                      </span>
+                      <span style={{ opacity: 0.7 }}>{u.existing} already existed</span>
                     </>
                   )}
                 </div>
@@ -1607,8 +1580,7 @@ function DetectWeavesAlertsPanel() {
         className="mt-4"
         style={{
           border: "1px solid var(--border-subtle)",
-          background:
-            "color-mix(in oklab, var(--background) 92%, transparent)",
+          background: "color-mix(in oklab, var(--background) 92%, transparent)",
           padding: 16,
         }}
       >
@@ -1620,19 +1592,14 @@ function DetectWeavesAlertsPanel() {
             margin: "0 0 12px",
           }}
         >
-          Raised automatically when a run fails, when more than 25% of users
-          error in a single run, or when 7 consecutive scheduled runs detect
-          zero new weaves. Admins are also emailed when email infrastructure
-          is configured.
+          Raised automatically when a run fails, when more than 25% of users error in a single run,
+          or when 7 consecutive scheduled runs detect zero new weaves. Admins are also emailed when
+          email infrastructure is configured.
         </p>
         {loading && <p style={{ ...serif, opacity: 0.6 }}>Loading alerts…</p>}
-        {error && (
-          <p style={{ ...serif, color: "oklch(0.7 0.18 25)" }}>{error}</p>
-        )}
+        {error && <p style={{ ...serif, color: "oklch(0.7 0.18 25)" }}>{error}</p>}
         {!loading && !error && alerts.length === 0 && (
-          <p style={{ ...serif, opacity: 0.6, margin: 0 }}>
-            No unresolved alerts. ✦
-          </p>
+          <p style={{ ...serif, opacity: 0.6, margin: 0 }}>No unresolved alerts. ✦</p>
         )}
         {alerts.length > 0 && (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -1713,8 +1680,7 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
       style={{
         border: "1px solid var(--border-subtle)",
         padding: 16,
-        background:
-          "color-mix(in oklab, var(--background) 92%, transparent)",
+        background: "color-mix(in oklab, var(--background) 92%, transparent)",
       }}
     >
       <div
@@ -1723,8 +1689,7 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
           fontSize: "var(--text-caption)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         {label}
@@ -1765,8 +1730,7 @@ function HealthCard({
       style={{
         border: "1px solid var(--border-subtle)",
         padding: 16,
-        background:
-          "color-mix(in oklab, var(--background) 92%, transparent)",
+        background: "color-mix(in oklab, var(--background) 92%, transparent)",
       }}
     >
       <div
@@ -1775,8 +1739,7 @@ function HealthCard({
           fontSize: "var(--text-caption)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         {label}
@@ -1794,8 +1757,7 @@ function HealthCard({
       <div
         style={{
           fontSize: "var(--text-caption)",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
           marginTop: 4,
         }}
       >
@@ -1805,13 +1767,7 @@ function HealthCard({
   );
 }
 
-function MiniStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | string;
-}) {
+function MiniStat({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
       <div
@@ -1820,8 +1776,7 @@ function MiniStat({
           fontSize: "var(--text-caption)",
           letterSpacing: "0.16em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         {label}
@@ -1857,21 +1812,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 /* ---------------- Users tab ---------------- */
 
-function UsersTab({
-  myRole,
-  myUserId,
-}: {
-  myRole: Role;
-  myUserId: string;
-}) {
+function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | Role>("all");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "stale" | "dormant"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "stale" | "dormant">("all");
   // Q82 Chunk 2 — Account-state filter is orthogonal to activity status.
   const [accountFilter, setAccountFilter] = useState<
     "all" | "confirmed" | "unconfirmed" | "deactivated"
@@ -1899,9 +1846,7 @@ function UsersTab({
       const merged: AdminUser[] = countsResult
         ? data.map((u) => {
             const c = countsResult[u.user_id];
-            return c
-              ? { ...u, reading_count: c.count, last_reading: c.lastReading }
-              : u;
+            return c ? { ...u, reading_count: c.count, last_reading: c.lastReading } : u;
           })
         : data;
       setUsers(merged);
@@ -1937,20 +1882,12 @@ function UsersTab({
         if (!emailMatch && !nameMatch) return false;
       }
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
-      if (statusFilter !== "all" && userStatus(u) !== statusFilter)
-        return false;
+      if (statusFilter !== "all" && userStatus(u) !== statusFilter) return false;
       if (accountFilter !== "all") {
-        const isDeact =
-          !!u.banned_until &&
-          new Date(u.banned_until).getTime() > Date.now();
+        const isDeact = !!u.banned_until && new Date(u.banned_until).getTime() > Date.now();
         if (accountFilter === "deactivated" && !isDeact) return false;
-        if (accountFilter === "confirmed" && (!u.email || !u.email_confirmed_at))
-          return false;
-        if (
-          accountFilter === "unconfirmed" &&
-          (!u.email || !!u.email_confirmed_at)
-        )
-          return false;
+        if (accountFilter === "confirmed" && (!u.email || !u.email_confirmed_at)) return false;
+        if (accountFilter === "unconfirmed" && (!u.email || !!u.email_confirmed_at)) return false;
       }
       return true;
     });
@@ -1965,10 +1902,7 @@ function UsersTab({
   }, [users]);
 
   const selectedUser = useMemo(
-    () =>
-      selectedUserId
-        ? users.find((u) => u.user_id === selectedUserId) ?? null
-        : null,
+    () => (selectedUserId ? (users.find((u) => u.user_id === selectedUserId) ?? null) : null),
     [users, selectedUserId],
   );
 
@@ -1990,11 +1924,7 @@ function UsersTab({
     <div>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1" style={{ minWidth: 240 }}>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search by email or name…"
-          />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search by email or name…" />
         </div>
         <FilterSelect
           label="Role"
@@ -2038,8 +1968,7 @@ function UsersTab({
           fontSize: "var(--text-caption)",
           letterSpacing: "0.16em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         {summary}
@@ -2050,8 +1979,7 @@ function UsersTab({
           ...serif,
           fontStyle: "italic",
           fontSize: "var(--text-caption)",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
         }}
       >
         Anonymous sessions visible on Dashboard.
@@ -2085,18 +2013,12 @@ function UsersTab({
       )}
 
       {loading ? (
-        <p
-          className="mt-8"
-          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
-        >
+        <p className="mt-8" style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
           Loading users…
         </p>
       ) : (
         <div className="mt-6 overflow-x-auto">
-          <table
-            className="w-full"
-            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-          >
+          <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
             <thead>
               <tr style={thRow()}>
                 <Th>User</Th>
@@ -2129,13 +2051,7 @@ function UsersTab({
  * inline action icons that used to live here are gone — they belong on
  * the detail page (CQ adds them).
  */
-function UserListRow({
-  user,
-  onSelect,
-}: {
-  user: AdminUser;
-  onSelect: () => void;
-}) {
+function UserListRow({ user, onSelect }: { user: AdminUser; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
   const name = user.display_name?.trim() || null;
   // Q62 Fix 11 — anomalous accounts (no email + no name) get a clear
@@ -2215,10 +2131,8 @@ function UnconfirmedBadge() {
         fontSize: "var(--text-caption)",
         padding: "1px 8px",
         borderRadius: 999,
-        border:
-          "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
-        color:
-          "color-mix(in oklab, var(--accent, var(--gold)) 70%, transparent)",
+        border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+        color: "color-mix(in oklab, var(--accent, var(--gold)) 70%, transparent)",
         whiteSpace: "nowrap",
         lineHeight: 1.4,
       }}
@@ -2284,18 +2198,22 @@ function UserDetailPage({
   const [setPwOpen, setSetPwOpen] = useState(false);
   const [grantingCredits, setGrantingCredits] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [emailLog, setEmailLog] = useState<
-    Awaited<ReturnType<typeof getEmailLog>> | null
-  >(null);
+  const [emailLog, setEmailLog] = useState<Awaited<ReturnType<typeof getEmailLog>> | null>(null);
+  // EJ31 — admin-side deck management. The deck list is loaded
+  // alongside the existing user-detail data. Inspect and Copy modals
+  // are gated by their target-deck ids; null means closed.
+  const [deckList, setDeckList] = useState<Awaited<ReturnType<typeof listUserDecks>> | null>(null);
+  const [decksLoading, setDecksLoading] = useState(false);
+  const [decksErr, setDecksErr] = useState<string | null>(null);
+  const [inspectDeckId, setInspectDeckId] = useState<string | null>(null);
+  const [copyDeckId, setCopyDeckId] = useState<string | null>(null);
   const confirm = useConfirm();
 
   const isSelf = user.user_id === myUserId;
-  const isDeactivated = !!user.banned_until &&
-    new Date(user.banned_until).getTime() > Date.now();
+  const isDeactivated = !!user.banned_until && new Date(user.banned_until).getTime() > Date.now();
   const isSuperAdmin = user.role === "super_admin";
 
-  const labelOf = (email: string | null, id: string) =>
-    email ?? id.slice(0, 8);
+  const labelOf = (email: string | null, id: string) => email ?? id.slice(0, 8);
   const targetLabel = labelOf(user.email, user.user_id);
 
   const runAction = async (
@@ -2348,11 +2266,47 @@ function UserDetailPage({
     );
   };
 
+  // EJ31 — deck download is a placeholder for now. The full
+  // per-deck export pipeline (zip with deck rows + image files) is
+  // a separate piece of work; here we surface a toast pointing
+  // admins to the existing user-export flow until the per-deck zip
+  // endpoint lands.
+  const handleDownloadDeck = (_deckId: string) => {
+    toast.info(
+      "Per-deck download isn't wired yet. Use the user-level backup export from the admin Backups tab for full data.",
+    );
+  };
+
+  // EJ31 — close inspect modal and re-open as copy. Shared between
+  // the Decks panel row buttons and the inspect modal's footer
+  // button so the admin can fluidly go inspect → copy.
+  const handleCopyFromInspect = () => {
+    if (inspectDeckId) {
+      const id = inspectDeckId;
+      setInspectDeckId(null);
+      setCopyDeckId(id);
+    }
+  };
+  const handleCopySucceeded = (result: {
+    newDeckId: string;
+    cardsCopied: number;
+    cardsTotal: number;
+  }) => {
+    const msg =
+      result.cardsCopied === result.cardsTotal
+        ? `Deck copied (${result.cardsCopied} of ${result.cardsTotal} cards).`
+        : `Deck copied — ${result.cardsCopied} of ${result.cardsTotal} cards (some files failed; see logs).`;
+    toast.success(msg);
+    setCopyDeckId(null);
+    // Refresh source-user deck list (count may have changed if
+    // archived rows surfaced; harmless otherwise).
+    void reloadDecks();
+  };
+
   const onPromoteSuper = async () => {
     const ok = await confirm({
       title: `Promote ${targetLabel} to Super Admin?`,
-      description:
-        "Super admins can grant or revoke admin roles for any user. Use sparingly.",
+      description: "Super admins can grant or revoke admin roles for any user. Use sparingly.",
       confirmLabel: "Promote",
     });
     if (!ok) return;
@@ -2366,8 +2320,7 @@ function UserDetailPage({
   const onDemoteSuper = async () => {
     const ok = await confirm({
       title: `Demote ${targetLabel} from Super Admin?`,
-      description:
-        "This removes the super admin role and resets the user back to a regular user.",
+      description: "This removes the super admin role and resets the user back to a regular user.",
       confirmLabel: "Demote",
       destructive: true,
     });
@@ -2382,8 +2335,7 @@ function UserDetailPage({
   const onDeactivate = async () => {
     const ok = await confirm({
       title: `Deactivate ${targetLabel}?`,
-      description:
-        "The user will be unable to sign in until reactivated. Their data is preserved.",
+      description: "The user will be unable to sign in until reactivated. Their data is preserved.",
       confirmLabel: "Deactivate Account",
       destructive: true,
     });
@@ -2418,10 +2370,7 @@ function UserDetailPage({
           .eq("user_id", user.user_id)
           .order("created_at", { ascending: false })
           .limit(5),
-        supabase
-          .from("readings")
-          .select("id, tags")
-          .eq("user_id", user.user_id),
+        supabase.from("readings").select("id, tags").eq("user_id", user.user_id),
         supabase
           .from("custom_decks")
           .select("id", { count: "exact", head: true })
@@ -2430,9 +2379,7 @@ function UserDetailPage({
       setReadings((readingsRes.data ?? []) as typeof readings);
       setDeckCount(decksRes.count ?? 0);
 
-      const readingIds = (allReadingsRes.data ?? []).map(
-        (r) => (r as { id: string }).id,
-      );
+      const readingIds = (allReadingsRes.data ?? []).map((r) => (r as { id: string }).id);
       const tagSet = new Set<string>();
       for (const r of (allReadingsRes.data ?? []) as Array<{
         tags?: string[] | null;
@@ -2451,6 +2398,33 @@ function UserDetailPage({
         setPhotoCount(photosRes.count ?? 0);
       }
     })();
+  }, [user.user_id]);
+
+  // EJ31 — load the full deck list (with per-deck card counts) so
+  // the Decks panel can render rows + actions. Kept separate from
+  // the readings/tags/photos fetch so a failure here doesn't block
+  // the rest of the detail page.
+  const reloadDecks = async () => {
+    setDecksLoading(true);
+    setDecksErr(null);
+    try {
+      const res = await listUserDecks({
+        data: { userId: user.user_id },
+        headers: await authHeaders(),
+      });
+      setDeckList(res);
+      // Keep the Activity panel's deckCount tile in sync with the
+      // full list so the two surfaces never disagree.
+      setDeckCount(res.length);
+    } catch (e) {
+      setDecksErr(e instanceof Error ? e.message : "Failed to load decks");
+    } finally {
+      setDecksLoading(false);
+    }
+  };
+  useEffect(() => {
+    void reloadDecks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.user_id]);
 
   // Q82 Chunk 2 — Load this user's email history (most recent 20).
@@ -2500,11 +2474,7 @@ function UserDetailPage({
       .map((s: string) => s[0]?.toUpperCase() ?? "")
       .join("") || "?";
 
-  const provider = user.is_anonymous
-    ? "anonymous"
-    : user.email
-      ? "email"
-      : "unknown";
+  const provider = user.is_anonymous ? "anonymous" : user.email ? "email" : "unknown";
   const accountStatus = user.banned_until ? "Deactivated" : "Active";
 
   return (
@@ -2532,8 +2502,7 @@ function UserDetailPage({
             borderRadius: 999,
             display: "grid",
             placeItems: "center",
-            background:
-              "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
+            background: "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
             color: "var(--accent, var(--gold))",
             ...display,
             fontSize: 18,
@@ -2550,9 +2519,7 @@ function UserDetailPage({
               color: "var(--foreground)",
             }}
           >
-            {user.display_name?.trim() ||
-              user.email ||
-              user.user_id.slice(0, 8)}
+            {user.display_name?.trim() || user.email || user.user_id.slice(0, 8)}
           </div>
           {user.email && (
             <div
@@ -2573,17 +2540,14 @@ function UserDetailPage({
             className="mt-2 flex flex-wrap items-center gap-3"
             style={{
               fontSize: "var(--text-caption)",
-              color:
-                "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+              color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
               ...display,
               letterSpacing: "0.16em",
               textTransform: "uppercase",
             }}
           >
             <RoleBadge role={user.role} />
-            <span>
-              Joined {formatDateLong(user.created_at)}
-            </span>
+            <span>Joined {formatDateLong(user.created_at)}</span>
             <span>· Last active {formatRelative(user.last_reading)}</span>
           </div>
         </div>
@@ -2603,9 +2567,27 @@ function UserDetailPage({
             Quick grant AI credits to {targetLabel}.
           </div>
           <ActionRow>
-            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(50)}>+50 credits</ActionBtn>
-            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(200)}>+200 credits</ActionBtn>
-            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(500)}>+500 credits</ActionBtn>
+            <ActionBtn
+              tone="primary"
+              disabled={grantingCredits}
+              onClick={() => void onQuickGrantCredits(50)}
+            >
+              +50 credits
+            </ActionBtn>
+            <ActionBtn
+              tone="primary"
+              disabled={grantingCredits}
+              onClick={() => void onQuickGrantCredits(200)}
+            >
+              +200 credits
+            </ActionBtn>
+            <ActionBtn
+              tone="primary"
+              disabled={grantingCredits}
+              onClick={() => void onQuickGrantCredits(500)}
+            >
+              +500 credits
+            </ActionBtn>
           </ActionRow>
           <DetailRow
             label="More"
@@ -2636,8 +2618,7 @@ function UserDetailPage({
               <span className="inline-flex items-center gap-2">
                 <code
                   style={{
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                     fontSize: "var(--text-body-sm)",
                   }}
                 >
@@ -2768,22 +2749,10 @@ function UserDetailPage({
         </DetailPanel>
 
         <DetailPanel title="Activity">
-          <DetailRow
-            label="Total readings"
-            value={String(user.reading_count)}
-          />
-          <DetailRow
-            label="Custom decks"
-            value={deckCount === null ? "…" : String(deckCount)}
-          />
-          <DetailRow
-            label="Spread photos"
-            value={photoCount === null ? "…" : String(photoCount)}
-          />
-          <DetailRow
-            label="Tags"
-            value={tagCount === null ? "…" : String(tagCount)}
-          />
+          <DetailRow label="Total readings" value={String(user.reading_count)} />
+          <DetailRow label="Custom decks" value={deckCount === null ? "…" : String(deckCount)} />
+          <DetailRow label="Spread photos" value={photoCount === null ? "…" : String(photoCount)} />
+          <DetailRow label="Tags" value={tagCount === null ? "…" : String(tagCount)} />
           <div className="mt-4">
             <div
               style={{
@@ -2791,17 +2760,14 @@ function UserDetailPage({
                 fontSize: "var(--text-caption)",
                 letterSpacing: "0.16em",
                 textTransform: "uppercase",
-                color:
-                  "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                 marginBottom: 8,
               }}
             >
               Last 5 readings
             </div>
             {readings.length === 0 ? (
-              <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
-                No readings yet.
-              </p>
+              <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>No readings yet.</p>
             ) : (
               <ul className="space-y-2">
                 {readings.map((r) => (
@@ -2824,8 +2790,7 @@ function UserDetailPage({
                     <span
                       style={{
                         fontSize: "var(--text-caption)",
-                        color:
-                          "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                        color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                       }}
                     >
                       {formatDateTime(r.created_at)}
@@ -2837,11 +2802,157 @@ function UserDetailPage({
           </div>
         </DetailPanel>
 
+        {/* EJ31 — Decks panel. Lists this user's custom decks with
+            per-deck inspect / download / copy actions. */}
+        <DetailPanel title="Decks">
+          {decksLoading && !deckList ? (
+            <p
+              style={{
+                ...serif,
+                fontStyle: "italic",
+                opacity: 0.6,
+              }}
+            >
+              Loading decks…
+            </p>
+          ) : decksErr ? (
+            <p
+              style={{
+                ...serif,
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+              }}
+            >
+              {decksErr}
+            </p>
+          ) : !deckList || deckList.length === 0 ? (
+            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>No custom decks.</p>
+          ) : (
+            <ul className="space-y-2">
+              {deckList.map((d) => {
+                const isComplete = d.is_complete;
+                const expectedCards = d.deck_type === "tarot" ? 78 : null;
+                const statusLabel = expectedCards
+                  ? `${d.card_count} of ${expectedCards}`
+                  : `${d.card_count} cards`;
+                return (
+                  <li
+                    key={d.id}
+                    onClick={() => setInspectDeckId(d.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "8px 4px",
+                      borderBottom: "1px solid var(--border-subtle)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        minWidth: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            ...serif,
+                            fontSize: "var(--text-body-sm)",
+                            color: "var(--color-foreground)",
+                          }}
+                        >
+                          {d.name ?? "(unnamed deck)"}
+                        </span>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                            fontSize: 9,
+                            letterSpacing: "0.2em",
+                            textTransform: "uppercase",
+                            background:
+                              "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
+                            color: "var(--accent, var(--gold))",
+                            border: "1px solid var(--border-subtle)",
+                          }}
+                        >
+                          {d.deck_type}
+                        </span>
+                        {!isComplete && (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "1px 6px",
+                              borderRadius: 999,
+                              fontSize: 9,
+                              letterSpacing: "0.2em",
+                              textTransform: "uppercase",
+                              background:
+                                "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
+                              color: "var(--color-foreground)",
+                              opacity: 0.7,
+                              border: "1px solid var(--border-subtle)",
+                            }}
+                          >
+                            partial
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "var(--text-caption)",
+                          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                        }}
+                      >
+                        {statusLabel} · {formatDateLong(d.created_at)}
+                      </span>
+                    </div>
+                    <div
+                      style={{ display: "flex", gap: 4, flexShrink: 0 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDeck(d.id)}
+                        title="Download deck"
+                        aria-label="Download deck"
+                        style={iconBtn}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCopyDeckId(d.id)}
+                        title="Copy deck to another user"
+                        aria-label="Copy deck"
+                        style={iconBtn}
+                      >
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DetailPanel>
+
         <DetailPanel title="Email History">
           {emailLog === null ? (
-            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
-              Loading…
-            </p>
+            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading…</p>
           ) : emailLog.length === 0 ? (
             <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
               No emails sent to this user yet.
@@ -2863,12 +2974,9 @@ function UserDetailPage({
                       fontSize: "var(--text-body-sm)",
                     }}
                   >
-                    {auditActionLabel(r.email_type)}{" "}
-                    <EmailStatusBadge status={r.status} />
+                    {auditActionLabel(r.email_type)} <EmailStatusBadge status={r.status} />
                     {r.triggered_by_email && (
-                      <span style={{ opacity: 0.5, marginLeft: 6 }}>
-                        by {r.triggered_by_email}
-                      </span>
+                      <span style={{ opacity: 0.5, marginLeft: 6 }}>by {r.triggered_by_email}</span>
                     )}
                     {r.error_message && (
                       <div
@@ -2885,8 +2993,7 @@ function UserDetailPage({
                   <span
                     style={{
                       fontSize: "var(--text-caption)",
-                      color:
-                        "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                      color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -2920,8 +3027,7 @@ function UserDetailPage({
               ...serif,
               fontStyle: "italic",
               fontSize: "var(--text-caption)",
-              color:
-                "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
+              color: "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
             }}
           >
             {noteSaving
@@ -2965,18 +3071,37 @@ function UserDetailPage({
           }}
         />
       )}
+      {/* EJ31 — deck inspect modal. Opens when admin clicks a deck
+          row. */}
+      <DeckInspectModal
+        open={inspectDeckId !== null}
+        deckId={inspectDeckId}
+        onClose={() => setInspectDeckId(null)}
+        onCopyClick={handleCopyFromInspect}
+        onDownloadClick={() => {
+          if (inspectDeckId) handleDownloadDeck(inspectDeckId);
+        }}
+        authHeaders={authHeaders}
+      />
+      {/* EJ31 — deck copy modal. Opens from the row's Copy icon or
+          from the inspect modal's Copy button. */}
+      <DeckCopyModal
+        open={copyDeckId !== null}
+        sourceDeckId={copyDeckId}
+        sourceDeckName={
+          copyDeckId ? (deckList?.find((d) => d.id === copyDeckId)?.name ?? null) : null
+        }
+        sourceUserId={user.user_id}
+        sourceUserEmail={user.email ?? null}
+        onClose={() => setCopyDeckId(null)}
+        onCopied={handleCopySucceeded}
+        authHeaders={authHeaders}
+      />
     </div>
   );
 }
 
-
-function DetailPanel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function DetailPanel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section
       style={{
@@ -2992,13 +3117,7 @@ function DetailPanel({
   );
 }
 
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline gap-3">
       <div
@@ -3007,8 +3126,7 @@ function DetailRow({
           fontSize: "var(--text-caption)",
           letterSpacing: "0.16em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
           minWidth: 140,
         }}
       >
@@ -3030,9 +3148,7 @@ function DetailRow({
 /* ---------------- CQ — User detail action UI ---------------- */
 
 function ActionRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-4 flex flex-wrap gap-2">{children}</div>
-  );
+  return <div className="mt-4 flex flex-wrap gap-2">{children}</div>;
 }
 
 function ActionBtn({
@@ -3098,9 +3214,7 @@ function SetPasswordModal({
 }: {
   targetEmail: string;
   onClose: () => void;
-  onConfirm: (
-    newPassword: string,
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onConfirm: (newPassword: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
@@ -3128,14 +3242,10 @@ function SetPasswordModal({
   };
 
   return (
-    <ModalShell
-      title={`Set password for ${targetEmail}?`}
-      onClose={handleClose}
-    >
+    <ModalShell title={`Set password for ${targetEmail}?`} onClose={handleClose}>
       <p style={{ ...serif, fontSize: "var(--text-body-sm)", opacity: 0.75 }}>
-        You are about to directly set this user&rsquo;s password. The user
-        will not be notified. Make sure you have a way to communicate the
-        new password to them.
+        You are about to directly set this user&rsquo;s password. The user will not be notified.
+        Make sure you have a way to communicate the new password to them.
       </p>
       <div
         className="mt-4"
@@ -3255,7 +3365,7 @@ function BackupsTab() {
       .from("admin_backups" as never)
       .select("id, created_at, kind, status, size_bytes, storage_path")
       .order("created_at", { ascending: false });
-    setRows(((data as unknown) as BackupRow[]) ?? []);
+    setRows((data as unknown as BackupRow[]) ?? []);
     setLoading(false);
   };
 
@@ -3294,9 +3404,7 @@ function BackupsTab() {
       data: { backupId: r.id },
       headers: await authHeaders(),
     });
-    toast.success(
-      "Restore request logged. A team member will run the restore manually.",
-    );
+    toast.success("Restore request logged. A team member will run the restore manually.");
   };
 
   const Section = ({
@@ -3311,10 +3419,7 @@ function BackupsTab() {
     <section>
       <SectionTitle>{title}</SectionTitle>
       <div className="mt-4 overflow-x-auto">
-        <table
-          className="w-full"
-          style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-        >
+        <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
           <thead>
             <tr style={thRow()}>
               <Th>Date</Th>
@@ -3327,9 +3432,7 @@ function BackupsTab() {
             {list.length === 0 && (
               <tr>
                 <Td>
-                  <span style={{ opacity: 0.5, fontStyle: "italic" }}>
-                    {emptyMsg}
-                  </span>
+                  <span style={{ opacity: 0.5, fontStyle: "italic" }}>{emptyMsg}</span>
                 </Td>
                 <Td>—</Td>
                 <Td>—</Td>
@@ -3337,10 +3440,7 @@ function BackupsTab() {
               </tr>
             )}
             {list.map((r) => (
-              <tr
-                key={r.id}
-                style={{ borderBottom: "1px solid var(--border-subtle)" }}
-              >
+              <tr key={r.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                 <Td>{formatDateTime(r.created_at)}</Td>
                 <Td>{fmtSize(r.size_bytes)}</Td>
                 <Td>{r.status}</Td>
@@ -3353,10 +3453,7 @@ function BackupsTab() {
                     >
                       <Download size={14} strokeWidth={1.5} />
                     </IconAction>
-                    <IconAction
-                      title="Restore"
-                      onClick={() => void onRestore(r)}
-                    >
+                    <IconAction title="Restore" onClick={() => void onRestore(r)}>
                       <RotateCcw size={14} strokeWidth={1.5} />
                     </IconAction>
                   </div>
@@ -3436,16 +3533,8 @@ function BackupsTab() {
         <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading backups…</p>
       ) : (
         <>
-          <Section
-            title="Automatic backups"
-            list={automatic}
-            emptyMsg="No automatic backups yet"
-          />
-          <Section
-            title="Manual backups"
-            list={manual}
-            emptyMsg="No manual backups yet"
-          />
+          <Section title="Automatic backups" list={automatic} emptyMsg="No automatic backups yet" />
+          <Section title="Manual backups" list={manual} emptyMsg="No manual backups yet" />
         </>
       )}
     </div>
@@ -3479,7 +3568,7 @@ function AuditTab() {
         .select("id, created_at, admin_email, action, target_email, details")
         .order("created_at", { ascending: false })
         .limit(2000);
-      setRows(((data as unknown) as AuditRow[]) ?? []);
+      setRows((data as unknown as AuditRow[]) ?? []);
       setLoading(false);
     })();
   }, []);
@@ -3556,18 +3645,12 @@ function AuditTab() {
       </div>
 
       {loading ? (
-        <p
-          className="mt-8"
-          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
-        >
+        <p className="mt-8" style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
           Loading audit log…
         </p>
       ) : (
         <div className="mt-6 overflow-x-auto">
-          <table
-            className="w-full"
-            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-          >
+          <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
             <thead>
               <tr style={thRow()}>
                 <Th>Timestamp</Th>
@@ -3579,10 +3662,7 @@ function AuditTab() {
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr
-                  key={r.id}
-                  style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                >
+                <tr key={r.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                   <Td>{formatDateTime(r.created_at)}</Td>
                   <Td>{r.admin_email ?? "—"}</Td>
                   <Td>{auditActionLabel(r.action)}</Td>
@@ -3590,9 +3670,7 @@ function AuditTab() {
                   <Td>
                     <button
                       type="button"
-                      onClick={() =>
-                        setExpanded(expanded === r.id ? null : r.id)
-                      }
+                      onClick={() => setExpanded(expanded === r.id ? null : r.id)}
                       style={{
                         ...display,
                         fontSize: "var(--text-caption)",
@@ -3612,8 +3690,7 @@ function AuditTab() {
                         style={{
                           marginTop: 6,
                           padding: 8,
-                          background:
-                            "color-mix(in oklab, var(--background) 80%, black)",
+                          background: "color-mix(in oklab, var(--background) 80%, black)",
                           fontSize: 11,
                           whiteSpace: "pre-wrap",
                           maxWidth: 480,
@@ -3667,8 +3744,7 @@ function ModalShell({
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "color-mix(in oklab, var(--background) 96%, black)",
-          border:
-            "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
           padding: 24,
           maxWidth: 520,
           width: "100%",
@@ -3712,13 +3788,7 @@ function ModalShell({
   );
 }
 
-function HistoryModal({
-  user,
-  onClose,
-}: {
-  user: AdminUser;
-  onClose: () => void;
-}) {
+function HistoryModal({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   const [rows, setRows] = useState<
     Array<{
       id: string;
@@ -3739,14 +3809,9 @@ function HistoryModal({
     })();
   }, [user.user_id]);
   return (
-    <ModalShell
-      title={`Readings · ${user.email ?? user.user_id.slice(0, 8)}`}
-      onClose={onClose}
-    >
+    <ModalShell title={`Readings · ${user.email ?? user.user_id.slice(0, 8)}`} onClose={onClose}>
       {rows.length === 0 ? (
-        <p style={{ ...serif, fontStyle: "italic", opacity: 0.6 }}>
-          No readings yet.
-        </p>
+        <p style={{ ...serif, fontStyle: "italic", opacity: 0.6 }}>No readings yet.</p>
       ) : (
         <ul className="space-y-2">
           {rows.map((r) => (
@@ -3777,8 +3842,7 @@ function HistoryModal({
               <span
                 style={{
                   fontSize: "var(--text-caption)",
-                  color:
-                    "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                  color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                 }}
               >
                 {formatDateTime(r.created_at)}
@@ -3791,7 +3855,6 @@ function HistoryModal({
   );
 }
 
-
 function NoteModal({
   user,
   onClose,
@@ -3803,10 +3866,7 @@ function NoteModal({
 }) {
   const [text, setText] = useState(user.admin_note ?? "");
   return (
-    <ModalShell
-      title={`Note · ${user.email ?? user.user_id.slice(0, 8)}`}
-      onClose={onClose}
-    >
+    <ModalShell title={`Note · ${user.email ?? user.user_id.slice(0, 8)}`} onClose={onClose}>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -3821,11 +3881,7 @@ function NoteModal({
         }}
       />
       <div className="mt-4 flex justify-end gap-4">
-        <button
-          type="button"
-          onClick={onClose}
-          style={textBtnStyle("muted")}
-        >
+        <button type="button" onClick={onClose} style={textBtnStyle("muted")}>
           Cancel
         </button>
         <button
@@ -3847,17 +3903,13 @@ function thRow() {
     fontSize: "var(--text-caption)",
     textTransform: "uppercase" as const,
     letterSpacing: "0.16em",
-    color:
-      "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
+    color: "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
   };
 }
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th
-      className="px-2 py-2 text-left font-normal"
-      style={{ whiteSpace: "nowrap" }}
-    >
+    <th className="px-2 py-2 text-left font-normal" style={{ whiteSpace: "nowrap" }}>
       {children}
     </th>
   );
@@ -3865,10 +3917,7 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   return (
-    <td
-      className="px-2 py-3 align-top"
-      style={{ whiteSpace: "nowrap" }}
-    >
+    <td className="px-2 py-3 align-top" style={{ whiteSpace: "nowrap" }}>
       {children}
     </td>
   );
@@ -3950,8 +3999,7 @@ function FilterSelect({
         fontSize: "var(--text-caption)",
         letterSpacing: "0.16em",
         textTransform: "uppercase",
-        color:
-          "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
       }}
     >
       {label}
@@ -3996,8 +4044,7 @@ function DateField({
         fontSize: "var(--text-caption)",
         letterSpacing: "0.16em",
         textTransform: "uppercase",
-        color:
-          "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
       }}
     >
       {label}
@@ -4029,8 +4076,7 @@ function RoleBadge({ role }: { role: Role }) {
         textTransform: "uppercase",
         padding: "3px 8px",
         color: "var(--accent, var(--gold))",
-        background:
-          "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
+        background: "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
         opacity: role === "super_admin" ? 1 : 0.7,
       }}
     >
@@ -4061,11 +4107,7 @@ function auditActionLabel(action: string): string {
   return AUDIT_ACTION_LABELS[action] ?? action;
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: "active" | "stale" | "dormant";
-}) {
+function StatusBadge({ status }: { status: "active" | "stale" | "dormant" }) {
   const color =
     status === "active"
       ? "var(--accent, var(--gold))"
@@ -4097,8 +4139,7 @@ function Badge({ children }: { children: React.ReactNode }) {
         textTransform: "uppercase",
         padding: "3px 8px",
         color: "var(--accent, var(--gold))",
-        background:
-          "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
+        background: "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
       }}
     >
       {children}
@@ -4196,11 +4237,7 @@ function FeedbackCategoryBadge({ category }: { category: "bug" | "feature" }) {
   );
 }
 
-function FeedbackStatusBadge({
-  status,
-}: {
-  status: AdminFeedbackItem["status"];
-}) {
+function FeedbackStatusBadge({ status }: { status: AdminFeedbackItem["status"] }) {
   const labels: Record<AdminFeedbackItem["status"], string> = {
     pending: "Pending",
     under_review: "Under review",
@@ -4218,8 +4255,7 @@ function FeedbackStatusBadge({
         textTransform: "uppercase",
         padding: "2px 6px",
         color: "var(--accent, var(--gold))",
-        background:
-          "color-mix(in oklch, var(--accent, var(--gold)) 14%, transparent)",
+        background: "color-mix(in oklch, var(--accent, var(--gold)) 14%, transparent)",
       }}
     >
       {labels[status]}
@@ -4418,19 +4454,13 @@ function EmailsTab() {
 
   const total = rows?.length ?? 0;
   const sent = rows?.filter((r) => r.status === "sent").length ?? 0;
-  const failed =
-    rows?.filter((r) => r.status === "failed" || r.status === "bounced")
-      .length ?? 0;
+  const failed = rows?.filter((r) => r.status === "failed" || r.status === "bounced").length ?? 0;
 
   return (
     <div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1" style={{ minWidth: 240 }}>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search recipient email…"
-          />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search recipient email…" />
         </div>
         <FilterSelect
           label="Type"
@@ -4482,26 +4512,19 @@ function EmailsTab() {
           fontSize: "var(--text-caption)",
           letterSpacing: "0.16em",
           textTransform: "uppercase",
-          color:
-            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
         }}
       >
         {total} emails · {sent} sent · {failed} failed
       </div>
 
       {loading ? (
-        <p
-          className="mt-8"
-          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
-        >
+        <p className="mt-8" style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
           Loading email log…
         </p>
       ) : rows && rows.length > 0 ? (
         <div className="mt-6 overflow-x-auto">
-          <table
-            className="w-full"
-            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-          >
+          <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
             <thead>
               <tr style={thRow()}>
                 <Th>When</Th>
@@ -4515,9 +4538,7 @@ function EmailsTab() {
               {rows
                 .filter((r) =>
                   search.trim()
-                    ? r.email_to
-                        .toLowerCase()
-                        .includes(search.trim().toLowerCase())
+                    ? r.email_to.toLowerCase().includes(search.trim().toLowerCase())
                     : true,
                 )
                 .map((r) => (
@@ -4546,7 +4567,7 @@ function EmailsTab() {
                     </Td>
                     <Td>
                       {r.triggered_by === "admin"
-                        ? r.triggered_by_email ?? "admin"
+                        ? (r.triggered_by_email ?? "admin")
                         : r.triggered_by}
                     </Td>
                   </tr>
@@ -4555,10 +4576,7 @@ function EmailsTab() {
           </table>
         </div>
       ) : (
-        <p
-          className="mt-8"
-          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
-        >
+        <p className="mt-8" style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
           No emails match these filters yet.
         </p>
       )}
@@ -4583,9 +4601,7 @@ function FeedbackLiveList() {
   }, []);
 
   async function changeStatus(id: string, status: AdminFeedbackItem["status"]) {
-    setItems((prev) =>
-      (prev ?? []).map((x) => (x.id === id ? { ...x, status } : x)),
-    );
+    setItems((prev) => (prev ?? []).map((x) => (x.id === id ? { ...x, status } : x)));
     try {
       const headers = await authHeaders();
       await updateFeedbackStatus({
@@ -4616,7 +4632,15 @@ function FeedbackLiveList() {
             padding: 16,
           }}
         >
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 8,
+              flexWrap: "wrap",
+            }}
+          >
             <FeedbackCategoryBadge category={it.category} />
             <FeedbackStatusBadge status={it.status} />
             <span
@@ -4646,10 +4670,10 @@ function FeedbackLiveList() {
             </div>
           )}
           <select
-            value={it.status === "dismissed" || it.status === "pending" ? "under_review" : it.status}
-            onChange={(e) =>
-              changeStatus(it.id, e.target.value as AdminFeedbackItem["status"])
+            value={
+              it.status === "dismissed" || it.status === "pending" ? "under_review" : it.status
             }
+            onChange={(e) => changeStatus(it.id, e.target.value as AdminFeedbackItem["status"])}
             style={{
               ...serif,
               fontSize: 13,
@@ -4703,7 +4727,15 @@ function FeedbackArchivedList() {
             opacity: 0.85,
           }}
         >
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 8,
+              flexWrap: "wrap",
+            }}
+          >
             <FeedbackCategoryBadge category={it.category} />
             <FeedbackStatusBadge status={it.status} />
           </div>
