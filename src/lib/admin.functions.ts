@@ -16,11 +16,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getCardName } from "@/lib/tarot";
-import {
-  detectWeavesForUser,
-  previewWeavesForUser,
-  type WeavePreview,
-} from "@/lib/weaves.server";
+import { detectWeavesForUser, previewWeavesForUser, type WeavePreview } from "@/lib/weaves.server";
 import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
 import { addDaysInTz } from "@/lib/time";
 
@@ -95,7 +91,9 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 
     // CQ — paginate listUsers so growth past 1000 is visible. Safety
     // cap at 100k to avoid runaway loops.
-    const allUsers: Array<Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"][number]> = [];
+    const allUsers: Array<
+      Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"][number]
+    > = [];
     {
       let page = 1;
       const perPage = 1000;
@@ -146,28 +144,28 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     return allUsers
       .filter((u) => !!u.email)
       .map((u) => {
-      const p = prefMap.get(u.id) ?? {};
-      return {
-        user_id: u.id,
-        email: u.email ?? null,
-        email_confirmed_at: (u as any).email_confirmed_at ?? null,
-        email_confirmed: !!(u as any).email_confirmed_at,
-        is_anonymous: !u.email,
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at ?? null,
-        banned_until: (u as any).banned_until ?? null,
-        display_name: p.display_name ?? null,
-        role: (p.role as "user" | "admin" | "super_admin") ?? "user",
-        subscription_type: p.subscription_type ?? "none",
-        is_premium: !!p.is_premium,
-        premium_since: p.premium_since ?? null,
-        premium_expires_at: p.premium_expires_at ?? null,
-        premium_months_used: p.premium_months_used ?? 0,
-        admin_note: p.admin_note ?? null,
-        reading_count: 0,
-        last_reading: null as string | null,
-      };
-    });
+        const p = prefMap.get(u.id) ?? {};
+        return {
+          user_id: u.id,
+          email: u.email ?? null,
+          email_confirmed_at: (u as any).email_confirmed_at ?? null,
+          email_confirmed: !!(u as any).email_confirmed_at,
+          is_anonymous: !u.email,
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at ?? null,
+          banned_until: (u as any).banned_until ?? null,
+          display_name: p.display_name ?? null,
+          role: (p.role as "user" | "admin" | "super_admin") ?? "user",
+          subscription_type: p.subscription_type ?? "none",
+          is_premium: !!p.is_premium,
+          premium_since: p.premium_since ?? null,
+          premium_expires_at: p.premium_expires_at ?? null,
+          premium_months_used: p.premium_months_used ?? 0,
+          admin_note: p.admin_note ?? null,
+          reading_count: 0,
+          last_reading: null as string | null,
+        };
+      });
   });
 
 /* ---------- getAdminUserReadingCounts (Q84) ---------- */
@@ -320,19 +318,27 @@ export const listPendingSignups = createServerFn({ method: "GET" })
       page += 1;
       if (page > 100) break;
     }
-    out.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
+    out.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return out;
   });
 
-
 const ActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
-  z.object({ type: z.literal("extend_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
+  z.object({
+    type: z.literal("grant_premium"),
+    targetUserId: z.string().uuid(),
+    months: z.number().int().positive(),
+  }),
+  z.object({
+    type: z.literal("extend_premium"),
+    targetUserId: z.string().uuid(),
+    months: z.number().int().positive(),
+  }),
   z.object({ type: z.literal("revoke_premium"), targetUserId: z.string().uuid() }),
-  z.object({ type: z.literal("assign_admin"), targetUserId: z.string().uuid(), role: z.enum(["admin", "super_admin"]) }),
+  z.object({
+    type: z.literal("assign_admin"),
+    targetUserId: z.string().uuid(),
+    role: z.enum(["admin", "super_admin"]),
+  }),
   z.object({ type: z.literal("remove_admin"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("password_reset"), targetUserId: z.string().uuid() }),
   z.object({
@@ -342,7 +348,11 @@ const ActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("deactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
-  z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
+  z.object({
+    type: z.literal("set_note"),
+    targetUserId: z.string().uuid(),
+    note: z.string().nullable(),
+  }),
   z.object({ type: z.literal("resend_confirmation"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("manual_confirm"), targetUserId: z.string().uuid() }),
 ]);
@@ -356,13 +366,11 @@ export const adminAction = createServerFn({ method: "POST" })
     const actorEmail = (claims as any)?.email ?? null;
 
     // Resolve target email + role for guardrails / logging.
-    const { data: targetUser } =
-      await supabaseAdmin.auth.admin.getUserById(data.targetUserId);
+    const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(data.targetUserId);
     const targetEmail = targetUser?.user?.email ?? null;
 
     // Super-admin-only protections.
-    const requiresSuper =
-      data.type === "assign_admin" || data.type === "remove_admin";
+    const requiresSuper = data.type === "assign_admin" || data.type === "remove_admin";
     if (requiresSuper) {
       const { data: actorPref } = await supabaseAdmin
         .from("user_preferences")
@@ -392,20 +400,20 @@ export const adminAction = createServerFn({ method: "POST" })
       case "grant_premium": {
         const expires = new Date();
         expires.setUTCMonth(expires.getUTCMonth() + data.months);
-        await supabaseAdmin
-          .from("user_preferences")
-          .upsert(
-            {
-              user_id: data.targetUserId,
-              is_premium: true,
-              subscription_type: "gifted",
-              premium_since: new Date().toISOString(),
-              premium_expires_at: expires.toISOString(),
-              gifted_by: userId,
-            },
-            { onConflict: "user_id" },
-          );
-        await logAction(userId, actorEmail, "grant_premium", data.targetUserId, targetEmail, { months: data.months });
+        await supabaseAdmin.from("user_preferences").upsert(
+          {
+            user_id: data.targetUserId,
+            is_premium: true,
+            subscription_type: "gifted",
+            premium_since: new Date().toISOString(),
+            premium_expires_at: expires.toISOString(),
+            gifted_by: userId,
+          },
+          { onConflict: "user_id" },
+        );
+        await logAction(userId, actorEmail, "grant_premium", data.targetUserId, targetEmail, {
+          months: data.months,
+        });
         break;
       }
       case "extend_premium": {
@@ -416,32 +424,23 @@ export const adminAction = createServerFn({ method: "POST" })
           .select("premium_expires_at")
           .eq("user_id", data.targetUserId)
           .maybeSingle();
-        const prev = (current as { premium_expires_at?: string | null } | null)
-          ?.premium_expires_at;
-        const base =
-          prev && new Date(prev).getTime() > Date.now()
-            ? new Date(prev)
-            : new Date();
+        const prev = (current as { premium_expires_at?: string | null } | null)?.premium_expires_at;
+        const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev) : new Date();
         base.setUTCMonth(base.getUTCMonth() + data.months);
-        await supabaseAdmin
-          .from("user_preferences")
-          .upsert(
-            {
-              user_id: data.targetUserId,
-              is_premium: true,
-              subscription_type: "gifted",
-              premium_expires_at: base.toISOString(),
-            },
-            { onConflict: "user_id" },
-          );
-        await logAction(
-          userId,
-          actorEmail,
-          "extend_premium",
-          data.targetUserId,
-          targetEmail,
-          { months: data.months, previous_expires_at: prev ?? null, expires_at: base.toISOString() },
+        await supabaseAdmin.from("user_preferences").upsert(
+          {
+            user_id: data.targetUserId,
+            is_premium: true,
+            subscription_type: "gifted",
+            premium_expires_at: base.toISOString(),
+          },
+          { onConflict: "user_id" },
         );
+        await logAction(userId, actorEmail, "extend_premium", data.targetUserId, targetEmail, {
+          months: data.months,
+          previous_expires_at: prev ?? null,
+          expires_at: base.toISOString(),
+        });
         break;
       }
       case "revoke_premium": {
@@ -450,35 +449,32 @@ export const adminAction = createServerFn({ method: "POST" })
           .select("premium_expires_at")
           .eq("user_id", data.targetUserId)
           .maybeSingle();
-        await supabaseAdmin
-          .from("user_preferences")
-          .upsert(
-            {
-              user_id: data.targetUserId,
-              is_premium: false,
-              subscription_type: "none",
-              premium_expires_at: null,
-            },
-            { onConflict: "user_id" },
-          );
+        await supabaseAdmin.from("user_preferences").upsert(
+          {
+            user_id: data.targetUserId,
+            is_premium: false,
+            subscription_type: "none",
+            premium_expires_at: null,
+          },
+          { onConflict: "user_id" },
+        );
         await logAction(userId, actorEmail, "revoke_premium", data.targetUserId, targetEmail, {
           previous_expires_at:
-            (prevRow as { premium_expires_at?: string | null } | null)
-              ?.premium_expires_at ?? null,
+            (prevRow as { premium_expires_at?: string | null } | null)?.premium_expires_at ?? null,
         });
         break;
       }
       case "assign_admin": {
         if (!targetEmail) {
-          throw new Error(
-            "Cannot assign admin role to a user without an email address.",
-          );
+          throw new Error("Cannot assign admin role to a user without an email address.");
         }
         await supabaseAdmin
           .from("user_preferences")
           .update({ role: data.role })
           .eq("user_id", data.targetUserId);
-        await logAction(userId, actorEmail, "assign_admin", data.targetUserId, targetEmail, { role: data.role });
+        await logAction(userId, actorEmail, "assign_admin", data.targetUserId, targetEmail, {
+          role: data.role,
+        });
         break;
       }
       case "remove_admin": {
@@ -508,25 +504,17 @@ export const adminAction = createServerFn({ method: "POST" })
       case "set_password": {
         // CW — Self-protection: admin cannot change own password via this tool.
         if (data.targetUserId === userId) {
-          throw new Error(
-            "Cannot set your own password through admin actions. Use Settings.",
-          );
+          throw new Error("Cannot set your own password through admin actions. Use Settings.");
         }
-        const { error } = await supabaseAdmin.auth.admin.updateUserById(
-          data.targetUserId,
-          { password: data.newPassword },
-        );
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+          password: data.newPassword,
+        });
         if (error) throw new Error(error.message);
         // CW — never log the actual password; record only its length so
         // the audit log proves the action without exposing the credential.
-        await logAction(
-          userId,
-          actorEmail,
-          "set_password",
-          data.targetUserId,
-          targetEmail,
-          { password_length: data.newPassword.length },
-        );
+        await logAction(userId, actorEmail, "set_password", data.targetUserId, targetEmail, {
+          password_length: data.newPassword.length,
+        });
         break;
       }
       case "deactivate_user": {
@@ -550,13 +538,14 @@ export const adminAction = createServerFn({ method: "POST" })
           .from("user_preferences")
           .update({ admin_note: data.note })
           .eq("user_id", data.targetUserId);
-        await logAction(userId, actorEmail, "set_note", data.targetUserId, targetEmail, { note: data.note });
+        await logAction(userId, actorEmail, "set_note", data.targetUserId, targetEmail, {
+          note: data.note,
+        });
         break;
       }
       case "resend_confirmation": {
         if (!targetEmail) throw new Error("user has no email");
-        const { error: resendErr } =
-          await supabaseAdmin.auth.admin.inviteUserByEmail(targetEmail);
+        const { error: resendErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(targetEmail);
         if (resendErr) throw new Error(resendErr.message);
         await logAction(
           userId,
@@ -577,19 +566,14 @@ export const adminAction = createServerFn({ method: "POST" })
       }
       case "manual_confirm": {
         if (!targetEmail) throw new Error("user has no email");
-        const { error: confirmErr } =
-          await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
-            email_confirm: true,
-          });
-        if (confirmErr) throw new Error(confirmErr.message);
-        await logAction(
-          userId,
-          actorEmail,
-          "manual_confirm",
+        const { error: confirmErr } = await supabaseAdmin.auth.admin.updateUserById(
           data.targetUserId,
-          targetEmail,
-          {},
+          {
+            email_confirm: true,
+          },
         );
+        if (confirmErr) throw new Error(confirmErr.message);
+        await logAction(userId, actorEmail, "manual_confirm", data.targetUserId, targetEmail, {});
         await logEmail({
           user_id: data.targetUserId,
           email_to: targetEmail,
@@ -617,19 +601,46 @@ function buildShortNameForBackfill(t: {
   card_ids?: number[] | null;
 }): string {
   const dominantCardId = t.card_ids?.[0] ?? null;
-  const cardName =
-    typeof dominantCardId === "number" ? getCardName(dominantCardId) : null;
+  const cardName = typeof dominantCardId === "number" ? getCardName(dominantCardId) : null;
   const text = (t.title || t.summary || "").toLowerCase();
   const stopwords = new Set([
-    "the", "a", "an", "and", "or", "as", "in", "of", "to",
-    "across", "multiple", "reading", "readings", "appears",
-    "force", "with", "this", "that", "your", "you", "for",
-    "from", "into", "over", "under", "than", "then", "them",
-    "their", "there", "have", "has", "had", "been", "being",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "as",
+    "in",
+    "of",
+    "to",
+    "across",
+    "multiple",
+    "reading",
+    "readings",
+    "appears",
+    "force",
+    "with",
+    "this",
+    "that",
+    "your",
+    "you",
+    "for",
+    "from",
+    "into",
+    "over",
+    "under",
+    "than",
+    "then",
+    "them",
+    "their",
+    "there",
+    "have",
+    "has",
+    "had",
+    "been",
+    "being",
   ]);
-  const words = text
-    .split(/[\s,.;:!?]+/)
-    .filter((w) => w.length > 3 && !stopwords.has(w));
+  const words = text.split(/[\s,.;:!?]+/).filter((w) => w.length > 3 && !stopwords.has(w));
   const keyWord = words[0] ?? null;
   const cardCore = cardName ? cardName.replace(/^The\s+/i, "") : null;
   if (keyWord && cardCore) {
@@ -715,14 +726,11 @@ export const backfillPatternNames = createServerFn({ method: "POST" })
       updated += 1;
     }
 
-    await logAction(
-      userId,
-      null,
-      "backfill_pattern_names",
-      null,
-      null,
-      { updated, skipped, considered: patterns.length },
-    );
+    await logAction(userId, null, "backfill_pattern_names", null, null, {
+      updated,
+      skipped,
+      considered: patterns.length,
+    });
     return { ok: true, updated, skipped, considered: patterns.length } as const;
   });
 
@@ -749,12 +757,10 @@ export const createAdminBackup = createServerFn({ method: "POST" })
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     const path = `manual/${stamp}.json`;
 
-    const { error: upErr } = await supabaseAdmin.storage
-      .from("admin-backups")
-      .upload(path, bytes, {
-        contentType: "application/json",
-        upsert: false,
-      });
+    const { error: upErr } = await supabaseAdmin.storage.from("admin-backups").upload(path, bytes, {
+      contentType: "application/json",
+      upsert: false,
+    });
     if (upErr) throw new Error(upErr.message);
 
     const { data: row, error: insErr } = await supabaseAdmin
@@ -782,9 +788,7 @@ export const createAdminBackup = createServerFn({ method: "POST" })
 
 export const getBackupDownloadUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ storagePath: z.string() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ storagePath: z.string() }).parse(input))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
@@ -799,9 +803,7 @@ export const getBackupDownloadUrl = createServerFn({ method: "POST" })
 
 export const restoreAdminBackup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ backupId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ backupId: z.string().uuid() }).parse(input))
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     await assertAdmin(supabase, userId);
@@ -811,14 +813,9 @@ export const restoreAdminBackup = createServerFn({ method: "POST" })
     // code. It logs the intent so an operator can perform the actual
     // restore manually from the snapshot file. This protects seekers
     // from a misclick wiping live data.
-    await logAction(
-      userId,
-      actorEmail,
-      "restore_backup_requested",
-      null,
-      null,
-      { backup_id: data.backupId },
-    );
+    await logAction(userId, actorEmail, "restore_backup_requested", null, null, {
+      backup_id: data.backupId,
+    });
     return { ok: true, requiresManualRun: true } as const;
   });
 
@@ -884,10 +881,7 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
       }> = [];
       for (const uid of candidates) {
         try {
-          const { inserted, existing } = await detectWeavesForUser(
-            supabaseAdmin,
-            uid,
-          );
+          const { inserted, existing } = await detectWeavesForUser(supabaseAdmin, uid);
           totalDetected += inserted;
           totalExisting += existing;
           perUser.push({ user_id: uid, inserted, existing });
@@ -912,21 +906,21 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
       const { data: insertedRun } = await supabaseAdmin
         .from("detect_weaves_runs" as never)
         .insert({
-        started_at: new Date(startedAt).toISOString(),
-        finished_at: new Date(finishedAt).toISOString(),
-        duration_ms: finishedAt - startedAt,
-        users_scanned: candidates.length,
-        weaves_detected: totalDetected,
-        weaves_existing: totalExisting,
-        status,
-        message:
-          data.scope === "user"
-            ? `manual run for user ${data.userId}`
-            : "manual run for all eligible users",
-        per_user_errors: perUserErrors,
-        mode: "manual",
-        triggered_by: userId,
-      } as never)
+          started_at: new Date(startedAt).toISOString(),
+          finished_at: new Date(finishedAt).toISOString(),
+          duration_ms: finishedAt - startedAt,
+          users_scanned: candidates.length,
+          weaves_detected: totalDetected,
+          weaves_existing: totalExisting,
+          status,
+          message:
+            data.scope === "user"
+              ? `manual run for user ${data.userId}`
+              : "manual run for all eligible users",
+          per_user_errors: perUserErrors,
+          mode: "manual",
+          triggered_by: userId,
+        } as never)
         .select("id")
         .single();
 
@@ -968,17 +962,17 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
       const { data: failedRun } = await supabaseAdmin
         .from("detect_weaves_runs" as never)
         .insert({
-        started_at: new Date(startedAt).toISOString(),
-        finished_at: new Date(finishedAt).toISOString(),
-        duration_ms: finishedAt - startedAt,
-        users_scanned: candidates.length,
-        weaves_detected: 0,
-        status: "error",
-        message: `manual run failed: ${message}`,
-        per_user_errors: [],
-        mode: "manual",
-        triggered_by: userId,
-      } as never)
+          started_at: new Date(startedAt).toISOString(),
+          finished_at: new Date(finishedAt).toISOString(),
+          duration_ms: finishedAt - startedAt,
+          users_scanned: candidates.length,
+          weaves_detected: 0,
+          status: "error",
+          message: `manual run failed: ${message}`,
+          per_user_errors: [],
+          mode: "manual",
+          triggered_by: userId,
+        } as never)
         .select("id")
         .single();
       const failedRunId = (failedRun as { id?: string } | null)?.id ?? null;
@@ -1050,10 +1044,7 @@ export const previewDetectWeavesAdmin = createServerFn({ method: "POST" })
     let errorCount = 0;
     for (const uid of candidates) {
       try {
-        const { would_create, already_existing } = await previewWeavesForUser(
-          supabaseAdmin,
-          uid,
-        );
+        const { would_create, already_existing } = await previewWeavesForUser(supabaseAdmin, uid);
         totalWouldCreate += would_create.length;
         totalAlreadyExisting += already_existing;
         if (would_create.length > 0 || already_existing > 0) {
@@ -1160,9 +1151,7 @@ export const listDetectWeavesAlerts = createServerFn({ method: "GET" })
  */
 export const resolveDetectWeavesAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ alertId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ alertId: z.string().uuid() }).parse(input))
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     await assertAdmin(supabase, userId);
@@ -1178,14 +1167,9 @@ export const resolveDetectWeavesAlert = createServerFn({ method: "POST" })
       .is("resolved_at", null);
     if (error) throw new Error(error.message);
 
-    await logAction(
-      userId,
-      actorEmail,
-      "resolve_detect_weaves_alert",
-      null,
-      null,
-      { alert_id: data.alertId },
-    );
+    await logAction(userId, actorEmail, "resolve_detect_weaves_alert", null, null, {
+      alert_id: data.alertId,
+    });
     return { ok: true } as const;
   });
 
@@ -1264,14 +1248,12 @@ export const getEmailLog = createServerFn({ method: "POST" })
       adminEmails.set(id, u?.user?.email ?? null);
     }
 
-    return ((rows ?? []) as Array<Omit<EmailLogRow, "triggered_by_email">>).map(
-      (r) => ({
-        ...r,
-        triggered_by_email: r.triggered_by_user_id
-          ? adminEmails.get(r.triggered_by_user_id) ?? null
-          : null,
-      }),
-    ) as EmailLogRow[];
+    return ((rows ?? []) as Array<Omit<EmailLogRow, "triggered_by_email">>).map((r) => ({
+      ...r,
+      triggered_by_email: r.triggered_by_user_id
+        ? (adminEmails.get(r.triggered_by_user_id) ?? null)
+        : null,
+    })) as EmailLogRow[];
   });
 
 /**
@@ -1313,4 +1295,282 @@ export const logUserResendConfirmation = createServerFn({ method: "POST" })
       error_message: data.error_message ?? null,
     });
     return { ok: true, throttled: false } as const;
+  });
+/* ────────────────────────────────────────────────────────────────────
+   EJ31 — Per-user deck inspection, download, and copy.
+   Three admin server functions:
+     - listUserDecks(userId)        → decks + per-deck card counts
+     - getDeckDetail(deckId)        → deck row + cards + signed URLs
+     - copyDeckToUser(sourceDeckId, targetUserId) → clones rows + files
+   The "download deck" UI flow reuses existing per-deck export (zip)
+   logic on the client side once it has the signed URLs from
+   getDeckDetail. No server-side packaging needed for first pass.
+   ──────────────────────────────────────────────────────────────────── */
+
+const DECK_BUCKET = "custom-deck-images";
+
+export const listUserDecks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId: actorId } = context;
+    await assertAdmin(supabase, actorId);
+    // Decks belonging to the target user.
+    const { data: decks, error: deckErr } = await supabaseAdmin
+      .from("custom_decks")
+      .select(
+        "id, name, deck_type, shape, is_complete, is_active, created_at, card_back_thumb_url, card_back_url",
+      )
+      .eq("user_id", data.userId)
+      .order("created_at", { ascending: false });
+    if (deckErr) throw new Error(deckErr.message);
+    const deckList = (decks ?? []) as Array<{
+      id: string;
+      name: string | null;
+      deck_type: "tarot" | "oracle";
+      shape: "rectangle" | "round";
+      is_complete: boolean;
+      is_active: boolean;
+      created_at: string;
+      card_back_thumb_url: string | null;
+      card_back_url: string | null;
+    }>;
+    if (deckList.length === 0)
+      return [] as Array<(typeof deckList)[number] & { card_count: number }>;
+    // Card counts per deck (active, non-archived rows only).
+    const ids = deckList.map((d) => d.id);
+    const { data: cards } = await supabaseAdmin
+      .from("custom_deck_cards")
+      .select("deck_id")
+      .in("deck_id", ids)
+      .is("archived_at", null);
+    const counts = new Map<string, number>();
+    for (const row of (cards ?? []) as Array<{ deck_id: string }>) {
+      counts.set(row.deck_id, (counts.get(row.deck_id) ?? 0) + 1);
+    }
+    return deckList.map((d) => ({ ...d, card_count: counts.get(d.id) ?? 0 }));
+  });
+
+export const getDeckDetail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ deckId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId: actorId } = context;
+    await assertAdmin(supabase, actorId);
+    const { data: deck, error: deckErr } = await supabaseAdmin
+      .from("custom_decks")
+      .select(
+        "id, user_id, name, deck_type, shape, width_inches, height_inches, corner_radius_percent, corner_radius_px, card_back_url, card_back_thumb_url, card_back_path, is_complete, is_active, created_at",
+      )
+      .eq("id", data.deckId)
+      .maybeSingle();
+    if (deckErr) throw new Error(deckErr.message);
+    if (!deck) throw new Error("Deck not found");
+    const { data: cards, error: cardErr } = await supabaseAdmin
+      .from("custom_deck_cards")
+      .select("id, card_id, display_path, thumbnail_path, card_name, card_description, source")
+      .eq("deck_id", data.deckId)
+      .is("archived_at", null)
+      .order("card_id", { ascending: true });
+    if (cardErr) throw new Error(cardErr.message);
+    const cardRows = (cards ?? []) as Array<{
+      id: string;
+      card_id: number;
+      display_path: string | null;
+      thumbnail_path: string | null;
+      card_name: string | null;
+      card_description: string | null;
+      source: string | null;
+    }>;
+    // Sign every thumbnail path so the modal can render the grid
+    // without re-fetching. 1-hour expiry — plenty for an admin
+    // inspection session.
+    const yearSecs = 60 * 60;
+    const allPaths = cardRows.map((c) => c.thumbnail_path).filter((p): p is string => !!p);
+    const signed: Record<string, string> = {};
+    if (allPaths.length > 0) {
+      const { data: signedArr } = await supabaseAdmin.storage
+        .from(DECK_BUCKET)
+        .createSignedUrls(allPaths, yearSecs);
+      for (const entry of signedArr ?? []) {
+        if (entry.path && entry.signedUrl) {
+          signed[entry.path] = entry.signedUrl;
+        }
+      }
+    }
+    let backSignedUrl: string | null = deck.card_back_thumb_url ?? deck.card_back_url ?? null;
+    if (deck.card_back_path) {
+      const { data: backSigned } = await supabaseAdmin.storage
+        .from(DECK_BUCKET)
+        .createSignedUrl(deck.card_back_path, yearSecs);
+      if (backSigned?.signedUrl) backSignedUrl = backSigned.signedUrl;
+    }
+    return {
+      deck,
+      cards: cardRows.map((c) => ({
+        ...c,
+        thumbnail_signed_url: c.thumbnail_path ? (signed[c.thumbnail_path] ?? null) : null,
+      })),
+      card_back_signed_url: backSignedUrl,
+    };
+  });
+
+export const copyDeckToUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        sourceDeckId: z.string().uuid(),
+        targetUserId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId: actorId, claims } = context;
+    await assertAdmin(supabase, actorId);
+    const actorEmail = (claims as any)?.email ?? null;
+    // Load source deck.
+    const { data: srcDeck, error: srcDeckErr } = await supabaseAdmin
+      .from("custom_decks")
+      .select("*")
+      .eq("id", data.sourceDeckId)
+      .maybeSingle();
+    if (srcDeckErr) throw new Error(srcDeckErr.message);
+    if (!srcDeck) throw new Error("Source deck not found");
+    if ((srcDeck as { user_id: string }).user_id === data.targetUserId) {
+      throw new Error("Target user already owns this deck");
+    }
+    // Load source cards.
+    const { data: srcCards, error: srcCardsErr } = await supabaseAdmin
+      .from("custom_deck_cards")
+      .select("*")
+      .eq("deck_id", data.sourceDeckId)
+      .is("archived_at", null);
+    if (srcCardsErr) throw new Error(srcCardsErr.message);
+    const cards = (srcCards ?? []) as Array<Record<string, unknown>>;
+    // Create new deck row owned by target user. Reset is_active so we
+    // don't accidentally swap their active deck out from under them.
+    const srcRow = srcDeck as Record<string, unknown>;
+    const newDeckInsert: Record<string, unknown> = {
+      user_id: data.targetUserId,
+      name: srcRow.name,
+      deck_type: srcRow.deck_type,
+      shape: srcRow.shape,
+      width_inches: srcRow.width_inches,
+      height_inches: srcRow.height_inches,
+      corner_radius_percent: srcRow.corner_radius_percent,
+      corner_radius_px: srcRow.corner_radius_px,
+      is_complete: srcRow.is_complete,
+      is_active: false,
+    };
+    const { data: newDeckRow, error: newDeckErr } = await supabaseAdmin
+      .from("custom_decks")
+      .insert(newDeckInsert as never)
+      .select("id")
+      .single();
+    if (newDeckErr) throw new Error(newDeckErr.message);
+    const newDeckId = (newDeckRow as { id: string }).id;
+    // Helper: copy one storage object from old path to a new path
+    // under the target user's folder. Returns the new path or null
+    // when the source path is missing.
+    const ts = Date.now();
+    let copyCounter = 0;
+    const copyOne = async (oldPath: string | null): Promise<string | null> => {
+      if (!oldPath) return null;
+      // Preserve the file extension; rebase everything else under
+      // the target user + new deck. Use a counter for uniqueness so
+      // sequential copies inside the same millisecond don't collide.
+      const dot = oldPath.lastIndexOf(".");
+      const ext = dot >= 0 ? oldPath.slice(dot) : ".webp";
+      copyCounter += 1;
+      const newPath = `${data.targetUserId}/${newDeckId}/copy-${ts}-${copyCounter}${ext}`;
+      const { error: copyErr } = await supabaseAdmin.storage
+        .from(DECK_BUCKET)
+        .copy(oldPath, newPath);
+      if (copyErr) {
+        console.warn("[copyDeckToUser] copy failed", { oldPath, newPath, error: copyErr.message });
+        return null;
+      }
+      return newPath;
+    };
+    const signOne = async (path: string | null): Promise<string | null> => {
+      if (!path) return null;
+      const yearSecs = 60 * 60 * 24 * 365;
+      const { data: signed } = await supabaseAdmin.storage
+        .from(DECK_BUCKET)
+        .createSignedUrl(path, yearSecs);
+      return signed?.signedUrl ?? null;
+    };
+    // Copy card-back image (and its thumb).
+    const cardBackPath = (srcRow.card_back_path as string | null) ?? null;
+    const cardBackThumbPath = (srcRow.card_back_thumb_path as string | null) ?? null;
+    const newBackPath = await copyOne(cardBackPath);
+    const newBackThumbPath = await copyOne(cardBackThumbPath);
+    const newBackUrl = await signOne(newBackPath);
+    const newBackThumbUrl = await signOne(newBackThumbPath);
+    if (newBackPath || newBackUrl) {
+      const updates: Record<string, unknown> = {};
+      if (newBackPath) updates.card_back_path = newBackPath;
+      if (newBackThumbPath) updates.card_back_thumb_path = newBackThumbPath;
+      if (newBackUrl) updates.card_back_url = newBackUrl;
+      if (newBackThumbUrl) updates.card_back_thumb_url = newBackThumbUrl;
+      await supabaseAdmin
+        .from("custom_decks")
+        .update(updates as never)
+        .eq("id", newDeckId);
+    }
+    // Copy each card: storage files + DB row.
+    let cardsCopied = 0;
+    for (const c of cards) {
+      const oldDisplayPath = (c.display_path as string | null) ?? null;
+      const oldThumbPath = (c.thumbnail_path as string | null) ?? null;
+      const newDisplayPath = await copyOne(oldDisplayPath);
+      const newThumbPath = await copyOne(oldThumbPath);
+      // If both storage copies fail, skip this card — DB row would
+      // point to nothing useful.
+      if (!newDisplayPath && !newThumbPath) {
+        console.warn("[copyDeckToUser] skipping card with no copyable files", c.card_id);
+        continue;
+      }
+      const newDisplayUrl = await signOne(newDisplayPath);
+      const newThumbUrl = await signOne(newThumbPath);
+      const insertRow: Record<string, unknown> = {
+        deck_id: newDeckId,
+        user_id: data.targetUserId,
+        card_id: c.card_id,
+        display_url: newDisplayUrl ?? "",
+        thumbnail_url: newThumbUrl ?? newDisplayUrl ?? "",
+        display_path: newDisplayPath ?? oldDisplayPath ?? "",
+        thumbnail_path: newThumbPath ?? oldThumbPath ?? "",
+        source: "imported",
+        card_name: c.card_name ?? null,
+        card_description: c.card_description ?? null,
+      };
+      const { error: insErr } = await supabaseAdmin
+        .from("custom_deck_cards")
+        .insert(insertRow as never);
+      if (insErr) {
+        console.warn("[copyDeckToUser] card insert failed", {
+          cardId: c.card_id,
+          error: insErr.message,
+        });
+        continue;
+      }
+      cardsCopied += 1;
+    }
+    // Look up target email for the audit log.
+    const { data: targetAuth } = await supabaseAdmin.auth.admin.getUserById(data.targetUserId);
+    const targetEmail = targetAuth?.user?.email ?? null;
+    await logAction(actorId, actorEmail, "copy_deck", data.targetUserId, targetEmail, {
+      source_deck_id: data.sourceDeckId,
+      source_user_id: srcRow.user_id,
+      new_deck_id: newDeckId,
+      cards_copied: cardsCopied,
+      cards_total: cards.length,
+    });
+    return {
+      new_deck_id: newDeckId,
+      cards_copied: cardsCopied,
+      cards_total: cards.length,
+    };
   });
