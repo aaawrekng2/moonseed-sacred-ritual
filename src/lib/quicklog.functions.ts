@@ -245,6 +245,12 @@ export type QuickLogOverlap = {
     string,
     Array<{ id: string; createdAt: string; question: string | null; cardIds: number[] }>
   >;
+  /**
+   * Most-recent ISO timestamp this seeker drew each card, within the
+   * 12-month window queried above. Used by the slim hover card on
+   * Constellation to show "last seen N days ago".
+   */
+  cardLastDrawnAt: Record<number, string>;
 };
 
 function daysInMonth(year: number, month1: number): number {
@@ -297,6 +303,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
     const readingsByDate: QuickLogOverlap["readingsByDate"] = {};
     const heroDays = new Set<string>();
     const sameDayCardIds: Record<string, Set<number>> = {};
+    const cardLastDrawnAt: Record<number, string> = {};
     const filteredRows = (
       (rowsRaw ?? []) as Array<
         {
@@ -318,6 +325,10 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       });
       const set = (sameDayCardIds[key] = sameDayCardIds[key] ?? new Set());
       for (const id of ids) set.add(id);
+      for (const id of ids) {
+        const prev = cardLastDrawnAt[id];
+        if (!prev || row.created_at > prev) cardLastDrawnAt[id] = row.created_at;
+      }
       if (heroCardId != null && ids.includes(heroCardId)) heroDays.add(key);
     }
 
@@ -343,7 +354,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       months.push({ year: y, month, days });
     }
 
-    return { months, readingsByDate };
+    return { months, readingsByDate, cardLastDrawnAt };
   });
 
 // ─── Q112 Phase 3 — Practice stats ───────────────────────────────────
