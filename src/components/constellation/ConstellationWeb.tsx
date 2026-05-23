@@ -296,9 +296,13 @@ function ConstellationSvg({
   // EJ27 — read the active deck's seeker-chosen corner radius (stored
   // as a 0-15% value via the deck-import slider). Used to size the
   // selection highlight's borderRadius so its outer silhouette matches
-  // the image's baked-in rounded corners. Falls back to 4% if the deck
-  // has no override saved (matches APP_DEFAULT_CARD_RADIUS_PCT).
-  const deckRadiusPct = useActiveDeckCornerRadius() ?? 4;
+  // the image's baked-in rounded corners. EJ28 — fallback is now 0
+  // (sharp) when the deck has no override saved: default decks (Rider-
+  // Waite shipped with the app) and any deck imported without the
+  // slider have rectangular sharp-cornered images, and a 4% assumed
+  // radius was giving the highlight a rounded silhouette that poked
+  // past the sharp image corners visually.
+  const deckRadiusPct = useActiveDeckCornerRadius() ?? 0;
 
   // EE2 — teal-line dedupe. Baseline (pink/accent) co-occurrence lines
   // are unchanged: every pair, full mesh, as before.
@@ -542,7 +546,6 @@ function ConstellationSvg({
                   {heroInTeal && (
                     <span
                       aria-hidden
-                      className="tarotseed-constellation-breathe"
                       style={{
                         // EJ27 — solid trace fill, 2px outset, NO box-shadow
                         // glow (the glow was extending visibly past the
@@ -550,8 +553,9 @@ function ConstellationSvg({
                         // from the seeker's chosen deck corner radius so
                         // the highlight silhouette matches the image's
                         // baked-in rounded shape, plus 2px for the outset.
-                        // Breathing animation pulses opacity/scale via
-                        // .tarotseed-constellation-breathe.
+                        // EJ28 — breathing animation class dropped per
+                        // user feedback ("too in your face"). Static glow,
+                        // visible but quiet.
                         position: "absolute",
                         top: -2,
                         left: -2,
@@ -862,11 +866,10 @@ function ConstellationSvg({
                   {inTeal && (
                     <span
                       aria-hidden
-                      className="tarotseed-constellation-breathe"
                       style={{
                         // EJ27 — matched hero treatment. Solid trace fill,
-                        // 2px outset, deck-derived radius, no glow,
-                        // breathing animation.
+                        // 2px outset, deck-derived radius, no glow.
+                        // EJ28 — breathing class dropped (too in-your-face).
                         position: "absolute",
                         top: -2,
                         left: -2,
