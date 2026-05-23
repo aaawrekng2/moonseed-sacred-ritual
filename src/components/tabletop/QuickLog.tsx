@@ -2029,11 +2029,17 @@ function OverlapStrip({
   showOlder?: boolean;
   onShowOlderChange?: (next: boolean) => void;
   /** EG — emit a hover event for a day cell, with computed visual
-   * signals so the parent can drive a rich popover. */
+   * signals so the parent can drive a rich popover. EJ28 —
+   * targetRect is the cell's bounding rect, used by the parent to
+   * position the popover with preferred-placement (above the cell)
+   * instead of the cursor-anchored fallback. Without this, the
+   * popover renders at cursorY + 8 which falls INSIDE the 20px-tall
+   * day cell and intercepts clicks. */
   onDayHover?: (info: {
     date: string;
     anchorX: number;
     anchorY: number;
+    targetRect: DOMRect | null;
     signals: DayCellSignals;
     tooltipText: string;
   }) => void;
@@ -2529,10 +2535,22 @@ function OverlapStrip({
                         onMouseEnter={
                           onDayHover
                             ? (e) => {
+                                // EJ28 — capture the cell's own bounding
+                                // rect so the parent can place the
+                                // popover with preferred-placement
+                                // (above the cell) instead of cursor-
+                                // anchored. Fixes calendar click bug:
+                                // cursor-anchored popover at cursorY+8
+                                // overlapped 20px-tall cells and
+                                // intercepted clicks on the inner button.
+                                const rect = (
+                                  e.currentTarget as HTMLDivElement
+                                ).getBoundingClientRect();
                                 onDayHover({
                                   date: day.date,
                                   anchorX: e.clientX,
                                   anchorY: e.clientY,
+                                  targetRect: rect,
                                   signals: {
                                     heroDrawn: !!day.heroDrawn,
                                     heroName,
@@ -2561,12 +2579,17 @@ function OverlapStrip({
                                 }
                                 const startX = e.clientX;
                                 const startY = e.clientY;
+                                // EJ28 — capture targetRect for touch path too.
+                                const startRect = (
+                                  e.currentTarget as HTMLDivElement
+                                ).getBoundingClientRect();
                                 longPressTimerRef.current = window.setTimeout(() => {
                                   longPressFiredRef.current = true;
                                   onDayHover({
                                     date: day.date,
                                     anchorX: startX,
                                     anchorY: startY,
+                                    targetRect: startRect,
                                     signals: {
                                       heroDrawn: !!day.heroDrawn,
                                       heroName,

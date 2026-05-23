@@ -1207,9 +1207,7 @@ export function ConstellationPage() {
     | "day-cell"
     | "chip-hint"
     | "constellation-badge"
-    | "slot-label"
-    | "slot-rank-box"
-    | "slot-count-box";
+    | "slot-label";
   // EG — payload varies by kind. badge-hint stores count + card name
   // so the popover can render without re-looking-up picks. day-cell
   // stores the date so the popover can derive its narrative + signals.
@@ -1238,6 +1236,10 @@ export function ConstellationPage() {
         key: string;
         anchorX: number;
         anchorY: number;
+        // EJ28 — target rect for preferred-placement positioning.
+        // Without this, RichPopover falls back to cursor-anchored
+        // placement which overlaps 20px day cells and intercepts clicks.
+        targetRect: DOMRect | null;
         date: string;
         signals: DayCellSignals;
         tooltipText: string;
@@ -1272,32 +1274,10 @@ export function ConstellationPage() {
         slotName: string;
         spreadLabel: string;
         meaning: string;
-      }
-    | {
-        // EJ16 — slot card RANK box hover popover (left box flush at
-        // the bottom of each slot card). Explains the rank number's
-        // meaning. Click on the box opens the readings modal.
-        kind: "slot-rank-box";
-        key: string;
-        anchorX: number;
-        anchorY: number;
-        cardName: string;
-        rank: number | null;
-        universeSize: number;
-        count: number;
-      }
-    | {
-        // EJ16 — slot card COUNT box hover popover (right box flush
-        // at the bottom of each slot card). Explains the count
-        // number's meaning. Click on the box opens the readings
-        // modal.
-        kind: "slot-count-box";
-        key: string;
-        anchorX: number;
-        anchorY: number;
-        cardName: string;
-        count: number;
       };
+  // EJ28 — slot-rank-box and slot-count-box kinds removed alongside
+  // the numbers row under each card slot. The row was dropped per
+  // user feedback; the popover handlers are no longer reachable.
   const [activePopover, setActivePopover] = useState<ActivePopoverState | null>(null);
   // EH — shared dismiss timer for the unified popover. Used by source
   // mouseLeave handlers AND by the popover itself so the cursor can
@@ -4154,130 +4134,6 @@ export function ConstellationPage() {
                         <RotateCw size={11} strokeWidth={2} />
                       </button>
                     )}
-                    {/* EJ16 — Two boxes flush against the bottom edge
-                        of the card. Left box = the card's rank in the
-                        seeker's filtered pull frequency (1 = most
-                        drawn). Right box = total pull count in the
-                        same filtered universe. Each box is half the
-                        card's actual width. Hover on either opens a
-                        popover explaining what the number means.
-                        Click on either opens the readings modal
-                        scoped to this specific card. Replaces the
-                        old floating circular badge. */}
-                    {drawCounts &&
-                      drawCounts.perCard[pick.cardIndex] !== undefined &&
-                      (() => {
-                        const count = drawCounts.perCard[pick.cardIndex];
-                        const rank = drawCounts.perCardRank?.[pick.cardIndex];
-                        const universeSize = drawCounts.rankUniverseSize ?? 0;
-                        const effectiveOpacity = isFocused ? 0.9 : badgeOpacity(count, picksMax);
-                        const pct = Math.round(effectiveOpacity * 100);
-                        const baseColor = isFocused
-                          ? "var(--gold, var(--accent))"
-                          : "var(--accent, var(--gold))";
-                        const bg = `color-mix(in oklab, ${baseColor} ${pct}%, var(--surface-card) ${100 - pct}%)`;
-                        const textColor =
-                          effectiveOpacity > 0.5 ? "var(--background)" : "var(--color-foreground)";
-                        const cardName = pick.cardName ?? TAROT_DECK[pick.cardIndex] ?? "this card";
-                        const halfW = Math.floor(slotW / 2);
-                        const boxStyle = {
-                          flex: 1,
-                          minWidth: 0,
-                          height: 18, // ~12px font + 3px top + 3px bottom
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: bg,
-                          color: textColor,
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: 11,
-                          lineHeight: 1,
-                          cursor: count > 0 ? "pointer" : "default",
-                          userSelect: "none" as const,
-                        };
-                        const openModal = () => {
-                          if (count <= 0) return;
-                          setModalCardId(pick.cardIndex);
-                          setModalMode("slot-card");
-                          setReadingsModalOpen(true);
-                        };
-                        return (
-                          <div
-                            style={{
-                              display: "flex",
-                              width: slotW,
-                              gap: 0,
-                              marginTop: 0,
-                              borderTop:
-                                "1px solid color-mix(in oklab, var(--color-foreground) 10%, transparent)",
-                            }}
-                          >
-                            <div
-                              role="button"
-                              tabIndex={count > 0 ? 0 : -1}
-                              aria-label={
-                                rank
-                                  ? `Rank ${rank} of ${universeSize} most-drawn cards. Click to view readings.`
-                                  : `Unranked; never drawn in the current filter window.`
-                              }
-                              onClick={openModal}
-                              onMouseEnter={(e) => {
-                                cancelPopoverDismiss();
-                                const r = (
-                                  e.currentTarget as HTMLDivElement
-                                ).getBoundingClientRect();
-                                setActivePopover({
-                                  kind: "slot-rank-box",
-                                  key: `rank-${pick.id}`,
-                                  anchorX: r.left + r.width / 2,
-                                  anchorY: r.bottom + 4,
-                                  cardName,
-                                  rank: rank ?? null,
-                                  universeSize,
-                                  count,
-                                });
-                              }}
-                              onMouseLeave={() => schedulePopoverDismiss("slot-rank-box")}
-                              style={{
-                                ...boxStyle,
-                                width: halfW,
-                                borderRight:
-                                  "1px solid color-mix(in oklab, var(--color-foreground) 10%, transparent)",
-                              }}
-                            >
-                              {rank ? `#${rank}` : "—"}
-                            </div>
-                            <div
-                              role="button"
-                              tabIndex={count > 0 ? 0 : -1}
-                              aria-label={`Drawn ${count} times. Click to view readings.`}
-                              onClick={openModal}
-                              onMouseEnter={(e) => {
-                                cancelPopoverDismiss();
-                                const r = (
-                                  e.currentTarget as HTMLDivElement
-                                ).getBoundingClientRect();
-                                setActivePopover({
-                                  kind: "slot-count-box",
-                                  key: `count-${pick.id}`,
-                                  anchorX: r.left + r.width / 2,
-                                  anchorY: r.bottom + 4,
-                                  cardName,
-                                  count,
-                                });
-                              }}
-                              onMouseLeave={() => schedulePopoverDismiss("slot-count-box")}
-                              style={{
-                                ...boxStyle,
-                                width: slotW - halfW,
-                              }}
-                            >
-                              {count}
-                            </div>
-                          </div>
-                        );
-                      })()}
                   </div>
                 );
               })}
@@ -4727,6 +4583,7 @@ export function ConstellationPage() {
               key: info.date,
               anchorX: info.anchorX,
               anchorY: info.anchorY,
+              targetRect: info.targetRect,
               date: info.date,
               signals: info.signals,
               tooltipText: info.tooltipText,
@@ -5428,6 +5285,7 @@ export function ConstellationPage() {
               open
               anchorX={activePopover.anchorX}
               anchorY={activePopover.anchorY}
+              targetRect={activePopover.targetRect}
               onClose={() => closeActivePopover("day-cell")}
               onCancelDismiss={cancelPopoverDismiss}
               onScheduleDismiss={() => schedulePopoverDismiss("day-cell")}
@@ -5539,109 +5397,6 @@ export function ConstellationPage() {
             }}
           >
             {activePopover.meaning}
-          </div>
-        </RichPopover>
-      )}
-      {/* EJ16 — slot card RANK box hover popover. Surfaces the
-          card's rank within the seeker's filtered pull frequency
-          (1 = most drawn). Reuses the chip-hint visual treatment
-          with a slightly larger maxWidth to fit the explanation. */}
-      {activePopover?.kind === "slot-rank-box" && (
-        <RichPopover
-          open
-          anchorX={activePopover.anchorX}
-          anchorY={activePopover.anchorY}
-          onClose={() => closeActivePopover("slot-rank-box")}
-          onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() => schedulePopoverDismiss("slot-rank-box")}
-          maxWidth={300}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: 14,
-              color: "var(--color-foreground)",
-              lineHeight: 1.2,
-            }}
-          >
-            {activePopover.cardName}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 10,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "var(--accent, var(--gold))",
-              opacity: 0.9,
-            }}
-          >
-            Frequency Rank
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: 12.5,
-              color: "var(--color-foreground)",
-              lineHeight: 1.5,
-              opacity: 0.92,
-            }}
-          >
-            {activePopover.rank
-              ? `Ranked #${activePopover.rank} of ${activePopover.universeSize} cards you've drawn in the current filter window. Drawn ${activePopover.count} ${activePopover.count === 1 ? "time" : "times"}. Click to view those readings.`
-              : `You haven't drawn this card in the current filter window. Try widening the time range or clearing chips to see if it appears further back.`}
-          </div>
-        </RichPopover>
-      )}
-      {/* EJ16 — slot card COUNT box hover popover. Surfaces the
-          total pull count and offers a click-to-view-readings
-          affordance. */}
-      {activePopover?.kind === "slot-count-box" && (
-        <RichPopover
-          open
-          anchorX={activePopover.anchorX}
-          anchorY={activePopover.anchorY}
-          onClose={() => closeActivePopover("slot-count-box")}
-          onCancelDismiss={cancelPopoverDismiss}
-          onScheduleDismiss={() => schedulePopoverDismiss("slot-count-box")}
-          maxWidth={300}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: 14,
-              color: "var(--color-foreground)",
-              lineHeight: 1.2,
-            }}
-          >
-            {activePopover.cardName}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 10,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "var(--accent, var(--gold))",
-              opacity: 0.9,
-            }}
-          >
-            Pull Count
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: 12.5,
-              color: "var(--color-foreground)",
-              lineHeight: 1.5,
-              opacity: 0.92,
-            }}
-          >
-            {activePopover.count > 0
-              ? `Drawn ${activePopover.count} ${activePopover.count === 1 ? "time" : "times"} in the current filter window. Click to view those readings.`
-              : `You haven't drawn this card in the current filter window. Try widening the time range to see if it appears further back.`}
           </div>
         </RichPopover>
       )}
