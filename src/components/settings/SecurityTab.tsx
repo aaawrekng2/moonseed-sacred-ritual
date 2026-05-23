@@ -236,10 +236,11 @@ export function SecurityTab() {
     if (!ok) return;
     try {
       await supabase.auth.mfa.unenroll({ factorId: verifiedTotp.id });
-      await supabase
-        .from("user_preferences")
-        .update({ mfa_recovery_codes: null })
-        .eq("user_id", user.id);
+      try {
+        await clearCodes({});
+      } catch (e) {
+        console.error("[SecurityTab] clear codes", e);
+      }
       void refresh();
     } catch (e) {
       console.error("[SecurityTab] unenroll threw", e);
@@ -260,13 +261,12 @@ export function SecurityTab() {
     if (!ok) return;
     setRegenerating(true);
     try {
-      const codes = generateRecoveryCodes(10);
-      const { error } = await supabase
-        .from("user_preferences")
-        .update({ mfa_recovery_codes: codes })
-        .eq("user_id", user.id);
-      if (error) {
-        console.error("[SecurityTab] regenerate", error);
+      let codes: string[] = [];
+      try {
+        const result = await generateCodes({});
+        codes = result.codes;
+      } catch (e) {
+        console.error("[SecurityTab] regenerate", e);
         return;
       }
       setEnrollState({ phase: "recovery", codes, acknowledged: false });
