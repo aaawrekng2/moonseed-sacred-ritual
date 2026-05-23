@@ -1604,13 +1604,15 @@ export function ConstellationPage() {
         padding: "2px 0 80px",
       }}
     >
-      {/* Header row — DU: subtitle inline with H1 on the same row. */}
+      {/* Header row — DU: subtitle inline with H1 on the same row.
+          EJ11 — H1 reduced 26 → 18 and row vertical padding tightened
+          to close the gap above the constellation. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px 2px",
+          padding: "0 24px 0",
         }}
       >
         <div
@@ -1626,7 +1628,7 @@ export function ConstellationPage() {
               margin: 0,
               fontFamily: "var(--font-display)",
               fontStyle: "italic",
-              fontSize: 26,
+              fontSize: 18,
               fontWeight: 400,
               color: "var(--color-foreground)",
               lineHeight: 1.1,
@@ -1712,8 +1714,10 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Phase 23 Fix 3 — filter row below H1. */}
-      <div style={{ padding: "4px 24px 0" }}>
+      {/* Phase 23 Fix 3 — filter row below H1.
+          EJ11 — top padding removed (4px → 0) to close gap between
+          H1 header and constellation. */}
+      <div style={{ padding: "0 24px 0" }}>
         <GlobalFilterBar
           filters={globalFilters}
           onChange={setGlobalFilters}
@@ -1760,18 +1764,19 @@ export function ConstellationPage() {
         >
           {/* EJ7 — HoverTipsToggle positioned in the empty space
               between the hero card and the upper-right companion.
-              Top aligns with the hero card's top (HERO_Y=4 in a
-              viewBox that runs from y=-32 to y=484, so 36/516 ≈ 7%
-              from the top of the SVG/column). Right edge aligns with
-              the upper-right companion's left edge (companion x=385
-              of SVG_W=540, so right offset = (1 - 385/540) × 100%
-              ≈ 28.7%). Absolute-positioned within the relative
-              column so it floats over the empty space without
-              displacing layout. */}
+              Right edge aligns with the upper-right companion's left
+              edge (companion x=385 of SVG_W=540, so right offset =
+              (1 - 385/540) × 100% ≈ 28.7%). Absolute-positioned
+              within the relative column so it floats over the empty
+              space without displacing layout.
+              EJ11 — top % updated for the new SVG geometry. HERO_Y=0
+              in a viewBox that now runs from y=-12 to y=484, so the
+              hero card top sits at 12/496 ≈ 2.4% from the top of the
+              SVG/column. */}
           <div
             style={{
               position: "absolute",
-              top: "7%",
+              top: "2.4%",
               right: "28.7%",
               zIndex: 2,
             }}
