@@ -98,15 +98,7 @@ type ReadingRow = {
   question: string | null;
 };
 
-const DAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export const getQuickLogCardStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -170,8 +162,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
           bestN = n;
         }
       }
-      if (best >= 0)
-        topDayOfWeek = { day: DAYS[best], count: bestN, total: matches.length };
+      if (best >= 0) topDayOfWeek = { day: DAYS[best], count: bestN, total: matches.length };
     }
 
     // Companions: count co-occurring cardIds across matches.
@@ -188,9 +179,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       .slice(0, 5);
 
     // Frequency rank: where does this card sit in the user's draw history?
-    const sortedCounts = [...cardCounts.entries()].sort(
-      (a, b) => b[1] - a[1],
-    );
+    const sortedCounts = [...cardCounts.entries()].sort((a, b) => b[1] - a[1]);
     const rankIdx = sortedCounts.findIndex(([id]) => id === cardId);
     const frequencyRank = rankIdx >= 0 ? rankIdx + 1 : null;
     const totalDistinctCards = sortedCounts.length;
@@ -208,9 +197,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       }
     }
     const lastSeenMoonPhase: MoonPhaseName | null =
-      matches.length > 0
-        ? getCurrentMoonPhase(new Date(matches[0].created_at)).phase
-        : null;
+      matches.length > 0 ? getCurrentMoonPhase(new Date(matches[0].created_at)).phase : null;
 
     return {
       count: matches.length,
@@ -296,8 +283,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
     ).toISOString();
 
     const sinceTimeframe = timeRangeStartIso(data.filters?.timeRange);
-    const lowerBound =
-      sinceTimeframe && sinceTimeframe > startIso ? sinceTimeframe : startIso;
+    const lowerBound = sinceTimeframe && sinceTimeframe > startIso ? sinceTimeframe : startIso;
     const { data: rowsRaw } = await supabase
       .from("readings")
       .select(
@@ -311,14 +297,16 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
     const readingsByDate: QuickLogOverlap["readingsByDate"] = {};
     const heroDays = new Set<string>();
     const sameDayCardIds: Record<string, Set<number>> = {};
-    const filteredRows = ((rowsRaw ?? []) as Array<
-      {
-        id: string;
-        created_at: string;
-        card_ids: number[] | null;
-        question: string | null;
-      } & FilterableRow
-    >).filter((r) => postFilterRow(r, data.filters));
+    const filteredRows = (
+      (rowsRaw ?? []) as Array<
+        {
+          id: string;
+          created_at: string;
+          card_ids: number[] | null;
+          question: string | null;
+        } & FilterableRow
+      >
+    ).filter((r) => postFilterRow(r, data.filters));
     for (const row of filteredRows) {
       const ids = row.card_ids ?? [];
       const key = isoDayInTz(new Date(row.created_at), tz);
@@ -512,14 +500,16 @@ export const getCardConstellation = createServerFn({ method: "POST" })
     if (sinceC) cq = cq.gte("created_at", sinceC);
     const { data: allRaw } = await cq;
 
-    const all = ((allRaw ?? []) as Array<
-      {
-        id: string;
-        created_at: string;
-        card_ids: number[] | null;
-        question: string | null;
-      } & FilterableRow
-    >)
+    const all = (
+      (allRaw ?? []) as Array<
+        {
+          id: string;
+          created_at: string;
+          card_ids: number[] | null;
+          question: string | null;
+        } & FilterableRow
+      >
+    )
       .filter((r) => Array.isArray(r.card_ids))
       .filter((r) => postFilterRow(r, data.filters));
 
@@ -565,8 +555,7 @@ export const getCardConstellation = createServerFn({ method: "POST" })
     // so non-hero pairs are counted correctly.
     const nodeIds = [heroCardId, ...sortedCompanions.map((c) => c.cardId)];
     const nodeSet = new Set(nodeIds);
-    const pairKey = (a: number, b: number): string =>
-      a < b ? `${a}|${b}` : `${b}|${a}`;
+    const pairKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
     const pairMap = new Map<string, number>();
     for (const r of all) {
       const present: number[] = [];
@@ -590,8 +579,13 @@ export const getCardConstellation = createServerFn({ method: "POST" })
       pairCounts.push({ a: Number(aStr), b: Number(bStr), count });
     }
 
-    // Most-recent 20 hero readings.
-    const matches = heroRows.slice(0, 20).map((r) => ({
+    // EJ16 — bumped cap 20 → 200 so the hero badge readings modal
+    // shows every reading containing the hero (up to 200) rather
+    // than only the most recent 20. The previous cap silently
+    // hid readings from the seeker; the modal already scrolls so
+    // 200 rows is comfortable. 200 also matches the cap used in
+    // DrawCountsInput below for consistency.
+    const matches = heroRows.slice(0, 200).map((r) => ({
       id: r.id,
       createdAt: r.created_at,
       question: r.question,
@@ -614,6 +608,19 @@ const DrawCountsInput = z.object({
 export type CardDrawCounts = {
   /** cardId -> times drawn within the filter window */
   perCard: Record<number, number>;
+  /**
+   * EJ16 — cardId -> rank within the filter window. Rank 1 = most
+   * drawn. Cards with the same count get the same rank (dense
+   * ranking). Cards with zero draws are unranked (undefined).
+   * Computed across the seeker's entire deck universe in the
+   * filter window, not just the requested cardIds.
+   */
+  perCardRank: Record<number, number>;
+  /**
+   * EJ16 — total number of distinct cards drawn within the filter
+   * window. Used as the denominator for "rank N of M" displays.
+   */
+  rankUniverseSize: number;
   /** max count across all standard (78) cards in the filter window */
   globalMax: number;
 };
@@ -626,7 +633,8 @@ export const getCardDrawCounts = createServerFn({ method: "POST" })
       supabase: SupabaseClient;
       userId: string;
     };
-    if (data.cardIds.length === 0) return { perCard: {}, globalMax: 0 };
+    if (data.cardIds.length === 0)
+      return { perCard: {}, perCardRank: {}, rankUniverseSize: 0, globalMax: 0 };
 
     let q = supabase
       .from("readings")
@@ -640,9 +648,7 @@ export const getCardDrawCounts = createServerFn({ method: "POST" })
     if (since) q = q.gte("created_at", since);
     const { data: rowsRaw } = await q;
 
-    const rows = ((rowsRaw ?? []) as Array<
-      { card_ids: number[] | null } & FilterableRow
-    >)
+    const rows = ((rowsRaw ?? []) as Array<{ card_ids: number[] | null } & FilterableRow>)
       .filter((r) => Array.isArray(r.card_ids))
       .filter((r) => postFilterRow(r, data.filters));
 
@@ -656,5 +662,21 @@ export const getCardDrawCounts = createServerFn({ method: "POST" })
     for (const n of counts.values()) if (n > globalMax) globalMax = n;
     const perCard: Record<number, number> = {};
     for (const id of data.cardIds) perCard[id] = counts.get(id) ?? 0;
-    return { perCard, globalMax };
+    // EJ16 — dense rank by count, descending. Cards sharing a count
+    // share a rank; the next distinct count gets rank N+1 (not
+    // skipping). Cards with zero draws are unranked (omitted).
+    const ranked = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+    const perCardRank: Record<number, number> = {};
+    let lastCount = -1;
+    let currentRank = 0;
+    for (const [cardId, count] of ranked) {
+      if (count <= 0) continue;
+      if (count !== lastCount) {
+        currentRank += 1;
+        lastCount = count;
+      }
+      perCardRank[cardId] = currentRank;
+    }
+    const rankUniverseSize = Object.keys(perCardRank).length;
+    return { perCard, perCardRank, rankUniverseSize, globalMax };
   });
