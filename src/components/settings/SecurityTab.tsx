@@ -199,15 +199,15 @@ export function SecurityTab() {
         });
         return;
       }
-      // Verified. Generate + persist recovery codes, then surface them
-      // to the seeker (one-time view).
-      const codes = generateRecoveryCodes(10);
-      const { error: prefErr } = await supabase
-        .from("user_preferences")
-        .update({ mfa_recovery_codes: codes })
-        .eq("user_id", user.id);
-      if (prefErr) {
-        console.error("[SecurityTab] save recovery codes", prefErr);
+      // Verified. Generate codes server-side (only hashes are
+      // persisted to the DB) and surface the plaintext to the seeker
+      // exactly once.
+      let codes: string[] = [];
+      try {
+        const result = await generateCodes({});
+        codes = result.codes;
+      } catch (e) {
+        console.error("[SecurityTab] save recovery codes", e);
       }
       setEnrollState({ phase: "recovery", codes, acknowledged: false });
       void refresh();
