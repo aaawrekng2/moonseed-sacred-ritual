@@ -1101,43 +1101,68 @@ export function ConstellationPage() {
   ) => {
     if (cardId !== null) {
       cancelPopoverDismiss();
-      // EI5 — single source of truth: activePopover. We no longer write
-      // to hoverCardId or hoverCoords on every mousemove — that caused
-      // a re-render per pixel and made the popover stutter. The popover
-      // reads cardId from activePopover.key and coords from
-      // activePopover.anchorX/Y. State setter bails out when the same
-      // card claims the popover at any new coords (idempotent on
-      // cardId), so cursor movement within a single card is a no-op.
-      setActivePopover((prev) => {
-        if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
-          return prev;
-        }
-        // EJ18 — trigger the lazy popover data fetch when a
-        // card-meaning popover opens for the first time per
-        // filter window. ensurePopoverData() is idempotent.
-        ensurePopoverData();
-        // EJ22 — a new card popover opens in slim mode by default.
-        // The seeker can click the slim to escalate to the rich
-        // popover. Switching between cards re-enters slim mode.
-        // EJ23 — UNLESS we're in edit mode, in which case we stay
-        // in rich mode so the seeker's edits persist as they hover
-        // between cards. Edit mode is intentionally sticky.
-        if (!popoverEditMode) {
-          setPopoverMode("slim");
-        } else {
-          setPopoverMode("rich");
-        }
-        return {
-          kind: "card-meaning",
-          key: String(cardId),
-          anchorX: clientX,
-          anchorY: clientY,
-          targetRect: targetRect ?? null,
-        };
-      });
+      // EJ24 — hover delay applied at this single chokepoint so every
+      // hover source (slot row, constellation hero, constellation
+      // companions) gets the same 450ms intentional-hover delay. If
+      // the cursor leaves before the timer fires, the timer is cleared
+      // and the popover never opens — preventing accidental flashes
+      // from quick cursor passes.
+      //
+      // If the popover is already open for THIS card, skip the delay
+      // entirely (we're just refreshing the anchor on mousemove).
+      const alreadyOpenForThisCard =
+        activePopover?.kind === "card-meaning" && activePopover.key === String(cardId);
+      const openPopover = () => {
+        setActivePopover((prev) => {
+          if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
+            // Update anchor for same-card mousemoves so the popover
+            // collision logic gets a fresh rect, but keep the same
+            // state shape so React bails out cleanly when nothing
+            // material has changed.
+            if (
+              prev.anchorX === clientX &&
+              prev.anchorY === clientY &&
+              prev.targetRect === (targetRect ?? null)
+            ) {
+              return prev;
+            }
+            return { ...prev, anchorX: clientX, anchorY: clientY, targetRect: targetRect ?? null };
+          }
+          // EJ18 — trigger the lazy popover data fetch when a
+          // card-meaning popover opens for the first time per
+          // filter window. ensurePopoverData() is idempotent.
+          ensurePopoverData();
+          // EJ22 — a new card popover opens in slim mode by default.
+          // EJ23 — UNLESS we're in edit mode, in which case we stay
+          // in rich mode so the seeker's edits persist as they hover
+          // between cards. Edit mode is intentionally sticky.
+          if (!popoverEditMode) {
+            setPopoverMode("slim");
+          } else {
+            setPopoverMode("rich");
+          }
+          return {
+            kind: "card-meaning",
+            key: String(cardId),
+            anchorX: clientX,
+            anchorY: clientY,
+            targetRect: targetRect ?? null,
+          };
+        });
+      };
+      window.clearTimeout(slimHoverDelayRef.current);
+      if (alreadyOpenForThisCard) {
+        openPopover();
+      } else {
+        slimHoverDelayRef.current = window.setTimeout(openPopover, 450);
+      }
     } else {
       // EH — schedule, don't immediately close. Lets the cursor travel
       // to the popover and the ⓘ icon without dismissing.
+      // EJ24 — also clear any pending OPEN delay so a quick mouse-pass
+      // over a card doesn't trigger the popover after the cursor has
+      // already left.
+      window.clearTimeout(slimHoverDelayRef.current);
       schedulePopoverDismiss("card-meaning");
     }
   };
@@ -2227,7 +2252,16 @@ export function ConstellationPage() {
     const pd = popoverDataMap?.[cardId];
     const rank = drawCounts?.perCardRank?.[cardId];
     const universeSize = drawCounts?.rankUniverseSize ?? 0;
-    const count = drawCounts?.perCard?.[cardId] ?? 0;
+    // EJ24 — filter-window pull count. Companions in the constellation
+    // are not in the slot row, so drawCounts.perCard often lacks them
+    // (drawCounts is fetched for slot picks). popoverDataMap is fetched
+    // for the FULL visible set (picks + hero + companions) under the
+    // same filter window, so monthCounts sum is the correct source.
+    // Falls back to drawCounts for the brief window before
+    // popoverDataMap loads, then refines once it arrives.
+    const countFromMonths = pd?.monthCounts?.reduce((acc, n) => acc + n, 0);
+    const count =
+      typeof countFromMonths === "number" ? countFromMonths : (drawCounts?.perCard?.[cardId] ?? 0);
     const reversedPct = pd?.reversedPct ?? null;
     const lastSeenIso = overlap?.cardLastDrawnAt?.[cardId] ?? null;
     const topMoonPhase = pd?.topMoonPhase ?? null;
@@ -2246,9 +2280,10 @@ export function ConstellationPage() {
             : "night"
       : null;
     // EJ23 — minimal horizontal chip. Tiny glyph (icon) + value. The
-    // glyph identifies WHAT the value is; the native title attribute
-    // provides the full descriptor on hover so the seeker can still
-    // read "what does this mean". No row labels — too noisy.
+    // glyph identifies WHAT the value is. EJ24 — instant CSS-only
+    // tooltip (replaces native title attribute, which has unkillable
+    // OS-level ~500ms delay). Uses the data-tarotseed-tip attribute +
+    // CSS rule in styles.css so tooltips appear at 0ms on hover.
     const MiniChip = ({
       glyph,
       value,
@@ -2259,7 +2294,8 @@ export function ConstellationPage() {
       title: string;
     }) => (
       <span
-        title={title}
+        data-tarotseed-tip={title}
+        className="tarotseed-mini-tip"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -2268,6 +2304,7 @@ export function ConstellationPage() {
           fontSize: 11,
           color: "var(--color-foreground)",
           cursor: "help",
+          position: "relative",
         }}
       >
         <span
@@ -2530,10 +2567,12 @@ export function ConstellationPage() {
           <div
             style={{
               display: "flex",
-              flexWrap: "wrap",
+              flexWrap: "nowrap",
               alignItems: "center",
               gap: 8,
               flex: 1,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
             }}
           >
             {chips.map((chip, i) => (
@@ -2614,7 +2653,17 @@ export function ConstellationPage() {
     const meta = getCardMeta(cardId);
     const rank = drawCounts?.perCardRank?.[cardId];
     const universeSize = drawCounts?.rankUniverseSize ?? 0;
-    const count = drawCounts?.perCard?.[cardId] ?? 0;
+    // EJ24 — filter-window pull count. drawCounts.perCard only contains
+    // slot-row picks (companions aren't there), so popoverDataMap's
+    // monthCounts sum is the authoritative filter-window count.
+    // Fallback to drawCounts during the brief moment before popover
+    // data loads.
+    const pdForCount = popoverDataMap?.[cardId];
+    const countFromMonthsRich = pdForCount?.monthCounts?.reduce((acc, n) => acc + n, 0);
+    const count =
+      typeof countFromMonthsRich === "number"
+        ? countFromMonthsRich
+        : (drawCounts?.perCard?.[cardId] ?? 0);
     // Roman numeral for majors (cardId 0..21). Pips and courts get
     // their rank label from card-astrology.
     const ROMAN = [
@@ -4033,20 +4082,12 @@ export function ConstellationPage() {
                     }}
                     onMouseEnter={(e) => {
                       setHoveredSlotIdx(idx);
-                      // EJ23 — hover delay 450ms (industry standard for
-                      // intentional vs accidental hover, matches GitHub
-                      // hover cards). Passes the target rect so the
-                      // popover positions above the card instead of
-                      // covering it. Clears any pending delay on
-                      // mouseleave or fast cursor moves.
+                      // EJ24 — the 450ms hover delay now lives inside
+                      // handleConstellationHover, so every callsite
+                      // (slot row, constellation hero, companions)
+                      // gets the same intentional-hover gating.
                       const rect = e.currentTarget.getBoundingClientRect();
-                      const cx = e.clientX;
-                      const cy = e.clientY;
-                      const cardIdLocal = pick.cardIndex;
-                      window.clearTimeout(slimHoverDelayRef.current);
-                      slimHoverDelayRef.current = window.setTimeout(() => {
-                        handleConstellationHover(cardIdLocal, cx, cy, rect);
-                      }, 450);
+                      handleConstellationHover(pick.cardIndex, e.clientX, e.clientY, rect);
                     }}
                     onMouseMove={(e) => {
                       // EJ23 — if the popover is already open for this
@@ -4063,7 +4104,6 @@ export function ConstellationPage() {
                     }}
                     onMouseLeave={(e) => {
                       setHoveredSlotIdx((cur) => (cur === idx ? null : cur));
-                      window.clearTimeout(slimHoverDelayRef.current);
                       handleConstellationHover(null, e.clientX, e.clientY);
                     }}
                     onDragOver={(e) => {
@@ -4147,13 +4187,22 @@ export function ConstellationPage() {
                           e.stopPropagation();
                           handleRemoveSlot(idx);
                         }}
+                        onMouseEnter={(e) => {
+                          // EJ24 — dismiss the card-meaning popover the
+                          // moment the cursor enters this control so the
+                          // popover's hover-bridge can't block the click.
+                          // Mirrors the hero/teal badge pattern.
+                          e.stopPropagation();
+                          handleConstellationHover(null, e.clientX, e.clientY);
+                        }}
                         aria-label="Remove card from slot"
                         title="Remove card"
                         style={{
                           position: "absolute",
                           top: -6,
                           right: -6,
-                          zIndex: 3,
+                          // EJ24 — z-index 1000 beats popover (--z-toast).
+                          zIndex: 1000,
                           width: 20,
                           height: 20,
                           borderRadius: 9999,
@@ -4180,13 +4229,19 @@ export function ConstellationPage() {
                           e.stopPropagation();
                           handleToggleReverse(idx);
                         }}
+                        onMouseEnter={(e) => {
+                          // EJ24 — dismiss popover on enter.
+                          e.stopPropagation();
+                          handleConstellationHover(null, e.clientX, e.clientY);
+                        }}
                         aria-label={pick.isReversed ? "Flip upright" : "Flip reversed"}
                         title={pick.isReversed ? "Flip upright" : "Flip reversed"}
                         style={{
                           position: "absolute",
                           top: -6,
                           left: -6,
-                          zIndex: 3,
+                          // EJ24 — z-index 1000 beats popover.
+                          zIndex: 1000,
                           width: 20,
                           height: 20,
                           borderRadius: 9999,

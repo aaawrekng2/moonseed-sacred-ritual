@@ -96,15 +96,33 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   } else {
     root.style.removeProperty("--card-emphasis-filter");
   }
-  // EC — teal trace color. Default teal #5cead4 contrasts well against
-  // most themes, but collides with cool/cyan-family themes (Cups Tide
-  // accent is cyan, Pentacles & Moss is green). For those, override to
-  // a warm coral so the teal trace stays visible. Implemented as a
-  // theme override (NOT a separate CommunityTheme field) so adding new
-  // themes doesn't require a schema change.
-  const COOL_HUE_THEMES = new Set(["cups-tide", "pentacles-moss"]);
-  if (COOL_HUE_THEMES.has(theme.key)) {
-    root.style.setProperty("--trace-color", "#fb7185");
+  // EJ24 — per-theme trace color. Each theme gets a hand-derived trace
+  // color picked via split-complementary color theory against the
+  // theme's accent, with explicit guards against conflicting with the
+  // gold hero badge hue (#facc15, OKLCH hue 92°). Result: each star
+  // selection and asterism trace harmonizes with its theme while
+  // remaining categorically distinct from both the accent (lines,
+  // discovery hints in accent color) and gold (hero badge).
+  //
+  // Derivation: trace_hue = (accent_hue + 180) % 360 baseline; if
+  // within 40° of gold or 30° of accent, shift to ±30° split-comp.
+  // Lightness 0.78 on dark themes, 0.50 on Daybreak (light).
+  // Chroma 0.16 — vibrant without garish.
+  const THEME_TRACE_COLORS: Record<string, string> = {
+    "midnight-oracle": "#73d171", // accent lavender → green
+    "mystic-default": "#5ebdff", // accent amber → sky blue
+    "blood-moon": "#00d6d4", // accent rose → teal-cyan
+    "citrine-dawn": "#94afff", // accent yellow → periwinkle
+    "cups-tide": "#ff8b7e", // accent cyan → coral peach
+    "wands-ember": "#26c5ff", // accent orange → sky blue
+    "pentacles-moss": "#fc8bd2", // accent mint → pink
+    "peacocks-tail": "#4dd58a", // accent violet → green
+    nightfall: "#ff9359", // accent Apple blue → warm orange
+    daybreak: "#a83a00", // accent cobalt → deep terracotta
+  };
+  const traceColor = THEME_TRACE_COLORS[theme.key];
+  if (traceColor) {
+    root.style.setProperty("--trace-color", traceColor);
   } else {
     root.style.removeProperty("--trace-color");
   }
