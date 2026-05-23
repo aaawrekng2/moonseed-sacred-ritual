@@ -25,7 +25,10 @@ const HERO_H = Math.round(HERO_W * AR_CEILING); // ≈204
 // EF4 — drop HERO_Y from 24 → 4, SVG_H from 504 → 484 (additional
 // 20px reduction). Pulls the constellation up so it sits just below
 // the right column's chips at top of two-column grid.
-const HERO_Y = 4;
+// EJ11 — HERO_Y 4 → 0 to close the gap between filter chips and
+// hero card. Combined with the viewBox top-buffer reduction below,
+// pulls the constellation up by ~24px total.
+const HERO_Y = 0;
 export const SVG_W = 540;
 export const SVG_H = 484;
 const COMPANION_POSITIONS = [
@@ -367,7 +370,13 @@ function ConstellationSvg({
       // SVG coords) renders fully. Also style.overflow: visible so the
       // SVG element box does not clip negative-y children even if a
       // parent container would otherwise. Width unchanged.
-      viewBox={`0 -32 ${SVG_W} ${SVG_H + 32}`}
+      // EJ11 — top buffer tightened from -32 to -12. The asterism
+      // badge anchors at -10 relative to the card image, which only
+      // needs ~12px of viewBox headroom (not 32). The extra 20 units
+      // were dead space pushing the whole constellation down. With
+      // overflow:visible the SVG element box still doesn't clip
+      // negative-y children even if rare overshoot occurs.
+      viewBox={`0 -12 ${SVG_W} ${SVG_H + 12}`}
       width="100%"
       style={{ display: "block", overflow: "visible" }}
       role="img"
@@ -943,17 +952,11 @@ function ConstellationSvg({
             </foreignObject>
             {/* EJ2 — companion teal outline moved to CSS boxShadow on
                 the button (same reason as hero). */}
-            <text
-              x={pos.x + pos.w / 2}
-              y={pos.y + pos.h + 14}
-              textAnchor="middle"
-              fontSize={11}
-              fontFamily="var(--font-serif)"
-              fontStyle="italic"
-              fill="var(--color-foreground-muted, var(--color-foreground))"
-            >
-              ×{c.coCount}
-            </text>
+            {/* EJ11 — ×N coCount labels below companion cards removed
+                per spec. The same count is still accessible via the
+                line tooltip ("co-occurred in N spreads") and the
+                companion's hover popover, so the label was redundant
+                visual weight under each card. */}
             {/* EJ7 — companion asterism badge moved inside the button
                 so it anchors to the actual rendered card image (see
                 above). The previous sibling-foreignObject version is
