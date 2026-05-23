@@ -6,10 +6,10 @@
  * column shows the chip grid + matching readings panel. Full-width
  * 6-month overlap strip sits below.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, RotateCw, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -76,6 +76,12 @@ import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
 import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
+import {
+  SPREADS,
+  SPREAD_STORAGE_KEY,
+  getSpread,
+  type SpreadKey,
+} from "@/lib/spreads";
 import {
   EMPTY_GLOBAL_FILTERS,
   countActiveFilters,
@@ -174,6 +180,141 @@ function LegendRow({
       <div style={{ flexShrink: 0, position: "relative" }}>{swatch}</div>
       <div style={{ flex: 1 }}>{label}</div>
     </div>
+  );
+}
+
+// EJ12 — dropdown that picks a tarot spread type for the slot-row
+// labels. Mirrors the canonical Dropdown pattern from
+// src/components/filters/Dropdown.tsx (italic serif label + ChevronDown,
+// portaled menu) but kept inline here because it's only used on this
+// surface and needs to anchor below the slot row.
+function SpreadDropdown({
+  value,
+  onChange,
+}: {
+  value: SpreadKey;
+  onChange: (next: SpreadKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(
+    null,
+  );
+  const current = SPREADS.find((s) => s.key === value) ?? SPREADS[0];
+
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    setCoords({ left: r.left, top: r.bottom + 4 });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (triggerRef.current?.contains(t)) return;
+      if (t.closest?.("[data-spread-dropdown-popover]")) return;
+      setOpen(false);
+    }
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Pick a spread type"
+        title={
+          current.key === "none"
+            ? "Pick a spread type to label each slot"
+            : `${current.label} — ${current.descriptor}`
+        }
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "0 6px",
+          height: 18,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--color-foreground-muted, var(--color-foreground))",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 12,
+          opacity: 0.7,
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+        }}
+      >
+        <span>{current.label}</span>
+        <ChevronDown
+          size={11}
+          strokeWidth={1.5}
+          style={{
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 160ms ease",
+          }}
+        />
+      </button>
+      {open &&
+        coords &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            data-spread-dropdown-popover
+            style={{
+              position: "fixed",
+              left: coords.left,
+              top: coords.top,
+              minWidth: 160,
+              padding: 4,
+              background: "var(--surface-elevated)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: 6,
+              boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
+              zIndex: "var(--z-drawer)" as unknown as number,
+            }}
+          >
+            {SPREADS.map((s) => {
+              const active = s.key === value;
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => {
+                    onChange(s.key);
+                    setOpen(false);
+                  }}
+                  title={s.descriptor}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "6px 10px",
+                    textAlign: "left",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    color: active
+                      ? "var(--gold, var(--accent))"
+                      : "var(--color-foreground)",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 13px)",
+                  }}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -603,6 +744,7 @@ export function ConstellationPage() {
   // DR — slot row size computed from container width. Clamped between
   // COMPACT_SLOT_MIN_W and COMPACT_SLOT_MAX_W so layouts stay sane on both
   // 1024px and ≥1280px viewports.
+  // EJ12 — slot row bumped 10 → 12 to fit the Year Ahead spread.
   const slotRowRef = useRef<HTMLDivElement | null>(null);
   const [slotW, setSlotW] = useState<number>(48);
   useEffect(() => {
@@ -612,7 +754,8 @@ export function ConstellationPage() {
     const compute = () => {
       const total = el.clientWidth;
       if (total <= 0) return;
-      const target = Math.floor((total - COMPACT_SLOT_GAP * 9) / 10);
+      // EJ12 — 11 gaps for 12 slots (was 9 gaps for 10).
+      const target = Math.floor((total - COMPACT_SLOT_GAP * 11) / 12);
       const clamped = Math.max(
         COMPACT_SLOT_MIN_W,
         Math.min(COMPACT_SLOT_MAX_W, target),
@@ -647,6 +790,34 @@ export function ConstellationPage() {
   const [companionOverrides, setCompanionOverrides] = useState<
     Map<number, number>
   >(() => new Map());
+
+  // EJ12 — selected tarot spread type (drives the labels under the slot
+  // row). Default "none" = no labels. Persists per device in
+  // localStorage so the seeker doesn't have to re-pick after navigation.
+  // SSR-safe: server renders "none"; client hydrates from storage in an
+  // effect post-mount.
+  const [spreadKey, setSpreadKey] = useState<SpreadKey>("none");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(SPREAD_STORAGE_KEY);
+      if (!raw) return;
+      const valid = SPREADS.some((s) => s.key === raw);
+      if (valid) setSpreadKey(raw as SpreadKey);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const setSpreadKeyPersisted = useCallback((next: SpreadKey) => {
+    setSpreadKey(next);
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SPREAD_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const spread = getSpread(spreadKey);
 
   // Reset teal selection whenever the hero changes — the constellation web
   // re-renders against the new hero's top companions, so prior teal cards
@@ -2020,11 +2191,15 @@ export function ConstellationPage() {
                 gap: COMPACT_SLOT_GAP,
                 flexWrap: "nowrap",
                 width: "100%",
-                paddingBottom: 12,
+                // EJ12 — tightened from 12 → 2 to make room for the
+                // new labels row below. Combined paddingBottom + the
+                // labels row's marginBottom = original 12 of breathing
+                // room above the date row.
+                paddingBottom: 2,
                 justifyContent: "flex-start",
               }}
             >
-              {Array.from({ length: 10 }).map((_, idx) => {
+              {Array.from({ length: 12 }).map((_, idx) => {
                 const pick = picks[idx];
                 const isDropTarget = dragOverSlotIdx === idx;
                 if (!pick) {
@@ -2364,6 +2539,68 @@ export function ConstellationPage() {
                   </div>
                 );
               })}
+            </div>
+            {/* EJ12 — spread-type dropdown + slot labels row. Dropdown
+                lives on the left; labels align under each slot card by
+                using the same flex/gap structure as the slot row, so
+                even if slotW changes the labels stay vertically lined
+                up under their cards. Empty slots (idx >= slotNames
+                length) render an empty placeholder to preserve the
+                flex layout. Hover tip on each label shows the full
+                name + spread descriptor. */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 6,
+                width: "100%",
+                marginBottom: 10,
+              }}
+            >
+              <SpreadDropdown
+                value={spreadKey}
+                onChange={setSpreadKeyPersisted}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  gap: COMPACT_SLOT_GAP,
+                  flexWrap: "nowrap",
+                  width: "100%",
+                }}
+              >
+                {Array.from({ length: 12 }).map((_, idx) => {
+                  const name = spread.slotNames[idx];
+                  return (
+                    <div
+                      key={`slot-label-${idx}`}
+                      style={{
+                        width: slotW,
+                        flexShrink: 0,
+                        minHeight: 14,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 12,
+                        textAlign: "center",
+                        color:
+                          "var(--color-foreground-muted, var(--color-foreground))",
+                        opacity: name ? 0.7 : 0,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        cursor: name ? "help" : "default",
+                      }}
+                      title={
+                        name
+                          ? `${name} — ${spread.descriptor}`
+                          : undefined
+                      }
+                    >
+                      {name ?? "\u00a0"}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div
               style={{
