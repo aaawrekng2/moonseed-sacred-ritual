@@ -536,26 +536,24 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ25 — solid trace-colored backdrop UNDER the
-                        // card. Tarot Seed card images are physical
-                        // scans with white corners + printed frames that
-                        // extend past the visible card art. A ring-only
-                        // highlight reads as "gap" at corners because
-                        // the white scan area shows through. Solid fill
-                        // means the trace color fills any whitespace,
-                        // creating a clean rounded-rectangle silhouette
-                        // that the card sits on top of. Hugs the image
-                        // at 0 outset. Outer glow via boxShadow.
+                        // EJ26 — solid trace fill, 2px outset on every
+                        // side, blur-only shadow (no spread). Generic
+                        // across all decks: 2px is image-file-relative,
+                        // not deck-specific. The blur-only shadow fades
+                        // softly without painting solid color outward.
+                        // borderRadius bumped to 8 to match the outset
+                        // (card wrap is 6, +2px outset = 8 for clean
+                        // edge alignment).
                         position: "absolute",
-                        inset: 0,
-                        width: pos.w,
-                        height: "100%",
-                        borderRadius: 6,
+                        top: -2,
+                        left: -2,
+                        right: -2,
+                        bottom: -2,
+                        borderRadius: 8,
                         background: TRACE_VAR,
                         boxShadow: [
-                          // Soft outer halo glow.
-                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
-                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
+                          `0 0 12px 0 color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
+                          `0 0 24px 0 color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
                         ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
@@ -570,16 +568,17 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ25 — solid accent fill matching teal pattern.
+                        // EJ26 — matched 2px outset, no-spread shadow.
                         position: "absolute",
-                        inset: 0,
-                        width: pos.w,
-                        height: "100%",
-                        borderRadius: 6,
+                        top: -2,
+                        left: -2,
+                        right: -2,
+                        bottom: -2,
+                        borderRadius: 8,
                         background:
                           "color-mix(in oklab, var(--accent, var(--gold)) 75%, transparent)",
                         boxShadow:
-                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
+                          "0 0 12px 0 color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
                         zIndex: 2,
                         pointerEvents: "none",
                       }}
@@ -856,19 +855,20 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ25 — solid trace fill UNDER the card (see hero
-                        // block comment for rationale). Fills any white
-                        // scan area so the card sits cleanly on the
-                        // trace silhouette.
+                        // EJ26 — 2px outset, no-spread shadow. Matches
+                        // hero block. See hero comment for rationale.
+                        // Smaller borderRadius (6) because companions
+                        // use 4 on the card wrap, +2px outset = 6.
                         position: "absolute",
-                        inset: 0,
-                        width: pos.w,
-                        height: "100%",
-                        borderRadius: 4,
+                        top: -2,
+                        left: -2,
+                        right: -2,
+                        bottom: -2,
+                        borderRadius: 6,
                         background: TRACE_VAR,
                         boxShadow: [
-                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
-                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
+                          `0 0 12px 0 color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
+                          `0 0 24px 0 color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
                         ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
@@ -880,16 +880,17 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ25 — solid accent fill matching teal pattern.
+                        // EJ26 — matched 2px outset, no-spread shadow.
                         position: "absolute",
-                        inset: 0,
-                        width: pos.w,
-                        height: "100%",
-                        borderRadius: 4,
+                        top: -2,
+                        left: -2,
+                        right: -2,
+                        bottom: -2,
+                        borderRadius: 6,
                         background:
                           "color-mix(in oklab, var(--accent, var(--gold)) 75%, transparent)",
                         boxShadow:
-                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
+                          "0 0 12px 0 color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
                         zIndex: 2,
                         pointerEvents: "none",
                       }}

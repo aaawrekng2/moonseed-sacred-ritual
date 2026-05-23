@@ -199,14 +199,22 @@ export function RichPopover({
   const finalTop = lockedPos?.y ?? initialTop;
 
   return createPortal(
-    // EI — invisible hover-bridge wrapper. The visible popover sits
-    // inside this wrapper with 20px of transparent margin. mouseEnter/
-    // Leave fire when cursor enters/leaves the LARGER area, which
-    // catches cursors traveling from the source element through the
-    // 16px gap into the popover. Without this, approaching the popover
-    // from any direction other than "directly across the gap" caused
-    // the dismiss timer to fire before the cursor reached the popover.
+    // EJ26 — hover-bridge halo dropped. The previous 20px transparent
+    // pointer-events:auto wrapper was intercepting clicks on badges,
+    // calendar day-cells, and other elements that overlapped its hit
+    // area — since the wrapper renders in document.body's stacking
+    // context at z-toast=300 and child stacking contexts (SVG <g>) can't
+    // climb above 300, no z-index trick could rescue underlying buttons.
+    // Industry pattern (Radix, Mantine, Floating UI, Linear, GitHub,
+    // Notion): no physical hover-bridge — rely on the dismiss timer
+    // (180ms grace period; bumped to 220ms here to compensate) to keep
+    // the popover alive while the cursor crosses the gap from source
+    // to popover. mouseEnter cancels the timer; mouseLeave re-arms it.
+    // The popover wrapper IS the visible popover with no halo padding,
+    // so clicks elsewhere never hit invisible popover real estate.
     <div
+      ref={popoverRef}
+      role="tooltip"
       onMouseEnter={() => {
         onCancelDismiss();
         if (!lockedPos) setLockedPos({ x: finalLeft, y: finalTop });
@@ -214,128 +222,133 @@ export function RichPopover({
       onMouseLeave={onScheduleDismiss}
       style={{
         position: "fixed",
-        // Position the wrapper offset by the hover-bridge margin so
-        // the visible popover lands where it always did.
-        left: finalLeft - 20,
-        top: finalTop - 20,
+        left: finalLeft,
+        top: finalTop,
         zIndex: "var(--z-toast)" as unknown as number,
         pointerEvents: "auto",
-        // Transparent padding extends the hit area. The popover
-        // visual is rendered inside as a positioned child.
-        padding: 20,
+        maxWidth,
+        padding: "12px 14px",
+        borderRadius: 10,
+        background: "var(--surface-card)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        color: "var(--color-foreground)",
+        // EJ26 — whole-surface click opens the chained content (legend)
+        // when chained content is provided and not already open. Saves
+        // the seeker aiming at the small ⓘ icon. Consistent with Notion,
+        // Linear, GitHub hover-card patterns where rich content surfaces
+        // accept clicks anywhere to expand.
+        cursor: chainedContent && !showChained ? "pointer" : "default",
       }}
+      onClick={
+        chainedContent && !showChained
+          ? (e) => {
+              // Don't fire if the click hit an interactive child (button
+              // inside the popover). Buttons stop propagation; this
+              // guard catches anything that didn't.
+              const target = e.target as HTMLElement;
+              if (target.closest("button, a, input, textarea, select")) return;
+              setShowChained(true);
+            }
+          : undefined
+      }
     >
-      <div
-        ref={popoverRef}
-        role="tooltip"
-        style={{
-          maxWidth,
-          padding: "12px 14px",
-          borderRadius: 10,
-          background: "var(--surface-card)",
-          border: "1px solid var(--border-default)",
-          boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          color: "var(--color-foreground)",
-          position: "relative",
-        }}
-      >
-        {showChained ? (
-          <>
+      {showChained ? (
+        <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                lineHeight: 1.2,
               }}
             >
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontStyle: "italic",
-                  fontSize: 13,
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.2,
-                }}
-              >
-                {chainedTitle}
-              </div>
+              {chainedTitle}
+            </div>
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={() => setShowChained(false)}
+              onMouseEnter={onCancelDismiss}
+              style={{
+                appearance: "none",
+                background: "transparent",
+                border: "none",
+                color: "var(--color-foreground)",
+                opacity: 0.6,
+                cursor: "pointer",
+                padding: 2,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <XIcon size={12} />
+            </button>
+          </div>
+          {chainedContent}
+        </>
+      ) : (
+        <>
+          {children}
+          {chainedContent && (
+            <div
+              style={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              {extraTopRightControl}
               <button
                 type="button"
-                aria-label="Back"
-                onClick={() => setShowChained(false)}
-                onMouseEnter={onCancelDismiss}
+                aria-label="More info"
+                onMouseEnter={() => {
+                  onCancelDismiss();
+                  setShowChained(true);
+                }}
+                onFocus={() => setShowChained(true)}
                 style={{
                   appearance: "none",
                   background: "transparent",
                   border: "none",
                   color: "var(--color-foreground)",
-                  opacity: 0.6,
+                  opacity: 0.5,
                   cursor: "pointer",
                   padding: 2,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  transition: "opacity 120ms",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.opacity = "0.5";
                 }}
               >
-                <XIcon size={12} />
+                <Info size={14} />
               </button>
             </div>
-            {chainedContent}
-          </>
-        ) : (
-          <>
-            {children}
-            {chainedContent && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                {extraTopRightControl}
-                <button
-                  type="button"
-                  aria-label="More info"
-                  onMouseEnter={() => {
-                    onCancelDismiss();
-                    setShowChained(true);
-                  }}
-                  onFocus={() => setShowChained(true)}
-                  style={{
-                    appearance: "none",
-                    background: "transparent",
-                    border: "none",
-                    color: "var(--color-foreground)",
-                    opacity: 0.5,
-                    cursor: "pointer",
-                    padding: 2,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "opacity 120ms",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.opacity = "0.5";
-                  }}
-                >
-                  <Info size={14} />
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>,
     document.body,
   );

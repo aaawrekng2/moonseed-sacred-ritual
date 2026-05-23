@@ -1319,7 +1319,7 @@ export function ConstellationPage() {
         if (key && prev.key !== key) return prev;
         return null;
       });
-    }, 180);
+    }, 220);
   };
   const closeActivePopover = (kind?: ActivePopoverKind, key?: string) => {
     cancelPopoverDismiss();
@@ -5831,6 +5831,52 @@ export function ConstellationPage() {
                   .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
                   .join(" · ");
                 const extra = r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
+                // EJ26 — per-reading color signals, mirroring the
+                // calendar day-cell color logic but scoped per row.
+                // Multiple readings on the same day can have different
+                // relationships to the seeker's current pull, so each
+                // row gets its own signals.
+                const readingCardSet = new Set(r.cardIds);
+                const heroInReading =
+                  heroPick?.cardIndex != null && readingCardSet.has(heroPick.cardIndex);
+                // Match count against the seeker's current slot row pull.
+                const pullCardIds = picks.map((p) => p.cardIndex);
+                let matchCount = 0;
+                for (const id of pullCardIds) {
+                  if (readingCardSet.has(id)) matchCount++;
+                }
+                const isPerfectMatch = pullCardIds.length > 0 && matchCount === pullCardIds.length;
+                // Asterism hit: every teal-selected card present in
+                // this reading. Only meaningful when 2+ teal cards
+                // are selected (matches the badge logic).
+                let asterismHit = false;
+                if (tealSelectedIds.length >= 2) {
+                  asterismHit = tealSelectedIds.every((id) => readingCardSet.has(id));
+                }
+                // Priority same as the calendar day-cell:
+                // hero > match > neutral. Asterism stacks as an OUTER
+                // ring on top. Perfect-match swaps the subtle border
+                // for a strong accent border.
+                let bg = "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)";
+                let textPrimary = "var(--color-foreground)";
+                if (heroInReading) {
+                  bg =
+                    "color-mix(in oklab, var(--gold, var(--accent)) 22%, var(--surface-card) 78%)";
+                  textPrimary = "var(--color-foreground)";
+                } else if (matchCount > 0) {
+                  const op = 0.15 + (matchCount / Math.max(1, pullCardIds.length)) * 0.55;
+                  // 0.15 base + scaled, capped at 0.70 so text remains
+                  // legible. Calendar uses up to 0.95 but the modal row
+                  // has more text and needs lower saturation.
+                  bg = `color-mix(in oklab, var(--accent, var(--gold)) ${Math.round(op * 100)}%, var(--surface-card) ${100 - Math.round(op * 100)}%)`;
+                }
+                // Border: perfect-match wins; asterism hit adds a
+                // trace-colored OUTER outline; otherwise subtle.
+                const border = isPerfectMatch
+                  ? "2px solid var(--accent, var(--gold))"
+                  : "1px solid var(--border-subtle)";
+                const outline = asterismHit ? "2px solid var(--trace-color, #5cead4)" : "none";
+                const outlineOffset = asterismHit ? 2 : 0;
                 return (
                   <button
                     key={r.id}
@@ -5840,9 +5886,11 @@ export function ConstellationPage() {
                       textAlign: "left",
                       padding: "10px 12px",
                       borderRadius: 8,
-                      background: "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
-                      border: "1px solid var(--border-subtle)",
-                      color: "var(--color-foreground)",
+                      background: bg,
+                      border,
+                      outline,
+                      outlineOffset,
+                      color: textPrimary,
                       cursor: "pointer",
                       display: "flex",
                       flexDirection: "column",
