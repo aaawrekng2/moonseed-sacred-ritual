@@ -31,6 +31,11 @@ import { useSettings } from "./SettingsContext";
 import { SettingsSection } from "./sections";
 import { Modal } from "@/components/ui/modal";
 import { useConfirm } from "@/hooks/use-confirm";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  generateMfaRecoveryCodes,
+  clearMfaRecoveryCodes,
+} from "@/lib/mfa-recovery.functions";
 
 type FactorRow = {
   id: string;
@@ -56,29 +61,11 @@ type EnrollState =
       acknowledged: boolean;
     };
 
-/**
- * Cryptographically random 10-character recovery codes.
- * Format: 5-5 with a dash — easy to read, hard to guess.
- */
-function generateRecoveryCodes(n = 10): string[] {
-  const out: string[] = [];
-  const alpha = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // omit I, O, 0, 1
-  for (let i = 0; i < n; i++) {
-    let s = "";
-    const bytes = new Uint8Array(10);
-    crypto.getRandomValues(bytes);
-    for (let j = 0; j < 10; j++) {
-      s += alpha[bytes[j] % alpha.length];
-      if (j === 4) s += "-";
-    }
-    out.push(s);
-  }
-  return out;
-}
-
 export function SecurityTab() {
   const { user } = useSettings();
   const confirm = useConfirm();
+  const generateCodes = useServerFn(generateMfaRecoveryCodes);
+  const clearCodes = useServerFn(clearMfaRecoveryCodes);
   const [loading, setLoading] = useState(true);
   const [factors, setFactors] = useState<FactorRow[]>([]);
   const [recoveryCount, setRecoveryCount] = useState<number | null>(null);
