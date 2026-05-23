@@ -525,14 +525,24 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
+                        // EJ24 — 0-outset Apple/Linear-style selection.
+                        // Edge-aligned 1.5px ring sits AT the card edge
+                        // (no inset, no outset), with a soft 12px outer
+                        // glow at lower opacity. No background fill —
+                        // the ring + glow alone read clearly as
+                        // "selected" without obscuring the card art.
                         position: "absolute",
-                        top: -2,
-                        left: -2,
-                        width: pos.w + 4,
-                        height: "calc(100% + 4px)",
-                        borderRadius: 8,
-                        background: TRACE_VAR,
-                        boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
+                        inset: 0,
+                        width: pos.w,
+                        height: "100%",
+                        borderRadius: 6,
+                        boxShadow: [
+                          // Crisp edge ring at card boundary.
+                          `0 0 0 1.5px ${TRACE_VAR}`,
+                          // Soft outer halo glow.
+                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 50%, transparent)`,
+                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 25%, transparent)`,
+                        ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
                       }}
@@ -546,15 +556,16 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
+                        // EJ24 — same 0-outset treatment, accent color.
                         position: "absolute",
-                        top: -4,
-                        left: -4,
-                        width: pos.w + 8,
-                        height: "calc(100% + 8px)",
-                        borderRadius: 10,
-                        border: "2px solid var(--accent, var(--gold))",
-                        boxShadow:
-                          "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                        inset: 0,
+                        width: pos.w,
+                        height: "100%",
+                        borderRadius: 6,
+                        boxShadow: [
+                          "0 0 0 2px var(--accent, var(--gold))",
+                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                        ].join(", "),
                         zIndex: 2,
                         pointerEvents: "none",
                       }}
@@ -834,14 +845,18 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
+                        // EJ24 — 0-outset Apple/Linear-style selection,
+                        // matched to hero treatment.
                         position: "absolute",
-                        top: -2,
-                        left: -2,
-                        width: pos.w + 4,
-                        height: "calc(100% + 4px)",
-                        borderRadius: 6,
-                        background: TRACE_VAR,
-                        boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
+                        inset: 0,
+                        width: pos.w,
+                        height: "100%",
+                        borderRadius: 4,
+                        boxShadow: [
+                          `0 0 0 1.5px ${TRACE_VAR}`,
+                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 50%, transparent)`,
+                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 25%, transparent)`,
+                        ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
                       }}
@@ -852,15 +867,16 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
+                        // EJ24 — 0-outset, accent-color ring + glow.
                         position: "absolute",
-                        top: -4,
-                        left: -4,
-                        width: pos.w + 8,
-                        height: "calc(100% + 8px)",
-                        borderRadius: 8,
-                        border: "2px solid var(--accent, var(--gold))",
-                        boxShadow:
-                          "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                        inset: 0,
+                        width: pos.w,
+                        height: "100%",
+                        borderRadius: 4,
+                        boxShadow: [
+                          "0 0 0 2px var(--accent, var(--gold))",
+                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                        ].join(", "),
                         zIndex: 2,
                         pointerEvents: "none",
                       }}
