@@ -88,6 +88,12 @@ type Props = {
     count: number;
     tooltip?: string;
   } | null;
+  /** EJ25 — synchronous popover dismissal. Badges call this on
+   *  mouseenter to immediately close the card-meaning popover, so the
+   *  popover's hover-bridge doesn't block badge clicks. The standard
+   *  onCardHover(null, ...) schedules a delayed dismiss that leaves a
+   *  click-blocking window. */
+  onPopoverDismissImmediate?: () => void;
   /** DZ — click the teal match-count badge. Parent opens the readings
    *  modal scoped to the current teal selection. */
   onTealBadgeClick?: () => void;
@@ -164,6 +170,7 @@ export function ConstellationWeb({
   onHeroBadgeHoverEnd = undefined,
   onTealBadgeHover = undefined,
   onTealBadgeHoverEnd = undefined,
+  onPopoverDismissImmediate = undefined,
   onConstellationDrop = undefined,
   dragOverTargetId = null,
   onConstellationDragOver = undefined,
@@ -219,6 +226,7 @@ export function ConstellationWeb({
           onHeroBadgeHoverEnd={onHeroBadgeHoverEnd}
           onTealBadgeHover={onTealBadgeHover}
           onTealBadgeHoverEnd={onTealBadgeHoverEnd}
+          onPopoverDismissImmediate={onPopoverDismissImmediate}
           onConstellationDrop={onConstellationDrop}
           dragOverTargetId={dragOverTargetId}
           onConstellationDragOver={onConstellationDragOver}
@@ -245,6 +253,7 @@ function ConstellationSvg({
   onHeroBadgeHoverEnd,
   onTealBadgeHover,
   onTealBadgeHoverEnd,
+  onPopoverDismissImmediate,
   onConstellationDrop,
   dragOverTargetId,
   onConstellationDragOver,
@@ -274,6 +283,8 @@ function ConstellationSvg({
   onHeroBadgeHoverEnd?: () => void;
   onTealBadgeHover?: (clientX: number, clientY: number) => void;
   onTealBadgeHoverEnd?: () => void;
+  /** EJ25 — synchronous popover dismissal on badge hover. */
+  onPopoverDismissImmediate?: () => void;
   onConstellationDrop?: (targetCardId: number, droppedCardId: number) => void;
   dragOverTargetId?: number | null;
   onConstellationDragOver?: (cardId: number | null) => void;
@@ -525,23 +536,26 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ24 — 0-outset Apple/Linear-style selection.
-                        // Edge-aligned 1.5px ring sits AT the card edge
-                        // (no inset, no outset), with a soft 12px outer
-                        // glow at lower opacity. No background fill —
-                        // the ring + glow alone read clearly as
-                        // "selected" without obscuring the card art.
+                        // EJ25 — solid trace-colored backdrop UNDER the
+                        // card. Tarot Seed card images are physical
+                        // scans with white corners + printed frames that
+                        // extend past the visible card art. A ring-only
+                        // highlight reads as "gap" at corners because
+                        // the white scan area shows through. Solid fill
+                        // means the trace color fills any whitespace,
+                        // creating a clean rounded-rectangle silhouette
+                        // that the card sits on top of. Hugs the image
+                        // at 0 outset. Outer glow via boxShadow.
                         position: "absolute",
                         inset: 0,
                         width: pos.w,
                         height: "100%",
                         borderRadius: 6,
+                        background: TRACE_VAR,
                         boxShadow: [
-                          // Crisp edge ring at card boundary.
-                          `0 0 0 1.5px ${TRACE_VAR}`,
                           // Soft outer halo glow.
-                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 50%, transparent)`,
-                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 25%, transparent)`,
+                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
+                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
                         ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
@@ -556,16 +570,16 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ24 — same 0-outset treatment, accent color.
+                        // EJ25 — solid accent fill matching teal pattern.
                         position: "absolute",
                         inset: 0,
                         width: pos.w,
                         height: "100%",
                         borderRadius: 6,
-                        boxShadow: [
-                          "0 0 0 2px var(--accent, var(--gold))",
-                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                        ].join(", "),
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 75%, transparent)",
+                        boxShadow:
+                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
                         zIndex: 2,
                         pointerEvents: "none",
                       }}
@@ -615,14 +629,13 @@ function ConstellationSvg({
                       }
                       onMouseEnter={(e) => {
                         e.stopPropagation();
-                        // EJ23 — dismiss any card-meaning popover the
-                        // moment the cursor enters the badge area, so
-                        // the popover doesn't overlap and block clicks.
-                        // Parent's onCardHover(null) closes the popover
-                        // via the scheduled dismiss. Then the badge's
-                        // own onHeroBadgeHover (if any) fires to show
-                        // the chip-style hint.
-                        onCardHover?.(null, e.clientX, e.clientY);
+                        // EJ25 — SYNCHRONOUS popover dismissal. The
+                        // scheduled-dismiss pattern from EJ23 left a
+                        // window where the popover's hover-bridge still
+                        // intercepted clicks. onPopoverDismissImmediate
+                        // closes the popover NOW so the badge's click
+                        // event registers cleanly.
+                        onPopoverDismissImmediate?.();
                         onHeroBadgeHover?.(e.clientX, e.clientY);
                       }}
                       onMouseLeave={(e) => {
@@ -689,10 +702,8 @@ function ConstellationSvg({
                         }}
                         onMouseEnter={(e) => {
                           e.stopPropagation();
-                          // EJ23 — dismiss any card-meaning popover the
-                          // moment the cursor enters the badge area so
-                          // the popover doesn't overlap and block clicks.
-                          onCardHover?.(null, e.clientX, e.clientY);
+                          // EJ25 — SYNCHRONOUS dismissal (see hero badge).
+                          onPopoverDismissImmediate?.();
                           onTealBadgeHover?.(e.clientX, e.clientY);
                         }}
                         onMouseLeave={(e) => {
@@ -845,17 +856,19 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ24 — 0-outset Apple/Linear-style selection,
-                        // matched to hero treatment.
+                        // EJ25 — solid trace fill UNDER the card (see hero
+                        // block comment for rationale). Fills any white
+                        // scan area so the card sits cleanly on the
+                        // trace silhouette.
                         position: "absolute",
                         inset: 0,
                         width: pos.w,
                         height: "100%",
                         borderRadius: 4,
+                        background: TRACE_VAR,
                         boxShadow: [
-                          `0 0 0 1.5px ${TRACE_VAR}`,
-                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 50%, transparent)`,
-                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 25%, transparent)`,
+                          `0 0 12px 2px color-mix(in oklab, ${TRACE_VAR} 60%, transparent)`,
+                          `0 0 24px 4px color-mix(in oklab, ${TRACE_VAR} 30%, transparent)`,
                         ].join(", "),
                         zIndex: 0,
                         pointerEvents: "none",
@@ -867,16 +880,16 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ24 — 0-outset, accent-color ring + glow.
+                        // EJ25 — solid accent fill matching teal pattern.
                         position: "absolute",
                         inset: 0,
                         width: pos.w,
                         height: "100%",
                         borderRadius: 4,
-                        boxShadow: [
-                          "0 0 0 2px var(--accent, var(--gold))",
-                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                        ].join(", "),
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 75%, transparent)",
+                        boxShadow:
+                          "0 0 12px 2px color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
                         zIndex: 2,
                         pointerEvents: "none",
                       }}

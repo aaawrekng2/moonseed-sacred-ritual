@@ -830,7 +830,32 @@ export function ConstellationPage() {
   // EF3 — Hide/Show older calendar row state, lifted up from OverlapStrip
   // so the pill row can live under the notes area (separate from the
   // calendar container).
-  const [showOlder, setShowOlder] = useState(false);
+  // EJ25 — persists across sessions via localStorage. Pure UI state
+  // (not seeker-owned data), so no Supabase round-trip needed. Each
+  // seeker's preference rehydrates immediately on mount via lazy init.
+  const [showOlder, setShowOlder] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("tarotseed:show-older") === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("tarotseed:show-older", showOlder ? "true" : "false");
+    } catch {
+      // localStorage write failures (private mode, full storage) are
+      // non-fatal — the toggle still works in-session.
+    }
+  }, [showOlder]);
+  // EJ25 — true while seeker hovers the asterism (teal) badge. When true,
+  // every calendar day-cell that has the trace stroke (all asterism
+  // cards co-occurred) swaps its fill from gold heatmap to solid trace
+  // color, completely overriding the heatmap. This makes the qualifying
+  // days unmistakable while the seeker scans the badge's tooltip.
+  const [asterismBadgeHovered, setAsterismBadgeHovered] = useState(false);
   useEffect(() => {
     if (!user?.id) {
       setOverlap(null);
@@ -3807,155 +3832,21 @@ export function ConstellationPage() {
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
-      {/* Phase 22 Fixes 3/4/5 / DV — two-column grid. Right column flows
-          naturally; no forced minHeight so the slot row + paste sit just
-          below the chips, leaving breathing room above the calendar. */}
+      {/* EJ25 — two-column grid. Constellation moved to RIGHT column.
+          Slot row + chips + question + notes + save sit in LEFT column
+          for more natural reading flow. Filter icon and time range
+          selector above stay where they are. */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `${SVG_W}px minmax(0, 1fr)`,
+          gridTemplateColumns: `minmax(0, 1fr) ${SVG_W}px`,
           gap: 24,
           padding: "0 24px 0",
         }}
       >
-        {/* DX — left column: constellation + compact "View N readings ›"
-            link absolutely positioned in the empty space right of the
-            hero card (DY). The link hides at 0 matches. */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            position: "relative",
-          }}
-        >
-          {/* EJ7 — HoverTipsToggle positioned in the empty space
-              between the hero card and the upper-right companion.
-              Right edge aligns with the upper-right companion's left
-              edge (companion x=385 of SVG_W=540, so right offset =
-              (1 - 385/540) × 100% ≈ 28.7%). Absolute-positioned
-              within the relative column so it floats over the empty
-              space without displacing layout.
-              EJ11 — top % updated for the new SVG geometry. HERO_Y=0
-              in a viewBox that now runs from y=-12 to y=484, so the
-              hero card top sits at 12/496 ≈ 2.4% from the top of the
-              SVG/column. */}
-          <div
-            style={{
-              position: "absolute",
-              top: "2.4%",
-              right: "28.7%",
-              zIndex: 2,
-            }}
-          >
-            <HoverTipsToggle />
-          </div>
-          <ConstellationWeb
-            heroPick={heroPick}
-            constellation={displayedConstellation}
-            onCardClick={(cardId) =>
-              setTealSelectedIds((prev) =>
-                prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
-              )
-            }
-            tealSelectedIds={tealSelectedIds}
-            candidateIds={candidateIds}
-            heroDrawCount={
-              heroPick && drawCounts ? (drawCounts.perCard[heroPick.cardIndex] ?? null) : null
-            }
-            onCardDragStart={(cardId) => setDraggingCardId(cardId)}
-            onCardHover={handleConstellationHover}
-            onConstellationDrop={handleConstellationDrop}
-            dragOverTargetId={dragOverConstellationCardId}
-            onConstellationDragOver={setDragOverConstellationCardId}
-            onHeroBadgeClick={() => {
-              // EC — gold hero badge opens the readings modal scoped to
-              // ALL pulls containing the hero. Teal selection is NOT
-              // cleared and NOT applied — modal data is hero-anchored.
-              setModalMode("hero");
-              setReadingsModalOpen(true);
-            }}
-            heroBadgeTooltip={(() => {
-              // EC — gold badge tooltip: "N PULLS · [Hero Card Name]".
-              // Always PULLS regardless of the same-pull/same-day pill
-              // (gold badge is hero-anchored and pull-anchored).
-              if (!heroPick) return undefined;
-              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
-              const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
-              const unit = count === 1 ? "SPREAD" : "SPREADS";
-              return `${count} ${unit} · ${heroName}`;
-            })()}
-            tealBadge={
-              tealSelectedIds.length >= 2
-                ? {
-                    cardId: tealSelectedIds[0],
-                    // EC — unit-aware count: readings in same-pull mode,
-                    // days in same-day mode. The unit label is rendered
-                    // in the tooltip + modal title (PULLS or DAYS).
-                    count: tealCount,
-                    tooltip: (() => {
-                      const unit =
-                        overlapMode === "pull"
-                          ? tealCount === 1
-                            ? "SPREAD"
-                            : "SPREADS"
-                          : tealCount === 1
-                            ? "DAY"
-                            : "DAYS";
-                      const names = tealSelectedIds
-                        .map((id) => TAROT_DECK[id] ?? "Card")
-                        .join(", ");
-                      return `${tealCount} ${unit} · ${names}`;
-                    })(),
-                  }
-                : null
-            }
-            onTealBadgeClick={() => {
-              setModalMode("teal");
-              setReadingsModalOpen(true);
-            }}
-            onHeroBadgeHover={(clientX, clientY) => {
-              if (!heroPick) return;
-              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
-              const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
-              cancelPopoverDismiss();
-              setActivePopover({
-                kind: "constellation-badge",
-                key: `hero-${heroPick.cardIndex}`,
-                anchorX: clientX,
-                anchorY: clientY,
-                variant: "hero",
-                count,
-                modeOrPullsLabel: count === 1 ? "1 SPREAD" : `${count} SPREADS`,
-                cardLabel: heroName,
-              });
-            }}
-            onHeroBadgeHoverEnd={() => schedulePopoverDismiss("constellation-badge")}
-            onTealBadgeHover={(clientX, clientY) => {
-              const names = tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
-              const unit =
-                overlapMode === "pull"
-                  ? tealCount === 1
-                    ? "1 SPREAD"
-                    : `${tealCount} SPREADS`
-                  : tealCount === 1
-                    ? "1 DAY"
-                    : `${tealCount} DAYS`;
-              cancelPopoverDismiss();
-              setActivePopover({
-                kind: "constellation-badge",
-                key: `teal-${tealSelectedIds.join(",")}`,
-                anchorX: clientX,
-                anchorY: clientY,
-                variant: "teal",
-                count: tealCount,
-                modeOrPullsLabel: unit,
-                cardLabel: names,
-              });
-            }}
-            onTealBadgeHoverEnd={() => schedulePopoverDismiss("constellation-badge")}
-          />
-        </div>
+        {/* EJ25 — LEFT column (was RIGHT pre-EJ25): slot row + chips +
+            question + notes + save. Filter icon + time range selector
+            above stay in their original page-top position. */}
         <div
           style={{
             display: "flex",
@@ -4668,6 +4559,150 @@ export function ConstellationPage() {
             </div>
           )}
         </div>
+        {/* EJ25 — RIGHT column (was LEFT pre-EJ25): constellation web. */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            position: "relative",
+          }}
+        >
+          {/* EJ7 — HoverTipsToggle positioned in the empty space
+              between the hero card and the upper-right companion.
+              Right edge aligns with the upper-right companion's left
+              edge (companion x=385 of SVG_W=540, so right offset =
+              (1 - 385/540) × 100% ≈ 28.7%). Absolute-positioned
+              within the relative column so it floats over the empty
+              space without displacing layout.
+              EJ11 — top % updated for the new SVG geometry. HERO_Y=0
+              in a viewBox that now runs from y=-12 to y=484, so the
+              hero card top sits at 12/496 ≈ 2.4% from the top of the
+              SVG/column. */}
+          <div
+            style={{
+              position: "absolute",
+              top: "2.4%",
+              right: "28.7%",
+              zIndex: 2,
+            }}
+          >
+            <HoverTipsToggle />
+          </div>
+          <ConstellationWeb
+            heroPick={heroPick}
+            constellation={displayedConstellation}
+            onCardClick={(cardId) =>
+              setTealSelectedIds((prev) =>
+                prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
+              )
+            }
+            tealSelectedIds={tealSelectedIds}
+            candidateIds={candidateIds}
+            heroDrawCount={
+              heroPick && drawCounts ? (drawCounts.perCard[heroPick.cardIndex] ?? null) : null
+            }
+            onCardDragStart={(cardId) => setDraggingCardId(cardId)}
+            onCardHover={handleConstellationHover}
+            onConstellationDrop={handleConstellationDrop}
+            dragOverTargetId={dragOverConstellationCardId}
+            onConstellationDragOver={setDragOverConstellationCardId}
+            onHeroBadgeClick={() => {
+              // EC — gold hero badge opens the readings modal scoped to
+              // ALL pulls containing the hero. Teal selection is NOT
+              // cleared and NOT applied — modal data is hero-anchored.
+              setModalMode("hero");
+              setReadingsModalOpen(true);
+            }}
+            heroBadgeTooltip={(() => {
+              // EC — gold badge tooltip: "N PULLS · [Hero Card Name]".
+              // Always PULLS regardless of the same-pull/same-day pill
+              // (gold badge is hero-anchored and pull-anchored).
+              if (!heroPick) return undefined;
+              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
+              const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
+              const unit = count === 1 ? "SPREAD" : "SPREADS";
+              return `${count} ${unit} · ${heroName}`;
+            })()}
+            tealBadge={
+              tealSelectedIds.length >= 2
+                ? {
+                    cardId: tealSelectedIds[0],
+                    // EC — unit-aware count: readings in same-pull mode,
+                    // days in same-day mode. The unit label is rendered
+                    // in the tooltip + modal title (PULLS or DAYS).
+                    count: tealCount,
+                    tooltip: (() => {
+                      const unit =
+                        overlapMode === "pull"
+                          ? tealCount === 1
+                            ? "SPREAD"
+                            : "SPREADS"
+                          : tealCount === 1
+                            ? "DAY"
+                            : "DAYS";
+                      const names = tealSelectedIds
+                        .map((id) => TAROT_DECK[id] ?? "Card")
+                        .join(", ");
+                      return `${tealCount} ${unit} · ${names}`;
+                    })(),
+                  }
+                : null
+            }
+            onTealBadgeClick={() => {
+              setModalMode("teal");
+              setReadingsModalOpen(true);
+            }}
+            onHeroBadgeHover={(clientX, clientY) => {
+              if (!heroPick) return;
+              const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
+              const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
+              cancelPopoverDismiss();
+              setActivePopover({
+                kind: "constellation-badge",
+                key: `hero-${heroPick.cardIndex}`,
+                anchorX: clientX,
+                anchorY: clientY,
+                variant: "hero",
+                count,
+                modeOrPullsLabel: count === 1 ? "1 SPREAD" : `${count} SPREADS`,
+                cardLabel: heroName,
+              });
+            }}
+            onHeroBadgeHoverEnd={() => schedulePopoverDismiss("constellation-badge")}
+            onTealBadgeHover={(clientX, clientY) => {
+              const names = tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
+              const unit =
+                overlapMode === "pull"
+                  ? tealCount === 1
+                    ? "1 SPREAD"
+                    : `${tealCount} SPREADS`
+                  : tealCount === 1
+                    ? "1 DAY"
+                    : `${tealCount} DAYS`;
+              cancelPopoverDismiss();
+              setActivePopover({
+                kind: "constellation-badge",
+                key: `teal-${tealSelectedIds.join(",")}`,
+                anchorX: clientX,
+                anchorY: clientY,
+                variant: "teal",
+                count: tealCount,
+                modeOrPullsLabel: unit,
+                cardLabel: names,
+              });
+              // EJ25 — signal the calendar to swap qualifying-day fills
+              // from gold heatmap to solid trace color.
+              setAsterismBadgeHovered(true);
+            }}
+            onTealBadgeHoverEnd={() => {
+              schedulePopoverDismiss("constellation-badge");
+              // EJ25 — revert calendar fills on leave.
+              setAsterismBadgeHovered(false);
+            }}
+            onPopoverDismissImmediate={() => closeActivePopover("card-meaning")}
+          />
+        </div>
       </div>
 
       {/* Calendar strip — DY: snug to constellation (was 10px gap).
@@ -4698,6 +4733,7 @@ export function ConstellationPage() {
             });
           }}
           onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
+          asterismBadgeHovered={asterismBadgeHovered}
         />
       </div>
 
