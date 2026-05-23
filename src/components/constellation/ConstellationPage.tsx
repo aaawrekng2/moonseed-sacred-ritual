@@ -53,11 +53,14 @@ import {
   getCardConstellation,
   getQuickLogPractice,
   getCardDrawCounts,
+  getCardPopoverData,
   type QuickLogCardStats,
   type QuickLogOverlap,
   type CardConstellation,
   type QuickLogPractice,
   type CardDrawCounts,
+  type CardPopoverData,
+  type CardPopoverDataMap,
 } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { useAuth } from "@/lib/auth";
@@ -1101,6 +1104,10 @@ export function ConstellationPage() {
         if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
           return prev;
         }
+        // EJ18 — trigger the lazy popover data fetch when a
+        // card-meaning popover opens for the first time per
+        // filter window. ensurePopoverData() is idempotent.
+        ensurePopoverData();
         return {
           kind: "card-meaning",
           key: String(cardId),
@@ -1283,6 +1290,68 @@ export function ConstellationPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, effectiveTz, cardIdsKey, filterKey]);
+
+  // EJ18 — batched per-card popover data for the rich card-meaning
+  // hover popover. Lazy-fetched: the first time a card-meaning popover
+  // opens we fire ONE batch request for every cardId currently visible
+  // (slot row + constellation hero + companions). Result cached by
+  // filterKey + the set of requested IDs; subsequent hovers read from
+  // the map with no extra network round-trip. Filter changes invalidate
+  // the cache so the next hover refetches.
+  const [popoverDataMap, setPopoverDataMap] = useState<CardPopoverDataMap | null>(null);
+  // EJ18 — track which (filterKey + idsKey) combo the current map was
+  // built for so we know when to refetch.
+  const popoverDataCacheKeyRef = useRef<string | null>(null);
+  // EJ18 — visible card ID set used as the batch request payload. The
+  // set is regenerated whenever picks or the constellation changes.
+  // We don't depend on this as a fetch trigger directly — fetching is
+  // gated by hover, but this memo gives us a stable list to send.
+  const visibleCardIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const p of picks) ids.add(p.cardIndex);
+    if (displayedConstellation) {
+      ids.add(displayedConstellation.heroCardId);
+      for (const c of displayedConstellation.companions) ids.add(c.cardId);
+    }
+    return [...ids].sort((a, b) => a - b);
+  }, [picks, displayedConstellation]);
+  // EJ18 — invalidate cache when filters change.
+  useEffect(() => {
+    popoverDataCacheKeyRef.current = null;
+    setPopoverDataMap(null);
+  }, [filterKey]);
+  // EJ18 — fetcher fired on first hover. Idempotent — if a request
+  // is already in-flight for this cache key, skip.
+  const popoverDataInFlightRef = useRef(false);
+  const ensurePopoverData = useCallback(() => {
+    if (!user?.id) return;
+    if (visibleCardIds.length === 0) return;
+    const idsKey = visibleCardIds.join(",");
+    const cacheKey = `${filterKey}|${idsKey}`;
+    if (popoverDataCacheKeyRef.current === cacheKey) return;
+    if (popoverDataInFlightRef.current) return;
+    popoverDataInFlightRef.current = true;
+    void getCardPopoverData({
+      data: {
+        cardIds: visibleCardIds,
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
+    })
+      .then((d) => {
+        popoverDataCacheKeyRef.current = cacheKey;
+        setPopoverDataMap(d);
+      })
+      .catch(() => {
+        // Silent failure — popover sections gracefully degrade to
+        // dashed values when popoverDataMap is null.
+        setPopoverDataMap(null);
+      })
+      .finally(() => {
+        popoverDataInFlightRef.current = false;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, visibleCardIds, effectiveTz, filterKey]);
 
   // Phase 19 Fix 10 — port the Echo detection to /constellation.
   const echo = useEcho(picks, overlap, overlapMode);
@@ -3302,10 +3371,10 @@ export function ConstellationPage() {
           }
         }
         // Companion chips: for the hero card we have direct top-7 data
-        // from the server in constellationData. For other cards, the
-        // companion derivation requires server data (added in EJ18).
-        // Phase 1 shows companions only when the hovered card IS the
-        // hero.
+        // from the server in constellationData. For other cards, EJ18
+        // sources companions from the batched popoverDataMap. When map
+        // hasn't loaded yet, no companion section renders for non-hero
+        // cards (graceful degradation).
         const isHeroCard = displayedConstellation && cardId === displayedConstellation.heroCardId;
         const topCompanions: Array<{ cardId: number; coCount: number }> = [];
         if (isHeroCard && displayedConstellation) {
@@ -3314,7 +3383,37 @@ export function ConstellationPage() {
               topCompanions.push({ cardId: c.cardId, coCount: c.coCount });
             }
           }
+        } else if (popoverDataMap?.[cardId]) {
+          for (const c of popoverDataMap[cardId].companionsTop3) {
+            topCompanions.push({ cardId: c.cardId, coCount: c.count });
+          }
         }
+        // EJ18 — derived from the batched popover data fetch. All
+        // sections gracefully degrade when popoverDataMap is null
+        // (loading) or the cardId isn't in the map (not requested).
+        const pd: CardPopoverData | undefined = popoverDataMap?.[cardId];
+        const reversedPct = pd?.reversedPct ?? null;
+        const topMoonPhase = pd?.topMoonPhase ?? null;
+        const topTimeBucket = pd?.topTimeBucket ?? null;
+        const monthCounts = pd?.monthCounts ?? null;
+        const longestGapDays = pd?.longestGapDays ?? null;
+        const avgSpacingDays = pd?.avgSpacingDays ?? null;
+        const topTag = pd?.topTag ?? null;
+        // Moon phase glyph helper. The 4 buckets we surface map to:
+        //   waxing crescent, first quarter, waxing gibbous → "waxing"
+        //   full moon → "full"
+        //   waning gibbous, last quarter, waning crescent → "waning"
+        //   new moon → "new"
+        const moonPhaseLabel = topMoonPhase?.phase ?? null;
+        const timeBucketLabel = topTimeBucket
+          ? topTimeBucket.bucket === "morning"
+            ? "in the morning"
+            : topTimeBucket.bucket === "afternoon"
+              ? "in the afternoon"
+              : topTimeBucket.bucket === "evening"
+                ? "in the evening"
+                : "late at night"
+          : null;
         return (
           <RichPopover
             open
@@ -3382,14 +3481,14 @@ export function ConstellationPage() {
               </div>
             )}
 
-            {/* Stat strip — rank + pull count. Two tiles instead of
-                three for phase 1; reversed % comes in EJ18 once we
-                have orientation data exposed in overlap. */}
+            {/* Stat strip — rank + pull count + reversed %. Reversed
+                % only shows when EJ18 popoverDataMap is loaded for
+                this card; otherwise the grid drops to 2 columns. */}
             {drawCounts && (
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
                   gap: 6,
                 }}
               >
@@ -3456,6 +3555,205 @@ export function ConstellationPage() {
                   >
                     {count === 1 ? "Pull" : "Pulls"}
                   </div>
+                </div>
+                {reversedPct !== null && (
+                  <div
+                    style={{
+                      background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                      borderRadius: 6,
+                      padding: "8px 4px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontStyle: "italic",
+                        fontSize: 18,
+                        color: "var(--color-foreground)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {`${Math.round(reversedPct * 100)}%`}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 9,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                        opacity: 0.7,
+                        marginTop: 3,
+                      }}
+                    >
+                      Reversed
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EJ18 — Moon phase row. Shows the moon phase under which
+                this card most often appears in the filtered universe. */}
+            {moonPhaseLabel && topMoonPhase && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  color: "var(--color-foreground)",
+                  opacity: 0.92,
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 22 22"
+                  fill="none"
+                  aria-hidden
+                  style={{ flexShrink: 0 }}
+                >
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="9"
+                    fill="none"
+                    stroke="var(--accent, var(--gold))"
+                    strokeWidth="0.8"
+                    opacity="0.4"
+                  />
+                  <path
+                    d="M11 2 A 9 9 0 0 1 11 20 A 5 9 0 0 1 11 2"
+                    fill="var(--accent, var(--gold))"
+                    opacity="0.85"
+                  />
+                </svg>
+                <div>
+                  Most under{" "}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    {moonPhaseLabel}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* EJ18 — Time-of-day row. Bucketed: morning / afternoon /
+                evening / night, based on the seeker's tz. */}
+            {timeBucketLabel && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  color: "var(--color-foreground)",
+                  opacity: 0.92,
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 22 22"
+                  fill="none"
+                  aria-hidden
+                  style={{ flexShrink: 0, opacity: 0.7 }}
+                >
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7.5"
+                    fill="none"
+                    stroke="var(--accent, var(--gold))"
+                    strokeWidth="1.2"
+                  />
+                  <line
+                    x1="11"
+                    y1="6.5"
+                    x2="11"
+                    y2="11"
+                    stroke="var(--accent, var(--gold))"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="11"
+                    y1="11"
+                    x2="13.5"
+                    y2="11"
+                    stroke="var(--accent, var(--gold))"
+                    strokeWidth="0.7"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div>
+                  Most often drawn{" "}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    {timeBucketLabel}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* EJ18 — 12-month frequency sparkline. Each bar = one
+                month, oldest left, current right. Opacity scales
+                with count relative to the max month. Empty months
+                render as a low-opacity sliver to preserve the
+                rhythm of the chart. */}
+            {monthCounts && monthCounts.some((n) => n > 0) && (
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 2,
+                    alignItems: "flex-end",
+                    height: 30,
+                    marginBottom: 4,
+                  }}
+                >
+                  {(() => {
+                    const max = Math.max(1, ...monthCounts);
+                    return monthCounts.map((n, i) => {
+                      const frac = n / max;
+                      const heightPct = Math.max(8, frac * 100);
+                      const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
+                      return (
+                        <div
+                          key={`spark-${i}`}
+                          style={{
+                            flex: 1,
+                            height: `${heightPct}%`,
+                            background: "var(--accent, var(--gold))",
+                            opacity,
+                            borderRadius: 1,
+                          }}
+                        />
+                      );
+                    });
+                  })()}
+                </div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.6,
+                  }}
+                >
+                  12-Month Frequency
                 </div>
               </div>
             )}
@@ -3597,7 +3895,10 @@ export function ConstellationPage() {
                 loaded yet or the card has never been drawn in the
                 filtered universe. EJ18 will add longest-gap and
                 avg-spacing using new server data. */}
-            {(firstSeenIso || lastSeenIso) && (
+            {(firstSeenIso ||
+              lastSeenIso ||
+              longestGapDays !== null ||
+              avgSpacingDays !== null) && (
               <div
                 style={{
                   display: "grid",
@@ -3653,6 +3954,93 @@ export function ConstellationPage() {
                   >
                     {lastSeenIso ? formatTimeAgo(lastSeenIso) : "—"}
                   </div>
+                </div>
+                {longestGapDays !== null && (
+                  <div>
+                    <div
+                      style={{
+                        opacity: 0.7,
+                        fontSize: 9,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                      }}
+                    >
+                      Longest gap
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        marginTop: 2,
+                      }}
+                    >
+                      {longestGapDays === 1 ? "1 day" : `${longestGapDays} days`}
+                    </div>
+                  </div>
+                )}
+                {avgSpacingDays !== null && (
+                  <div>
+                    <div
+                      style={{
+                        opacity: 0.7,
+                        fontSize: 9,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                      }}
+                    >
+                      Avg spacing
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        marginTop: 2,
+                      }}
+                    >
+                      {`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EJ18 — Tag bias. Shows the tag the seeker has used most
+                often with this card relative to their baseline usage of
+                that tag. Multiplier indicates the over-index strength. */}
+            {topTag && (
+              <div
+                style={{
+                  borderTop:
+                    "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+                  paddingTop: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 10,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.85,
+                    marginBottom: 4,
+                  }}
+                >
+                  Most under tag
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 12,
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  <span style={{ fontStyle: "italic" }}>{topTag.tag}</span>{" "}
+                  <span style={{ opacity: 0.55, fontSize: 10 }}>
+                    — {topTag.multiplier}× baseline
+                  </span>
                 </div>
               </div>
             )}
