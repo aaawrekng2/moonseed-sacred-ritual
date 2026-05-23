@@ -680,3 +680,278 @@ export const getCardDrawCounts = createServerFn({ method: "POST" })
     const rankUniverseSize = Object.keys(perCardRank).length;
     return { perCard, perCardRank, rankUniverseSize, globalMax };
   });
+
+// ─── EJ18 — batched per-card popover data ─────────────────────────────
+//
+// One call returns rich popover data for every requested cardId in the
+// seeker's filtered universe. Designed for the rich card hover popover
+// on /constellation which needs per-card stats but doesn't want to
+// fan out one server call per hover. The client batches all visible
+// card IDs (slot row + constellation companions + hero) into a single
+// request, caches the result per filterKey, and looks up the relevant
+// entry by cardId when hovering.
+//
+// Returned data per card:
+//   reversedPct: 0..1 fraction reversed across draws of this card
+//   topMoonPhase: most common moon phase + count
+//   topTimeBucket: time-of-day bucket (morning/afternoon/evening/night)
+//   monthCounts: 12-element array, draws per month for the last 12
+//     months, oldest first. Powers the sparkline.
+//   companionsTop3: top 3 cards co-occurring with this one
+//   longestGapDays: largest gap between consecutive draws, in days
+//   avgSpacingDays: average days between draws across the history
+//   topTag: tag with the largest over-index ratio vs baseline
+//
+// The function reuses the existing filter envelope and tz semantics.
+const CardPopoverDataInput = z.object({
+  cardIds: z.array(z.number().int().min(0).max(9999)).max(40),
+  tz: z.string().min(1),
+  filters: FiltersSchema,
+});
+
+export type CardPopoverData = {
+  reversedPct: number | null;
+  topMoonPhase: { phase: MoonPhaseName; count: number; total: number } | null;
+  topTimeBucket: {
+    bucket: "morning" | "afternoon" | "evening" | "night";
+    count: number;
+    total: number;
+  } | null;
+  monthCounts: number[]; // length 12
+  companionsTop3: Array<{ cardId: number; count: number }>;
+  longestGapDays: number | null;
+  avgSpacingDays: number | null;
+  topTag: { tag: string; multiplier: number } | null;
+};
+
+export type CardPopoverDataMap = Record<number, CardPopoverData>;
+
+export const getCardPopoverData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => CardPopoverDataInput.parse(data))
+  .handler(async ({ data, context }): Promise<CardPopoverDataMap> => {
+    const { supabase, userId } = context as {
+      supabase: SupabaseClient;
+      userId: string;
+    };
+    if (data.cardIds.length === 0) return {};
+
+    // Fetch readings once; loop over them per cardId. The query mirrors
+    // getQuickLogCardStats and applies the same filter envelope.
+    let q = supabase
+      .from("readings")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(10000);
+    const since = timeRangeStartIso(data.filters?.timeRange);
+    if (since) q = q.gte("created_at", since);
+    const { data: rowsRaw } = await q;
+
+    const rows = (
+      (rowsRaw ?? []) as Array<
+        {
+          id: string;
+          created_at: string;
+          card_ids: number[] | null;
+          card_orientations: boolean[] | null;
+          question: string | null;
+        } & FilterableRow
+      >
+    )
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
+
+    // Baseline tag frequencies — what fraction of ALL readings carry
+    // each tag. Used as the denominator for the per-card tag bias.
+    const baselineTagCounts = new Map<string, number>();
+    const baselineTotal = rows.length;
+    for (const r of rows) {
+      const tags = r.tags ?? [];
+      const seen = new Set<string>();
+      for (const t of tags) {
+        if (!t || seen.has(t)) continue;
+        seen.add(t);
+        baselineTagCounts.set(t, (baselineTagCounts.get(t) ?? 0) + 1);
+      }
+    }
+
+    // 12-month window for the sparkline. Compute month keys in the
+    // seeker's tz so the bucket boundaries match what they see on
+    // the calendar. nowKey is yyyy-mm-dd in tz; we work backward 11
+    // months. Earliest = monthIdx 0, current = monthIdx 11.
+    const now = new Date();
+    const nowKey = isoDayInTz(now, data.tz);
+    const [nowYearStr, nowMonthStr] = nowKey.split("-");
+    const nowYear = Number(nowYearStr);
+    const nowMonth0 = Number(nowMonthStr) - 1;
+    // Build [{ y, m0 }] from oldest (11 months ago) to current.
+    const monthSlots: Array<{ y: number; m0: number }> = [];
+    for (let back = 11; back >= 0; back--) {
+      const total = nowYear * 12 + nowMonth0 - back;
+      const y = Math.floor(total / 12);
+      const m0 = total - y * 12;
+      monthSlots.push({ y, m0 });
+    }
+
+    const out: CardPopoverDataMap = {};
+    for (const cardId of data.cardIds) {
+      // Skip duplicates in the request — only compute once.
+      if (out[cardId] !== undefined) continue;
+
+      const matches = rows.filter((r) => (r.card_ids ?? []).includes(cardId));
+      if (matches.length === 0) {
+        out[cardId] = {
+          reversedPct: null,
+          topMoonPhase: null,
+          topTimeBucket: null,
+          monthCounts: new Array(12).fill(0),
+          companionsTop3: [],
+          longestGapDays: null,
+          avgSpacingDays: null,
+          topTag: null,
+        };
+        continue;
+      }
+
+      // Reversed %.
+      let reversed = 0;
+      for (const r of matches) {
+        const idx = (r.card_ids ?? []).indexOf(cardId);
+        if (r.card_orientations?.[idx] === true) reversed++;
+      }
+      const reversedPct = matches.length > 0 ? reversed / matches.length : null;
+
+      // Moon phase distribution.
+      const phaseCounts = new Map<MoonPhaseName, number>();
+      for (const r of matches) {
+        const phase = getCurrentMoonPhase(new Date(r.created_at)).phase;
+        phaseCounts.set(phase, (phaseCounts.get(phase) ?? 0) + 1);
+      }
+      let topMoonPhase: CardPopoverData["topMoonPhase"] = null;
+      for (const [phase, count] of phaseCounts) {
+        if (!topMoonPhase || count > topMoonPhase.count) {
+          topMoonPhase = { phase, count, total: matches.length };
+        }
+      }
+
+      // Time-of-day bucket in the seeker's tz. Morning = 5am-11:59,
+      // afternoon = 12-16:59, evening = 17-21:59, night = 22-4:59.
+      const bucketCounts = new Map<"morning" | "afternoon" | "evening" | "night", number>();
+      for (const r of matches) {
+        const dt = new Date(r.created_at);
+        // Hour in tz — using toLocaleString since we don't have a
+        // dedicated hourInTz helper. eslint-disable matches the rule
+        // used elsewhere for tz-locale arithmetic.
+
+        const hourStr = dt.toLocaleString("en-US", {
+          hour: "numeric",
+          hour12: false,
+          timeZone: data.tz,
+        });
+        const hour = Number(hourStr.match(/\d+/)?.[0] ?? "0");
+        let bucket: "morning" | "afternoon" | "evening" | "night";
+        if (hour >= 5 && hour < 12) bucket = "morning";
+        else if (hour >= 12 && hour < 17) bucket = "afternoon";
+        else if (hour >= 17 && hour < 22) bucket = "evening";
+        else bucket = "night";
+        bucketCounts.set(bucket, (bucketCounts.get(bucket) ?? 0) + 1);
+      }
+      let topTimeBucket: CardPopoverData["topTimeBucket"] = null;
+      for (const [bucket, count] of bucketCounts) {
+        if (!topTimeBucket || count > topTimeBucket.count) {
+          topTimeBucket = { bucket, count, total: matches.length };
+        }
+      }
+
+      // Month counts (12-month sparkline).
+      const monthCounts = new Array(12).fill(0);
+      for (const r of matches) {
+        const key = isoDayInTz(new Date(r.created_at), data.tz);
+        const [yStr, mStr] = key.split("-");
+        const y = Number(yStr);
+        const m0 = Number(mStr) - 1;
+        const idx = monthSlots.findIndex((s) => s.y === y && s.m0 === m0);
+        if (idx >= 0) monthCounts[idx]++;
+      }
+
+      // Companions top 3.
+      const coCounts = new Map<number, number>();
+      for (const r of matches) {
+        for (const other of r.card_ids ?? []) {
+          if (other === cardId) continue;
+          coCounts.set(other, (coCounts.get(other) ?? 0) + 1);
+        }
+      }
+      const companionsTop3 = [...coCounts.entries()]
+        .map(([id, n]) => ({ cardId: id, count: n }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+
+      // Longest gap & avg spacing. Matches are sorted ascending by
+      // query order. Convert to dates and walk diffs.
+      let longestGapDays: number | null = null;
+      let avgSpacingDays: number | null = null;
+      if (matches.length >= 2) {
+        const sortedTimes = matches.map((r) => new Date(r.created_at).getTime());
+        let totalSpacing = 0;
+        let maxSpacing = 0;
+        for (let i = 1; i < sortedTimes.length; i++) {
+          const diff = sortedTimes[i] - sortedTimes[i - 1];
+          totalSpacing += diff;
+          if (diff > maxSpacing) maxSpacing = diff;
+        }
+        const dayMs = 86400000;
+        longestGapDays = Math.round(maxSpacing / dayMs);
+        avgSpacingDays = Math.round((totalSpacing / (sortedTimes.length - 1) / dayMs) * 10) / 10;
+      }
+
+      // Tag bias — find the tag that over-indexes most for this card.
+      // For each tag in this card's matches, compute:
+      //   cardTagFrac = (matches with this tag) / matches.length
+      //   baselineTagFrac = baselineTagCounts[tag] / baselineTotal
+      //   multiplier = cardTagFrac / baselineTagFrac
+      // Require minimum sample size (>= 3 occurrences of tag with card)
+      // to avoid noise.
+      const cardTagCounts = new Map<string, number>();
+      for (const r of matches) {
+        const tags = r.tags ?? [];
+        const seen = new Set<string>();
+        for (const t of tags) {
+          if (!t || seen.has(t)) continue;
+          seen.add(t);
+          cardTagCounts.set(t, (cardTagCounts.get(t) ?? 0) + 1);
+        }
+      }
+      let topTag: CardPopoverData["topTag"] = null;
+      if (baselineTotal > 0 && matches.length > 0) {
+        for (const [tag, n] of cardTagCounts) {
+          if (n < 3) continue;
+          const cardFrac = n / matches.length;
+          const baselineN = baselineTagCounts.get(tag) ?? 0;
+          if (baselineN === 0) continue;
+          const baselineFrac = baselineN / baselineTotal;
+          if (baselineFrac === 0) continue;
+          const multiplier = cardFrac / baselineFrac;
+          if (multiplier <= 1.0) continue; // only over-indexing counts
+          if (!topTag || multiplier > topTag.multiplier) {
+            topTag = { tag, multiplier: Math.round(multiplier * 10) / 10 };
+          }
+        }
+      }
+
+      out[cardId] = {
+        reversedPct,
+        topMoonPhase,
+        topTimeBucket,
+        monthCounts,
+        companionsTop3,
+        longestGapDays,
+        avgSpacingDays,
+        topTag,
+      };
+    }
+    return out;
+  });
