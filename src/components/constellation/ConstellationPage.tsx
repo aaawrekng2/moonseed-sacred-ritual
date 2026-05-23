@@ -73,6 +73,7 @@ import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
 import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
+import { isoDayInTz } from "@/lib/time";
 import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
 import { SPREADS, SPREAD_STORAGE_KEY, getSpread, type SpreadKey } from "@/lib/spreads";
 import { EMPTY_GLOBAL_FILTERS, countActiveFilters, type GlobalFilters } from "@/lib/filters.types";
@@ -1110,6 +1111,10 @@ export function ConstellationPage() {
         // card-meaning popover opens for the first time per
         // filter window. ensurePopoverData() is idempotent.
         ensurePopoverData();
+        // EJ22 — a new card popover opens in slim mode by default.
+        // The seeker can click the slim to escalate to the rich
+        // popover. Switching between cards re-enters slim mode.
+        setPopoverMode("slim");
         return {
           kind: "card-meaning",
           key: String(cardId),
@@ -1493,7 +1498,163 @@ export function ConstellationPage() {
       savePopoverSectionPrefs(current);
       return current;
     });
+    setSlimItemPrefs((current) => {
+      saveSlimItemPrefs(current);
+      return current;
+    });
   }, [savePopoverSectionPrefs]);
+
+  // EJ22 — slim hover prefs. The slim hover card is the small chip
+  // that appears when the seeker HOVERS a card (vs. clicking, which
+  // opens the rich popover). It defaults to a curated set of small
+  // stats: pull count, last seen, reversed %. Tracked independently
+  // from sectionPrefs — an item can be visible in the rich popover
+  // and hidden from the slim, or vice versa.
+  //
+  // Slim item IDs intentionally match section IDs for items the
+  // seeker may want on either surface. Two additional pseudo-items
+  // (count + last-seen + reversed) are tracked as discrete chips
+  // even though they're all part of stat-strip in the rich popover:
+  // on the slim they show as separate small chips.
+  type SlimItemId =
+    | "count"
+    | "last-seen"
+    | "reversed"
+    | "rank"
+    | "moon-phase"
+    | "time-of-day"
+    | "day-of-week"
+    | "longest-gap"
+    | "avg-spacing"
+    | "tag-bias";
+  const ALL_SLIM_ITEM_IDS: SlimItemId[] = [
+    "count",
+    "last-seen",
+    "reversed",
+    "rank",
+    "moon-phase",
+    "time-of-day",
+    "day-of-week",
+    "longest-gap",
+    "avg-spacing",
+    "tag-bias",
+  ];
+  const SLIM_ITEM_LABELS: Record<SlimItemId, string> = {
+    count: "Pull count",
+    "last-seen": "Last seen",
+    reversed: "Reversed %",
+    rank: "Rank",
+    "moon-phase": "Moon phase",
+    "time-of-day": "Time of day",
+    "day-of-week": "Day of week",
+    "longest-gap": "Longest gap",
+    "avg-spacing": "Avg spacing",
+    "tag-bias": "Tag bias",
+  };
+  // Defaults — pull count, last seen, reversed % per the research-
+  // backed top 3 small data points for a card identity at a glance.
+  const SLIM_DEFAULT_VISIBLE: Record<SlimItemId, boolean> = {
+    count: true,
+    "last-seen": true,
+    reversed: true,
+    rank: false,
+    "moon-phase": false,
+    "time-of-day": false,
+    "day-of-week": false,
+    "longest-gap": false,
+    "avg-spacing": false,
+    "tag-bias": false,
+  };
+  const CARD_POPOVER_SLIM_LS_KEY = "tarotseed:card-popover-slim";
+  const [slimItemPrefs, setSlimItemPrefs] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return SLIM_DEFAULT_VISIBLE;
+    try {
+      const raw = window.localStorage.getItem(CARD_POPOVER_SLIM_LS_KEY);
+      if (!raw) return SLIM_DEFAULT_VISIBLE;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object"
+        ? { ...SLIM_DEFAULT_VISIBLE, ...parsed }
+        : SLIM_DEFAULT_VISIBLE;
+    } catch {
+      return SLIM_DEFAULT_VISIBLE;
+    }
+  });
+  const slimItemPrefsHydratedRef = useRef(false);
+  useEffect(() => {
+    if (slimItemPrefsHydratedRef.current) return;
+    if (!user?.id) return;
+    slimItemPrefsHydratedRef.current = true;
+    void supabase
+      .from("user_preferences")
+      .select("card_popover_slim")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return;
+        const dbPrefs =
+          (data as { card_popover_slim?: Record<string, boolean> } | null)?.card_popover_slim ??
+          null;
+        if (dbPrefs && typeof dbPrefs === "object" && Object.keys(dbPrefs).length > 0) {
+          const merged = { ...SLIM_DEFAULT_VISIBLE, ...dbPrefs };
+          setSlimItemPrefs(merged);
+          try {
+            window.localStorage.setItem(CARD_POPOVER_SLIM_LS_KEY, JSON.stringify(merged));
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+  }, [user?.id]);
+  const saveSlimItemPrefs = useCallback(
+    (next: Record<string, boolean>) => {
+      try {
+        window.localStorage.setItem(CARD_POPOVER_SLIM_LS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      if (!user?.id) return;
+      void supabase
+        .from("user_preferences")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data: existing }) => {
+          if (existing) {
+            return supabase
+              .from("user_preferences")
+              .update({ card_popover_slim: next } as never)
+              .eq("user_id", user.id);
+          }
+          return supabase
+            .from("user_preferences")
+            .insert({ user_id: user.id, card_popover_slim: next } as never);
+        });
+    },
+    [user?.id],
+  );
+  const isSlimItemVisible = useCallback(
+    (id: SlimItemId) => slimItemPrefs[id] !== false,
+    [slimItemPrefs],
+  );
+  const toggleSlimItem = useCallback((id: SlimItemId) => {
+    setSlimItemPrefs((prev) => {
+      const currentlyVisible = prev[id] !== false;
+      return { ...prev, [id]: !currentlyVisible };
+    });
+  }, []);
+  // Reset to defaults — clears all customization, both popover and
+  // slim. Used by the Reset button in edit mode.
+  const resetPopoverPrefs = useCallback(() => {
+    setSectionPrefs({});
+    setSlimItemPrefs(SLIM_DEFAULT_VISIBLE);
+  }, []);
+
+  // EJ22 — clicked vs hovered. Hovering a card opens the SLIM popover;
+  // clicking the slim (or the card directly) opens the RICH popover.
+  // The activePopover state already carries the anchor; we just need
+  // a second flag to switch between slim and rich rendering.
+  const [popoverMode, setPopoverMode] = useState<"slim" | "rich">("slim");
+  const escalateToRich = useCallback(() => setPopoverMode("rich"), []);
 
   // EJ20 — pinned card modals. Each entry is a cardId the seeker has
   // pinned via the pushpin button on the card popover. Pinned cards
@@ -2031,11 +2192,189 @@ export function ConstellationPage() {
     });
   };
 
-  // EJ20 — renderCardPopoverInner extracts the IIFE body so both
-  // the hover popover and the pinned modal can render the same
-  // content tree for a given cardId. Hover passes editable: true;
-  // pinned modals pass editable: false so edit-mode toggles are
-  // disabled (sections still respect the seeker's saved prefs).
+  // EJ22 — slim hover renderer. Returns the small chip-strip content
+  // that appears when the seeker HOVERS a card (vs. clicks). Reads
+  // the same data as the rich popover (popoverDataMap, drawCounts,
+  // overlap) but renders only the items the seeker has flagged
+  // visible on the slim. Clicking the slim escalates to the rich
+  // popover at the same anchor.
+  const renderSlimHoverInner = (cardId: number): React.ReactNode => {
+    const m = TAROT_MEANINGS[cardId];
+    if (!m) return null;
+    const pd = popoverDataMap?.[cardId];
+    const rank = drawCounts?.perCardRank?.[cardId];
+    const universeSize = drawCounts?.rankUniverseSize ?? 0;
+    const count = drawCounts?.perCard?.[cardId] ?? 0;
+    const reversedPct = pd?.reversedPct ?? null;
+    const lastSeenIso = overlap?.cardLastDrawnAt?.[cardId] ?? null;
+    const topMoonPhase = pd?.topMoonPhase ?? null;
+    const topTimeBucket = pd?.topTimeBucket ?? null;
+    const topDayOfWeek = pd?.topDayOfWeek ?? null;
+    const longestGapDays = pd?.longestGapDays ?? null;
+    const avgSpacingDays = pd?.avgSpacingDays ?? null;
+    const topTag = pd?.topTag ?? null;
+    const timeBucketLabel = topTimeBucket
+      ? topTimeBucket.bucket === "morning"
+        ? "morning"
+        : topTimeBucket.bucket === "afternoon"
+          ? "afternoon"
+          : topTimeBucket.bucket === "evening"
+            ? "evening"
+            : "night"
+      : null;
+    // Slim chip — one small "label · value" pair. Compact, readable
+    // at a glance. Tokens only — no hardcoded colors/sizes.
+    const Chip = ({ label, value }: { label: string; value: React.ReactNode }) => (
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "baseline",
+          gap: 4,
+          fontFamily: "var(--font-serif)",
+          fontSize: 11,
+          lineHeight: 1.3,
+          color: "var(--color-foreground)",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 9,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--accent, var(--gold))",
+            opacity: 0.7,
+          }}
+        >
+          {label}
+        </span>
+        <span style={{ fontStyle: "italic" }}>{value}</span>
+      </div>
+    );
+    // Build the visible chip list in stable order so the seeker's
+    // mental model of "where is X" stays consistent.
+    const chips: React.ReactNode[] = [];
+    if (isSlimItemVisible("count")) {
+      chips.push(<Chip key="count" label="Pulls" value={count} />);
+    }
+    if (isSlimItemVisible("last-seen") && lastSeenIso) {
+      chips.push(<Chip key="last-seen" label="Last seen" value={formatTimeAgo(lastSeenIso)} />);
+    }
+    if (isSlimItemVisible("reversed") && reversedPct !== null) {
+      chips.push(
+        <Chip key="reversed" label="Reversed" value={`${Math.round(reversedPct * 100)}%`} />,
+      );
+    }
+    if (isSlimItemVisible("rank") && rank && universeSize > 0) {
+      chips.push(<Chip key="rank" label="Rank" value={`#${rank} of ${universeSize}`} />);
+    }
+    if (isSlimItemVisible("moon-phase") && topMoonPhase) {
+      chips.push(<Chip key="moon-phase" label="Moon" value={topMoonPhase.phase} />);
+    }
+    if (isSlimItemVisible("time-of-day") && timeBucketLabel) {
+      chips.push(<Chip key="time-of-day" label="Time" value={timeBucketLabel} />);
+    }
+    if (isSlimItemVisible("day-of-week") && topDayOfWeek) {
+      chips.push(<Chip key="day-of-week" label="Day" value={`${topDayOfWeek.day}s`} />);
+    }
+    if (isSlimItemVisible("longest-gap") && longestGapDays !== null) {
+      chips.push(
+        <Chip
+          key="longest-gap"
+          label="Longest gap"
+          value={`${longestGapDays} ${longestGapDays === 1 ? "day" : "days"}`}
+        />,
+      );
+    }
+    if (isSlimItemVisible("avg-spacing") && avgSpacingDays !== null) {
+      chips.push(
+        <Chip
+          key="avg-spacing"
+          label="Avg spacing"
+          value={`${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+        />,
+      );
+    }
+    if (isSlimItemVisible("tag-bias") && topTag) {
+      chips.push(
+        <Chip key="tag-bias" label="Tag" value={`${topTag.tag} · ${topTag.multiplier}×`} />,
+      );
+    }
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          padding: "8px 10px",
+          minWidth: 180,
+          maxWidth: 280,
+        }}
+      >
+        {/* Card name + numeral header — tiny version. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "var(--color-foreground)",
+              lineHeight: 1.15,
+            }}
+          >
+            {m.name}
+          </div>
+        </div>
+        {chips.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+            }}
+          >
+            {chips}
+          </div>
+        ) : (
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 10.5,
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+            }}
+          >
+            Tap to see meaning
+          </div>
+        )}
+        {/* Affordance — click to expand. Subtle but visible. */}
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: 9.5,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--accent, var(--gold))",
+            opacity: 0.55,
+            marginTop: 2,
+            textAlign: "right",
+          }}
+        >
+          Click for more ›
+        </div>
+      </div>
+    );
+  };
+
   const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => {
     const m = TAROT_MEANINGS[cardId];
     if (!m) return null;
@@ -2584,36 +2923,127 @@ export function ConstellationPage() {
           "sparkline",
           monthCounts && monthCounts.some((n) => n > 0) && (
             <div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 2,
-                  alignItems: "flex-end",
-                  height: 30,
-                  marginBottom: 4,
-                }}
-              >
-                {(() => {
-                  const max = Math.max(1, ...monthCounts);
-                  return monthCounts.map((n, i) => {
-                    const frac = n / max;
-                    const heightPct = Math.max(8, frac * 100);
-                    const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
-                    return (
-                      <div
-                        key={`spark-${i}`}
-                        style={{
-                          flex: 1,
-                          height: `${heightPct}%`,
-                          background: "var(--accent, var(--gold))",
-                          opacity,
-                          borderRadius: 1,
-                        }}
-                      />
-                    );
+              {/* EJ22 — sparkline now carries month-letter axis below
+                  the bars (low-opacity initials, current month
+                  emphasized) and a native title tooltip on each bar
+                  with "Month YYYY · N pulls" so the seeker can hover
+                  any bar and see exactly which month it is. */}
+              {(() => {
+                // Build month labels — oldest left, current right.
+                // The server returns 12 monthly buckets oldest first,
+                // current last. We recompute the month/year client-
+                // side from the seeker's tz at render time so labels
+                // are tz-correct.
+                const MONTH_NAMES = [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December",
+                ];
+                const now = new Date();
+                // Derive month/year in the seeker's tz via the
+                // canonical isoDayInTz helper. Returns YYYY-MM-DD;
+                // we split out year and month-of-year (1-based).
+                const todayKey = isoDayInTz(now, effectiveTz);
+                const todayParts = todayKey.split("-");
+                const nowYear = Number(todayParts[0]);
+                const nowMonth0 = Number(todayParts[1]) - 1;
+                const monthSlots: Array<{
+                  y: number;
+                  m0: number;
+                  label: string;
+                  letter: string;
+                  full: string;
+                }> = [];
+                for (let back = 11; back >= 0; back--) {
+                  const total = nowYear * 12 + nowMonth0 - back;
+                  const y = Math.floor(total / 12);
+                  const m0 = total - y * 12;
+                  monthSlots.push({
+                    y,
+                    m0,
+                    label: `${MONTH_NAMES[m0]} ${y}`,
+                    letter: MONTH_NAMES[m0][0],
+                    full: MONTH_NAMES[m0],
                   });
-                })()}
-              </div>
+                }
+                const max = Math.max(1, ...monthCounts);
+                return (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 2,
+                        alignItems: "flex-end",
+                        height: 30,
+                        marginBottom: 2,
+                      }}
+                    >
+                      {monthCounts.map((n, i) => {
+                        const frac = n / max;
+                        const heightPct = Math.max(8, frac * 100);
+                        const opacity = n === 0 ? 0.18 : 0.35 + frac * 0.6;
+                        const slot = monthSlots[i];
+                        const pullsText = n === 1 ? "1 pull" : `${n} pulls`;
+                        return (
+                          <div
+                            key={`spark-${i}`}
+                            title={`${slot.label} · ${pullsText}`}
+                            style={{
+                              flex: 1,
+                              height: `${heightPct}%`,
+                              background: "var(--accent, var(--gold))",
+                              opacity,
+                              borderRadius: 1,
+                              cursor: "help",
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    {/* Month-letter axis row. Low opacity, current
+                        month slightly emphasized. */}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 2,
+                        alignItems: "center",
+                        marginBottom: 3,
+                      }}
+                    >
+                      {monthSlots.map((slot, i) => {
+                        const isCurrent = i === monthSlots.length - 1;
+                        return (
+                          <div
+                            key={`spark-axis-${i}`}
+                            title={slot.label}
+                            style={{
+                              flex: 1,
+                              textAlign: "center",
+                              fontFamily: "var(--font-display)",
+                              fontSize: 8.5,
+                              letterSpacing: "0.04em",
+                              color: "var(--color-foreground)",
+                              opacity: isCurrent ? 0.7 : 0.35,
+                              fontWeight: isCurrent ? 600 : 400,
+                            }}
+                          >
+                            {slot.letter}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
               <div
                 style={{
                   fontSize: 9,
@@ -4319,6 +4749,45 @@ export function ConstellationPage() {
         if (!hoverTipsOn) return null;
         const cardId = Number(activePopover.key);
         if (!Number.isFinite(cardId)) return null;
+        // EJ22 — slim path: small chip popover, no top-right controls,
+        // click escalates to rich. The slim has no edit affordances —
+        // editing happens inside the rich popover's edit mode where
+        // the slim preview lives as a left pane.
+        if (popoverMode === "slim") {
+          return (
+            <RichPopover
+              open
+              anchorX={activePopover.anchorX}
+              anchorY={activePopover.anchorY}
+              onClose={() => closeActivePopover("card-meaning")}
+              onCancelDismiss={cancelPopoverDismiss}
+              onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
+              maxWidth={300}
+            >
+              {/* Click anywhere on the slim body to escalate. The
+                  RichPopover itself blocks tap-outside dismiss while
+                  the cursor is inside, so this click handler just
+                  needs to flip the mode. */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  escalateToRich();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    escalateToRich();
+                  }
+                }}
+                style={{ cursor: "pointer" }}
+              >
+                {renderSlimHoverInner(cardId)}
+              </div>
+            </RichPopover>
+          );
+        }
         return (
           <RichPopover
             open
@@ -4397,9 +4866,176 @@ export function ConstellationPage() {
                 <HoverTipsGear />
               </>
             }
-            maxWidth={320}
+            maxWidth={popoverEditMode ? 580 : 320}
           >
-            {renderCardPopoverInner(cardId, { editable: true })}
+            {/* EJ22 — split view in edit mode. Left = slim preview,
+                right = full popover body with section toggles. The
+                slim preview shows what the seeker's hover card will
+                look like with current prefs. */}
+            {popoverEditMode ? (
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                {/* Left: slim preview + reset button. */}
+                <div
+                  style={{
+                    flex: "0 0 220px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    position: "sticky",
+                    top: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 10,
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.85,
+                    }}
+                  >
+                    Hover preview
+                  </div>
+                  <div
+                    style={{
+                      border:
+                        "1px dashed color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent)",
+                      borderRadius: 6,
+                      background: "color-mix(in oklab, var(--accent, var(--gold)) 4%, transparent)",
+                    }}
+                  >
+                    {renderSlimHoverInner(cardId)}
+                  </div>
+                  {/* Slim item toggles — each visible item gets a
+                      one-click "− from slim" button; each hidden
+                      item appears below with "+ to slim". */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      marginTop: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: 9,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                        opacity: 0.6,
+                      }}
+                    >
+                      On the hover
+                    </div>
+                    {ALL_SLIM_ITEM_IDS.filter((id) => isSlimItemVisible(id)).map((id) => (
+                      <button
+                        key={`on-${id}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSlimItem(id);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "3px 6px",
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--color-foreground)",
+                          cursor: "pointer",
+                          fontSize: 10.5,
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          textAlign: "left",
+                        }}
+                      >
+                        <span>{SLIM_ITEM_LABELS[id]}</span>
+                        <span style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }}>−</span>
+                      </button>
+                    ))}
+                    {ALL_SLIM_ITEM_IDS.some((id) => !isSlimItemVisible(id)) && (
+                      <div
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontSize: 9,
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                          color: "var(--accent, var(--gold))",
+                          opacity: 0.6,
+                          marginTop: 6,
+                        }}
+                      >
+                        Available
+                      </div>
+                    )}
+                    {ALL_SLIM_ITEM_IDS.filter((id) => !isSlimItemVisible(id)).map((id) => (
+                      <button
+                        key={`off-${id}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSlimItem(id);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "3px 6px",
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--color-foreground)",
+                          cursor: "pointer",
+                          fontSize: 10.5,
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          textAlign: "left",
+                          opacity: 0.6,
+                        }}
+                      >
+                        <span>{SLIM_ITEM_LABELS[id]}</span>
+                        <span style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }}>+</span>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Reset button — top of left pane. Restores
+                      defaults for both the rich popover sections
+                      AND the slim items. */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resetPopoverPrefs();
+                    }}
+                    style={{
+                      marginTop: 8,
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: 11,
+                      color: "var(--color-foreground)",
+                      background: "transparent",
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 20%, transparent)",
+                      borderRadius: 4,
+                      padding: "4px 8px",
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    Reset to defaults
+                  </button>
+                </div>
+                {/* Right: full popover body. */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {renderCardPopoverInner(cardId, { editable: true })}
+                </div>
+              </div>
+            ) : (
+              renderCardPopoverInner(cardId, { editable: true })
+            )}
           </RichPopover>
         );
       })()}
