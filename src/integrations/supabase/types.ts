@@ -1375,6 +1375,7 @@ export type Database = {
           birth_time: string | null
           card_back: string
           card_popover_sections: Json | null
+          card_popover_slim: Json | null
           card_scale_bar: number
           card_scale_deck: number
           card_scale_grid: number
@@ -1460,6 +1461,7 @@ export type Database = {
           birth_time?: string | null
           card_back?: string
           card_popover_sections?: Json | null
+          card_popover_slim?: Json | null
           card_scale_bar?: number
           card_scale_deck?: number
           card_scale_grid?: number
@@ -1545,6 +1547,7 @@ export type Database = {
           birth_time?: string | null
           card_back?: string
           card_popover_sections?: Json | null
+          card_popover_slim?: Json | null
           card_scale_bar?: number
           card_scale_deck?: number
           card_scale_grid?: number
