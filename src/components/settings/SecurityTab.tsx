@@ -31,6 +31,11 @@ import { useSettings } from "./SettingsContext";
 import { SettingsSection } from "./sections";
 import { Modal } from "@/components/ui/modal";
 import { useConfirm } from "@/hooks/use-confirm";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  generateMfaRecoveryCodes,
+  clearMfaRecoveryCodes,
+} from "@/lib/mfa-recovery.functions";
 
 type FactorRow = {
   id: string;
@@ -56,29 +61,11 @@ type EnrollState =
       acknowledged: boolean;
     };
 
-/**
- * Cryptographically random 10-character recovery codes.
- * Format: 5-5 with a dash — easy to read, hard to guess.
- */
-function generateRecoveryCodes(n = 10): string[] {
-  const out: string[] = [];
-  const alpha = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // omit I, O, 0, 1
-  for (let i = 0; i < n; i++) {
-    let s = "";
-    const bytes = new Uint8Array(10);
-    crypto.getRandomValues(bytes);
-    for (let j = 0; j < 10; j++) {
-      s += alpha[bytes[j] % alpha.length];
-      if (j === 4) s += "-";
-    }
-    out.push(s);
-  }
-  return out;
-}
-
 export function SecurityTab() {
   const { user } = useSettings();
   const confirm = useConfirm();
+  const generateCodes = useServerFn(generateMfaRecoveryCodes);
+  const clearCodes = useServerFn(clearMfaRecoveryCodes);
   const [loading, setLoading] = useState(true);
   const [factors, setFactors] = useState<FactorRow[]>([]);
   const [recoveryCount, setRecoveryCount] = useState<number | null>(null);
@@ -212,15 +199,15 @@ export function SecurityTab() {
         });
         return;
       }
-      // Verified. Generate + persist recovery codes, then surface them
-      // to the seeker (one-time view).
-      const codes = generateRecoveryCodes(10);
-      const { error: prefErr } = await supabase
-        .from("user_preferences")
-        .update({ mfa_recovery_codes: codes })
-        .eq("user_id", user.id);
-      if (prefErr) {
-        console.error("[SecurityTab] save recovery codes", prefErr);
+      // Verified. Generate codes server-side (only hashes are
+      // persisted to the DB) and surface the plaintext to the seeker
+      // exactly once.
+      let codes: string[] = [];
+      try {
+        const result = await generateCodes({});
+        codes = result.codes;
+      } catch (e) {
+        console.error("[SecurityTab] save recovery codes", e);
       }
       setEnrollState({ phase: "recovery", codes, acknowledged: false });
       void refresh();
@@ -249,10 +236,11 @@ export function SecurityTab() {
     if (!ok) return;
     try {
       await supabase.auth.mfa.unenroll({ factorId: verifiedTotp.id });
-      await supabase
-        .from("user_preferences")
-        .update({ mfa_recovery_codes: null })
-        .eq("user_id", user.id);
+      try {
+        await clearCodes({});
+      } catch (e) {
+        console.error("[SecurityTab] clear codes", e);
+      }
       void refresh();
     } catch (e) {
       console.error("[SecurityTab] unenroll threw", e);
@@ -273,13 +261,12 @@ export function SecurityTab() {
     if (!ok) return;
     setRegenerating(true);
     try {
-      const codes = generateRecoveryCodes(10);
-      const { error } = await supabase
-        .from("user_preferences")
-        .update({ mfa_recovery_codes: codes })
-        .eq("user_id", user.id);
-      if (error) {
-        console.error("[SecurityTab] regenerate", error);
+      let codes: string[] = [];
+      try {
+        const result = await generateCodes({});
+        codes = result.codes;
+      } catch (e) {
+        console.error("[SecurityTab] regenerate", e);
         return;
       }
       setEnrollState({ phase: "recovery", codes, acknowledged: false });
