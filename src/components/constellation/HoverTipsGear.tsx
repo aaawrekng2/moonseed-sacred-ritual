@@ -11,14 +11,19 @@
  * shown or hidden — the seeker can re-up a snooze at any time.
  */
 import { useEffect, useRef, useState } from "react";
-import { Settings } from "lucide-react";
-import {
-  useConstellationHoverTips,
-  SNOOZE_DURATIONS,
-} from "@/lib/use-constellation-hover-tips";
+import { BellOff } from "lucide-react";
+import { useConstellationHoverTips, SNOOZE_DURATIONS } from "@/lib/use-constellation-hover-tips";
 
 export function HoverTipsGear() {
-  const { snoozeFor, disableUntilEnabled } = useConstellationHoverTips();
+  const {
+    snoozeFor,
+    disableUntilEnabled,
+    clearSnooze,
+    setEnabled,
+    enabled,
+    snoozedUntil,
+    effectiveEnabled,
+  } = useConstellationHoverTips();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
 
@@ -26,11 +31,7 @@ export function HoverTipsGear() {
   useEffect(() => {
     if (!open) return;
     const onDown = (ev: MouseEvent) => {
-      if (
-        wrapRef.current &&
-        ev.target instanceof Node &&
-        !wrapRef.current.contains(ev.target)
-      ) {
+      if (wrapRef.current && ev.target instanceof Node && !wrapRef.current.contains(ev.target)) {
         setOpen(false);
       }
     };
@@ -52,6 +53,17 @@ export function HoverTipsGear() {
     borderRadius: 4,
   };
 
+  // EJ20 — surface the current snooze/disabled state in the menu
+  // header so the seeker knows exactly why tips are off (if they
+  // are), and can pick "Re-enable now" to clear it.
+  const isSnoozed = snoozedUntil !== null && Date.now() < snoozedUntil;
+  const isOff = !effectiveEnabled;
+  const statusLabel = isSnoozed
+    ? "Snoozed — hidden temporarily"
+    : !enabled
+      ? "Hidden — toggle on to re-enable"
+      : "Hide hover tips for…";
+
   return (
     <span
       ref={wrapRef}
@@ -63,20 +75,25 @@ export function HoverTipsGear() {
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        aria-label="Hover-tip options"
+        aria-label="Snooze hover tips"
         aria-expanded={open}
+        title="Snooze hover tips"
         style={{
           padding: 2,
           border: "none",
           background: "transparent",
           cursor: "pointer",
-          color: "var(--color-foreground-muted, var(--color-foreground))",
+          // EJ20 — when snoozed/off, show the icon at higher opacity
+          // in the accent color so the state is visible at a glance.
+          color: isOff
+            ? "var(--accent, var(--gold))"
+            : "var(--color-foreground-muted, var(--color-foreground))",
           display: "inline-flex",
           alignItems: "center",
-          opacity: 0.7,
+          opacity: isOff ? 0.95 : 0.7,
         }}
       >
-        <Settings size={13} strokeWidth={1.5} />
+        <BellOff size={13} strokeWidth={1.5} />
       </button>
       {open && (
         <div
@@ -86,7 +103,7 @@ export function HoverTipsGear() {
             top: "calc(100% + 4px)",
             right: 0,
             zIndex: "var(--z-popover, 50)" as unknown as number,
-            minWidth: 180,
+            minWidth: 200,
             padding: 4,
             background: "var(--surface-card)",
             border: "1px solid var(--border-subtle)",
@@ -106,8 +123,28 @@ export function HoverTipsGear() {
               marginBottom: 4,
             }}
           >
-            Hide hover tips for…
+            {statusLabel}
           </div>
+          {/* EJ20 — show "Re-enable now" first when tips are off so
+              the seeker has an immediately-visible escape hatch. */}
+          {isOff && (
+            <button
+              type="button"
+              role="menuitem"
+              style={{
+                ...item,
+                color: "var(--accent, var(--gold))",
+                fontStyle: "italic",
+              }}
+              onClick={() => {
+                clearSnooze();
+                setEnabled(true);
+                setOpen(false);
+              }}
+            >
+              Re-enable now
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
