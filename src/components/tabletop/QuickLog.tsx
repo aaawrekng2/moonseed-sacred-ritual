@@ -82,10 +82,7 @@ type Props = {
   onSwitchToTable?: () => void;
   onCustomCountChange?: (n: number) => void;
   onCancel: () => void;
-  onComplete: (
-    picks: ManualPick[],
-    meta?: { createdAt?: string; entryMode?: "manual" },
-  ) => void;
+  onComplete: (picks: ManualPick[], meta?: { createdAt?: string; entryMode?: "manual" }) => void;
 };
 
 export function QuickLog({
@@ -142,9 +139,7 @@ export function QuickLog({
   // Smart-input parser index: pull names from EVERY deck the seeker
   // owns + the standard 78-card Rider-Waite list. Active deck takes
   // priority on duplicate names; standard tarot is the floor.
-  const [allDeckCards, setAllDeckCards] = useState<
-    Array<{ cardId: number; name: string }>
-  >([]);
+  const [allDeckCards, setAllDeckCards] = useState<Array<{ cardId: number; name: string }>>([]);
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -414,9 +409,7 @@ export function QuickLog({
     }
     const all = new Set<number>();
     matches.forEach((m) => m.matched.forEach((id) => all.add(id)));
-    matches.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+    matches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     // Dedupe by reading id — defensive against any duplicate push above.
     const seenIds = new Set<string>();
     const uniqMatches = matches.filter((m) => {
@@ -486,9 +479,7 @@ export function QuickLog({
               paddingLeft: 16,
             }}
           >
-            {onSwitchToTable && (
-              <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
-            )}
+            {onSwitchToTable && <EntryModeToggle current="manual" onToggle={onSwitchToTable} />}
           </div>
 
           {/* Q113 Phase 4 — Constellation banner */}
@@ -535,7 +526,8 @@ export function QuickLog({
                     padding: "0 12px",
                   }}
                 >
-                  An Echo — {constellation.participatingCardIds.length} of these cards have met before
+                  An Echo — {constellation.participatingCardIds.length} of these cards have met
+                  before
                 </span>
               </div>
             </div>
@@ -546,7 +538,9 @@ export function QuickLog({
               directly below the banner. Journal list on the right now stays
               visible regardless of constellationActive. */}
           {constellation.active && constellation.matchingReadings.length > 0 && (
-            <div style={{ padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div
+              style={{ padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 12 }}
+            >
               <p
                 style={{
                   fontSize: 10,
@@ -635,12 +629,7 @@ export function QuickLog({
                                 overflow: "hidden",
                               }}
                             >
-                              <CardImage
-                                variant="face"
-                                cardId={cid}
-                                size="custom"
-                                widthPx={28}
-                              />
+                              <CardImage variant="face" cardId={cid} size="custom" widthPx={28} />
                             </div>
                           ))}
                           {more > 0 && (
@@ -650,8 +639,7 @@ export function QuickLog({
                                 fontSize: 10,
                                 fontStyle: "italic",
                                 fontFamily: "var(--font-serif)",
-                                color:
-                                  "var(--color-foreground-muted, var(--color-foreground))",
+                                color: "var(--color-foreground-muted, var(--color-foreground))",
                                 marginLeft: 4,
                               }}
                             >
@@ -681,8 +669,7 @@ export function QuickLog({
                           <span
                             style={{
                               fontSize: 11,
-                              color:
-                                "var(--color-foreground-muted, var(--color-foreground))",
+                              color: "var(--color-foreground-muted, var(--color-foreground))",
                               fontStyle: "italic",
                               fontFamily: "var(--font-serif)",
                               overflow: "hidden",
@@ -693,11 +680,7 @@ export function QuickLog({
                             {r.question?.trim() || "(no question)"}
                           </span>
                         </div>
-                        <span
-                          style={{ color: "var(--accent, var(--gold))", fontSize: 11 }}
-                        >
-                          ›
-                        </span>
+                        <span style={{ color: "var(--accent, var(--gold))", fontSize: 11 }}>›</span>
                       </div>
                     </div>
                   );
@@ -763,12 +746,7 @@ export function QuickLog({
                       eager
                     />
                   ) : (
-                    <CardImage
-                      variant="back"
-                      size="custom"
-                      widthPx={HERO_W}
-                      eager
-                    />
+                    <CardImage variant="back" size="custom" widthPx={HERO_W} eager />
                   )}
                 </div>
               </div>
@@ -870,315 +848,298 @@ export function QuickLog({
                       gap,
                     }}
                   >
-                  {picks.map((pick, idx) => {
-                    const isInConstellation =
-                      constellation.active &&
-                      participatingSet.has(pick.cardIndex);
-                    const isDragSource = dragSourceIdx === idx;
-                    const isDragOver =
-                      dragOverIdx === idx && dragSourceIdx !== idx;
-                    const isFocused = focusedSlotIdx === idx;
-                    return (
-                      <div
-                        key={pick.id}
-                        className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
-                        draggable
-                        onClick={(e) => {
-                          // Phase 14 (CZ) — tap-to-focus. Ignore clicks on
-                          // the in-slot controls (RotateCw / X).
-                          const target = e.target as HTMLElement | null;
-                          if (target?.closest("[data-slot-controls]")) return;
-                          setFocusedSlotIdx(idx);
-                          setLongPressSlotIdx(idx);
-                        }}
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("text/plain", String(idx));
-                          e.dataTransfer.effectAllowed = "move";
-                          setDragSourceIdx(idx);
-                        }}
-                        onDragEnd={(e) => {
-                          const src = dragSourceIdx;
-                          const row = slotRowRef.current;
-                          if (src !== null && row) {
-                            const r = row.getBoundingClientRect();
-                            const inside =
-                              e.clientX >= r.left &&
-                              e.clientX <= r.right &&
-                              e.clientY >= r.top &&
-                              e.clientY <= r.bottom;
-                            if (!inside) {
-                              setPicks((prev) =>
-                                prev.filter((_, i) => i !== src),
-                              );
-                              // Phase 14 (CZ) — keep focus index valid.
-                              setFocusedSlotIdx((cur) => {
-                                if (cur === null) return null;
-                                if (cur === src) {
-                                  return src > 0
-                                    ? src - 1
-                                    : picks.length > 1
-                                      ? 0
-                                      : null;
-                                }
-                                if (cur > src) return cur - 1;
-                                return cur;
-                              });
-                            }
-                          }
-                          setDragSourceIdx(null);
-                          setDragOverIdx(null);
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                          if (dragOverIdx !== idx) setDragOverIdx(idx);
-                        }}
-                        onDragLeave={() => {
-                          if (dragOverIdx === idx) setDragOverIdx(null);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const fromIdx = Number(
-                            e.dataTransfer.getData("text/plain"),
-                          );
-                          if (Number.isNaN(fromIdx) || fromIdx === idx) {
-                            setDragOverIdx(null);
-                            return;
-                          }
-                          setPicks((prev) => {
-                            const next = [...prev];
-                            const tmp = next[idx];
-                            next[idx] = next[fromIdx];
-                            next[fromIdx] = tmp;
-                            return next;
-                          });
-                          // Phase 14 (CZ) — track focused card across swap.
-                          setFocusedSlotIdx((cur) => {
-                            if (cur === null) return null;
-                            if (cur === fromIdx) return idx;
-                            if (cur === idx) return fromIdx;
-                            return cur;
-                          });
-                          setDragOverIdx(null);
-                          setDragSourceIdx(null);
-                        }}
-                        onPointerDown={(e) => {
-                          if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
-                          if (longPressTimerRef.current !== null) {
-                            window.clearTimeout(longPressTimerRef.current);
-                          }
-                          longPressTimerRef.current = window.setTimeout(() => {
-                            setLongPressSlotIdx(idx);
-                            longPressTimerRef.current = null;
-                          }, 450);
-                        }}
-                        onPointerUp={() => {
-                          if (longPressTimerRef.current !== null) {
-                            window.clearTimeout(longPressTimerRef.current);
-                            longPressTimerRef.current = null;
-                          }
-                        }}
-                        onPointerCancel={() => {
-                          if (longPressTimerRef.current !== null) {
-                            window.clearTimeout(longPressTimerRef.current);
-                            longPressTimerRef.current = null;
-                          }
-                        }}
-                        onPointerLeave={() => {
-                          if (longPressTimerRef.current !== null) {
-                            window.clearTimeout(longPressTimerRef.current);
-                            longPressTimerRef.current = null;
-                          }
-                        }}
-                        style={{
-                          position: "relative",
-                          width: slotW,
-                          flexShrink: 0,
-                          opacity: isDragSource ? 0.4 : 1,
-                          cursor: "grab",
-                        }}
-                      >
-                        {isInConstellation && !isFocused && (
-                          <div
-                            aria-hidden
-                            className="tarotseed-constellation-breathe"
-                            style={{
-                              position: "absolute",
-                              top: -3,
-                              left: -3,
-                              right: -3,
-                              bottom: -3,
-                              background:
-                                "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
-                              borderRadius: 8,
-                              pointerEvents: "none",
-                              zIndex: 0,
-                            }}
-                          />
-                        )}
-                        {isFocused && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              inset: -6,
-                              borderRadius: 10,
-                              boxShadow:
-                                "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                              pointerEvents: "none",
-                              zIndex: 4,
-                            }}
-                          />
-                        )}
-                        {isDragOver && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              top: -3,
-                              left: -3,
-                              right: -3,
-                              bottom: -3,
-                              border:
-                                "2px solid var(--accent, var(--gold))",
-                              borderRadius: 8,
-                              pointerEvents: "none",
-                              zIndex: 2,
-                            }}
-                          />
-                        )}
+                    {picks.map((pick, idx) => {
+                      const isInConstellation =
+                        constellation.active && participatingSet.has(pick.cardIndex);
+                      const isDragSource = dragSourceIdx === idx;
+                      const isDragOver = dragOverIdx === idx && dragSourceIdx !== idx;
+                      const isFocused = focusedSlotIdx === idx;
+                      return (
                         <div
+                          key={pick.id}
+                          className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
+                          draggable
+                          onClick={(e) => {
+                            // Phase 14 (CZ) — tap-to-focus. Ignore clicks on
+                            // the in-slot controls (RotateCw / X).
+                            const target = e.target as HTMLElement | null;
+                            if (target?.closest("[data-slot-controls]")) return;
+                            setFocusedSlotIdx(idx);
+                            setLongPressSlotIdx(idx);
+                          }}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/plain", String(idx));
+                            e.dataTransfer.effectAllowed = "move";
+                            setDragSourceIdx(idx);
+                          }}
+                          onDragEnd={(e) => {
+                            const src = dragSourceIdx;
+                            const row = slotRowRef.current;
+                            if (src !== null && row) {
+                              const r = row.getBoundingClientRect();
+                              const inside =
+                                e.clientX >= r.left &&
+                                e.clientX <= r.right &&
+                                e.clientY >= r.top &&
+                                e.clientY <= r.bottom;
+                              if (!inside) {
+                                setPicks((prev) => prev.filter((_, i) => i !== src));
+                                // Phase 14 (CZ) — keep focus index valid.
+                                setFocusedSlotIdx((cur) => {
+                                  if (cur === null) return null;
+                                  if (cur === src) {
+                                    return src > 0 ? src - 1 : picks.length > 1 ? 0 : null;
+                                  }
+                                  if (cur > src) return cur - 1;
+                                  return cur;
+                                });
+                              }
+                            }
+                            setDragSourceIdx(null);
+                            setDragOverIdx(null);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                            if (dragOverIdx !== idx) setDragOverIdx(idx);
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverIdx === idx) setDragOverIdx(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const fromIdx = Number(e.dataTransfer.getData("text/plain"));
+                            if (Number.isNaN(fromIdx) || fromIdx === idx) {
+                              setDragOverIdx(null);
+                              return;
+                            }
+                            setPicks((prev) => {
+                              const next = [...prev];
+                              const tmp = next[idx];
+                              next[idx] = next[fromIdx];
+                              next[fromIdx] = tmp;
+                              return next;
+                            });
+                            // Phase 14 (CZ) — track focused card across swap.
+                            setFocusedSlotIdx((cur) => {
+                              if (cur === null) return null;
+                              if (cur === fromIdx) return idx;
+                              if (cur === idx) return fromIdx;
+                              return cur;
+                            });
+                            setDragOverIdx(null);
+                            setDragSourceIdx(null);
+                          }}
+                          onPointerDown={(e) => {
+                            if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+                            if (longPressTimerRef.current !== null) {
+                              window.clearTimeout(longPressTimerRef.current);
+                            }
+                            longPressTimerRef.current = window.setTimeout(() => {
+                              setLongPressSlotIdx(idx);
+                              longPressTimerRef.current = null;
+                            }, 450);
+                          }}
+                          onPointerUp={() => {
+                            if (longPressTimerRef.current !== null) {
+                              window.clearTimeout(longPressTimerRef.current);
+                              longPressTimerRef.current = null;
+                            }
+                          }}
+                          onPointerCancel={() => {
+                            if (longPressTimerRef.current !== null) {
+                              window.clearTimeout(longPressTimerRef.current);
+                              longPressTimerRef.current = null;
+                            }
+                          }}
+                          onPointerLeave={() => {
+                            if (longPressTimerRef.current !== null) {
+                              window.clearTimeout(longPressTimerRef.current);
+                              longPressTimerRef.current = null;
+                            }
+                          }}
                           style={{
                             position: "relative",
-                            zIndex: 1,
                             width: slotW,
-                            borderRadius: 6,
-                            overflow: "hidden",
-                            boxSizing: "border-box",
+                            flexShrink: 0,
+                            opacity: isDragSource ? 0.4 : 1,
+                            cursor: "grab",
                           }}
                         >
-                          <CardImage
-                            variant="face"
-                            cardId={pick.cardIndex}
-                            reversed={pick.isReversed}
-                            deckId={pick.deckId ?? undefined}
-                            size="custom"
-                            widthPx={slotW}
-                          />
-                        </div>
-                        <div
-                          className="tarotseed-slot-controls"
-                          data-slot-controls
-                          style={{
-                            position: "absolute",
-                            top: 4,
-                            left: 4,
-                            right: 4,
-                            display: "flex",
-                            justifyContent: "space-between",
-                            zIndex: 3,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            aria-label={pick.isReversed ? "Set upright" : "Reverse card"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPicks((prev) =>
-                                prev.map((p, i) =>
-                                  i === idx ? { ...p, isReversed: !p.isReversed } : p,
-                                ),
-                              );
-                            }}
+                          {isInConstellation && !isFocused && (
+                            <div
+                              aria-hidden
+                              className="tarotseed-constellation-breathe"
+                              style={{
+                                position: "absolute",
+                                top: -3,
+                                left: -3,
+                                right: -3,
+                                bottom: -3,
+                                background:
+                                  "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
+                                borderRadius: 8,
+                                pointerEvents: "none",
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
+                          {isFocused && (
+                            <div
+                              aria-hidden
+                              style={{
+                                position: "absolute",
+                                inset: -6,
+                                borderRadius: 10,
+                                boxShadow:
+                                  "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                                pointerEvents: "none",
+                                zIndex: 4,
+                              }}
+                            />
+                          )}
+                          {isDragOver && (
+                            <div
+                              aria-hidden
+                              style={{
+                                position: "absolute",
+                                top: -3,
+                                left: -3,
+                                right: -3,
+                                bottom: -3,
+                                border: "2px solid var(--accent, var(--gold))",
+                                borderRadius: 8,
+                                pointerEvents: "none",
+                                zIndex: 2,
+                              }}
+                            />
+                          )}
+                          <div
                             style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 11,
-                              border: "none",
-                              background:
-                                "color-mix(in oklab, var(--background) 75%, transparent)",
-                              backdropFilter: "blur(4px)",
-                              WebkitBackdropFilter: "blur(4px)",
-                              color: "var(--color-foreground)",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              padding: 0,
+                              position: "relative",
+                              zIndex: 1,
+                              width: slotW,
+                              borderRadius: 6,
+                              overflow: "hidden",
+                              boxSizing: "border-box",
                             }}
                           >
-                            <RotateCw size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="Remove card"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPicks((prev) => prev.filter((_, i) => i !== idx));
-                              if (longPressSlotIdx === idx) setLongPressSlotIdx(null);
-                              // Phase 14 (CZ) — keep focus index valid.
-                              setFocusedSlotIdx((cur) => {
-                                if (cur === null) return null;
-                                if (cur === idx) {
-                                  return idx > 0
-                                    ? idx - 1
-                                    : picks.length > 1
-                                      ? 0
-                                      : null;
-                                }
-                                if (cur > idx) return cur - 1;
-                                return cur;
-                              });
-                            }}
+                            <CardImage
+                              variant="face"
+                              cardId={pick.cardIndex}
+                              reversed={pick.isReversed}
+                              deckId={pick.deckId ?? undefined}
+                              size="custom"
+                              widthPx={slotW}
+                            />
+                          </div>
+                          <div
+                            className="tarotseed-slot-controls"
+                            data-slot-controls
                             style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 11,
-                              border: "none",
-                              background:
-                                "color-mix(in oklab, var(--background) 75%, transparent)",
-                              backdropFilter: "blur(4px)",
-                              WebkitBackdropFilter: "blur(4px)",
-                              color: "var(--color-foreground)",
-                              cursor: "pointer",
+                              position: "absolute",
+                              top: 4,
+                              left: 4,
+                              right: 4,
                               display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              padding: 0,
+                              justifyContent: "space-between",
+                              zIndex: 3,
                             }}
                           >
-                            <X size={12} />
-                          </button>
+                            <button
+                              type="button"
+                              aria-label={pick.isReversed ? "Set upright" : "Reverse card"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPicks((prev) =>
+                                  prev.map((p, i) =>
+                                    i === idx ? { ...p, isReversed: !p.isReversed } : p,
+                                  ),
+                                );
+                              }}
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 11,
+                                border: "none",
+                                background:
+                                  "color-mix(in oklab, var(--background) 75%, transparent)",
+                                backdropFilter: "blur(4px)",
+                                WebkitBackdropFilter: "blur(4px)",
+                                color: "var(--color-foreground)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                              }}
+                            >
+                              <RotateCw size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Remove card"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPicks((prev) => prev.filter((_, i) => i !== idx));
+                                if (longPressSlotIdx === idx) setLongPressSlotIdx(null);
+                                // Phase 14 (CZ) — keep focus index valid.
+                                setFocusedSlotIdx((cur) => {
+                                  if (cur === null) return null;
+                                  if (cur === idx) {
+                                    return idx > 0 ? idx - 1 : picks.length > 1 ? 0 : null;
+                                  }
+                                  if (cur > idx) return cur - 1;
+                                  return cur;
+                                });
+                              }}
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 11,
+                                border: "none",
+                                background:
+                                  "color-mix(in oklab, var(--background) 75%, transparent)",
+                                backdropFilter: "blur(4px)",
+                                WebkitBackdropFilter: "blur(4px)",
+                                color: "var(--color-foreground)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                  {/* Trailing dashed "+" slot */}
-                  <button
-                    type="button"
-                    onClick={() => setPickerOpen(true)}
-                    style={{
-                      width: slotW,
-                      height: slotW * 1.55,
-                      borderRadius: 6,
-                      border: "1.5px dashed color-mix(in oklab, var(--gold) 55%, transparent)",
-                      background: "transparent",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--accent, var(--gold))",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
-                    aria-label="Add card"
-                  >
-                    <Plus size={Math.max(14, slotW * 0.3)} strokeWidth={1.5} />
-                  </button>
+                      );
+                    })}
+                    {/* Trailing dashed "+" slot */}
+                    <button
+                      type="button"
+                      onClick={() => setPickerOpen(true)}
+                      style={{
+                        width: slotW,
+                        height: slotW * 1.55,
+                        borderRadius: 6,
+                        border: "1.5px dashed color-mix(in oklab, var(--gold) 55%, transparent)",
+                        background: "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--accent, var(--gold))",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                      aria-label="Add card"
+                    >
+                      <Plus size={Math.max(14, slotW * 0.3)} strokeWidth={1.5} />
+                    </button>
                   </div>
                 </div>
-                {heroPick && (
-                  <ChipGrid heroPick={heroPick} stats={cardStats} />
-                )}
+                {heroPick && <ChipGrid heroPick={heroPick} stats={cardStats} />}
               </div>
 
               {/* Companions + journal */}
@@ -1220,11 +1181,7 @@ export function QuickLog({
           {/* Q112 Phase 3 — pull-history pill */}
           {picks.length >= 2 && (
             <div style={{ padding: "0 24px" }}>
-              <PullHistoryPill
-                picks={picks}
-                practice={practice}
-                constellation={constellation}
-              />
+              <PullHistoryPill picks={picks} practice={practice} constellation={constellation} />
             </div>
           )}
 
@@ -1347,14 +1304,7 @@ type ChipProps = {
   onChipHoverEnd?: () => void;
 };
 
-function Chip({
-  label,
-  value,
-  fullWidth,
-  tooltip,
-  onChipHover,
-  onChipHoverEnd,
-}: ChipProps) {
+function Chip({ label, value, fullWidth, tooltip, onChipHover, onChipHoverEnd }: ChipProps) {
   return (
     <div
       title={onChipHover ? undefined : tooltip}
@@ -1566,9 +1516,7 @@ function CompanionsAndJournal({
 
   const journalRows = useMemo(() => {
     if (!stats || !selected) return [];
-    return stats.journal
-      .filter((r) => r.cardIds.includes(selected.cardId))
-      .slice(0, 5);
+    return stats.journal.filter((r) => r.cardIds.includes(selected.cardId)).slice(0, 5);
   }, [stats, selected]);
 
   const showEmptyPlaceholder = !heroPick || companions.length === 0;
@@ -1616,9 +1564,7 @@ function CompanionsAndJournal({
               const isSelected = idx === selectedIdx;
               const isInPull = pullSet.has(c.cardId);
               const showGoldRing = constellationActive && isInPull;
-              const heroName = heroPick
-                ? getCardName(heroPick.cardIndex)
-                : "this card";
+              const heroName = heroPick ? getCardName(heroPick.cardIndex) : "this card";
               const companionName = getCardName(c.cardId);
               const tooltipText = `${heroName} and ${companionName} have appeared together in ${c.count} of your spreads (matching your filters).`;
               return (
@@ -1679,12 +1625,7 @@ function CompanionsAndJournal({
                       boxSizing: "border-box",
                     }}
                   >
-                    <CardImage
-                      variant="face"
-                      cardId={c.cardId}
-                      size="custom"
-                      widthPx={80}
-                    />
+                    <CardImage variant="face" cardId={c.cardId} size="custom" widthPx={80} />
                   </div>
                   <span
                     style={{
@@ -1729,8 +1670,7 @@ function CompanionsAndJournal({
                 fontSize: 11,
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                color:
-                  "var(--color-foreground-muted, var(--color-foreground))",
+                color: "var(--color-foreground-muted, var(--color-foreground))",
                 textAlign: "center",
                 padding: "16px 0",
                 opacity: 0.65,
@@ -1772,8 +1712,7 @@ function CompanionsAndJournal({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {format(new Date(r.createdAt), "MMM d")} —{" "}
-                      {label || "(no question)"}
+                      {format(new Date(r.createdAt), "MMM d")} — {label || "(no question)"}
                     </span>
                     <span
                       style={{
@@ -1797,8 +1736,18 @@ function CompanionsAndJournal({
 // ─── Q112 Phase 3 — shared building blocks ───────────────────────────
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function SectionDivider() {
@@ -1989,8 +1938,7 @@ export function OverlapPills({
             height: 22,
             padding: "0 12px",
             borderRadius: 9999,
-            border:
-              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
             background:
               saveStatus === "saved"
                 ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
@@ -1999,10 +1947,7 @@ export function OverlapPills({
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: 10,
-            cursor:
-              saveStatus === "saving" || saveDisabled
-                ? "not-allowed"
-                : "pointer",
+            cursor: saveStatus === "saving" || saveDisabled ? "not-allowed" : "pointer",
             opacity: saveStatus === "saving" || saveDisabled ? 0.5 : 1,
             whiteSpace: "nowrap",
           }}
@@ -2055,6 +2000,7 @@ function OverlapStrip({
   // these are provided.
   onDayHover,
   onDayHoverEnd,
+  asterismBadgeHovered = false,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -2093,6 +2039,11 @@ function OverlapStrip({
   }) => void;
   /** EG — emit when the cursor leaves the cell. */
   onDayHoverEnd?: (date: string) => void;
+  /** EJ25 — when true (set by the parent on asterism badge hover),
+   *  every qualifying co-occurrence day swaps its fill from the gold
+   *  heatmap to solid trace color, completely overriding the heatmap
+   *  so the seeker sees the asterism's days at 100% visibility. */
+  asterismBadgeHovered?: boolean;
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
@@ -2156,8 +2107,7 @@ function OverlapStrip({
         if (day == null) continue;
         let matches = 0;
         if (mode === "day") {
-          for (const id of day.sameDayCardIds ?? [])
-            if (pullSet.has(id)) matches++;
+          for (const id of day.sameDayCardIds ?? []) if (pullSet.has(id)) matches++;
         } else {
           const readings = overlap?.readingsByDate?.[day.date] ?? [];
           for (const r of readings) {
@@ -2178,125 +2128,122 @@ function OverlapStrip({
           the pills and renders them via <OverlapPills/> wherever it
           wants (e.g. under the notes textarea in ConstellationPage). */}
       {!isControlled && (
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 8,
-          zIndex: 3,
-          display: "flex",
-          gap: 6,
-        }}
-      >
-        {layout === "grid12" && (
-          <button
-            type="button"
-            onClick={() => setShowOlder(!showOlder)}
-            style={{
-              height: 22,
-              padding: "0 12px",
-              borderRadius: 9999,
-              border: "1px solid var(--border-subtle)",
-              background: showOlder
-                ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
-                : "var(--surface-card)",
-              color: "var(--color-foreground)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 10,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {showOlder ? "Hide older ←" : "Show older →"}
-          </button>
-        )}
         <div
-          role="tablist"
           style={{
-            display: "inline-flex",
-            height: 22,
-            borderRadius: 9999,
-            border: "1px solid var(--border-subtle)",
-            background: "var(--surface-card)",
-            overflow: "hidden",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 10,
+            position: "absolute",
+            top: 0,
+            right: 8,
+            zIndex: 3,
+            display: "flex",
+            gap: 6,
           }}
         >
-          {(["pull", "day"] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => onModeChange(m)}
-                style={{
-                  padding: "0 12px",
-                  height: "100%",
-                  border: "none",
-                  background: active
-                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
-                    : "transparent",
-                  color: active
-                    ? "var(--color-foreground)"
-                    : "var(--color-foreground-muted, var(--color-foreground))",
-                  cursor: "pointer",
-                }}
-              >
-                {m === "pull" ? "same spread" : "same day"}
-              </button>
-            );
-          })}
-        </div>
-        {/* EF2 — Save to journal pill, optional. Same height/font-size
-            as the other pills so all three look consistent in the row.
-            Rendered only when onSaveToJournal is provided. */}
-        {onSaveToJournal && (
-          <button
-            type="button"
-            onClick={onSaveToJournal}
-            disabled={saveStatus === "saving" || saveDisabled}
-            title={
-              saveStatus === "error" && saveError
-                ? saveError
-                : saveStatus === "saved"
-                  ? "Saved to journal ✓"
-                  : undefined
-            }
-            style={{
-              height: 22,
-              padding: "0 12px",
-              borderRadius: 9999,
-              border:
-                "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
-              background:
-                saveStatus === "saved"
+          {layout === "grid12" && (
+            <button
+              type="button"
+              onClick={() => setShowOlder(!showOlder)}
+              style={{
+                height: 22,
+                padding: "0 12px",
+                borderRadius: 9999,
+                border: "1px solid var(--border-subtle)",
+                background: showOlder
                   ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
                   : "var(--surface-card)",
-              color: "var(--color-foreground)",
+                color: "var(--color-foreground)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 10,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {showOlder ? "Hide older ←" : "Show older →"}
+            </button>
+          )}
+          <div
+            role="tablist"
+            style={{
+              display: "inline-flex",
+              height: 22,
+              borderRadius: 9999,
+              border: "1px solid var(--border-subtle)",
+              background: "var(--surface-card)",
+              overflow: "hidden",
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: 10,
-              cursor:
-                saveStatus === "saving" || saveDisabled
-                  ? "not-allowed"
-                  : "pointer",
-              opacity: saveStatus === "saving" || saveDisabled ? 0.5 : 1,
-              whiteSpace: "nowrap",
             }}
           >
-            {saveStatus === "saving"
-              ? "Saving…"
-              : saveStatus === "saved"
-                ? "Saved ✓"
-                : "Save to journal"}
-          </button>
-        )}
-      </div>
+            {(["pull", "day"] as const).map((m) => {
+              const active = mode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => onModeChange(m)}
+                  style={{
+                    padding: "0 12px",
+                    height: "100%",
+                    border: "none",
+                    background: active
+                      ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                      : "transparent",
+                    color: active
+                      ? "var(--color-foreground)"
+                      : "var(--color-foreground-muted, var(--color-foreground))",
+                    cursor: "pointer",
+                  }}
+                >
+                  {m === "pull" ? "same spread" : "same day"}
+                </button>
+              );
+            })}
+          </div>
+          {/* EF2 — Save to journal pill, optional. Same height/font-size
+            as the other pills so all three look consistent in the row.
+            Rendered only when onSaveToJournal is provided. */}
+          {onSaveToJournal && (
+            <button
+              type="button"
+              onClick={onSaveToJournal}
+              disabled={saveStatus === "saving" || saveDisabled}
+              title={
+                saveStatus === "error" && saveError
+                  ? saveError
+                  : saveStatus === "saved"
+                    ? "Saved to journal ✓"
+                    : undefined
+              }
+              style={{
+                height: 22,
+                padding: "0 12px",
+                borderRadius: 9999,
+                border:
+                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+                background:
+                  saveStatus === "saved"
+                    ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
+                    : "var(--surface-card)",
+                color: "var(--color-foreground)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 10,
+                cursor: saveStatus === "saving" || saveDisabled ? "not-allowed" : "pointer",
+                opacity: saveStatus === "saving" || saveDisabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {saveStatus === "saving"
+                ? "Saving…"
+                : saveStatus === "saved"
+                  ? "Saved ✓"
+                  : "Save to journal"}
+            </button>
+          )}
+        </div>
       )}
       <div
         style={
@@ -2329,19 +2276,9 @@ function OverlapStrip({
       >
         {months.length === 0 &&
           Array.from({
-            length:
-              layout === "grid12" && !showOlder
-                ? Math.min(6, monthsToShow)
-                : monthsToShow,
+            length: layout === "grid12" && !showOlder ? Math.min(6, monthsToShow) : monthsToShow,
           }).map((_, i) => (
-            <div
-              key={i}
-              style={
-                layout === "grid12"
-                  ? { width: "100%" }
-                  : { width: 188 }
-              }
-            >
+            <div key={i} style={layout === "grid12" ? { width: "100%" } : { width: 188 }}>
               <div
                 style={{
                   height: 16,
@@ -2372,254 +2309,259 @@ function OverlapStrip({
             </div>
           ))}
         {months
-          .slice(
-            -(
-              layout === "grid12" && !showOlder
-                ? Math.min(6, monthsToShow)
-                : monthsToShow
-            ),
-          )
+          .slice(-(layout === "grid12" && !showOlder ? Math.min(6, monthsToShow) : monthsToShow))
           .map((m) => {
-          const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
-          // eslint-disable-next-line no-restricted-syntax -- intrinsic Gregorian month-grid: day-of-week of the 1st of m.year/m.month
-          const firstDow = new Date(m.year, m.month - 1, 1).getDay();
-          return (
-            <div
-              key={`${m.year}-${m.month}`}
-              style={
-                layout === "grid12"
-                  ? { width: "100%", minWidth: 0 }
-                  : { width: 188, flexShrink: 0 }
-              }
-            >
-              <p
-                style={{
-                  margin: "0 0 3px 0",
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 12,
-                  textAlign: "left",
-                  color: isCurrent
-                    ? "var(--accent, var(--gold))"
-                    : "var(--color-foreground-muted, var(--color-foreground))",
-                  opacity: isCurrent ? 0.95 : 0.7,
-                }}
-              >
-                {MONTH_NAMES[m.month - 1]}
-              </p>
+            const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
+            // eslint-disable-next-line no-restricted-syntax -- intrinsic Gregorian month-grid: day-of-week of the 1st of m.year/m.month
+            const firstDow = new Date(m.year, m.month - 1, 1).getDay();
+            return (
               <div
+                key={`${m.year}-${m.month}`}
                 style={
                   layout === "grid12"
-                    ? {
-                        width: "100%",
-                        background: "var(--surface-card)",
-                        borderRadius: 6,
-                        padding: 7,
-                        boxSizing: "border-box",
-                        display: "grid",
-                        gridTemplateColumns: "repeat(7, 1fr)",
-                        gap: 3,
-                        justifyContent: "center",
-                        alignContent: "start",
-                      }
-                    : {
-                        width: 188,
-                        minHeight: 192,
-                        background: "var(--surface-card)",
-                        borderRadius: 6,
-                        padding: 6,
-                        boxSizing: "border-box",
-                        display: "grid",
-                        gridTemplateColumns: "repeat(7, 20px)",
-                        gridAutoRows: "20px",
-                        gap: 6,
-                        justifyContent: "center",
-                        alignContent: "start",
-                      }
+                    ? { width: "100%", minWidth: 0 }
+                    : { width: 188, flexShrink: 0 }
                 }
               >
-                {Array.from({ length: firstDow }).map((_, i) => (
-                  <div key={`pad-${i}`} />
-                ))}
-                {m.days.map((day) => {
-                  let bg = "var(--color-foreground)";
-                  let opacity = 0.18;
-                  // Phase 20 Fix 9 — ALWAYS compute matchCount when there is a
-                  // pull, regardless of heroDrawn. Previously a heroDrawn
-                  // short-circuit left matchCount=0, suppressing the perfect-
-                  // match ring even when all pulled cards were on this day.
-                  let matchCount = 0;
-                  if (pullSet.size > 0) {
-                    let matches = 0;
-                    if (mode === "day") {
-                      for (const id of day.sameDayCardIds)
-                        if (pullSet.has(id)) matches++;
-                    } else {
-                      const readings = overlap?.readingsByDate?.[day.date] ?? [];
-                      let best = 0;
-                      for (const r of readings) {
-                        let n = 0;
-                        for (const id of r.cardIds) if (pullSet.has(id)) n++;
-                        if (n > best) best = n;
+                <p
+                  style={{
+                    margin: "0 0 3px 0",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    textAlign: "left",
+                    color: isCurrent
+                      ? "var(--accent, var(--gold))"
+                      : "var(--color-foreground-muted, var(--color-foreground))",
+                    opacity: isCurrent ? 0.95 : 0.7,
+                  }}
+                >
+                  {MONTH_NAMES[m.month - 1]}
+                </p>
+                <div
+                  style={
+                    layout === "grid12"
+                      ? {
+                          width: "100%",
+                          background: "var(--surface-card)",
+                          borderRadius: 6,
+                          padding: 7,
+                          boxSizing: "border-box",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(7, 1fr)",
+                          gap: 3,
+                          justifyContent: "center",
+                          alignContent: "start",
+                        }
+                      : {
+                          width: 188,
+                          minHeight: 192,
+                          background: "var(--surface-card)",
+                          borderRadius: 6,
+                          padding: 6,
+                          boxSizing: "border-box",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(7, 20px)",
+                          gridAutoRows: "20px",
+                          gap: 6,
+                          justifyContent: "center",
+                          alignContent: "start",
+                        }
+                  }
+                >
+                  {Array.from({ length: firstDow }).map((_, i) => (
+                    <div key={`pad-${i}`} />
+                  ))}
+                  {m.days.map((day) => {
+                    let bg = "var(--color-foreground)";
+                    let opacity = 0.18;
+                    // Phase 20 Fix 9 — ALWAYS compute matchCount when there is a
+                    // pull, regardless of heroDrawn. Previously a heroDrawn
+                    // short-circuit left matchCount=0, suppressing the perfect-
+                    // match ring even when all pulled cards were on this day.
+                    let matchCount = 0;
+                    if (pullSet.size > 0) {
+                      let matches = 0;
+                      if (mode === "day") {
+                        for (const id of day.sameDayCardIds) if (pullSet.has(id)) matches++;
+                      } else {
+                        const readings = overlap?.readingsByDate?.[day.date] ?? [];
+                        let best = 0;
+                        for (const r of readings) {
+                          let n = 0;
+                          for (const id of r.cardIds) if (pullSet.has(id)) n++;
+                          if (n > best) best = n;
+                        }
+                        matches = best;
                       }
-                      matches = best;
+                      matchCount = matches;
                     }
-                    matchCount = matches;
-                  }
-                  // Apply visual on top of matchCount.
-                  if (day.heroDrawn && heroCardId != null) {
-                    bg = "var(--gold, var(--accent))";
-                    opacity = 0.9;
-                  } else if (matchCount > 0) {
-                    const op = matchOpacity(matchCount, pullSet.size);
-                    if (op > 0) {
-                      bg = "var(--accent, var(--gold))";
-                      opacity = op;
-                    }
-                  }
-                  // EC — readability fix for saturated themes. Previously
-                  // the text only flipped to background color when opacity
-                  // crossed 0.5, but cool/cyan themes (Cups Tide) have
-                  // foreground colors that blend into low-opacity accent
-                  // fills. Strategy:
-                  //   - Hero gold-fill day (opacity 0.9, gold bg): text
-                  //     is dark (the foreground variable that gets used
-                  //     for accent-on-gold contrast).
-                  //   - ANY accent-tinted day (matchCount > 0): text
-                  //     uses --accent-foreground, which every theme
-                  //     defines as the color that legibly sits on its
-                  //     own accent (theme-known contrast pair). This
-                  //     fixes Cups Tide where 41% cyan-on-cyan-bg
-                  //     previously hid the day number.
-                  //   - Neutral day: regular foreground.
-                  let textColor: string;
-                  if (day.heroDrawn && heroCardId != null) {
-                    textColor = "var(--background)";
-                  } else if (matchCount > 0) {
-                    textColor =
-                      "var(--accent-foreground, var(--background))";
-                  } else {
-                    textColor = "var(--color-foreground)";
-                  }
-                  // Phase 24 — teal trace: this day qualifies if ALL teal-
-                  // selected cards appeared together per the current mode.
-                  let tealTraceHit = false;
-                  if (tealSet.size > 0) {
-                    if (mode === "day") {
-                      const sameDaySet = new Set(day.sameDayCardIds);
-                      let ok = true;
-                      for (const id of tealSet) {
-                        if (!sameDaySet.has(id)) { ok = false; break; }
+                    // Apply visual on top of matchCount.
+                    if (day.heroDrawn && heroCardId != null) {
+                      bg = "var(--gold, var(--accent))";
+                      opacity = 0.9;
+                    } else if (matchCount > 0) {
+                      const op = matchOpacity(matchCount, pullSet.size);
+                      if (op > 0) {
+                        bg = "var(--accent, var(--gold))";
+                        opacity = op;
                       }
-                      tealTraceHit = ok;
+                    }
+                    // EC — readability fix for saturated themes. Previously
+                    // the text only flipped to background color when opacity
+                    // crossed 0.5, but cool/cyan themes (Cups Tide) have
+                    // foreground colors that blend into low-opacity accent
+                    // fills. Strategy:
+                    //   - Hero gold-fill day (opacity 0.9, gold bg): text
+                    //     is dark (the foreground variable that gets used
+                    //     for accent-on-gold contrast).
+                    //   - ANY accent-tinted day (matchCount > 0): text
+                    //     uses --accent-foreground, which every theme
+                    //     defines as the color that legibly sits on its
+                    //     own accent (theme-known contrast pair). This
+                    //     fixes Cups Tide where 41% cyan-on-cyan-bg
+                    //     previously hid the day number.
+                    //   - Neutral day: regular foreground.
+                    let textColor: string;
+                    if (day.heroDrawn && heroCardId != null) {
+                      textColor = "var(--background)";
+                    } else if (matchCount > 0) {
+                      textColor = "var(--accent-foreground, var(--background))";
                     } else {
-                      const readings = overlap?.readingsByDate?.[day.date] ?? [];
-                      for (const r of readings) {
-                        const ids = new Set(r.cardIds);
+                      textColor = "var(--color-foreground)";
+                    }
+                    // Phase 24 — teal trace: this day qualifies if ALL teal-
+                    // selected cards appeared together per the current mode.
+                    let tealTraceHit = false;
+                    if (tealSet.size > 0) {
+                      if (mode === "day") {
+                        const sameDaySet = new Set(day.sameDayCardIds);
                         let ok = true;
                         for (const id of tealSet) {
-                          if (!ids.has(id)) { ok = false; break; }
+                          if (!sameDaySet.has(id)) {
+                            ok = false;
+                            break;
+                          }
                         }
-                        if (ok) { tealTraceHit = true; break; }
-                      }
-                    }
-                  }
-                  const isPerfectMatch =
-                    matchCount > 0 && matchCount === pullSet.size;
-                  const isBestAvailable =
-                    !isPerfectMatch &&
-                    matchCount > 0 &&
-                    matchCount === maxMatchInCalendar &&
-                    pullSet.size > 1;
-                  const dateLabel = formatDateLong(`${day.date}T00:00:00`);
-                  const heroName =
-                    heroCardId != null ? getCardName(heroCardId) : "";
-                  // EJ10 — stacked tooltip lines, replacing the prior
-                  // flat "X% Match · Y of N of these cards were drawn
-                  // on date" sentence. Each active signal becomes its
-                  // own line in the rich popover:
-                  //   line 1 — date header (always)
-                  //   line 2 — hero day fact (when day.heroDrawn)
-                  //   line 3 — spread match fact (when matchCount > 0)
-                  //   line 4 — asterism fact (when tealTraceHit)
-                  // Joined with newlines; the popover renders them as
-                  // separate lines via whiteSpace: pre-line. Native
-                  // title="" fallback (legacy /draw/classic) renders
-                  // the newlines too in modern browsers.
-                  const lines: string[] = [dateLabel];
-                  if (day.heroDrawn && heroCardId != null) {
-                    lines.push(`You drew ${heroName} here.`);
-                  }
-                  if (matchCount > 0) {
-                    if (isPerfectMatch) {
-                      lines.push(
-                        `Your full spread (all ${pullCardIds.length} cards) was drawn here.`,
-                      );
-                    } else if (isBestAvailable) {
-                      lines.push(
-                        `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here — the best match in your calendar.`,
-                      );
-                    } else {
-                      lines.push(
-                        `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here.`,
-                      );
-                    }
-                  }
-                  if (tealTraceHit && tealSet.size >= 2) {
-                    const starWord = tealSet.size === 1 ? "star" : "stars";
-                    lines.push(
-                      `Your asterism (${tealSet.size} ${starWord}) all met here.`,
-                    );
-                  }
-                  const tooltipText = lines.join("\n");
-                  return (
-                    <div
-                      key={day.date}
-                      // EG — drop native title="" when the parent has
-                      // wired the rich-popover callbacks. Otherwise keep
-                      // for legacy /draw/classic.
-                      title={onDayHover ? undefined : tooltipText}
-                      onMouseEnter={
-                        onDayHover
-                          ? (e) => {
-                              onDayHover({
-                                date: day.date,
-                                anchorX: e.clientX,
-                                anchorY: e.clientY,
-                                signals: {
-                                  heroDrawn: !!day.heroDrawn,
-                                  heroName,
-                                  matchCount,
-                                  pullSize: pullCardIds.length,
-                                  isPerfectMatch,
-                                  isBestAvailable,
-                                  tealTraceHit,
-                                },
-                                tooltipText,
-                              });
+                        tealTraceHit = ok;
+                      } else {
+                        const readings = overlap?.readingsByDate?.[day.date] ?? [];
+                        for (const r of readings) {
+                          const ids = new Set(r.cardIds);
+                          let ok = true;
+                          for (const id of tealSet) {
+                            if (!ids.has(id)) {
+                              ok = false;
+                              break;
                             }
-                          : undefined
+                          }
+                          if (ok) {
+                            tealTraceHit = true;
+                            break;
+                          }
+                        }
                       }
-                      onMouseLeave={
-                        onDayHoverEnd
-                          ? () => onDayHoverEnd(day.date)
-                          : undefined
+                    }
+                    // EJ25 — asterism badge hover override. When the parent
+                    // signals the asterism badge is being hovered, every
+                    // qualifying day-cell (tealTraceHit) swaps to solid
+                    // trace color, completely overriding the gold heatmap
+                    // and accent-tinted fills. This makes the asterism's
+                    // qualifying days unmistakable at 100% visibility.
+                    // Text color flips to background so the digit stays
+                    // legible on the solid trace fill.
+                    if (asterismBadgeHovered && tealTraceHit) {
+                      bg = traceColor;
+                      opacity = 1;
+                      textColor = "var(--background)";
+                    }
+                    const isPerfectMatch = matchCount > 0 && matchCount === pullSet.size;
+                    const isBestAvailable =
+                      !isPerfectMatch &&
+                      matchCount > 0 &&
+                      matchCount === maxMatchInCalendar &&
+                      pullSet.size > 1;
+                    const dateLabel = formatDateLong(`${day.date}T00:00:00`);
+                    const heroName = heroCardId != null ? getCardName(heroCardId) : "";
+                    // EJ10 — stacked tooltip lines, replacing the prior
+                    // flat "X% Match · Y of N of these cards were drawn
+                    // on date" sentence. Each active signal becomes its
+                    // own line in the rich popover:
+                    //   line 1 — date header (always)
+                    //   line 2 — hero day fact (when day.heroDrawn)
+                    //   line 3 — spread match fact (when matchCount > 0)
+                    //   line 4 — asterism fact (when tealTraceHit)
+                    // Joined with newlines; the popover renders them as
+                    // separate lines via whiteSpace: pre-line. Native
+                    // title="" fallback (legacy /draw/classic) renders
+                    // the newlines too in modern browsers.
+                    const lines: string[] = [dateLabel];
+                    if (day.heroDrawn && heroCardId != null) {
+                      lines.push(`You drew ${heroName} here.`);
+                    }
+                    if (matchCount > 0) {
+                      if (isPerfectMatch) {
+                        lines.push(
+                          `Your full spread (all ${pullCardIds.length} cards) was drawn here.`,
+                        );
+                      } else if (isBestAvailable) {
+                        lines.push(
+                          `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here — the best match in your calendar.`,
+                        );
+                      } else {
+                        lines.push(
+                          `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here.`,
+                        );
                       }
-                      // EG — long-press support for touch. Only the
-                      // touch pointer type triggers the timer; mouse
-                      // pointers already get hover via onMouseEnter.
-                      onPointerDown={
-                        onDayHover
-                          ? (e) => {
-                              if (e.pointerType !== "touch") return;
-                              longPressFiredRef.current = false;
-                              if (longPressTimerRef.current !== null) {
-                                window.clearTimeout(longPressTimerRef.current);
+                    }
+                    if (tealTraceHit && tealSet.size >= 2) {
+                      const starWord = tealSet.size === 1 ? "star" : "stars";
+                      lines.push(`Your asterism (${tealSet.size} ${starWord}) all met here.`);
+                    }
+                    const tooltipText = lines.join("\n");
+                    return (
+                      <div
+                        key={day.date}
+                        // EG — drop native title="" when the parent has
+                        // wired the rich-popover callbacks. Otherwise keep
+                        // for legacy /draw/classic.
+                        title={onDayHover ? undefined : tooltipText}
+                        onMouseEnter={
+                          onDayHover
+                            ? (e) => {
+                                onDayHover({
+                                  date: day.date,
+                                  anchorX: e.clientX,
+                                  anchorY: e.clientY,
+                                  signals: {
+                                    heroDrawn: !!day.heroDrawn,
+                                    heroName,
+                                    matchCount,
+                                    pullSize: pullCardIds.length,
+                                    isPerfectMatch,
+                                    isBestAvailable,
+                                    tealTraceHit,
+                                  },
+                                  tooltipText,
+                                });
                               }
-                              const startX = e.clientX;
-                              const startY = e.clientY;
-                              longPressTimerRef.current = window.setTimeout(
-                                () => {
+                            : undefined
+                        }
+                        onMouseLeave={onDayHoverEnd ? () => onDayHoverEnd(day.date) : undefined}
+                        // EG — long-press support for touch. Only the
+                        // touch pointer type triggers the timer; mouse
+                        // pointers already get hover via onMouseEnter.
+                        onPointerDown={
+                          onDayHover
+                            ? (e) => {
+                                if (e.pointerType !== "touch") return;
+                                longPressFiredRef.current = false;
+                                if (longPressTimerRef.current !== null) {
+                                  window.clearTimeout(longPressTimerRef.current);
+                                }
+                                const startX = e.clientX;
+                                const startY = e.clientY;
+                                longPressTimerRef.current = window.setTimeout(() => {
                                   longPressFiredRef.current = true;
                                   onDayHover({
                                     date: day.date,
@@ -2636,173 +2578,161 @@ function OverlapStrip({
                                     },
                                     tooltipText,
                                   });
-                                },
-                                500,
-                              );
-                            }
-                          : undefined
-                      }
-                      onPointerUp={
-                        onDayHover
-                          ? () => {
-                              if (longPressTimerRef.current !== null) {
-                                window.clearTimeout(longPressTimerRef.current);
-                                longPressTimerRef.current = null;
+                                }, 500);
                               }
-                              // If the long-press fired, suppress click
-                              // (parent dismisses on outside-tap).
-                              // Otherwise let the click event do its
-                              // normal thing.
-                            }
-                          : undefined
-                      }
-                      onPointerCancel={
-                        onDayHover
-                          ? () => {
-                              if (longPressTimerRef.current !== null) {
-                                window.clearTimeout(longPressTimerRef.current);
-                                longPressTimerRef.current = null;
+                            : undefined
+                        }
+                        onPointerUp={
+                          onDayHover
+                            ? () => {
+                                if (longPressTimerRef.current !== null) {
+                                  window.clearTimeout(longPressTimerRef.current);
+                                  longPressTimerRef.current = null;
+                                }
+                                // If the long-press fired, suppress click
+                                // (parent dismisses on outside-tap).
+                                // Otherwise let the click event do its
+                                // normal thing.
                               }
-                            }
-                          : undefined
-                      }
-                      style={
-                        layout === "grid12"
-                          ? {
-                              position: "relative",
-                              width: "100%",
-                              aspectRatio: "1 / 1",
-                            }
-                          : { position: "relative", width: 20, height: 20 }
-                      }
-                    >
-                      {(() => {
-                        // DZ — collect reading ids for this day. When the
-                        // caller wires onDayClick AND at least one reading
-                        // exists, the cell becomes a button.
-                        const dayReadings =
-                          overlap?.readingsByDate?.[day.date] ?? [];
-                        const dayReadingIds = dayReadings.map((r) => r.id);
-                        const clickable =
-                          !!onDayClick && dayReadingIds.length > 0;
-                        const inner = (
-                          <>
-                            {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
+                            : undefined
+                        }
+                        onPointerCancel={
+                          onDayHover
+                            ? () => {
+                                if (longPressTimerRef.current !== null) {
+                                  window.clearTimeout(longPressTimerRef.current);
+                                  longPressTimerRef.current = null;
+                                }
+                              }
+                            : undefined
+                        }
+                        style={
+                          layout === "grid12"
+                            ? {
+                                position: "relative",
+                                width: "100%",
+                                aspectRatio: "1 / 1",
+                              }
+                            : { position: "relative", width: 20, height: 20 }
+                        }
+                      >
+                        {(() => {
+                          // DZ — collect reading ids for this day. When the
+                          // caller wires onDayClick AND at least one reading
+                          // exists, the cell becomes a button.
+                          const dayReadings = overlap?.readingsByDate?.[day.date] ?? [];
+                          const dayReadingIds = dayReadings.map((r) => r.id);
+                          const clickable = !!onDayClick && dayReadingIds.length > 0;
+                          const inner = (
+                            <>
+                              {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
                                 directly; `new Date("YYYY-MM-DD")` parses as UTC
                                 midnight and getDate() then drifts one day west of
                                 UTC, so every cell was mis-labeled. */}
-                            {Number(day.date.split("-")[2])}
-                          </>
-                        );
-                        const shared = {
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: 3,
-                          background: bg,
-                          opacity,
-                          border:
-                            "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
-                          boxSizing: "border-box" as const,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 11,
-                          fontStyle: "italic",
-                          lineHeight: 1,
-                          color: textColor,
-                        };
-                        if (clickable) {
-                          return (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDayClick(day.date, dayReadingIds);
-                              }}
-                              aria-label={`Show ${dayReadingIds.length} readings on ${day.date}`}
-                              style={{
-                                ...shared,
-                                padding: 0,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {inner}
-                            </button>
+                              {Number(day.date.split("-")[2])}
+                            </>
                           );
-                        }
-                        return <div style={shared}>{inner}</div>;
-                      })()}
-                      {(isPerfectMatch || isBestAvailable) && (
-                        <div
-                          aria-hidden
-                          style={{
-                            position: "absolute",
-                            inset: -2,
-                            borderRadius: 5,
-                            border: isPerfectMatch
-                              ? "2px solid var(--accent, var(--gold))"
-                              : "1.5px dashed var(--accent, var(--gold))",
-                            pointerEvents: "none",
-                          }}
-                        />
-                      )}
-                      {tealTraceHit && opacity <= 0.5 && (
-                        <div
-                          aria-hidden
-                          style={{
-                            position: "absolute",
-                            inset: 0,
+                          const shared = {
+                            width: "100%",
+                            height: "100%",
+                            borderRadius: 3,
+                            background: bg,
+                            opacity,
+                            border:
+                              "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+                            boxSizing: "border-box" as const,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             fontFamily: "var(--font-serif)",
-                            fontStyle: "italic",
                             fontSize: 11,
+                            fontStyle: "italic",
                             lineHeight: 1,
-                            color: "var(--color-foreground)",
-                            pointerEvents: "none",
-                            zIndex: 2,
-                          }}
-                        >
-                          {Number(day.date.split("-")[2])}
-                        </div>
-                      )}
-                      {tealTraceHit && (
-                        <div
-                          aria-hidden
-                          style={{
-                            position: "absolute",
-                            inset: -1,
-                            borderRadius: 5,
-                            border: `2px solid ${traceColor}`,
-                            pointerEvents: "none",
-                            zIndex: 3,
-                          }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                            color: textColor,
+                          };
+                          if (clickable) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDayClick(day.date, dayReadingIds);
+                                }}
+                                aria-label={`Show ${dayReadingIds.length} readings on ${day.date}`}
+                                style={{
+                                  ...shared,
+                                  padding: 0,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {inner}
+                              </button>
+                            );
+                          }
+                          return <div style={shared}>{inner}</div>;
+                        })()}
+                        {(isPerfectMatch || isBestAvailable) && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: -2,
+                              borderRadius: 5,
+                              border: isPerfectMatch
+                                ? "2px solid var(--accent, var(--gold))"
+                                : "1.5px dashed var(--accent, var(--gold))",
+                              pointerEvents: "none",
+                            }}
+                          />
+                        )}
+                        {tealTraceHit && opacity <= 0.5 && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontSize: 11,
+                              lineHeight: 1,
+                              color: "var(--color-foreground)",
+                              pointerEvents: "none",
+                              zIndex: 2,
+                            }}
+                          >
+                            {Number(day.date.split("-")[2])}
+                          </div>
+                        )}
+                        {tealTraceHit && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: -1,
+                              borderRadius: 5,
+                              border: `2px solid ${traceColor}`,
+                              pointerEvents: "none",
+                              zIndex: 3,
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
       <div style={{ height: 16 }} />
     </div>
   );
 }
 
-function Tile({
-  label,
-  value,
-  subline,
-}: {
-  label: string;
-  value: string;
-  subline: string;
-}) {
+function Tile({ label, value, subline }: { label: string; value: string; subline: string }) {
   return (
     <div
       style={{
@@ -2910,11 +2840,8 @@ function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
     if (dominantN === 1 && roots.length === 1) {
       numerologyValue = `1 of 1 reduces to ${dominantRoot}`;
     }
-    const names = (rootCounts.get(dominantRoot) ?? []).map((p) =>
-      getCardName(p.cardIndex),
-    );
-    numerologySub =
-      names.length > 3 ? `${names.slice(0, 3).join(", ")}…` : names.join(", ");
+    const names = (rootCounts.get(dominantRoot) ?? []).map((p) => getCardName(p.cardIndex));
+    numerologySub = names.length > 3 ? `${names.slice(0, 3).join(", ")}…` : names.join(", ");
   }
 
   // Tile 3 — Astrology · Reversed
@@ -2933,11 +2860,13 @@ function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
     }
   }
   const reversedN = picks.filter((p) => p.isReversed).length;
-  const reversedPct =
-    picks.length > 0 ? Math.round((reversedN / picks.length) * 100) : 0;
+  const reversedPct = picks.length > 0 ? Math.round((reversedN / picks.length) * 100) : 0;
   const astrologyValue = `${dominant ?? "—"}-dom · ${reversedPct}% rev`;
   const elCounts: Record<string, number> = {
-    Fire: 0, Water: 0, Air: 0, Earth: 0,
+    Fire: 0,
+    Water: 0,
+    Air: 0,
+    Earth: 0,
   };
   for (const m of metas) elCounts[m.meta.element]++;
   const elParts: string[] = [];
@@ -2954,11 +2883,7 @@ function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
         subline={suitParts.join(" · ")}
       />
       <Tile label="NUMEROLOGY" value={numerologyValue} subline={numerologySub} />
-      <Tile
-        label="ASTROLOGY · REVERSED"
-        value={astrologyValue}
-        subline={elParts.join(" · ")}
-      />
+      <Tile label="ASTROLOGY · REVERSED" value={astrologyValue} subline={elParts.join(" · ")} />
     </div>
   );
 }
@@ -2973,7 +2898,11 @@ function PullHistoryPill({
   constellation: ConstellationState;
 }) {
   const key = useMemo(
-    () => picks.map((p) => p.cardIndex).sort((a, b) => a - b).join(","),
+    () =>
+      picks
+        .map((p) => p.cardIndex)
+        .sort((a, b) => a - b)
+        .join(","),
     [picks],
   );
   const entry = practice?.pullHistory?.find((p) => p.cardIdsKey === key) ?? null;
@@ -3029,13 +2958,7 @@ function PullHistoryPill({
   );
 }
 
-function PracticeStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number | null;
-}) {
+function PracticeStat({ label, value }: { label: string; value: string | number | null }) {
   const display = value == null || value === "" ? "—" : value;
   return (
     <span
@@ -3046,8 +2969,7 @@ function PracticeStat({
         color: "var(--color-foreground-muted, var(--color-foreground))",
       }}
     >
-      {label}{" "}
-      <span style={{ color: "var(--accent, var(--gold))" }}>{display}</span>
+      {label} <span style={{ color: "var(--accent, var(--gold))" }}>{display}</span>
     </span>
   );
 }
@@ -3085,10 +3007,7 @@ function PracticeLine({
     >
       <PracticeStat label="streak" value={`${currentStreak} days`} />
       {sep}
-      <PracticeStat
-        label="this lunation"
-        value={practice?.currentLunationReadings ?? null}
-      />
+      <PracticeStat label="this lunation" value={practice?.currentLunationReadings ?? null} />
       {sep}
       <PracticeStat label="total" value={practice?.totalReadings ?? null} />
       {sep}
@@ -3097,9 +3016,7 @@ function PracticeLine({
       <PracticeStat
         label="reversed"
         value={
-          practice && typeof practice.reversedPct === "number"
-            ? `${practice.reversedPct}%`
-            : null
+          practice && typeof practice.reversedPct === "number" ? `${practice.reversedPct}%` : null
         }
       />
       {sep}
