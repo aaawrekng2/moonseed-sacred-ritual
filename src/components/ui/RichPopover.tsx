@@ -148,8 +148,19 @@ export function RichPopover({
   // position floating elements: preferred placement + flip on
   // collision + viewport clamping. Tooltips/popovers should never
   // overlap their trigger.
+  //
+  // EJ30 — small-target exception. For tiny triggers (calendar day
+  // cells, ~20px tall), targetRect-centered positioning lands the
+  // popover too far from the cursor. The user can't see the popover
+  // because its top edge is 100+px above the cell, and crossing the
+  // gap to reach the popover bottom risks the dismiss timer firing.
+  // For small targets, switch to cursor-anchored placement with
+  // smart vertical flip: place below cursor when cursor is in the
+  // top half of the viewport, above when in the bottom half. Always
+  // within ~8–24px of cursor, always reachable.
   const PLACEMENT_GAP = 8;
   const VIEWPORT_PAD = 8;
+  const SMALL_TARGET_THRESHOLD = 32; // px — anything below this is "small"
   // Estimate popover height when measured is unavailable. The slim
   // hover is typically ~80–120px, the rich popover is taller. Using
   // 200 as a conservative pre-measure default; once measured the
@@ -159,7 +170,11 @@ export function RichPopover({
   let initialLeft: number;
   let initialTop: number;
 
-  if (targetRect && typeof window !== "undefined") {
+  const isSmallTarget = targetRect != null && targetRect.height < SMALL_TARGET_THRESHOLD;
+
+  if (targetRect && !isSmallTarget && typeof window !== "undefined") {
+    // EJ23 preferred-placement for normal-sized targets (constellation
+    // cards, chips, slot labels).
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     // Horizontal: center the popover on the target, clamped.
@@ -183,16 +198,41 @@ export function RichPopover({
           ? Math.max(VIEWPORT_PAD, aboveTop)
           : Math.min(vh - estimatedHeight - VIEWPORT_PAD, belowTop);
     }
+  } else if (typeof window !== "undefined") {
+    // EJ30 — cursor-anchored smart-flip for small targets and the
+    // legacy no-rect fallback (chips, etc.). Place the popover
+    // adjacent to the cursor on the side that has the most viewport
+    // room. Stays within reach so the dismiss timer doesn't fire
+    // mid-travel.
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Horizontal — prefer right of cursor; flip to left if clipping.
+    const proposedLeft = anchorX + 8;
+    if (proposedLeft + maxWidth > vw - VIEWPORT_PAD) {
+      initialLeft = Math.max(VIEWPORT_PAD, anchorX - 8 - maxWidth);
+    } else {
+      initialLeft = proposedLeft;
+    }
+    // Vertical — smart flip:
+    //   - cursor in top half  → place BELOW cursor with enough gap
+    //     to clear a typical small target (~24px = cell height + a
+    //     little air).
+    //   - cursor in bottom half → place ABOVE cursor with a gap
+    //     above the cursor (8px) so the popover bottom sits just
+    //     above the cursor, well within reach.
+    const cursorInTopHalf = anchorY < vh / 2;
+    if (cursorInTopHalf) {
+      const candidate = anchorY + 24;
+      // Clamp so popover doesn't extend off-screen bottom.
+      initialTop = Math.min(candidate, vh - estimatedHeight - VIEWPORT_PAD);
+    } else {
+      const candidate = anchorY - 8 - estimatedHeight;
+      initialTop = Math.max(VIEWPORT_PAD, candidate);
+    }
   } else {
-    // Fallback — original cursor-anchored placement.
-    const offsetX = 8;
-    const offsetY = 8;
-    const proposedLeft = anchorX + offsetX;
-    initialLeft =
-      typeof window !== "undefined" && proposedLeft + maxWidth > window.innerWidth - 8
-        ? Math.max(8, anchorX - offsetX - maxWidth)
-        : proposedLeft;
-    initialTop = anchorY + offsetY;
+    // SSR fallback.
+    initialLeft = anchorX + 8;
+    initialTop = anchorY + 8;
   }
 
   const finalLeft = lockedPos?.x ?? initialLeft;

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Pencil, Pin, RotateCw, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, Feather, Pencil, Pin, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -21,6 +21,7 @@ import { CardImage } from "@/components/card/CardImage";
 import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
+import { computeMatchSignals } from "@/lib/match-signals";
 import { saveManualReading } from "@/lib/save-manual-reading.functions";
 import { interpretReading } from "@/lib/interpret.functions";
 import { Modal } from "@/components/ui/modal";
@@ -1917,6 +1918,14 @@ export function ConstellationPage() {
   const [note, setNote] = useState<string>("");
   // DY — journaling-prompts modal trigger.
   const [promptsModalOpen, setPromptsModalOpen] = useState(false);
+  // EJ30 — which slot card's prompts are currently displayed in the
+  // prompts modal. null = default to hero. The dropdown surface lets
+  // the seeker switch between any pick in the current slot row.
+  const [promptsModalCardId, setPromptsModalCardId] = useState<number | null>(null);
+  // EJ30 — which deck the manual-entry CardPicker is currently
+  // displaying. null = active deck (default). Each pick records the
+  // deck it came from so a single spread can mix cards across decks.
+  const [pickerDeckId, setPickerDeckId] = useState<string | null>(null);
   // DY — Save to Journal lifecycle.
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -4350,7 +4359,13 @@ export function ConstellationPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => setPromptsModalOpen(true)}
+                  onClick={() => {
+                    // EJ30 — open prompts modal scoped to the current
+                    // hero. Reset the per-modal selection so the next
+                    // open starts on the hero again.
+                    setPromptsModalCardId(null);
+                    setPromptsModalOpen(true);
+                  }}
                   disabled={!heroPick}
                   aria-label="Browse journaling prompts"
                   title={heroPick ? "Browse journaling prompts" : "Focus a card to see its prompts"}
@@ -4364,14 +4379,13 @@ export function ConstellationPage() {
                     color: "var(--accent, var(--gold))",
                     cursor: heroPick ? "pointer" : "not-allowed",
                     opacity: heroPick ? 1 : 0.4,
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 13,
-                    lineHeight: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     padding: 0,
                   }}
                 >
-                  ✶
+                  <Feather className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
               {/* Notes textarea — EF2: shortened to 2 rows per spec.
@@ -4787,12 +4801,18 @@ export function ConstellationPage() {
             <CardPicker
               mode="manual-entry"
               embedded
-              deckId={undefined}
+              deckId={pickerDeckId}
+              onDeckChange={setPickerDeckId}
               excludeCardIds={placedIds}
               title="Pick a card"
               drawCountTimeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
-              onCancel={() => setPickerOpen(false)}
-              onSelect={(cardIndex, isReversed, _deckId, cardName) => {
+              onCancel={() => {
+                // EJ30 — reset deck selection when picker closes so
+                // the next open defaults to active deck again.
+                setPickerDeckId(null);
+                setPickerOpen(false);
+              }}
+              onSelect={(cardIndex, isReversed, deckId, cardName) => {
                 setFocusedSlotIdx(picks.length);
                 setPicks((prev) => [
                   ...prev,
@@ -4800,10 +4820,16 @@ export function ConstellationPage() {
                     id: Date.now() + prev.length,
                     cardIndex,
                     isReversed,
-                    deckId: null,
+                    // EJ30 — store the source deck on the pick. null
+                    // means active deck. Each slot can independently
+                    // reference any of the seeker's decks.
+                    deckId: deckId ?? null,
                     cardName,
                   },
                 ]);
+                // Keep deck selection so seeker can pick multiple
+                // cards from the same alt deck without re-selecting
+                // each time. Reset only on close (above).
                 setPickerOpen(false);
               }}
             />
@@ -4861,6 +4887,11 @@ export function ConstellationPage() {
               ? slotCardMatchedReadings
               : heroMatchedReadings
         }
+        signalContext={{
+          heroId: heroPick?.cardIndex ?? null,
+          pullCardIds: picks.map((p) => p.cardIndex),
+          tealSelectedIds,
+        }}
         filtersActive={countActiveFilters(globalFilters) > 0}
         onClearFilters={() => {
           setGlobalFilters((prev) => ({
@@ -5466,74 +5497,141 @@ export function ConstellationPage() {
           </div>
         </RichPopover>
       )}
-      {/* DY — journaling-prompts modal. Lists the curated 3-5 prompts
-          for the hero card; click a prompt to insert it into the notes
-          textarea + close. Uses the canonical branded Modal. */}
+      {/* DY — journaling-prompts modal. EJ30: the subtitle "For [card]"
+          becomes a dropdown listing every slot pick; switching the
+          dropdown swaps the displayed prompts. Inserted prompts get
+          a "— Card Name —" header line so notes stay anchored even
+          when prompts come from multiple cards. */}
       <Modal
         open={promptsModalOpen}
         onClose={() => setPromptsModalOpen(false)}
         title="Journaling prompts"
-        subtitle={
-          heroPick
-            ? `For ${heroPick.cardName ?? TAROT_MEANINGS[heroPick.cardIndex]?.name ?? "this card"}`
-            : undefined
-        }
         size="sm"
       >
         {(() => {
-          const prompts = heroPick ? resolvePromptsForFirstCard(heroPick.cardIndex) : null;
-          if (!prompts || prompts.length === 0) {
-            return (
-              <div
-                style={{
-                  padding: "8px 22px 22px",
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 13,
-                  color: "var(--color-foreground)",
-                  opacity: 0.8,
-                }}
-              >
-                No prompts available for this card.
-              </div>
-            );
-          }
+          // EJ30 — resolve which card's prompts to show. Defaults to
+          // hero on first open; user can switch via the dropdown.
+          const activeCardId = promptsModalCardId ?? heroPick?.cardIndex ?? null;
+          const activePick =
+            activeCardId != null ? (picks.find((p) => p.cardIndex === activeCardId) ?? null) : null;
+          const activeName =
+            activePick?.cardName ??
+            (activeCardId != null ? TAROT_MEANINGS[activeCardId]?.name : null) ??
+            (activeCardId != null ? TAROT_DECK[activeCardId] : null) ??
+            "this card";
+          const prompts = activeCardId != null ? resolvePromptsForFirstCard(activeCardId) : null;
+          // Build dropdown options from the current slot row.
+          const options = picks.map((p) => ({
+            id: p.cardIndex,
+            name:
+              p.cardName ??
+              TAROT_MEANINGS[p.cardIndex]?.name ??
+              TAROT_DECK[p.cardIndex] ??
+              `Card ${p.cardIndex}`,
+          }));
           return (
             <div
               style={{
                 padding: "8px 22px 22px",
                 display: "flex",
                 flexDirection: "column",
-                gap: 8,
+                gap: 12,
               }}
             >
-              {prompts.map((p, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    setNote((prev) =>
-                      prev.trim() === "" ? `${p}\n\n` : `${prev.replace(/\s+$/, "")}\n\n${p}\n\n`,
-                    );
-                    setPromptsModalOpen(false);
-                  }}
+              {/* Dropdown subtitle — only render when there are
+                  picks in the slot row to choose from. */}
+              {options.length > 0 && (
+                <div
                   style={{
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    background: "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
-                    border: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 0.85rem)",
                     color: "var(--color-foreground)",
-                    cursor: "pointer",
+                  }}
+                >
+                  <span style={{ opacity: 0.7 }}>For</span>
+                  <select
+                    value={activeCardId ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setPromptsModalCardId(v === "" ? null : Number(v));
+                    }}
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-body-sm, 0.85rem)",
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      border: "1px solid var(--border-subtle)",
+                      background: "var(--surface-card)",
+                      color: "var(--color-foreground)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {options.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {/* Prompts list, or empty message. */}
+              {!prompts || prompts.length === 0 ? (
+                <div
+                  style={{
                     fontFamily: "var(--font-serif)",
                     fontStyle: "italic",
                     fontSize: 13,
-                    lineHeight: 1.4,
+                    color: "var(--color-foreground)",
+                    opacity: 0.8,
                   }}
                 >
-                  {p}
-                </button>
-              ))}
+                  No prompts available for this card.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {prompts.map((p, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        // EJ30 — insert with a "— Card Name —" header
+                        // line above the prompt so notes stay
+                        // anchored to which card each prompt came
+                        // from (per Cori's option C).
+                        const header = `— ${activeName} —`;
+                        const block = `${header}\n${p}`;
+                        setNote((prev) =>
+                          prev.trim() === ""
+                            ? `${block}\n\n`
+                            : `${prev.replace(/\s+$/, "")}\n\n${block}\n\n`,
+                        );
+                        setPromptsModalOpen(false);
+                      }}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
+                        border: "1px solid var(--border-subtle)",
+                        color: "var(--color-foreground)",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 13,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}
@@ -5580,120 +5678,109 @@ export function ConstellationPage() {
                 gap: 8,
               }}
             >
-              {list.map((r) => {
-                const cardsLabel = r.cardIds
-                  .slice(0, 5)
-                  .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
-                  .join(" · ");
-                const extra = r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
-                // EJ26 — per-reading color signals, mirroring the
-                // calendar day-cell color logic but scoped per row.
-                // Multiple readings on the same day can have different
-                // relationships to the seeker's current pull, so each
-                // row gets its own signals.
-                const readingCardSet = new Set(r.cardIds);
-                const heroInReading =
-                  heroPick?.cardIndex != null && readingCardSet.has(heroPick.cardIndex);
-                // Match count against the seeker's current slot row pull.
+              {(() => {
+                // EJ30 — pre-compute per-row signals once using the
+                // shared helper. maxMatchCount is needed for the
+                // dashed "best available" ring.
                 const pullCardIds = picks.map((p) => p.cardIndex);
-                let matchCount = 0;
-                for (const id of pullCardIds) {
-                  if (readingCardSet.has(id)) matchCount++;
-                }
-                const isPerfectMatch = pullCardIds.length > 0 && matchCount === pullCardIds.length;
-                // Asterism hit: every teal-selected card present in
-                // this reading. Only meaningful when 2+ teal cards
-                // are selected (matches the badge logic).
-                let asterismHit = false;
-                if (tealSelectedIds.length >= 2) {
-                  asterismHit = tealSelectedIds.every((id) => readingCardSet.has(id));
-                }
-                // Priority same as the calendar day-cell:
-                // hero > match > neutral. Asterism stacks as an OUTER
-                // ring on top. Perfect-match swaps the subtle border
-                // for a strong accent border.
-                let bg = "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)";
-                let textPrimary = "var(--color-foreground)";
-                if (heroInReading) {
-                  bg =
-                    "color-mix(in oklab, var(--gold, var(--accent)) 22%, var(--surface-card) 78%)";
-                  textPrimary = "var(--color-foreground)";
-                } else if (matchCount > 0) {
-                  const op = 0.15 + (matchCount / Math.max(1, pullCardIds.length)) * 0.55;
-                  // 0.15 base + scaled, capped at 0.70 so text remains
-                  // legible. Calendar uses up to 0.95 but the modal row
-                  // has more text and needs lower saturation.
-                  bg = `color-mix(in oklab, var(--accent, var(--gold)) ${Math.round(op * 100)}%, var(--surface-card) ${100 - Math.round(op * 100)}%)`;
-                }
-                // Border: perfect-match wins; asterism hit adds a
-                // trace-colored OUTER outline; otherwise subtle.
-                const border = isPerfectMatch
-                  ? "2px solid var(--accent, var(--gold))"
-                  : "1px solid var(--border-subtle)";
-                const outline = asterismHit ? "2px solid var(--trace-color, #5cead4)" : "none";
-                const outlineOffset = asterismHit ? 2 : 0;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => handleLoadReading(r.id)}
-                    style={{
-                      textAlign: "left",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      background: bg,
-                      border,
-                      outline,
-                      outlineOffset,
-                      color: textPrimary,
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                      width: "100%",
-                    }}
-                  >
-                    {r.question ? (
-                      <span
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: 13,
-                          color: "var(--color-foreground)",
-                          lineHeight: 1.35,
-                        }}
-                      >
-                        {r.question}
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: 12,
-                          color: "var(--color-foreground)",
-                          opacity: 0.6,
-                          lineHeight: 1.35,
-                        }}
-                      >
-                        (no question)
-                      </span>
-                    )}
-                    <span
+                const heroId = heroPick?.cardIndex ?? null;
+                const rowMatchCounts: number[] = list.map((r) => {
+                  const set = new Set(r.cardIds);
+                  let count = 0;
+                  for (const id of pullCardIds) {
+                    if (set.has(id)) count++;
+                  }
+                  return count;
+                });
+                const maxMatchCount = rowMatchCounts.reduce((m, n) => (n > m ? n : m), 0);
+                return list.map((r, i) => {
+                  const cardsLabel = r.cardIds
+                    .slice(0, 5)
+                    .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
+                    .join(" · ");
+                  const extra = r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
+                  const readingCardSet = new Set(r.cardIds);
+                  const heroDrawn = heroId != null && readingCardSet.has(heroId);
+                  const matchCount = rowMatchCounts[i];
+                  const asterismHit =
+                    tealSelectedIds.length >= 2 &&
+                    tealSelectedIds.every((id) => readingCardSet.has(id));
+                  const sig = computeMatchSignals({
+                    heroDrawn,
+                    matchCount,
+                    pullSize: pullCardIds.length,
+                    maxMatchCount,
+                    asterismHit,
+                    asterismSize: tealSelectedIds.length,
+                  });
+                  // Compose final background combining bg + opacity
+                  // via color-mix so the row sits on the surface
+                  // beneath it (modal body), not on a raw color.
+                  const opPct = Math.round(sig.opacity * 100);
+                  const composedBg = `color-mix(in oklab, ${sig.bg} ${opPct}%, var(--surface-card) ${100 - opPct}%)`;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => handleLoadReading(r.id)}
                       style={{
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 11,
-                        color: "var(--color-foreground-muted, var(--color-foreground))",
-                        opacity: 0.85,
-                        lineHeight: 1.35,
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        background: composedBg,
+                        border: sig.border,
+                        outline: sig.outline,
+                        outlineOffset: sig.outlineOffset,
+                        color: sig.textColor,
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        width: "100%",
                       }}
                     >
-                      {cardsLabel}
-                      {extra}
-                    </span>
-                  </button>
-                );
-              })}
+                      {r.question ? (
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 13,
+                            color: sig.textColor,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {r.question}
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 12,
+                            color: sig.textColor,
+                            opacity: 0.7,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          (no question)
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 11,
+                          color: sig.textColor,
+                          opacity: 0.85,
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {cardsLabel}
+                        {extra}
+                      </span>
+                    </button>
+                  );
+                });
+              })()}
             </div>
           );
         })()}
@@ -5721,6 +5808,7 @@ function ReadingsModal({
   onRowClick,
   filtersActive = false,
   onClearFilters,
+  signalContext,
 }: {
   open: boolean;
   onClose: () => void;
@@ -5731,6 +5819,16 @@ function ReadingsModal({
    *  hiding results" failsafe with a Clear filters link inline. */
   filtersActive?: boolean;
   onClearFilters?: () => void;
+  /** EJ30 — per-row visual signal context. When present, each row
+   *  receives the calendar-parity coding (hero gold, accent match,
+   *  perfect-match solid ring, best-available dashed ring, asterism
+   *  teal outline, theme-aware text color). When omitted, rows render
+   *  neutral. */
+  signalContext?: {
+    heroId: number | null;
+    pullCardIds: number[];
+    tealSelectedIds: number[];
+  };
 }) {
   // Close on Escape.
   useEffect(() => {
@@ -5876,99 +5974,153 @@ function ReadingsModal({
               )}
             </div>
           ) : (
-            matches.map((r) => {
-              const date = formatDateShort(r.createdAt);
-              const cardsLabel = r.cardIds.map((id) => TAROT_DECK[id] ?? `Card ${id}`).join(" · ");
-              const hasQuestion = !!(r.question && r.question.trim());
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => onRowClick(r.id)}
-                  style={{
-                    textAlign: "left",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border-subtle)",
-                    background: "var(--surface-elevated, var(--surface-card))",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    alignItems: "stretch",
-                    width: "100%",
-                    // EC — let rows grow vertically to fit 1 or 2 lines
-                    // of content. Previously this clipped the question
-                    // line on the readings modal (cells were too short
-                    // to hold both the cards summary and the question).
-                  }}
-                >
-                  <div
+            (() => {
+              // EJ30 — pre-compute per-row match counts so the
+              // "best available" dashed ring can be applied to rows
+              // tied for the highest match count below the perfect-
+              // match threshold. matchCounts mirrors `matches` 1:1.
+              const ctx = signalContext;
+              const pullCardIds = ctx?.pullCardIds ?? [];
+              const heroId = ctx?.heroId ?? null;
+              const tealSelected = ctx?.tealSelectedIds ?? [];
+              const matchCounts: number[] = matches.map((r) => {
+                if (pullCardIds.length === 0) return 0;
+                const set = new Set(r.cardIds);
+                let count = 0;
+                for (const id of pullCardIds) {
+                  if (set.has(id)) count++;
+                }
+                return count;
+              });
+              const maxMatchCount = matchCounts.reduce((m, n) => (n > m ? n : m), 0);
+              return matches.map((r, i) => {
+                const date = formatDateShort(r.createdAt);
+                const cardsLabel = r.cardIds
+                  .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
+                  .join(" · ");
+                const hasQuestion = !!(r.question && r.question.trim());
+                // Compute signals — uses neutral defaults when no
+                // context (modal opened without signal context).
+                const readingCardSet = new Set(r.cardIds);
+                const heroDrawn = heroId != null && readingCardSet.has(heroId);
+                const matchCount = matchCounts[i];
+                const asterismHit =
+                  tealSelected.length >= 2 && tealSelected.every((id) => readingCardSet.has(id));
+                const sig = ctx
+                  ? computeMatchSignals({
+                      heroDrawn,
+                      matchCount,
+                      pullSize: pullCardIds.length,
+                      maxMatchCount,
+                      asterismHit,
+                      asterismSize: tealSelected.length,
+                    })
+                  : null;
+                const composedBg = sig
+                  ? (() => {
+                      const opPct = Math.round(sig.opacity * 100);
+                      return `color-mix(in oklab, ${sig.bg} ${opPct}%, var(--surface-card) ${100 - opPct}%)`;
+                    })()
+                  : "var(--surface-elevated, var(--surface-card))";
+                const dateColor = sig
+                  ? sig.textColor
+                  : "var(--color-foreground-muted, var(--color-foreground))";
+                const cardsColor = sig ? sig.textColor : "var(--color-foreground)";
+                const questionColor = sig
+                  ? sig.textColor
+                  : "var(--color-foreground-muted, var(--color-foreground))";
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onRowClick(r.id)}
                     style={{
+                      textAlign: "left",
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: sig ? sig.border : "1px solid var(--border-subtle)",
+                      outline: sig ? sig.outline : "none",
+                      outlineOffset: sig ? sig.outlineOffset : 0,
+                      background: composedBg,
+                      cursor: "pointer",
                       display: "flex",
-                      flexDirection: "row",
-                      gap: 10,
-                      alignItems: "flex-start",
+                      flexDirection: "column",
+                      gap: 4,
+                      alignItems: "stretch",
                       width: "100%",
+                      // EC — let rows grow vertically to fit 1 or 2 lines
+                      // of content. Previously this clipped the question
+                      // line on the readings modal (cells were too short
+                      // to hold both the cards summary and the question).
                     }}
                   >
-                    <span
+                    <div
                       style={{
-                        fontSize: 10,
-                        letterSpacing: "0.2em",
-                        textTransform: "uppercase",
-                        fontFamily: "var(--font-serif)",
-                        color: "var(--color-foreground-muted, var(--color-foreground))",
-                        opacity: 0.75,
-                        flexShrink: 0,
-                        lineHeight: 1.3,
-                        // Hold date on one line; cards summary wraps.
-                        whiteSpace: "nowrap",
-                        marginTop: 1,
-                      }}
-                    >
-                      {date}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontFamily: "var(--font-serif)",
-                        color: "var(--color-foreground)",
-                        minWidth: 0,
-                        flex: 1,
-                        lineHeight: 1.35,
-                        // EC — wrap rather than clip with ellipsis. The
-                        // row's vertical height grows to fit.
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
-                      }}
-                      title={cardsLabel}
-                    >
-                      {cardsLabel}
-                    </span>
-                  </div>
-                  {hasQuestion && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        color: "var(--color-foreground-muted, var(--color-foreground))",
-                        opacity: 0.85,
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: 10,
+                        alignItems: "flex-start",
                         width: "100%",
-                        lineHeight: 1.4,
-                        // EC — wrap rather than truncate.
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
                       }}
-                      title={r.question ?? ""}
                     >
-                      “{(r.question ?? "").trim()}”
-                    </span>
-                  )}
-                </button>
-              );
-            })
+                      <span
+                        style={{
+                          fontSize: 10,
+                          letterSpacing: "0.2em",
+                          textTransform: "uppercase",
+                          fontFamily: "var(--font-serif)",
+                          color: dateColor,
+                          opacity: 0.75,
+                          flexShrink: 0,
+                          lineHeight: 1.3,
+                          // Hold date on one line; cards summary wraps.
+                          whiteSpace: "nowrap",
+                          marginTop: 1,
+                        }}
+                      >
+                        {date}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontFamily: "var(--font-serif)",
+                          color: cardsColor,
+                          minWidth: 0,
+                          flex: 1,
+                          lineHeight: 1.35,
+                          // EC — wrap rather than clip with ellipsis. The
+                          // row's vertical height grows to fit.
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
+                        title={cardsLabel}
+                      >
+                        {cardsLabel}
+                      </span>
+                    </div>
+                    {hasQuestion && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          color: questionColor,
+                          opacity: 0.85,
+                          width: "100%",
+                          lineHeight: 1.4,
+                          // EC — wrap rather than truncate.
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
+                        title={r.question ?? ""}
+                      >
+                        “{(r.question ?? "").trim()}”
+                      </span>
+                    )}
+                  </button>
+                );
+              });
+            })()
           )}
         </div>
       </div>
