@@ -39,6 +39,13 @@ export type SpreadDefinition = {
   descriptor: string;
   /** Slot names in placement order. Empty array = no labels. */
   slotNames: string[];
+  /**
+   * EJ14 — short slot names for the labels row. Used when the long
+   * name (slotNames[i]) is too long to fit a slot card width without
+   * crowding. Same length / order as `slotNames`. Empty array allowed
+   * for the "none" key.
+   */
+  slotNamesShort: string[];
 };
 
 export const SPREADS: ReadonlyArray<SpreadDefinition> = [
@@ -47,18 +54,21 @@ export const SPREADS: ReadonlyArray<SpreadDefinition> = [
     label: "None",
     descriptor: "No spread selected — slots remain unlabeled.",
     slotNames: [],
+    slotNamesShort: [],
   },
   {
     key: "single",
     label: "Single",
     descriptor: "Your card for today; a single focus or daily draw.",
     slotNames: ["The Card"],
+    slotNamesShort: ["Card"],
   },
   {
     key: "three_card",
     label: "Three Card",
     descriptor: "Past, present, future — or a story arc in three beats.",
     slotNames: ["Past", "Present", "Future"],
+    slotNamesShort: ["Past", "Now", "Next"],
   },
   {
     key: "celtic_cross",
@@ -77,12 +87,14 @@ export const SPREADS: ReadonlyArray<SpreadDefinition> = [
       "Hopes & Fears",
       "Outcome",
     ],
+    slotNamesShort: ["Now", "Cross", "Root", "Past", "Goal", "Soon", "Self", "Env", "Hope", "Out"],
   },
   {
     key: "yes_no",
     label: "Yes/No",
     descriptor: "A single card; upright is yes, reversed is no.",
     slotNames: ["Answer"],
+    slotNamesShort: ["Y/N"],
   },
   {
     key: "horseshoe",
@@ -97,6 +109,7 @@ export const SPREADS: ReadonlyArray<SpreadDefinition> = [
       "Advice",
       "Outcome",
     ],
+    slotNamesShort: ["Past", "Now", "Hid", "Obs", "Ext", "Adv", "Out"],
   },
   {
     key: "relationship",
@@ -109,12 +122,27 @@ export const SPREADS: ReadonlyArray<SpreadDefinition> = [
       "The Challenge",
       "The Outcome",
     ],
+    slotNamesShort: ["You", "Them", "Bond", "Chal", "End"],
   },
   {
     key: "year_ahead",
     label: "Year Ahead (12)",
     descriptor: "One card per month for the year.",
     slotNames: [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ],
+    slotNamesShort: [
       "Jan",
       "Feb",
       "Mar",
@@ -140,6 +168,7 @@ export const SPREADS: ReadonlyArray<SpreadDefinition> = [
       "Hidden Influence",
       "Likely Outcome",
     ],
+    slotNamesShort: ["Now", "A", "B", "Hid", "End"],
   },
 ];
 
