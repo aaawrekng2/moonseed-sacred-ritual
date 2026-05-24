@@ -7,7 +7,7 @@
  */
 import { useMemo } from "react";
 import { CardImage } from "@/components/card/CardImage";
-import { useActiveDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
+import { useAnyDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
@@ -179,7 +179,7 @@ export function ConstellationWeb({
   // card_name overrides so the pair-line tooltip and any other
   // labels in this surface read "Hurricane Lamp + Axe" instead of
   // "Card 1000 + Card 1013".
-  const resolveCardName = useActiveDeckCardName();
+  const resolveCardName = useAnyDeckCardName();
   return (
     <div
       style={{
@@ -297,7 +297,7 @@ function ConstellationSvg({
   const maxPair = constellation.pairCounts.reduce((m, p) => (p.count > m ? p.count : m), 0);
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
-  const resolveCardName = useActiveDeckCardName();
+  const resolveCardName = useAnyDeckCardName();
   // EJ27 — read the active deck's seeker-chosen corner radius (stored
   // as a 0-15% value via the deck-import slider). Used to size the
   // selection highlight's borderRadius so its outer silhouette matches

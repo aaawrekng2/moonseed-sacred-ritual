@@ -48,7 +48,7 @@ import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
 import { TAROT_DECK } from "@/lib/tarot";
-import { useActiveDeckCardName } from "@/lib/active-deck";
+import { useAnyDeckCardName } from "@/lib/active-deck";
 import {
   getQuickLogCardStats,
   getQuickLogOverlap,
@@ -526,7 +526,7 @@ export function ConstellationPage() {
   // constellation surface displays a card name to the seeker — hover
   // popovers, line tooltips, asterism listings — so oracle cards stop
   // appearing as raw IDs.
-  const resolveCardName = useActiveDeckCardName();
+  const resolveCardName = useAnyDeckCardName();
 
   // EJ5 — master switch for hover tips on this surface. When
   // effectiveEnabled is false, all popovers (legend ⓘ, card, badge,
@@ -5888,7 +5888,7 @@ function ReadingsModal({
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  const resolveCardName = useActiveDeckCardName();
+  const resolveCardName = useAnyDeckCardName();
   if (!open) return null;
   const node = (
     <div
