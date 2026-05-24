@@ -33,7 +33,27 @@ export type CustomDeck = {
   /** 26-05-08-Q9 — storage path of the original imported zip,
    *  used by the per-card recovery flow. */
   source_zip_path?: string | null;
+  /** EJ34 — 4 user-defined aspects that shape every card's
+   *  journal prompts. journal_prompts[N] corresponds to
+   *  aspect_config[N]. */
+  aspect_config?: AspectConfig[] | null;
+  /** EJ34 — optional voice guide produced by an external AI
+   *  interview. Used as system context during prompt generation
+   *  so the AI matches the deck's tone. */
+  ai_voice_guide?: string | null;
 };
+
+/** EJ34 — One of the 4 aspects on a deck. Drives the journal-prompt
+ *  generator. Hydrating thought is a short description of what
+ *  prompts in this aspect should do. */
+export type AspectConfig = {
+  name: string;
+  hydrating_thought: string;
+};
+
+/** EJ34 — Per-prompt status. 'approved'/'rejected'/null (pending).
+ *  Stored parallel to journal_prompts on each card. */
+export type PromptStatus = "approved" | "rejected" | null;
 
 /**
  * Q69 — Per-user custom deck cap. Reads `max_custom_decks` from
@@ -46,11 +66,7 @@ export async function checkCustomDeckLimit(userId: string): Promise<string | nul
       .from("custom_decks")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
-    supabase
-      .from("admin_settings")
-      .select("value")
-      .eq("key", "max_custom_decks")
-      .maybeSingle(),
+    supabase.from("admin_settings").select("value").eq("key", "max_custom_decks").maybeSingle(),
   ]);
   const raw = (setting as { value?: unknown } | null)?.value;
   const max = (() => {
@@ -77,6 +93,12 @@ export type CustomDeckCard = {
   /** 9-6-A — oracle decks store user-supplied per-card name + meaning. */
   card_name?: string | null;
   card_description?: string | null;
+  /** EJ34 — 4 generated journal prompts, one per aspect slot.
+   *  Indexes correspond to deck.aspect_config[i]. */
+  journal_prompts?: string[] | null;
+  /** EJ34 — per-prompt accept/reject state. Parallel to
+   *  journal_prompts; values are 'approved' | 'rejected' | null. */
+  prompt_status?: (string | null)[] | null;
 };
 
 /** Per-card override map: card index (0..77) -> image URL. */
@@ -193,9 +215,7 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
   return (data ?? []) as CustomDeckCard[];
 }
 
-async function buildDeckImageMapUncached(
-  deckId: string,
-): Promise<DeckImageMap> {
+async function buildDeckImageMapUncached(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
   const map: DeckImageMap = {
     variants: {},
@@ -216,13 +236,8 @@ async function buildDeckImageMapUncached(
   const pathToCard = new Map<string, PathMeta>();
   const allPaths: string[] = [];
 
-  function deriveVariantPath(
-    basePath: string,
-    variant: "sm" | "md" | "full",
-  ): string | null {
-    const m = basePath.match(
-      /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
-    );
+  function deriveVariantPath(basePath: string, variant: "sm" | "md" | "full"): string | null {
+    const m = basePath.match(/^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i);
     if (!m) return null;
     return `${m[1]}-${variant}.webp`;
   }
@@ -353,8 +368,7 @@ async function buildDeckImageMapUncached(
   }
   // EC-1 — read corner_radius_percent (the column DeckEditor saves to).
   // The corner_radius_px column is legacy and no longer used at runtime.
-  const cr = (deck as { corner_radius_percent?: number | null } | null)
-    ?.corner_radius_percent;
+  const cr = (deck as { corner_radius_percent?: number | null } | null)?.corner_radius_percent;
   // Clamp legacy values (which could be up to 30 from the older slider)
   // so they don't render as huge percentages on existing rows.
   map.cornerRadiusPercent =
@@ -368,27 +382,27 @@ async function buildDeckImageMapUncached(
     if (entries.length > 0) {
       try {
         await Promise.all(
-          entries.map(([cardIdStr, url]) =>
-            new Promise<void>((resolve) => {
-              const cardId = Number(cardIdStr);
-              if (!Number.isFinite(cardId)) {
-                resolve();
-                return;
-              }
-              const img = new Image();
-              const done = () => resolve();
-              img.onload = () => {
-                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                  map.aspectByCardId[cardId] =
-                    img.naturalHeight / img.naturalWidth;
+          entries.map(
+            ([cardIdStr, url]) =>
+              new Promise<void>((resolve) => {
+                const cardId = Number(cardIdStr);
+                if (!Number.isFinite(cardId)) {
+                  resolve();
+                  return;
                 }
-                done();
-              };
-              img.onerror = done;
-              // Prefer thumbnail (smaller, faster) for measurement;
-              // aspect is identical to the full image.
-              img.src = map.thumbnail[cardId] ?? url;
-            }),
+                const img = new Image();
+                const done = () => resolve();
+                img.onload = () => {
+                  if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                    map.aspectByCardId[cardId] = img.naturalHeight / img.naturalWidth;
+                  }
+                  done();
+                };
+                img.onerror = done;
+                // Prefer thumbnail (smaller, faster) for measurement;
+                // aspect is identical to the full image.
+                img.src = map.thumbnail[cardId] ?? url;
+              }),
           ),
         );
       } catch {
@@ -424,12 +438,8 @@ async function buildDeckImageMapUncached(
     const cardsWithFullVariants = cardIds.filter(
       (cid) => map.variants[cid].full !== undefined,
     ).length;
-    const cardsWithSmVariants = cardIds.filter(
-      (cid) => map.variants[cid].sm !== undefined,
-    ).length;
-    const cardsWithMdVariants = cardIds.filter(
-      (cid) => map.variants[cid].md !== undefined,
-    ).length;
+    const cardsWithSmVariants = cardIds.filter((cid) => map.variants[cid].sm !== undefined).length;
+    const cardsWithMdVariants = cardIds.filter((cid) => map.variants[cid].md !== undefined).length;
     console.log(
       "[buildDeckImageMap] variant coverage",
       "deck=",
@@ -451,9 +461,7 @@ async function buildDeckImageMapUncached(
 
 // Q27 Fix 1 — Cached entry point. Multiple concurrent callers await
 // the SAME promise, collapsing N parallel fetches into 1.
-export async function buildDeckImageMap(
-  deckId: string,
-): Promise<DeckImageMap> {
+export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   const now = Date.now();
   const expiry = deckImageMapCacheExpiry.get(deckId) ?? 0;
   if (deckImageMapCache.has(deckId) && now < expiry) {
@@ -512,9 +520,7 @@ export function resolveCardImage(
     }
     // Legacy fallback for callers reading the old maps.
     const legacy =
-      size === "thumbnail" || size === "sm"
-        ? map.thumbnail[cardIndex]
-        : map.display[cardIndex];
+      size === "thumbnail" || size === "sm" ? map.thumbnail[cardIndex] : map.display[cardIndex];
     if (legacy) return legacy;
   }
   // 26-05-08-Q6 — Fix 1: return null (was "") for oracle ids without a
@@ -543,10 +549,7 @@ export function resolveCardImage(
  * keeps things consistent.
  */
 export async function setActiveDeck(userId: string, deckId: string | null): Promise<void> {
-  await supabase
-    .from("custom_decks")
-    .update({ is_active: false })
-    .eq("user_id", userId);
+  await supabase.from("custom_decks").update({ is_active: false }).eq("user_id", userId);
   if (deckId) {
     await supabase
       .from("custom_decks")
@@ -597,7 +600,6 @@ export async function fetchDeckProcessingStatus(
     saved,
     pending,
     failed,
-    isComplete:
-      pending === 0 && failed === 0 && saved >= expectedTotal,
+    isComplete: pending === 0 && failed === 0 && saved >= expectedTotal,
   };
 }

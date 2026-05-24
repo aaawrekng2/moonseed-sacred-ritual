@@ -1634,7 +1634,7 @@ export const getDeckExportBundle = createServerFn({ method: "GET" })
       .is("archived_at", null)
       .order("card_id", { ascending: true });
     if (cardErr) throw new Error(cardErr.message);
-    const cardRows = (cards ?? []) as Array<Record<string, unknown>>;
+    const cardRows = (cards ?? []) as Array<Record<string, NonNullable<unknown>>>;
     // Sign every storage path the client will need to fetch.
     // 10-min expiry — enough to download + zip all blobs even for
     // large oracle decks.
@@ -1646,7 +1646,7 @@ export const getDeckExportBundle = createServerFn({ method: "GET" })
       if (dp) allPaths.push(dp);
       if (tp) allPaths.push(tp);
     }
-    const deckRow = deck as Record<string, unknown>;
+    const deckRow = deck as Record<string, NonNullable<unknown>>;
     const backPath = (deckRow.card_back_path as string | null) ?? null;
     const backThumbPath = (deckRow.card_back_thumb_path as string | null) ?? null;
     if (backPath) allPaths.push(backPath);

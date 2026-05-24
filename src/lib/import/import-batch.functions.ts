@@ -128,7 +128,7 @@ export const executeImport = createServerFn({ method: "POST" })
           import_batch_id: batchId,
         };
       });
-      const { error } = await supabaseAdmin.from("readings").insert(chunk);
+      const { error } = await supabaseAdmin.from("readings").insert(chunk as never);
       if (error) {
         // Mark every row in this chunk as failed and continue.
         for (let j = 0; j < chunk.length; j++) failed.push(i + j);

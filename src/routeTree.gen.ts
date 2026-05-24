@@ -46,6 +46,7 @@ import { Route as InsightsRecapLunationStartRouteImport } from './routes/insight
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
+import { Route as SettingsDecksDeckIdEditRouteImport } from './routes/settings.decks.$deckId.edit'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -239,6 +240,11 @@ const ApiPublicDetectWeavesRoute = ApiPublicDetectWeavesRouteImport.update({
   path: '/api/public/detect-weaves',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsDecksDeckIdEditRoute = SettingsDecksDeckIdEditRouteImport.update({
+  id: '/$deckId/edit',
+  path: '/$deckId/edit',
+  getParentRoute: () => SettingsDecksRoute,
+} as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -288,7 +294,7 @@ export interface FileRoutesByFullPath {
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
-  '/settings/decks': typeof SettingsDecksRoute
+  '/settings/decks': typeof SettingsDecksRouteWithChildren
   '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/settings/decks/$deckId/edit': typeof SettingsDecksDeckIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -331,7 +338,7 @@ export interface FileRoutesByTo {
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
-  '/settings/decks': typeof SettingsDecksRoute
+  '/settings/decks': typeof SettingsDecksRouteWithChildren
   '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByTo {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/settings/decks/$deckId/edit': typeof SettingsDecksDeckIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -376,7 +384,7 @@ export interface FileRoutesById {
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
-  '/settings/decks': typeof SettingsDecksRoute
+  '/settings/decks': typeof SettingsDecksRouteWithChildren
   '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
@@ -398,6 +406,7 @@ export interface FileRoutesById {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/settings/decks/$deckId/edit': typeof SettingsDecksDeckIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
+    | '/settings/decks/$deckId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -487,6 +497,7 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
+    | '/settings/decks/$deckId/edit'
   id:
     | '__root__'
     | '/'
@@ -531,6 +542,7 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
+    | '/settings/decks/$deckId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -818,6 +830,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDetectWeavesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/decks/$deckId/edit': {
+      id: '/settings/decks/$deckId/edit'
+      path: '/$deckId/edit'
+      fullPath: '/settings/decks/$deckId/edit'
+      preLoaderRoute: typeof SettingsDecksDeckIdEditRouteImport
+      parentRoute: typeof SettingsDecksRoute
+    }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
       path: '/lovable/email/queue/process'
@@ -916,10 +935,22 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
   InsightsRouteChildren,
 )
 
+interface SettingsDecksRouteChildren {
+  SettingsDecksDeckIdEditRoute: typeof SettingsDecksDeckIdEditRoute
+}
+
+const SettingsDecksRouteChildren: SettingsDecksRouteChildren = {
+  SettingsDecksDeckIdEditRoute: SettingsDecksDeckIdEditRoute,
+}
+
+const SettingsDecksRouteWithChildren = SettingsDecksRoute._addFileChildren(
+  SettingsDecksRouteChildren,
+)
+
 interface SettingsRouteChildren {
   SettingsBlueprintRoute: typeof SettingsBlueprintRoute
   SettingsDataRoute: typeof SettingsDataRoute
-  SettingsDecksRoute: typeof SettingsDecksRoute
+  SettingsDecksRoute: typeof SettingsDecksRouteWithChildren
   SettingsFeedbackRoute: typeof SettingsFeedbackRoute
   SettingsGuidesRoute: typeof SettingsGuidesRoute
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
@@ -932,7 +963,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBlueprintRoute: SettingsBlueprintRoute,
   SettingsDataRoute: SettingsDataRoute,
-  SettingsDecksRoute: SettingsDecksRoute,
+  SettingsDecksRoute: SettingsDecksRouteWithChildren,
   SettingsFeedbackRoute: SettingsFeedbackRoute,
   SettingsGuidesRoute: SettingsGuidesRoute,
   SettingsPreferencesRoute: SettingsPreferencesRoute,
@@ -1007,13 +1038,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
