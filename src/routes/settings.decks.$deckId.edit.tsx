@@ -63,6 +63,18 @@ const DEFAULT_ASPECTS: AspectConfig[] = [
    ───────────────────────────────────────────────────────────────── */
 
 function DeckEditPage() {
+  // EJ38 — SSR safety. React #418 (hydration mismatch) fires when the
+  // server's rendered HTML differs from the client's first render.
+  // Auth state, fetched data, and any state hydration in this page
+  // resolves only on the client, so we mount in a "not hydrated" state
+  // (matches the server output: a stable loading shell) and flip to
+  // the real content after the first useEffect tick. Keeps the server
+  // and the client's first paint byte-for-byte identical, then
+  // upgrades.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
   const { deckId } = Route.useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -510,7 +522,7 @@ function DeckEditPage() {
 
   /* ─────────────────────────────────────────────────────────────── */
 
-  if (authLoading || loading || !deck) {
+  if (!hydrated || authLoading || loading || !deck) {
     return (
       <div
         style={{
