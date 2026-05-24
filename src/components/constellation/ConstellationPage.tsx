@@ -48,7 +48,7 @@ import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
 import { TAROT_DECK } from "@/lib/tarot";
-import { useAnyDeckCardName } from "@/lib/active-deck";
+import { useAnyDeckCardName, useActiveDeck } from "@/lib/active-deck";
 import {
   getQuickLogCardStats,
   getQuickLogOverlap,
@@ -520,6 +520,12 @@ export function ConstellationPage() {
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  // EJ50 — Active deck reference, used by the journaling-prompts empty
+  // state to route the seeker to that deck's edit page where they can
+  // generate AI prompts. Only available for custom decks; default deck
+  // users see the empty state without a CTA (default deck has built-in
+  // prompts).
+  const { activeDeck: activeDeckForCta } = useActiveDeck();
   // EJ35 — resolve oracle card_ids (>= 1000) through the active deck's
   // card_name overrides. Falls back to "Card N" only when neither the
   // tarot dictionary nor the deck has a name. Used everywhere the
@@ -2374,7 +2380,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={count}
-          title={`Pull count: ${count}`}
+          title={`${count} ${count === 1 ? "time" : "times"} this card has appeared in your readings (within current filters)`}
         />,
       );
     }
@@ -2398,7 +2404,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={formatTimeAgo(lastSeenIso)}
-          title={`Last seen: ${formatTimeAgo(lastSeenIso)}`}
+          title={`Last drawn ${formatTimeAgo(lastSeenIso)}`}
         />,
       );
     }
@@ -2421,7 +2427,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={`${Math.round(reversedPct * 100)}%`}
-          title={`Reversed: ${Math.round(reversedPct * 100)}%`}
+          title={`Reversed ${Math.round(reversedPct * 100)}% of the time this card has appeared`}
         />,
       );
     }
@@ -2447,7 +2453,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={`#${rank}`}
-          title={`Rank: #${rank} of ${universeSize}`}
+          title={`Ranks #${rank} of ${universeSize} cards by how often you draw it`}
         />,
       );
     }
@@ -2464,7 +2470,7 @@ export function ConstellationPage() {
             .split(" ")
             .map((w) => w[0])
             .join("")}
-          title={`Most under: ${topMoonPhase.phase}`}
+          title={`Drawn most often under the ${topMoonPhase.phase}`}
         />,
       );
     }
@@ -2533,7 +2539,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={`${longestGapDays}d`}
-          title={`Longest gap: ${longestGapDays} ${longestGapDays === 1 ? "day" : "days"}`}
+          title={`Longest stretch without this card: ${longestGapDays} ${longestGapDays === 1 ? "day" : "days"}`}
         />,
       );
     }
@@ -2555,7 +2561,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={`${avgSpacingDays}d`}
-          title={`Avg spacing: ${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"}`}
+          title={`Average ${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"} between appearances of this card`}
         />,
       );
     }
@@ -2578,7 +2584,7 @@ export function ConstellationPage() {
             </svg>
           }
           value={`${topTag.tag} ${topTag.multiplier}×`}
-          title={`Tag bias: ${topTag.tag} appears ${topTag.multiplier}× more often with this card than baseline`}
+          title={`Tagged "${topTag.tag}" ${topTag.multiplier}× more often with this card than with your average reading`}
         />,
       );
     }
@@ -5631,14 +5637,57 @@ export function ConstellationPage() {
               {!prompts || prompts.length === 0 ? (
                 <div
                   style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 13,
-                    color: "var(--color-foreground)",
-                    opacity: 0.8,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
                   }}
                 >
-                  No prompts available for this card.
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 13,
+                      color: "var(--color-foreground)",
+                      opacity: 0.8,
+                    }}
+                  >
+                    No prompts available for this card.
+                  </div>
+                  {/* EJ50 — CTA to deck edit page. Only shown for custom
+                      decks (the default deck's prompts ship built-in).
+                      Routes to the existing edit page today; when item 3
+                      ships, this will deep-link to the AI prompts
+                      section anchor on the unified deck edit page. */}
+                  {activeDeckForCta?.id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPromptsModalOpen(false);
+                        void navigate({
+                          to: "/settings/decks/$deckId/edit",
+                          params: { deckId: activeDeckForCta.id },
+                          hash: "ai-prompts",
+                        });
+                      }}
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 13,
+                        color: "var(--accent, var(--gold))",
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                        border:
+                          "1px solid color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)",
+                        borderRadius: 6,
+                        padding: "10px 14px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      Set up prompts for {activeDeckForCta.name ?? "this deck"} →
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
