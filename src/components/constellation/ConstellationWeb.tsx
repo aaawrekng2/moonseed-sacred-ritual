@@ -297,6 +297,7 @@ function ConstellationSvg({
   const maxPair = constellation.pairCounts.reduce((m, p) => (p.count > m ? p.count : m), 0);
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
+  const resolveCardName = useActiveDeckCardName();
   // EJ27 — read the active deck's seeker-chosen corner radius (stored
   // as a 0-15% value via the deck-import slider). Used to size the
   // selection highlight's borderRadius so its outer silhouette matches
