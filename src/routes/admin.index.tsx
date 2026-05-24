@@ -2266,15 +2266,24 @@ function UserDetailPage({
     );
   };
 
-  // EJ31 — deck download is a placeholder for now. The full
-  // per-deck export pipeline (zip with deck rows + image files) is
-  // a separate piece of work; here we surface a toast pointing
-  // admins to the existing user-export flow until the per-deck zip
-  // endpoint lands.
-  const handleDownloadDeck = (_deckId: string) => {
-    toast.info(
-      "Per-deck download isn't wired yet. Use the user-level backup export from the admin Backups tab for full data.",
-    );
+  // EJ32 — real per-deck download. Builds a portable zip on the
+  // client (no user_id / UUIDs / source-user paths) that imports
+  // cleanly into any account. Loading toast → success/error toast.
+  const handleDownloadDeck = async (deckId: string) => {
+    const toastId = toast.loading("Preparing deck download…");
+    try {
+      const { downloadDeckAsZip } = await import("@/lib/deck-download");
+      const res = await downloadDeckAsZip(deckId, authHeaders);
+      if (res.ok) {
+        toast.success(`Downloaded ${res.filename}`, { id: toastId });
+      } else {
+        toast.error(`Download failed: ${res.error}`, { id: toastId });
+      }
+    } catch (e) {
+      toast.error(`Download failed: ${e instanceof Error ? e.message : "unknown error"}`, {
+        id: toastId,
+      });
+    }
   };
 
   // EJ31 — close inspect modal and re-open as copy. Shared between
