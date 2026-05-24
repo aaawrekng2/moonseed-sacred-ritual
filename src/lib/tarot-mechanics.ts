@@ -31,10 +31,14 @@ export const REVERSED_CARD_PROBABILITY = 0.5;
 function normalizeChance(chance: number | null | undefined): number {
   if (chance === null || chance === undefined) return REVERSED_CARD_PROBABILITY;
   if (!Number.isFinite(chance)) return REVERSED_CARD_PROBABILITY;
-  // Anything greater than 1 we treat as a percent.
-  if (chance > 1) return Math.max(0.01, Math.min(0.99, chance / 100));
-  // 0..1 inclusive — treat as already-a-probability, but clamp to
-  // sensible bounds so we never silently roll 100% or 0%.
+  // EJ49 bugfix — was `chance > 1` which excluded the value 1
+  // itself, treating "1%" as a probability of 1.0 (always reversed).
+  // Now `chance >= 1` so any integer 1..99 from the user's
+  // `reversal_chance_pct` setting is correctly interpreted as a
+  // percent and divided by 100.
+  if (chance >= 1) return Math.max(0.01, Math.min(0.99, chance / 100));
+  // 0..1 (exclusive of 1) — treat as already-a-probability, but
+  // clamp to sensible bounds so we never silently roll 100% or 0%.
   return Math.max(0.01, Math.min(0.99, chance));
 }
 

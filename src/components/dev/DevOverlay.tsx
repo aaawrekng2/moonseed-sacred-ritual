@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EJ48";
+export const APP_VERSION_LETTER = "EJ49";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
@@ -30,6 +30,12 @@ const DEV_EVENT = "tarotseed:dev-mode-changed";
 // behavior, only the SUPPRESS path is new.
 const DEV_SLOT_COLORS_KEY = "tarotseed:dev_slot_colors";
 const DEV_SLOT_COLORS_EVENT = "tarotseed:dev-slot-colors-changed";
+// EJ49 — hide-menu sub-toggle. When ON, the TopNav visually hides
+// (display: none) but the TopNavGate spacer stays in document flow,
+// so page content doesn't shift. Lets admins inspect what's behind
+// the nav without re-laying out the page. Default: OFF (menu shown).
+const DEV_HIDE_MENU_KEY = "tarotseed:dev_hide_menu";
+const DEV_HIDE_MENU_EVENT = "tarotseed:dev-hide-menu-changed";
 
 function readDevMode(): boolean {
   if (typeof window === "undefined") return false;
@@ -83,6 +89,47 @@ export function useDevSlotColors(): boolean {
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(DEV_SLOT_COLORS_EVENT, handler);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return on;
+}
+
+// EJ49 — hide-menu sub-toggle reader. Default OFF when no key set
+// (menu is visible). Same shape as readDevSlotColors so the two
+// toggles read identically.
+export function readDevHideMenu(): boolean {
+  if (typeof window === "undefined") return false;
+  const raw = window.localStorage.getItem(DEV_HIDE_MENU_KEY);
+  if (raw === null) return false;
+  return raw === "true";
+}
+
+export function setDevHideMenu(on: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DEV_HIDE_MENU_KEY, on ? "true" : "false");
+  window.dispatchEvent(new CustomEvent<boolean>(DEV_HIDE_MENU_EVENT, { detail: on }));
+}
+
+// EJ49 — live-tracking hook for the hide-menu sub-toggle. TopNav
+// consumes this; when true, TopNav renders with display: none so
+// the page chrome is suppressed but the TopNavGate spacer stays in
+// flow (no layout shift).
+export function useDevHideMenu(): boolean {
+  const [on, setOn] = useState<boolean>(() => readDevHideMenu());
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setOn(typeof detail === "boolean" ? detail : readDevHideMenu());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DEV_HIDE_MENU_KEY) setOn(readDevHideMenu());
+    };
+    window.addEventListener(DEV_HIDE_MENU_EVENT, handler);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(DEV_HIDE_MENU_EVENT, handler);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
