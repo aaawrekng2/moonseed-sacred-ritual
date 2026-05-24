@@ -47,7 +47,8 @@ import { StoriesTab } from "@/components/insights/StoriesTab";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
-import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
+import { useReadingStats } from "@/lib/use-reading-stats";
+import { formatMonthYear } from "@/lib/dates";
 import { useTimezone } from "@/lib/use-timezone";
 import { useAuth } from "@/lib/auth";
 
@@ -79,6 +80,60 @@ const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "recap", label: "Recap" },
 ];
 
+// EJ49 — Subtitle wording table. Maps `TimeRange` codes to the
+// human-readable suffix used in "in the last X days". Centralized
+// here so any future range additions only touch one spot.
+const TIME_RANGE_SUFFIX: Record<string, string> = {
+  "7d": "in the last 7 days",
+  "30d": "in the last 30 days",
+  "90d": "in the last 90 days",
+  "180d": "in the last 180 days",
+  "365d": "in the last 365 days",
+  all: "", // "all" routes to the all-time wording, not a suffix
+};
+
+// EJ49 — Build the subtitle string for the Insights page header.
+// Rules:
+//   • If overview is still loading or zero results: return null and
+//     the page hides the line.
+//   • timeRange == "all" AND no other filters → "N readings since {Month Year}"
+//     (matches the legacy formatReadingStatsLine behavior).
+//   • timeRange != "all" AND no other filters → "N readings in the last X days"
+//   • Any non-time filter active (with any timeRange):
+//       - timeRange != "all" → "N readings in the last X days matching filters"
+//       - timeRange == "all" → "N readings matching filters"
+function computeStatsLine(args: {
+  overview: InsightsOverview | null;
+  timeRange: string;
+  hasFiltersBeyondTime: boolean;
+  allTimeStats: { count: number; firstAt: string | null };
+}): string | null {
+  const { overview, timeRange, hasFiltersBeyondTime, allTimeStats } = args;
+  // Overview-driven path (filtered count). When overview hasn't
+  // arrived yet, we don't show a stale all-time count — the line is
+  // suppressed until the server returns the filtered total.
+  if (!overview) return null;
+  const n = overview.totalReadings;
+  if (n === 0) return null;
+  const noun = n === 1 ? "reading" : "readings";
+
+  const timeSuffix = TIME_RANGE_SUFFIX[timeRange] ?? "";
+  if (timeRange === "all" && !hasFiltersBeyondTime) {
+    // Match the legacy wording: "N readings since {Month Year}".
+    const firstAt = allTimeStats.firstAt;
+    if (!firstAt) return `${n} ${noun}`;
+    return `${n} ${noun} since ${formatMonthYear(firstAt)}`;
+  }
+  if (timeRange === "all" && hasFiltersBeyondTime) {
+    return `${n} ${noun} matching filters`;
+  }
+  // timeRange != "all"
+  if (hasFiltersBeyondTime) {
+    return `${n} ${noun} ${timeSuffix} matching filters`;
+  }
+  return `${n} ${noun} ${timeSuffix}`;
+}
+
 function InsightsRoute() {
   const navigate = useNavigate();
   const search = Route.useSearch();
@@ -109,7 +164,15 @@ function InsightsRoute() {
   const { user: authedUser } = useAuth();
   const userId = authedUser?.id ?? null;
   const readingStats = useReadingStats(userId);
-  const statsLine = formatReadingStatsLine(readingStats);
+  // EJ49 — statsLine moved below `overview` + `globalFilters` so it
+  // can reflect the active filter stack. Old call was:
+  //   const statsLine = formatReadingStatsLine(readingStats);
+  // which always showed total-since-first-reading. New behavior:
+  //   • timeRange == "all" AND no other filters → "N readings since {Month Year}"
+  //   • timeRange != "all" AND no other filters → "N readings in the last X days"
+  //   • any non-time filter active → "N readings in the last X days matching filters"
+  //   • all + non-time filter → "N readings matching filters"
+  // See computeStatsLine() below.
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
   // Phase 10 — keep filters.tz synced with the user's effective timezone so
   // every server fn that spreads filters aggregates on local calendar days.
@@ -229,6 +292,16 @@ function InsightsRoute() {
       reversedOnly: next.reversedOnly,
     });
   };
+
+  // EJ49 — filter-aware subtitle. Reflects the count of readings
+  // matching the active filter stack, and the wording reflects which
+  // dimension is constraining the data.
+  const statsLine = computeStatsLine({
+    overview,
+    timeRange: filters.timeRange,
+    hasFiltersBeyondTime: hasAnyActive(globalFilters),
+    allTimeStats: readingStats,
+  });
 
   return (
     <div

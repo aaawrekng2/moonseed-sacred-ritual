@@ -17,6 +17,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { Home, BookOpen, Settings, Hash, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDevHideMenu } from "@/components/dev/DevOverlay";
 
 type Tab = {
   to: "/" | "/journal" | "/settings" | "/numerology" | "/insights";
@@ -43,6 +44,12 @@ const SCROLL_THRESHOLD = 8;
 
 export function TopNav() {
   const location = useLocation();
+  // EJ49 — Admin dev toggle: when "Hide menu" is on, suppress the
+  // TopNav UI entirely. The TopNavGate spacer stays in document flow
+  // upstream of us, so page content does NOT shift up — there's just
+  // an empty band at the top of the viewport. Lets admins inspect
+  // what would otherwise be hidden behind the fixed nav.
+  const hideMenu = useDevHideMenu();
   const [visible, setVisible] = useState(true);
   const lastYRef = useRef<number>(0);
   const lastDirRef = useRef<"up" | "down" | null>(null);
@@ -81,6 +88,12 @@ export function TopNav() {
     lastYRef.current = typeof window !== "undefined" ? window.scrollY || 0 : 0;
     lastDirRef.current = "up";
   }, [location.pathname]);
+
+  // EJ49 — dev "Hide menu" toggle takes precedence over all other
+  // visibility logic. The spacer in TopNavGate is unconditional and
+  // stays mounted, so suppressing only the <nav> element here doesn't
+  // shift any page layout.
+  if (hideMenu) return null;
 
   return (
     <nav

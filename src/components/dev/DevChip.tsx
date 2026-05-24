@@ -18,7 +18,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
   APP_VERSION_LETTER,
+  readDevHideMenu,
   readDevSlotColors,
+  setDevHideMenu,
   setDevMode,
   setDevSlotColors,
   useDevOpacity,
@@ -28,6 +30,9 @@ const DEV_MODE_KEY = "tarotseed:dev_mode";
 const DEV_EVENT = "tarotseed:dev-mode-changed";
 const DEV_SLOT_COLORS_KEY = "tarotseed:dev_slot_colors";
 const DEV_SLOT_COLORS_EVENT = "tarotseed:dev-slot-colors-changed";
+// EJ49 — hide-menu sub-toggle. Mirrors the slot-colors pattern.
+const DEV_HIDE_MENU_KEY = "tarotseed:dev_hide_menu";
+const DEV_HIDE_MENU_EVENT = "tarotseed:dev-hide-menu-changed";
 const CHIP_POS_KEY = "tarotseed:dev_chip_pos";
 
 type Pos = { x: number; y: number };
@@ -71,6 +76,8 @@ export function DevChip() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [devOn, setDevOn] = useState<boolean>(() => readDevMode());
   const [slotColorsOn, setSlotColorsOn] = useState<boolean>(() => readDevSlotColors());
+  // EJ49 — hide-menu sub-toggle state.
+  const [hideMenuOn, setHideMenuOn] = useState<boolean>(() => readDevHideMenu());
   // EJ47 — version + opacity readout for the chip header (replaces
   // the standalone top-left DevOverlay pill).
   const opacity = useDevOpacity();
@@ -105,7 +112,7 @@ export function DevChip() {
     };
   }, [user, loading]);
 
-  // Subscribe to live updates from the two flags.
+  // Subscribe to live updates from the three flags.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onDev = (e: Event) => {
@@ -116,16 +123,24 @@ export function DevChip() {
       const detail = (e as CustomEvent<boolean>).detail;
       setSlotColorsOn(typeof detail === "boolean" ? detail : readDevSlotColors());
     };
+    // EJ49 — hide-menu listener.
+    const onHideMenu = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setHideMenuOn(typeof detail === "boolean" ? detail : readDevHideMenu());
+    };
     const onStorage = (e: StorageEvent) => {
       if (e.key === DEV_MODE_KEY) setDevOn(readDevMode());
       if (e.key === DEV_SLOT_COLORS_KEY) setSlotColorsOn(readDevSlotColors());
+      if (e.key === DEV_HIDE_MENU_KEY) setHideMenuOn(readDevHideMenu());
     };
     window.addEventListener(DEV_EVENT, onDev);
     window.addEventListener(DEV_SLOT_COLORS_EVENT, onSlot);
+    window.addEventListener(DEV_HIDE_MENU_EVENT, onHideMenu);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(DEV_EVENT, onDev);
       window.removeEventListener(DEV_SLOT_COLORS_EVENT, onSlot);
+      window.removeEventListener(DEV_HIDE_MENU_EVENT, onHideMenu);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -265,6 +280,18 @@ export function DevChip() {
         onChange={(next) => {
           setDevSlotColors(next);
           setSlotColorsOn(next);
+        }}
+      />
+
+      {/* EJ49 — Hide menu sub-toggle. When on, TopNav goes
+          display:none but the TopNavGate spacer stays in flow so the
+          page doesn't shift. */}
+      <ChipRow
+        label="Hide menu"
+        on={hideMenuOn}
+        onChange={(next) => {
+          setDevHideMenu(next);
+          setHideMenuOn(next);
         }}
       />
     </div>
