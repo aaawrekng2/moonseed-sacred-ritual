@@ -29,6 +29,8 @@ import {
   useActiveDeckCardName,
   useActiveDeckCornerRadius,
   useActiveDeckImage,
+  useAnyDeckCardName,
+  useAnyDeckImage,
   useDeckCardName,
   useDeckCornerRadius,
   useDeckImage,
@@ -47,8 +49,7 @@ function useDevMode(): boolean {
   });
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const read = () =>
-      window.localStorage.getItem("tarotseed:dev_mode") === "true";
+    const read = () => window.localStorage.getItem("tarotseed:dev_mode") === "true";
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<boolean>).detail;
       setOn(typeof detail === "boolean" ? detail : read());
@@ -101,10 +102,7 @@ type CardImageAction =
   | { type: "FACE_ASPECT_MEASURED"; aspect: number }
   | { type: "BACK_ASPECT_MEASURED"; aspect: number };
 
-function cardImageReducer(
-  state: CardImageState,
-  action: CardImageAction,
-): CardImageState {
+function cardImageReducer(state: CardImageState, action: CardImageAction): CardImageState {
   const log = (next: CardImageState) => {
     if (state.status !== next.status) {
       console.debug("[CardImage:reducer]", {
@@ -225,8 +223,8 @@ const SIZE_PX: Record<Exclude<CardImageSize, "custom">, number> = {
   small: 40,
 };
 
-  // Q28 — variant tier derived inline from rendered width and passed
-  // straight to the resolver. No URL-mutation step.
+// Q28 — variant tier derived inline from rendered width and passed
+// straight to the resolver. No URL-mutation step.
 
 function resolveWidth(size: CardImageSize, widthPx?: number): number {
   if (size === "custom") {
@@ -265,6 +263,12 @@ export function CardImage({
   const specificRadius = useDeckCornerRadius(deckId ?? null);
   const activeNameResolve = useActiveDeckCardName();
   const specificNameResolve = useDeckCardName(deckId ?? null);
+  // EJ44 — multi-deck fallback resolvers. Try the active deck first,
+  // then any other custom deck the user owns. Self-heals constellation
+  // companions, mixed-deck history, and any context where the user's
+  // active deck no longer covers a card_id they've drawn before.
+  const anyResolve = useAnyDeckImage();
+  const anyNameResolve = useAnyDeckCardName();
   const customBackUrl = useActiveCardBackUrl();
   const devMode = useDevMode();
 
@@ -280,9 +284,7 @@ export function CardImage({
   // letterbox inside the wrapper.
   // 9-6-Y — seed face aspect from the deck-image cache so the wrapper
   // renders at the correct height on FIRST PAINT.
-  const cachedFaceAspect = useActiveDeckCardAspect(
-    typeof cardId === "number" ? cardId : null,
-  );
+  const cachedFaceAspect = useActiveDeckCardAspect(typeof cardId === "number" ? cardId : null);
   // Q26 — single source of truth for all load state.
   const [state, dispatch] = useReducer(cardImageReducer, undefined, () => ({
     status: "idle" as LoadStatus,
@@ -313,12 +315,19 @@ export function CardImage({
   // between mount and `buildDeckImageMap` resolution.
   const specificName = useSpecific ? specificNameResolve(cardId ?? -1) : "";
   const activeName = activeNameResolve(cardId ?? -1);
+  // EJ44 — multi-deck name fallback. activeName already routes through
+  // the active deck override → canonical tarot → "Card N". When that
+  // last "Card N" fallback fires for an oracle id the active deck
+  // doesn't know about, try the user's other decks before giving up.
+  const anyName = anyNameResolve(cardId ?? -1);
   const resolvedName =
     typeof cardId !== "number"
       ? ""
       : useSpecific && specificName && !specificName.startsWith("Card ")
         ? specificName
-        : activeName;
+        : activeName && !activeName.startsWith("Card ")
+          ? activeName
+          : anyName;
 
   const width = resolveWidth(size, widthPx);
   const radiusStyle: CSSProperties = {};
@@ -347,15 +356,11 @@ export function CardImage({
     ...radiusStyle,
     // FA-3 — tighter shadow: less blur, slightly more opacity.
     // More grounded, less halo.
-    ...(shadow
-      ? { filter: "drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35))" }
-      : null),
+    ...(shadow ? { filter: "drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35))" } : null),
     // EZ-3 — Wrapper green as outline so it's visible as a ring
     // around the actual card boundary (the wrapper hugs the IMG
     // per EY-2, so a background fill would be invisible).
-    ...(DEV_WRAPPER_BG
-      ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 }
-      : null),
+    ...(DEV_WRAPPER_BG ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 } : null),
     ...(style ?? {}),
   };
 
@@ -365,31 +370,27 @@ export function CardImage({
   // pick "sm" by accident and immediately switch to a different
   // signed URL once the real width arrives.
   const naturalTier: "sm" | "md" | "full" =
-    width === 0
-      ? "md"
-      : width <= 80
-        ? "sm"
-        : width <= 200
-          ? "md"
-          : "full";
+    width === 0 ? "md" : width <= 80 ? "sm" : width <= 200 ? "md" : "full";
   // CG — Tier lock is MONOTONIC: tracks the HIGHEST tier ever needed.
   // Width fluctuations cannot downgrade it (preventing oscillation),
   // but a genuine width increase upgrades both the rendered tier
   // AND the lock.
   const TIER_RANK = { sm: 0, md: 1, full: 2 } as const;
-  const lockedRank = lockedTierRef.current
-    ? TIER_RANK[lockedTierRef.current]
-    : -1;
+  const lockedRank = lockedTierRef.current ? TIER_RANK[lockedTierRef.current] : -1;
   const naturalRank = TIER_RANK[naturalTier];
   const variantTier: "sm" | "md" | "full" =
     naturalRank > lockedRank ? naturalTier : (lockedTierRef.current ?? naturalTier);
   const specificSrc =
-    typeof cardId === "number" && useSpecific
-      ? specificResolve(cardId, variantTier)
-      : null;
-  const activeSrc =
-    typeof cardId === "number" ? activeResolve(cardId, variantTier) : null;
-  const baseFaceSrc = specificSrc ?? activeSrc;
+    typeof cardId === "number" && useSpecific ? specificResolve(cardId, variantTier) : null;
+  const activeSrc = typeof cardId === "number" ? activeResolve(cardId, variantTier) : null;
+  // EJ44 — multi-deck fallback. If both the specific-deck resolver
+  // (when supplied) and the active deck miss, try every other custom
+  // deck the user owns. This is what fixes constellation companions
+  // and cross-deck history images for users with multiple decks.
+  // For default-deck users with no custom decks, allDeckMaps is empty
+  // and this resolver behaves identically to activeResolve.
+  const anySrc = typeof cardId === "number" ? anyResolve(cardId, variantTier) : null;
+  const baseFaceSrc = specificSrc ?? activeSrc ?? anySrc;
   const baseChosen = baseFaceSrc;
   const faceSrc =
     baseChosen && state.retryTs > 0
@@ -408,8 +409,7 @@ export function CardImage({
     if (variant !== "face") return;
     // Q30 Fix B2 — tier-aware timeout (full variants legitimately
     // take longer to load than thumbnails).
-    const safetyTimeoutMs =
-      variantTier === "full" ? 8000 : variantTier === "md" ? 5000 : 3000;
+    const safetyTimeoutMs = variantTier === "full" ? 8000 : variantTier === "md" ? 5000 : 3000;
     const t = window.setTimeout(() => {
       dispatch({ type: "SAFETY_TIMEOUT_FIRED" });
     }, safetyTimeoutMs);
@@ -417,18 +417,14 @@ export function CardImage({
   }, [state.status, variant, variantTier]);
 
   const showFaceShimmer =
-    variant === "face" &&
-    !loading &&
-    state.status !== "loaded" &&
-    state.status !== "failed-final";
+    variant === "face" && !loading && state.status !== "loaded" && state.status !== "failed-final";
 
   // 26-05-08-Q8 — Fix 1: `token=` is a substring of EVERY Supabase
   // signed URL, not just expired ones. The previous heuristic stranded
   // every signed-URL card on the placeholder forever after a single
   // variant 404. Only show the named placeholder when there is
   // genuinely no source URL to attempt.
-  const allFailed =
-    variant === "face" && state.status === "failed-final";
+  const allFailed = variant === "face" && state.status === "failed-final";
 
   const handleImgError = () => {
     // Q28 — simple retry ladder, no variant-fallback branch.
@@ -447,10 +443,7 @@ export function CardImage({
   const handleImgLoad = () => {
     // CG — Monotonic lock: upgrade to higher tier on success, never downgrade.
     const currentLocked = lockedTierRef.current;
-    if (
-      currentLocked === null ||
-      TIER_RANK[variantTier] > TIER_RANK[currentLocked]
-    ) {
+    if (currentLocked === null || TIER_RANK[variantTier] > TIER_RANK[currentLocked]) {
       lockedTierRef.current = variantTier;
     }
     dispatch({ type: "LOAD_SUCCEEDED", tier: variantTier });
@@ -495,9 +488,7 @@ export function CardImage({
               imageUrl={customBackUrl ?? undefined}
               width={width}
               cornerRadiusPercent={deckRadius}
-              onAspectMeasured={(a) =>
-                dispatch({ type: "BACK_ASPECT_MEASURED", aspect: a })
-              }
+              onAspectMeasured={(a) => dispatch({ type: "BACK_ASPECT_MEASURED", aspect: a })}
               className="h-full w-full"
             />
             {DEV_BACK_OUTLINE ? (
@@ -514,10 +505,7 @@ export function CardImage({
               />
             ) : null}
           </div>
-          <div
-            className="flip-face front"
-            style={{ ...radiusStyle, overflow: "hidden" }}
-          >
+          <div className="flip-face front" style={{ ...radiusStyle, overflow: "hidden" }}>
             {faceSrc ? (
               <img
                 src={faceSrc}
@@ -578,8 +566,7 @@ export function CardImage({
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "color-mix(in oklab, var(--gold) 6%, transparent)",
+            background: "color-mix(in oklab, var(--gold) 6%, transparent)",
             ...radiusStyle,
             overflow: "hidden",
             borderRadius: "inherit",
@@ -613,25 +600,25 @@ export function CardImage({
               {resolvedName}
             </div>
           ) : (
-          <img
-            src={faceSrc}
-            alt={ariaLabel ?? resolvedName}
-            loading={eager ? "eager" : "lazy"}
-            fetchPriority={eager ? "high" : "auto"}
-            onLoad={handleImgLoad}
-            onError={handleImgError}
-            style={{
-              // EY-2 — width matches wrapper; height auto-derives
-              // from the image's natural aspect.
-              width: "100%",
-              height: "auto",
-              display: "block",
-              opacity: state.status === "loaded" ? 1 : 0,
-              transform: reversed ? "rotate(180deg)" : undefined,
-              transition: "opacity 300ms ease-out",
-              ...radiusStyle,
-            }}
-          />
+            <img
+              src={faceSrc}
+              alt={ariaLabel ?? resolvedName}
+              loading={eager ? "eager" : "lazy"}
+              fetchPriority={eager ? "high" : "auto"}
+              onLoad={handleImgLoad}
+              onError={handleImgError}
+              style={{
+                // EY-2 — width matches wrapper; height auto-derives
+                // from the image's natural aspect.
+                width: "100%",
+                height: "auto",
+                display: "block",
+                opacity: state.status === "loaded" ? 1 : 0,
+                transform: reversed ? "rotate(180deg)" : undefined,
+                transition: "opacity 300ms ease-out",
+                ...radiusStyle,
+              }}
+            />
           )}
           {/* EZ-3 — Dev-mode tint as sibling overlay so it's visible
               over the opaque card art (backgroundColor on an opaque
@@ -682,8 +669,7 @@ export function CardImage({
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              DEV_EMPTY_BG ?? "color-mix(in oklab, var(--gold) 6%, transparent)",
+            background: DEV_EMPTY_BG ?? "color-mix(in oklab, var(--gold) 6%, transparent)",
             ...radiusStyle,
           }}
         />
@@ -696,9 +682,7 @@ export function CardImage({
       <button
         type="button"
         onClick={onClick}
-        aria-label={
-          ariaLabel ?? (typeof cardId === "number" ? resolvedName : "Card")
-        }
+        aria-label={ariaLabel ?? (typeof cardId === "number" ? resolvedName : "Card")}
         className={className}
         style={{
           ...wrapperStyle,
@@ -714,11 +698,7 @@ export function CardImage({
   }
 
   return (
-    <div
-      className={className}
-      style={wrapperStyle}
-      aria-label={ariaLabel}
-    >
+    <div className={className} style={wrapperStyle} aria-label={ariaLabel}>
       {inner}
     </div>
   );

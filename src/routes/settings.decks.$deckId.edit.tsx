@@ -18,11 +18,13 @@
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Check,
   ChevronLeft,
   Clipboard,
   Download,
+  Link2,
   ListChecks,
   Sparkles,
   Square,
@@ -62,6 +64,7 @@ import {
   isUserAdmin,
   type EraseSnapshotItem,
 } from "@/lib/journal-prompts.functions";
+import { reconnectReadingsToDeck } from "@/lib/reconnect-deck.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { LoadingText } from "@/components/ui/loading-text";
@@ -128,6 +131,11 @@ function DeckEditPage() {
     snapshot: EraseSnapshotItem[];
     expiresAt: number;
   } | null>(null);
+  // EJ44 — self-healing "Reconnect cards" tool state. Tracks whether
+  // a reconnect call is in flight and the last summary result so the
+  // UI can show "Scanned X readings, reconnected Y cards" feedback.
+  const [reconnectBusy, setReconnectBusy] = useState(false);
+  const reconnectFn = useServerFn(reconnectReadingsToDeck);
 
   // Load deck + cards.
   const reload = useCallback(async () => {
@@ -631,6 +639,51 @@ function DeckEditPage() {
       }
     } catch (e) {
       toast.error(`Restore failed: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+  };
+
+  // EJ44 — self-healing reconnect tool. Asks for confirmation (with a
+  // dry-run preview), then writes the new card_deck_ids associations.
+  const runReconnect = async () => {
+    if (!deck) return;
+    setReconnectBusy(true);
+    try {
+      const headers = await getAuthHeaders();
+      // Step 1 — dry run to preview the change.
+      const preview = await reconnectFn({
+        data: { deckId: deck.id, dryRun: true },
+        headers,
+      });
+      if (!preview.ok) {
+        toast.error("Couldn't scan readings");
+        return;
+      }
+      if (preview.cardSlotsReconnected === 0) {
+        toast.success(
+          `Nothing to reconnect — all matching cards in your readings already point at "${preview.deckName}".`,
+        );
+        return;
+      }
+      const proceed = window.confirm(
+        `Found ${preview.cardSlotsReconnected} card slot${preview.cardSlotsReconnected === 1 ? "" : "s"} across ${preview.readingsUpdated} reading${preview.readingsUpdated === 1 ? "" : "s"} that should point at "${preview.deckName}" but don't.\n\nReconnect them now? (Counts, stalkers, and other stats stay the same — only the deck association changes.)`,
+      );
+      if (!proceed) return;
+      // Step 2 — real run.
+      const result = await reconnectFn({
+        data: { deckId: deck.id, dryRun: false },
+        headers,
+      });
+      if (!result.ok) {
+        toast.error("Reconnect failed");
+        return;
+      }
+      toast.success(
+        `Reconnected ${result.cardSlotsReconnected} card slot${result.cardSlotsReconnected === 1 ? "" : "s"} across ${result.readingsUpdated} reading${result.readingsUpdated === 1 ? "" : "s"}.`,
+      );
+    } catch (e) {
+      toast.error(`Reconnect failed: ${e instanceof Error ? e.message : "unknown"}`);
+    } finally {
+      setReconnectBusy(false);
     }
   };
 
@@ -1270,6 +1323,41 @@ function DeckEditPage() {
             ))
           )}
         </div>
+      </Section>
+
+      {/* EJ44 — Reconnect cards self-healing tool. Lets the seeker
+          repair past readings whose card_deck_ids don't point at this
+          deck. Counts/stalkers are unaffected — only image rendering
+          benefits. */}
+      <Section title="Reconnect this deck to past readings">
+        <p
+          style={{
+            margin: "0 0 12px 0",
+            fontSize: 13,
+            fontStyle: "italic",
+            color: "var(--color-foreground-muted)",
+            lineHeight: 1.5,
+          }}
+        >
+          If past readings show the wrong card art (e.g. the built-in Rider-Waite image instead of
+          your scanned art), this tool scans your readings and re-points any card slot whose card_id
+          exists in this deck so it renders with this deck's art. Counts and stalkers stay the same
+          — only the deck association updates. Safe to run more than once.
+        </p>
+        <button
+          type="button"
+          onClick={runReconnect}
+          disabled={reconnectBusy}
+          style={ghostBtnStyle()}
+        >
+          {reconnectBusy ? (
+            <LoadingText>Scanning…</LoadingText>
+          ) : (
+            <>
+              <Link2 size={14} /> Reconnect cards in past readings
+            </>
+          )}
+        </button>
       </Section>
 
       {/* ── Sticky bottom action bar (EJ40) ─────────────────────────
