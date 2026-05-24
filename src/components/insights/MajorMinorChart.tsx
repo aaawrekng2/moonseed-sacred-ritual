@@ -7,13 +7,15 @@ export function MajorMinorChart({
   data: { major: number; minor: number };
   onTap?: () => void;
 }) {
-  const total = data.major + data.minor;
+  // EJ41 — defensive: parent may pass undefined on partial payloads.
+  const safe = { major: data?.major ?? 0, minor: data?.minor ?? 0 };
+  const total = safe.major + safe.minor;
   const caption =
     total === 0
       ? "Draw a few cards to see the major/minor balance."
-      : data.major > 60
+      : safe.major > 60
         ? "Major-heavy: big life themes are loud right now."
-        : data.minor > 60
+        : safe.minor > 60
           ? "Minor-heavy: day-to-day energy dominates."
           : "Balanced between archetypal and everyday.";
   return (
@@ -21,14 +23,14 @@ export function MajorMinorChart({
       <div className="flex h-6 w-full overflow-hidden rounded-full">
         <div
           style={{
-            width: total === 0 ? "50%" : `${data.major}%`,
+            width: total === 0 ? "50%" : `${safe.major}%`,
             background: "var(--gold)",
             opacity: total === 0 ? 0.25 : 1,
           }}
         />
         <div
           style={{
-            width: total === 0 ? "50%" : `${data.minor}%`,
+            width: total === 0 ? "50%" : `${safe.minor}%`,
             background: "color-mix(in oklch, var(--gold) 25%, transparent)",
           }}
         />
@@ -42,8 +44,8 @@ export function MajorMinorChart({
           letterSpacing: "0.1em",
         }}
       >
-        <span>Major {Math.round(data.major)}%</span>
-        <span>Minor {Math.round(data.minor)}%</span>
+        <span>Major {Math.round(safe.major)}%</span>
+        <span>Minor {Math.round(safe.minor)}%</span>
       </div>
     </InsightCard>
   );

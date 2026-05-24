@@ -10,19 +10,15 @@ import { CardImage } from "@/components/card/CardImage";
  *   C — 5+ readings, no clear stalker → "Most-drawn so far."
  *   D — Stalker detected → "Stalker emerging." (gold ring).
  */
-export function HeroCard({
-  result,
-  onTap,
-}: {
-  result: StalkerCardsResult;
-  onTap?: () => void;
-}) {
+export function HeroCard({ result, onTap }: { result: StalkerCardsResult; onTap?: () => void }) {
   const { stalkerCards, topCard, totalReadings } = result;
-  const stalker = stalkerCards[0];
+  // EJ41 — defensive: stalkerCards may be undefined on partial payloads.
+  const safeStalkerCards = Array.isArray(stalkerCards) ? stalkerCards : [];
+  const stalker = safeStalkerCards[0];
   const featuredId = stalker?.cardId ?? topCard?.cardId ?? 0;
   const count = stalker?.count ?? topCard?.count ?? 0;
   const isStalker = !!stalker;
-  const isLowData = totalReadings > 0 && totalReadings < 5;
+  const isLowData = (totalReadings ?? 0) > 0 && (totalReadings ?? 0) < 5;
   const overline = isLowData
     ? "Just getting started"
     : isStalker
@@ -79,10 +75,7 @@ export function HeroCard({
             eager
             style={{ width: "100%" }}
           />
-          <span
-            className="tarotseed-card-badge"
-            aria-label={`${count} appearances`}
-          >
+          <span className="tarotseed-card-badge" aria-label={`${count} appearances`}>
             {count}
             <span style={{ fontSize: "0.7em", marginLeft: "0.05em" }}>×</span>
           </span>
