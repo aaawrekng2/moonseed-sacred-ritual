@@ -6,11 +6,21 @@
  * Pair with {@link useActiveDeckImage} to resolve card art with
  * automatic Rider-Waite fallback.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   buildDeckImageMap,
   EMPTY_DECK_IMAGE_MAP,
   fetchActiveDeck,
+  fetchUserDecks,
   resolveCardImage,
   invalidateDeckImageMap,
   type CustomDeck,
@@ -61,6 +71,15 @@ type Ctx = {
   loading: boolean;
   /** Re-fetch after the seeker switches decks or photographs more cards. */
   refresh: () => Promise<void>;
+  /**
+   * EJ44 — Map of ALL the user's custom deck image maps, keyed by
+   * deckId. Populated lazily in the background after the active deck
+   * resolves. Used by `useAnyDeckImage()` so card images can fall back
+   * across all the user's decks when the active one doesn't carry that
+   * card_id (e.g., a constellation companion drawn historically from a
+   * different deck the user owns).
+   */
+  allDeckMaps: Record<string, DeckImageMap>;
 };
 
 const ActiveDeckCtx = createContext<Ctx>({
@@ -68,6 +87,7 @@ const ActiveDeckCtx = createContext<Ctx>({
   imageMap: EMPTY_DECK_IMAGE_MAP,
   loading: true,
   refresh: async () => {},
+  allDeckMaps: {},
 });
 
 export function ActiveDeckProvider({ children }: { children: ReactNode }) {
@@ -93,6 +113,13 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(null);
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
   const [loading, setLoading] = useState(true);
+  // EJ44 — cache of every custom deck's image map for THIS user. Loaded
+  // lazily in the background after the active deck resolves. Lets
+  // useAnyDeckImage() fall back across the user's other decks when the
+  // active deck doesn't carry a given card_id. Self-healing: if a
+  // user's reading history references cards from a deck no longer set
+  // active, the image still resolves correctly.
+  const [allDeckMaps, setAllDeckMaps] = useState<Record<string, DeckImageMap>>({});
   // EH3 — hydrate from localStorage exactly once after mount. Effect
   // body runs only on client (window guarded by readCachedDeck).
   const cachedDeckHydratedRef = useRef(false);
@@ -155,6 +182,50 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh, refreshTick]);
 
+  // EJ44 — lazy-load image maps for ALL of the user's decks in the
+  // background. Runs after auth and the active deck have settled. Only
+  // re-fetches when the user id changes or a refresh tick fires (deck
+  // back/image edit). Each individual deck map is internally cached by
+  // buildDeckImageMap so repeated loads are cheap.
+  useEffect(() => {
+    if (authLoading || !user) {
+      setAllDeckMaps({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const decks = await fetchUserDecks(user.id);
+        if (cancelled || decks.length === 0) {
+          if (!cancelled) setAllDeckMaps({});
+          return;
+        }
+        const entries = await Promise.all(
+          decks.map(async (d) => {
+            try {
+              const map = await buildDeckImageMap(d.id);
+              return [d.id, map] as const;
+            } catch {
+              return [d.id, EMPTY_DECK_IMAGE_MAP] as const;
+            }
+          }),
+        );
+        if (cancelled) return;
+        const next: Record<string, DeckImageMap> = {};
+        for (const [id, map] of entries) {
+          next[id] = map;
+        }
+        setAllDeckMaps(next);
+      } catch {
+        if (!cancelled) setAllDeckMaps({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading, refreshTick]);
+
   // 9-6-J — re-fetch when any code path edits the deck back image.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -166,13 +237,12 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
       setRefreshTick((n) => n + 1);
     };
     window.addEventListener("arcana:deck-back-updated", onUpdate);
-    return () =>
-      window.removeEventListener("arcana:deck-back-updated", onUpdate);
+    return () => window.removeEventListener("arcana:deck-back-updated", onUpdate);
   }, [activeDeck?.id]);
 
   const value = useMemo<Ctx>(
-    () => ({ activeDeck, imageMap, loading, refresh }),
-    [activeDeck, imageMap, loading, refresh],
+    () => ({ activeDeck, imageMap, loading, refresh, allDeckMaps }),
+    [activeDeck, imageMap, loading, refresh, allDeckMaps],
   );
 
   return <ActiveDeckCtx.Provider value={value}>{children}</ActiveDeckCtx.Provider>;
@@ -189,12 +259,63 @@ export function useActiveDeckImage(): (
 ) => string | null {
   const { imageMap } = useActiveDeck();
   return useCallback(
-    (
-      cardIndex: number,
-      size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
-    ) =>
+    (cardIndex: number, size: "display" | "thumbnail" | "sm" | "md" | "full" = "display") =>
       resolveCardImage(cardIndex, imageMap, size),
     [imageMap],
+  );
+}
+
+/**
+ * EJ44 — Multi-deck image resolver. Tries:
+ *   1. The active deck (highest priority — user's currently-selected art)
+ *   2. ANY other custom deck the user owns that carries that card_id
+ *      (self-heals constellation companions and historical readings
+ *      that were drawn with a deck no longer active)
+ *   3. The built-in Rider-Waite default for tarot card_ids (0–77)
+ *   4. null for oracle card_ids (1000+) with no match anywhere
+ *
+ * Aggregation note: this does NOT affect how cards are counted. Tarot
+ * card_ids 0–77 are canonical across all decks, so "The Devil" remains
+ * one count regardless of which deck it was drawn with. Oracle cards
+ * are deck-scoped today; cross-deck oracle aggregation would require
+ * globally-unique oracle card_ids and is a separate future feature.
+ */
+export function useAnyDeckImage(): (
+  cardIndex: number,
+  size?: "display" | "thumbnail" | "sm" | "md" | "full",
+) => string | null {
+  const { imageMap, allDeckMaps, activeDeck } = useActiveDeck();
+  return useCallback(
+    (cardIndex: number, size: "display" | "thumbnail" | "sm" | "md" | "full" = "display") => {
+      // 1) active deck first — its image is what the user expects to
+      // see for their current ritual.
+      if (activeDeck) {
+        const activeUrl = resolveCardImage(cardIndex, imageMap, size);
+        if (activeUrl) return activeUrl;
+      }
+      // 2) any other custom deck of the user. We do NOT fall back into
+      // built-in Rider-Waite inside resolveCardImage here (it auto-
+      // falls back to RWS for cardIndex < 1000), so we check each map
+      // for an EXPLICIT entry before accepting the result.
+      for (const [deckId, map] of Object.entries(allDeckMaps)) {
+        if (activeDeck && deckId === activeDeck.id) continue;
+        if (!map) continue;
+        // Only accept a result if this deck actually has the card.
+        const hasExplicit =
+          !!map.variants[cardIndex] || !!map.display[cardIndex] || !!map.thumbnail[cardIndex];
+        if (!hasExplicit) continue;
+        const url = resolveCardImage(cardIndex, map, size);
+        if (url) return url;
+      }
+      // 3) tarot default — but only if we have no active custom deck
+      // OR the active deck legitimately doesn't cover tarot ids. The
+      // resolveCardImage call already auto-falls-through to the default
+      // for tarot ids when the active map misses, so reaching here
+      // means we still want that. For oracle ids it returns null,
+      // which is the correct "no image found" signal.
+      return resolveCardImage(cardIndex, imageMap, size);
+    },
+    [imageMap, allDeckMaps, activeDeck],
   );
 }
 
@@ -226,9 +347,7 @@ export function useActiveDeckCornerRadius(): number | null {
  * or measurement still pending). CardImage uses this for first-paint
  * sizing so card bottoms aren't briefly cropped while the IMG decodes.
  */
-export function useActiveDeckCardAspect(
-  cardId: number | null | undefined,
-): number | null {
+export function useActiveDeckCardAspect(cardId: number | null | undefined): number | null {
   const { imageMap } = useActiveDeck();
   if (cardId == null) return null;
   return imageMap.aspectByCardId[cardId] ?? null;
@@ -251,12 +370,37 @@ export function useActiveDeckCardName(): (cardId: number) => string {
 }
 
 /**
+ * EJ44 — Multi-deck card-name resolver. Parallel of useAnyDeckImage:
+ * tries the active deck's per-card name override, then every other
+ * deck the user owns, then the canonical tarot name, then "Card N".
+ * Used by surfaces like the constellation that aggregate across the
+ * user's whole reading history.
+ */
+export function useAnyDeckCardName(): (cardId: number) => string {
+  const { imageMap, allDeckMaps, activeDeck } = useActiveDeck();
+  return useCallback(
+    (cardId: number) => {
+      // 1) active deck name override
+      if (activeDeck && imageMap.nameByCardId[cardId]) {
+        return imageMap.nameByCardId[cardId];
+      }
+      // 2) any other custom deck of the user
+      for (const [deckId, map] of Object.entries(allDeckMaps)) {
+        if (activeDeck && deckId === activeDeck.id) continue;
+        if (map?.nameByCardId[cardId]) return map.nameByCardId[cardId];
+      }
+      // 3) canonical tarot name, then "Card N"
+      return getCardName(cardId) ?? `Card ${cardId}`;
+    },
+    [imageMap, allDeckMaps, activeDeck],
+  );
+}
+
+/**
  * Parallel of useActiveDeckCardName for a SPECIFIC deck id (historical
  * readings / journal entries that carry their own saved deck_id).
  */
-export function useDeckCardName(
-  deckId: string | null | undefined,
-): (cardId: number) => string {
+export function useDeckCardName(deckId: string | null | undefined): (cardId: number) => string {
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
   useEffect(() => {
     if (!deckId) {
@@ -347,9 +491,7 @@ export function useMultiDeckCardName(
  * return value) warms the in-memory deck-image cache so subsequent
  * single-deck CardImage renders are instant.
  */
-export function useMultiDeckImage(
-  deckIds: readonly (string | null | undefined)[],
-): {
+export function useMultiDeckImage(deckIds: readonly (string | null | undefined)[]): {
   resolve: (
     cardIndex: number,
     deckId: string | null | undefined,
@@ -449,10 +591,9 @@ export function useMultiDeckImage(
  * extract each row into its own component (e.g. `ReadingRow`) so the
  * hook runs at the top level of that component.
  */
-export function useDeckImage(deckId: string | null | undefined): (
-  cardIndex: number,
-  size?: "display" | "thumbnail" | "sm" | "md" | "full",
-) => string | null {
+export function useDeckImage(
+  deckId: string | null | undefined,
+): (cardIndex: number, size?: "display" | "thumbnail" | "sm" | "md" | "full") => string | null {
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
   // DD-3 — track in-flight custom-deck fetches so consumers can render a
   // neutral placeholder instead of flashing the default Rider-Waite art
@@ -488,10 +629,7 @@ export function useDeckImage(deckId: string | null | undefined): (
   }, [deckId]);
 
   return useCallback(
-    (
-      cardIndex: number,
-      size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
-    ) => {
+    (cardIndex: number, size: "display" | "thumbnail" | "sm" | "md" | "full" = "display") => {
       if (deckId && isLoading) return null;
       return resolveCardImage(cardIndex, imageMap, size);
     },
@@ -564,17 +702,12 @@ export function variantUrlFor(
     const url = new URL(originalUrl);
     const path = url.pathname;
     // Match "<...>/card-N-TS(-thumb)?.<ext>" at the end of the path.
-    const m = path.match(
-      /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
-    );
+    const m = path.match(/^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i);
     if (!m) return originalUrl;
     // FD-3 — `-full.webp` is the rounded-alpha master baked at
     // single-card save time. sm/md remain `-${variant}.jpg`
     // (un-rounded; the lack of alpha is invisible at <=400px).
-    const newPath =
-      variant === "full"
-        ? `${m[1]}-full.webp`
-        : `${m[1]}-${variant}.webp`; // 9-6-W — was .jpg
+    const newPath = variant === "full" ? `${m[1]}-full.webp` : `${m[1]}-${variant}.webp`; // 9-6-W — was .jpg
     url.pathname = newPath;
     return url.toString();
   } catch {
@@ -596,9 +729,7 @@ export function variantUrlPngFallback(
   if (!originalUrl.includes("/custom-deck-images/")) return null;
   try {
     const url = new URL(originalUrl);
-    const m = url.pathname.match(
-      /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
-    );
+    const m = url.pathname.match(/^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i);
     if (!m) return null;
     url.pathname = `${m[1]}-${variant}.png`;
     return url.toString();
