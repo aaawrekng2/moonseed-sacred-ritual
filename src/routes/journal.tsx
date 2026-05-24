@@ -43,6 +43,7 @@ import {
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
+import { swapReadingDeck, swapDeckAcrossReadings } from "@/lib/reconnect-deck.functions";
 import { toast } from "sonner";
 import { EnrichmentPanel, type EnrichmentTag } from "@/components/journal/EnrichmentPanel";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
@@ -2100,6 +2101,14 @@ function ReadingDetail({
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
   const [deckSaving, setDeckSaving] = useState(false);
+  // EJ46 — Switch deck affordance state for the journal ReadingDetail.
+  // Mirrors the same UX shipped in ReadingDetailModal (EJ45) so the
+  // affordance appears whether the seeker opened this reading from
+  // Journal (here) or from Stalkers/Stories (modal).
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [swapBusy, setSwapBusy] = useState(false);
+  const swapOne = useServerFn(swapReadingDeck);
+  const swapAcross = useServerFn(swapDeckAcrossReadings);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -2133,6 +2142,83 @@ function ReadingDetail({
     }
     onDeckChange(reading.id, newDeckId);
     toast.success("Deck updated");
+  };
+
+  // EJ46 — Switch deck handler. Routes through the EJ45 server fns so
+  // it updates per-slot card_deck_ids (not just the reading-level
+  // deck_id column). After a successful per-reading swap, looks for
+  // OTHER readings still linked to the same previous deck and offers
+  // a one-tap apply-to-all follow-up.
+  const handleSwitchDeck = async (toDeckId: string) => {
+    if (swapBusy) return;
+    const headers = await getAuthHeaders();
+    setSwapBusy(true);
+    try {
+      const preview = await swapOne({
+        data: { readingId: reading.id, toDeckId, mode: "tarotOnly", dryRun: true },
+        headers,
+      });
+      if (!preview.ok) {
+        toast.error("Couldn't switch deck for this reading");
+        return;
+      }
+      const toDeckName =
+        decks.find((d) => d.id === toDeckId)?.name ?? preview.toDeckName ?? "this deck";
+      if (preview.slotsSwapped === 0) {
+        toast.success(`Already showing "${toDeckName}".`);
+        setSwitchOpen(false);
+        return;
+      }
+      const confirmOne = window.confirm(
+        `Switch ${preview.slotsSwapped} tarot card${preview.slotsSwapped === 1 ? "" : "s"} in this reading to "${toDeckName}"?`,
+      );
+      if (!confirmOne) return;
+      const result = await swapOne({
+        data: { readingId: reading.id, toDeckId, mode: "tarotOnly", dryRun: false },
+        headers,
+      });
+      if (!result.ok) {
+        toast.error("Switch failed");
+        return;
+      }
+      // Notify the parent list so the reading row reflects the new
+      // deck without a full refetch.
+      onDeckChange(reading.id, toDeckId);
+      toast.success(
+        `Switched ${result.slotsSwapped} card${result.slotsSwapped === 1 ? "" : "s"} to "${toDeckName}".`,
+      );
+      setSwitchOpen(false);
+      // Global follow-up.
+      const prevDeckId = result.previousDeckId ?? null;
+      if (prevDeckId === toDeckId) return;
+      const acrossPreview = await swapAcross({
+        data: { fromDeckId: prevDeckId, toDeckId, mode: "safe", dryRun: true },
+        headers,
+      });
+      if (!acrossPreview.ok) return;
+      if (acrossPreview.readingsUpdated === 0) return;
+      const fromLabel =
+        acrossPreview.fromDeckName ?? (prevDeckId === null ? "Default" : "the previous deck");
+      const applyAll = window.confirm(
+        `Found ${acrossPreview.readingsUpdated} other reading${acrossPreview.readingsUpdated === 1 ? "" : "s"} still linked to "${fromLabel}". Apply this swap to all of them too?`,
+      );
+      if (!applyAll) return;
+      const globalRes = await swapAcross({
+        data: { fromDeckId: prevDeckId, toDeckId, mode: "safe", dryRun: false },
+        headers,
+      });
+      if (!globalRes.ok) {
+        toast.error("Bulk apply failed");
+        return;
+      }
+      toast.success(
+        `Updated ${globalRes.slotsSwapped} more slot${globalRes.slotsSwapped === 1 ? "" : "s"} across ${globalRes.readingsUpdated} reading${globalRes.readingsUpdated === 1 ? "" : "s"}.`,
+      );
+    } catch (e) {
+      toast.error(`Switch failed: ${e instanceof Error ? e.message : "unknown"}`);
+    } finally {
+      setSwapBusy(false);
+    }
   };
   const archiveFn = useServerFn(archiveReading);
   const restoreFn = useServerFn(restoreReading);
@@ -2585,6 +2671,99 @@ function ReadingDetail({
             auto-save. Lives below the interpretation per the spec. */}
         {/* DB-3.2 — Deck override picker. */}
         {/* Q13 Fix 4 — "Deck: …" label removed per spec. */}
+
+        {/* EJ46 — Switch deck affordance. Lets the seeker re-link
+            tarot card slots in this reading to a different deck.
+            Hidden when they own no custom decks. Oracle slots
+            (card_id 1000+) are untouched throughout. */}
+        {!isArchived && decks.length > 0 && (
+          <section className="mt-3 flex flex-col items-center gap-2">
+            {!switchOpen ? (
+              <button
+                type="button"
+                onClick={() => setSwitchOpen(true)}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground-muted)",
+                  background: "none",
+                  border: "none",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  opacity: 0.7,
+                }}
+              >
+                Switch deck (currently {currentDeckName})
+              </button>
+            ) : (
+              <div
+                className="flex flex-col items-center gap-2 rounded-lg px-4 py-3"
+                style={{
+                  background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
+                  maxWidth: 320,
+                  width: "100%",
+                }}
+              >
+                <p
+                  className="text-center"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption)",
+                    color: "var(--color-foreground)",
+                    opacity: 0.8,
+                    margin: 0,
+                  }}
+                >
+                  Switch tarot images to:
+                </p>
+                <div className="flex w-full flex-col items-stretch gap-1.5">
+                  {decks.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      disabled={swapBusy}
+                      onClick={() => void handleSwitchDeck(d.id)}
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-body-sm)",
+                        color: "var(--gold)",
+                        background: "transparent",
+                        border: "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+                        borderRadius: 999,
+                        padding: "8px 14px",
+                        cursor: swapBusy ? "default" : "pointer",
+                        opacity: swapBusy ? 0.5 : 1,
+                      }}
+                    >
+                      {d.name}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSwitchOpen(false)}
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption)",
+                    color: "var(--color-foreground-muted)",
+                    background: "none",
+                    border: "none",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    opacity: 0.55,
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
         <div
           style={isArchived ? { opacity: 0.45, pointerEvents: "none" } : undefined}
