@@ -18,7 +18,20 @@
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronLeft, Clipboard, Download, Sparkles, Upload, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  Clipboard,
+  Download,
+  ListChecks,
+  Sparkles,
+  Square,
+  SquareCheck,
+  Trash2,
+  Undo2,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import {
@@ -44,6 +57,10 @@ import {
   updatePromptStatus,
   bulkPromptStatus,
   importDeckPromptsCsv,
+  erasePrompts,
+  restorePromptsFromSnapshot,
+  isUserAdmin,
+  type EraseSnapshotItem,
 } from "@/lib/journal-prompts.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -93,6 +110,24 @@ function DeckEditPage() {
   // populates the 4 aspect slots + voiceGuide. All fields stay
   // editable after parse so they can refine anything.
   const [aiPaste, setAiPaste] = useState<string>("");
+  // EJ40 — Simple vs Advanced mode. Simple = single-line list with
+  // bulk checkbox selection + sticky cost bar. Advanced = the legacy
+  // per-card 4-prompt grid with inline edit / approve / reject.
+  // Default Simple — it's the more obvious workflow for new decks.
+  const [mode, setMode] = useState<"simple" | "advanced">("simple");
+  // EJ40 — Set of card UUIDs currently selected for batch operations.
+  // Persists across mode flips so users can select in Simple then
+  // bulk-act in either mode.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // EJ40 — admin gate for internal credit accounting display.
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  // EJ40 — undo buffer for the "Clear prompts for selected" action.
+  // The server returns a snapshot of the erased state; we hold it
+  // for ~30s and surface a Restore action.
+  const [undoSnapshot, setUndoSnapshot] = useState<{
+    snapshot: EraseSnapshotItem[];
+    expiresAt: number;
+  } | null>(null);
 
   // Load deck + cards.
   const reload = useCallback(async () => {
@@ -125,6 +160,30 @@ function DeckEditPage() {
   useEffect(() => {
     if (!authLoading) void reload();
   }, [authLoading, reload]);
+
+  // EJ40 — fetch the seeker's admin status once on mount. Used to
+  // decide whether to surface internal credit accounting in toasts
+  // and the sticky cost bar.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const r = await isUserAdmin({ data: {}, headers });
+        if (r.ok) setIsAdmin(r.isAdmin);
+      } catch {
+        // Non-fatal — default isAdmin=false stays.
+      }
+    })();
+  }, [authLoading, user]);
+
+  // EJ40 — auto-expire the undo snapshot 30 seconds after creation.
+  useEffect(() => {
+    if (!undoSnapshot) return;
+    const ms = Math.max(0, undoSnapshot.expiresAt - Date.now());
+    const t = setTimeout(() => setUndoSnapshot(null), ms);
+    return () => clearTimeout(t);
+  }, [undoSnapshot]);
 
   // ─── Aspect editing ─────────────────────────────────────────────
   const aspectsDirty = useMemo(() => {
@@ -326,18 +385,51 @@ function DeckEditPage() {
 
   // ─── Generate all ────────────────────────────────────────────────
   const [generating, setGenerating] = useState(false);
+
+  // EJ40 — format a "result" toast with admin-only batch details.
+  // Non-admin users see only the per-card credit number; admins also
+  // see the internal batches × per-batch credits breakdown labeled
+  // "(admin only)".
+  const formatGenResult = useCallback(
+    (
+      generated: number,
+      failed: number,
+      creditsUsed: number,
+      batchesUsed: number,
+      internalCreditsUsed: number,
+    ) => {
+      const base =
+        failed > 0
+          ? `Generated ${generated} cards · ${failed} failed · ~${creditsUsed} credits`
+          : `Generated ${generated} cards · ~${creditsUsed} credits`;
+      if (!isAdmin) return base;
+      return `${base}\n(admin only) ${batchesUsed} batches × ${internalCreditsUsed} internal credits`;
+    },
+    [isAdmin],
+  );
+
+  // EJ40 — estimate per-card credits for any selection. 1 credit
+  // per 10 cards, rounded up generously.
+  const estimateCredits = (cardCount: number): number =>
+    cardCount === 0 ? 0 : Math.max(1, Math.ceil(cardCount / 10));
+
   const runGenerateAll = async () => {
     if (!deck || genGateReasons.length > 0) return;
+    const estimate = estimateCredits(cardsMissingPrompts);
     if (
       !window.confirm(
-        `Generate prompts for ${cardsMissingPrompts} cards? This will cost up to ${cardsMissingPrompts} credits.`,
+        `Generate prompts for ${cardsMissingPrompts} cards? Estimated cost: ~${estimate} credit${
+          estimate === 1 ? "" : "s"
+        } (1 credit per ~10 cards).`,
       )
     ) {
       return;
     }
     setGenerating(true);
     const headers = await getAuthHeaders();
-    const toastId = toast.loading(`Generating prompts for ${cardsMissingPrompts} cards…`);
+    const toastId = toast.loading(
+      `Generating prompts for ${cardsMissingPrompts} cards (this can take 30–60 seconds)…`,
+    );
     try {
       const res = await generateDeckPrompts({
         data: { deckId: deck.id },
@@ -347,7 +439,13 @@ function DeckEditPage() {
         toast.error(`Generation failed: ${res.error}`, { id: toastId });
       } else {
         toast.success(
-          `Generated ${res.generated} cards · ${res.failed} failed · ${res.creditsUsed} credits used`,
+          formatGenResult(
+            res.generated,
+            res.failed,
+            res.creditsUsed,
+            res.batchesUsed,
+            res.internalCreditsUsed,
+          ),
           { id: toastId },
         );
       }
@@ -358,6 +456,181 @@ function DeckEditPage() {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // EJ40 — generate prompts for a specific selection of card UUIDs.
+  // Used by the Simple-mode "(Re)generate selected" button.
+  const runGenerateSelected = async () => {
+    if (!deck) return;
+    const selectedCards = filteredCards.filter((c) => selected.has(c.id));
+    const eligibleSelected = selectedCards.filter(
+      (c) => (c.card_description ?? "").trim().length > 0,
+    );
+    if (eligibleSelected.length === 0) {
+      toast.error(
+        "No selected cards have a description for the AI reader. Add descriptions first.",
+      );
+      return;
+    }
+    const estimate = estimateCredits(eligibleSelected.length);
+    if (
+      !window.confirm(
+        `Generate prompts for ${eligibleSelected.length} selected card${
+          eligibleSelected.length === 1 ? "" : "s"
+        }? Estimated cost: ~${estimate} credit${estimate === 1 ? "" : "s"}.`,
+      )
+    ) {
+      return;
+    }
+    setGenerating(true);
+    const headers = await getAuthHeaders();
+    const toastId = toast.loading(
+      `Generating prompts for ${eligibleSelected.length} card${
+        eligibleSelected.length === 1 ? "" : "s"
+      } (this can take 30–60 seconds)…`,
+    );
+    try {
+      const res = await generateDeckPrompts({
+        data: { deckId: deck.id, cardIds: eligibleSelected.map((c) => c.id) },
+        headers,
+      });
+      if (!res.ok) {
+        toast.error(`Generation failed: ${res.error}`, { id: toastId });
+      } else {
+        toast.success(
+          formatGenResult(
+            res.generated,
+            res.failed,
+            res.creditsUsed,
+            res.batchesUsed,
+            res.internalCreditsUsed,
+          ),
+          { id: toastId },
+        );
+        setSelected(new Set());
+      }
+      await reload();
+    } catch (e) {
+      toast.error(`Generation failed: ${e instanceof Error ? e.message : "unknown"}`, {
+        id: toastId,
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // EJ40 — "Use your AI (free)" path for selected cards. Downloads
+  // a CSV of just the selected cards + copies the pre-filled
+  // instructions prompt to the clipboard, so the user can run the
+  // generation themselves in their own AI subscription. Zero credit
+  // cost.
+  const exportSelectedForExternalAi = async () => {
+    if (!deck) return;
+    const selectedCards = filteredCards.filter((c) => selected.has(c.id));
+    if (selectedCards.length === 0) {
+      toast.error("Select some cards first");
+      return;
+    }
+    const instructions = buildCsvInstructionsPrompt({
+      deckName: deck.name,
+      cardCount: selectedCards.length,
+      aspects,
+      voiceGuide,
+    });
+    try {
+      await navigator.clipboard.writeText(instructions);
+    } catch {
+      // Non-fatal; the download still works.
+    }
+    // Build a CSV of just the selected rows.
+    const header = ["card_id", "card_name", "card_description", "p1", "p2", "p3", "p4"];
+    const rows = selectedCards.map((c) => [
+      String(c.card_id),
+      c.card_name ?? "",
+      c.card_description ?? "",
+      (c.journal_prompts ?? [])[0] ?? "",
+      (c.journal_prompts ?? [])[1] ?? "",
+      (c.journal_prompts ?? [])[2] ?? "",
+      (c.journal_prompts ?? [])[3] ?? "",
+    ]);
+    const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+    const csv = [header, ...rows].map((r) => r.map((c) => esc(String(c))).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${deck.name.replace(/[^a-zA-Z0-9-_]/g, "_")}_selected_prompts.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(
+      `Downloaded ${selectedCards.length} cards as CSV · Instructions copied to clipboard. Paste both into your AI, then upload the result.`,
+    );
+  };
+
+  // EJ40 — Clear prompts for selected cards. Captures a snapshot so
+  // the user can undo within the next 30 seconds.
+  const eraseSelected = async () => {
+    if (!deck) return;
+    const ids = filteredCards
+      .filter((c) => selected.has(c.id))
+      .filter(
+        (c) =>
+          (c.journal_prompts ?? []).some((p) => (p ?? "").trim().length > 0) ||
+          (c.prompt_status ?? []).some((s) => s !== null),
+      )
+      .map((c) => c.id);
+    if (ids.length === 0) {
+      toast.error("Selected cards have no prompts to erase");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Clear all 4 prompts for ${ids.length} card${
+          ids.length === 1 ? "" : "s"
+        }? You'll have 30 seconds to undo.`,
+      )
+    ) {
+      return;
+    }
+    const headers = await getAuthHeaders();
+    try {
+      const res = await erasePrompts({
+        data: { deckId: deck.id, cardIds: ids },
+        headers,
+      });
+      if (res.ok && res.snapshot.length > 0) {
+        setUndoSnapshot({ snapshot: res.snapshot, expiresAt: Date.now() + 30000 });
+        toast.success(
+          `Cleared prompts for ${res.erased} card${res.erased === 1 ? "" : "s"} · Undo available for 30s`,
+        );
+        setSelected(new Set());
+        await reload();
+      } else {
+        toast.error("Erase failed");
+      }
+    } catch (e) {
+      toast.error(`Erase failed: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+  };
+
+  const runUndoErase = async () => {
+    if (!deck || !undoSnapshot) return;
+    const headers = await getAuthHeaders();
+    try {
+      const res = await restorePromptsFromSnapshot({
+        data: { deckId: deck.id, snapshot: undoSnapshot.snapshot },
+        headers,
+      });
+      if (res.ok) {
+        toast.success(`Restored ${res.restored} card${res.restored === 1 ? "" : "s"}`);
+        setUndoSnapshot(null);
+        await reload();
+      } else {
+        toast.error("Restore failed");
+      }
+    } catch (e) {
+      toast.error(`Restore failed: ${e instanceof Error ? e.message : "unknown"}`);
     }
   };
 
@@ -889,12 +1162,61 @@ function DeckEditPage() {
         </div>
       </Section>
 
-      {/* ── Cards section ── */}
+      {/* ── Cards section (EJ40 redesign) ── */}
       <Section
         title={`Cards (${filteredCards.length}${filter === "all" ? "" : ` of ${cards.length}`})`}
       >
-        <FilterRow filter={filter} onFilterChange={setFilter} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Mode toggle (Simple | Advanced) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            role="tablist"
+            aria-label="View mode"
+            style={{
+              display: "inline-flex",
+              padding: 2,
+              borderRadius: 999,
+              background: "var(--surface-card)",
+              border: "1px solid var(--border-default)",
+            }}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "simple"}
+              onClick={() => setMode("simple")}
+              style={modePillStyle(mode === "simple")}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "advanced"}
+              onClick={() => setMode("advanced")}
+              style={modePillStyle(mode === "advanced")}
+            >
+              Advanced
+            </button>
+          </div>
+          <FilterRow filter={filter} onFilterChange={setFilter} />
+        </div>
+
+        {/* Simple mode: select-all + helpers row */}
+        {mode === "simple" && filteredCards.length > 0 && (
+          <SelectionHelpers cards={filteredCards} selected={selected} onChange={setSelected} />
+        )}
+
+        {/* Card list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: mode === "simple" ? 6 : 16 }}>
           {filteredCards.length === 0 ? (
             <p
               style={{
@@ -906,42 +1228,138 @@ function DeckEditPage() {
             >
               No cards match this filter.
             </p>
-          ) : (
+          ) : mode === "simple" ? (
             filteredCards.map((c) => (
-              <CardEditRow
+              <CardListRow
                 key={c.id}
                 card={c}
-                aspects={aspects}
-                hasDescription={(c.card_description ?? "").trim().length > 0}
-                aspectsSaved={aspectsSaved}
-                onAcceptReject={onAcceptReject}
-                onSavePromptEdit={onSavePromptEdit}
-                onRegenerateCard={onRegenerateOneCard}
+                checked={selected.has(c.id)}
+                onToggle={() =>
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(c.id)) next.delete(c.id);
+                    else next.add(c.id);
+                    return next;
+                  })
+                }
+                onOpenAdvanced={() => {
+                  setMode("advanced");
+                  // Scroll to the card so it's visible after mode flip.
+                  setTimeout(() => {
+                    document.getElementById(`card-row-${c.id}`)?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                  }, 50);
+                }}
               />
+            ))
+          ) : (
+            filteredCards.map((c) => (
+              <div key={c.id} id={`card-row-${c.id}`}>
+                <CardEditRow
+                  card={c}
+                  aspects={aspects}
+                  hasDescription={(c.card_description ?? "").trim().length > 0}
+                  aspectsSaved={aspectsSaved}
+                  onAcceptReject={onAcceptReject}
+                  onSavePromptEdit={onSavePromptEdit}
+                  onRegenerateCard={onRegenerateOneCard}
+                />
+              </div>
             ))
           )}
         </div>
       </Section>
 
-      {/* ── Sticky bottom regen-rejected bar ── */}
-      {rejectedCount > 0 && (
+      {/* ── Sticky bottom action bar (EJ40) ─────────────────────────
+          Three states: undo-available, selection-active, rejected-
+          count. They stack in priority order so the most relevant
+          one shows. */}
+      {undoSnapshot ? (
+        <div style={stickyBarStyle()}>
+          <span style={{ fontSize: 13, color: "var(--color-foreground)" }}>
+            Cleared prompts for {undoSnapshot.snapshot.length} card
+            {undoSnapshot.snapshot.length === 1 ? "" : "s"}
+          </span>
+          <button type="button" onClick={runUndoErase} style={primaryBtnStyle(false)}>
+            <Undo2 size={14} /> Undo
+          </button>
+        </div>
+      ) : mode === "simple" && selected.size > 0 ? (
         <div
           style={{
-            position: "fixed",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 40,
-            background: "var(--surface-elevated)",
-            borderTop: "1px solid var(--border-default)",
-            padding: "12px 16px",
+            ...stickyBarStyle(),
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-            flexWrap: "wrap",
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: 8,
+            padding: "10px 16px 14px",
           }}
         >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: 12, color: "var(--color-foreground-muted)" }}>
+                {selected.size} selected · ~{estimateCredits(selected.size)} credit
+                {estimateCredits(selected.size) === 1 ? "" : "s"} with our AI · free with your own
+                AI
+              </span>
+              {isAdmin && (
+                <span
+                  style={{ fontSize: 10, color: "var(--color-foreground-muted)", opacity: 0.7 }}
+                >
+                  (admin only) ~{Math.ceil(selected.size / 8)} internal batches
+                </span>
+              )}
+            </div>
+            <button type="button" onClick={() => setSelected(new Set())} style={ghostBtnStyle()}>
+              Clear selection
+            </button>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={runGenerateSelected}
+              disabled={generating || !aspectsSaved}
+              style={primaryBtnStyle(generating || !aspectsSaved)}
+            >
+              {generating ? <LoadingText>Generating…</LoadingText> : `(Re)generate with our AI`}
+            </button>
+            <button
+              type="button"
+              onClick={exportSelectedForExternalAi}
+              style={ghostBtnStyle()}
+              title="Free path: download CSV + copy instructions for your ChatGPT / Claude / Gemini"
+            >
+              Use your AI (free)
+            </button>
+            <button
+              type="button"
+              onClick={eraseSelected}
+              style={ghostBtnStyle()}
+              title="Clear all 4 prompts for selected cards (undo available for 30s)"
+            >
+              <Trash2 size={14} /> Clear prompts
+            </button>
+          </div>
+        </div>
+      ) : rejectedCount > 0 ? (
+        <div style={stickyBarStyle()}>
           <span style={{ fontSize: 13, color: "var(--color-foreground)" }}>
             {rejectedCount} prompts marked ✗ across {rejectedCardCount} cards
           </span>
@@ -954,11 +1372,11 @@ function DeckEditPage() {
             {rejectedBusy ? (
               <LoadingText>Regenerating…</LoadingText>
             ) : (
-              `Regenerate all ✗ (~${rejectedCardCount} credits)`
+              `Regenerate all ✗ (~${estimateCredits(rejectedCardCount)} credits)`
             )}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1498,5 +1916,325 @@ function iconBtnStyle(active: boolean): React.CSSProperties {
     alignItems: "center",
     justifyContent: "center",
     padding: 0,
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   EJ40 — Simple-mode components and styles.
+   ───────────────────────────────────────────────────────────────── */
+
+/**
+ * Single-line list row for Simple mode. One row per card. Left:
+ * checkbox. Middle: card name + sub-status. Right: 4 status dots
+ * (one per aspect). Tapping the name area drops the user into
+ * Advanced mode for that specific card so they can edit prompts.
+ */
+function CardListRow({
+  card,
+  checked,
+  onToggle,
+  onOpenAdvanced,
+}: {
+  card: CustomDeckCard;
+  checked: boolean;
+  onToggle: () => void;
+  onOpenAdvanced: () => void;
+}) {
+  const prompts = card.journal_prompts ?? ["", "", "", ""];
+  const statuses = (card.prompt_status ?? [null, null, null, null]).slice(0, 4);
+  while (statuses.length < 4) statuses.push(null);
+  const filledCount = prompts.filter((p) => (p ?? "").trim().length > 0).length;
+  const approvedCount = statuses.filter((s) => s === "approved").length;
+  const rejectedCount = statuses.filter((s) => s === "rejected").length;
+  const pendingCount = filledCount - approvedCount - rejectedCount;
+  const hasDescription = (card.card_description ?? "").trim().length > 0;
+  let subStatus = "";
+  if (filledCount === 0) {
+    subStatus = hasDescription ? "no prompts yet" : "no description · add to generate";
+  } else if (rejectedCount > 0) {
+    subStatus = `${rejectedCount} rejected · regen needed`;
+  } else if (pendingCount > 0) {
+    subStatus = `${pendingCount} pending review`;
+  } else {
+    subStatus = "all 4 approved";
+  }
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 10px",
+        borderRadius: 8,
+        background: checked
+          ? "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)"
+          : "var(--surface-card)",
+        border: `1px solid ${checked ? "var(--accent, var(--gold))" : "var(--border-subtle)"}`,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={checked ? `Deselect ${card.card_name}` : `Select ${card.card_name}`}
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 4,
+          border: `1.5px solid ${checked ? "var(--accent, var(--gold))" : "var(--border-default)"}`,
+          background: checked ? "var(--accent, var(--gold))" : "transparent",
+          color: checked ? "var(--background, white)" : "transparent",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          padding: 0,
+        }}
+      >
+        {checked ? <Check size={14} strokeWidth={3} /> : null}
+      </button>
+      <button
+        type="button"
+        onClick={onOpenAdvanced}
+        title="Open in Advanced mode to edit"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 2,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          textAlign: "left",
+          cursor: "pointer",
+          color: "var(--color-foreground)",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 14,
+            color: "var(--color-foreground)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: "100%",
+          }}
+        >
+          {card.card_name || `Card ${card.card_id}`}
+        </span>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--color-foreground-muted)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: "100%",
+          }}
+        >
+          {subStatus}
+        </span>
+      </button>
+      <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <StatusDot key={i} prompt={prompts[i] ?? ""} status={statuses[i]} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatusDot({ prompt, status }: { prompt: string; status: string | null }) {
+  const hasPrompt = (prompt ?? "").trim().length > 0;
+  if (!hasPrompt) {
+    return (
+      <span
+        aria-label="empty"
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: "var(--color-foreground-muted)",
+          opacity: 0.3,
+        }}
+      />
+    );
+  }
+  if (status === "approved") {
+    return (
+      <span
+        aria-label="approved"
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: "var(--accent, var(--gold))",
+        }}
+      />
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <span
+        aria-label="rejected"
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: "var(--color-danger, #c0392b)",
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-label="pending"
+      style={{
+        width: 10,
+        height: 10,
+        borderRadius: "50%",
+        border: "1.5px solid var(--accent, var(--gold))",
+        background: "transparent",
+        boxSizing: "border-box",
+      }}
+    />
+  );
+}
+
+/**
+ * Selection helpers row above the list in Simple mode. Master select-
+ * all checkbox plus quick filters: empty / rejected / pending.
+ */
+function SelectionHelpers({
+  cards,
+  selected,
+  onChange,
+}: {
+  cards: CustomDeckCard[];
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+}) {
+  const ids = cards.map((c) => c.id);
+  const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
+  const someSelected = !allSelected && ids.some((id) => selected.has(id));
+  const toggleAll = () => {
+    if (allSelected) {
+      onChange(new Set());
+    } else {
+      onChange(new Set(ids));
+    }
+  };
+  const selectByPredicate = (pred: (c: CustomDeckCard) => boolean) => {
+    onChange(new Set(cards.filter(pred).map((c) => c.id)));
+  };
+  const isEmpty = (c: CustomDeckCard) =>
+    (c.journal_prompts ?? ["", "", "", ""]).every((p) => !(p ?? "").trim());
+  const hasRejected = (c: CustomDeckCard) => (c.prompt_status ?? []).some((s) => s === "rejected");
+  const hasPending = (c: CustomDeckCard) => {
+    const prompts = c.journal_prompts ?? ["", "", "", ""];
+    const status = c.prompt_status ?? [null, null, null, null];
+    return prompts.some((p, i) => (p ?? "").trim() && status[i] === null);
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 10px",
+        background: "var(--surface-elevated)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: 8,
+        marginBottom: 8,
+        flexWrap: "wrap",
+      }}
+    >
+      <button
+        type="button"
+        onClick={toggleAll}
+        aria-label={allSelected ? "Deselect all" : "Select all"}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          color: "var(--color-foreground)",
+          fontSize: 12,
+        }}
+      >
+        {allSelected ? (
+          <SquareCheck size={18} />
+        ) : someSelected ? (
+          <ListChecks size={18} />
+        ) : (
+          <Square size={18} />
+        )}
+        Select all ({cards.length})
+      </button>
+      <span style={{ color: "var(--border-default)" }}>·</span>
+      <button type="button" onClick={() => selectByPredicate(isEmpty)} style={smallBtnStyle(false)}>
+        Empty
+      </button>
+      <button
+        type="button"
+        onClick={() => selectByPredicate(hasRejected)}
+        style={smallBtnStyle(false)}
+      >
+        Has rejected
+      </button>
+      <button
+        type="button"
+        onClick={() => selectByPredicate(hasPending)}
+        style={smallBtnStyle(false)}
+      >
+        Has pending
+      </button>
+      {selected.size > 0 && (
+        <>
+          <span style={{ color: "var(--border-default)", marginLeft: "auto" }}>·</span>
+          <button type="button" onClick={() => onChange(new Set())} style={smallBtnStyle(false)}>
+            Clear
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function modePillStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: "6px 14px",
+    borderRadius: 999,
+    border: "none",
+    background: active
+      ? "color-mix(in oklab, var(--accent, var(--gold)) 18%, var(--surface-elevated))"
+      : "transparent",
+    color: active ? "var(--color-foreground)" : "var(--color-foreground-muted)",
+    fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+  };
+}
+
+function stickyBarStyle(): React.CSSProperties {
+  return {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 40,
+    background: "var(--surface-elevated)",
+    borderTop: "1px solid var(--border-default)",
+    padding: "12px 16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    flexWrap: "wrap",
   };
 }

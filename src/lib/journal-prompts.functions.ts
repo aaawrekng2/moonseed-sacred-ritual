@@ -114,13 +114,77 @@ For every card I send you, write exactly 4 journaling prompts, one for each of t
 
 ${aspectLines}
 
-Rules:
-- Each prompt is 1-2 sentences.
-- Second person ("you").
-- Open-ended — invite reflection, never tell the reader what to feel.
-- Stay specific to the card's description.
-- Match the aspect's angle precisely; don't blur them together.
-- No preamble, no "this card asks…", no quotation marks, no trailing periods on fragments.${voiceBlock}
+# Core framing — the most important thing
+
+These prompts meet the seeker in their PRESENT moment, through this card, today. You are NOT writing biographical archive questions ("when did you learn X?", "who taught you Y?", "what did you carry from Z?"). Those send the seeker into memory-archive mode and dead-end the journaling. Instead, you write prompts that open the present — what is here, now, in this body, in this day, in this room?
+
+# Strict format rules (every prompt must obey all of these)
+
+1. **One question per prompt.** Never two questions stacked together. No "or did you also…", no "and what about…", no compound questions joined by periods, commas, em-dashes, or semicolons.
+
+2. **Open framing only.** Begin with "What", "Where", "How", "Which", "Name", "Notice", "Describe", or a present-tense observational invitation. NEVER begin with "Did", "Is there", "Have you ever", "Were you", "Do you", "Can you" — those collapse into yes/no and dead-end journaling.
+
+3. **No presupposed history.** Never claim the seeker experienced something they haven't told you about. Banned constructions:
+   - "the X you were taught…"
+   - "the X you carry…"
+   - "what you learned about X…"
+   - "who taught you X…"
+   - "the pattern you've always…"
+   - Any sentence asserting a fact about the seeker's past as a given.
+
+4. **No aesthetic loading or value judgments.** Don't seed the answer with adjectives like "beautiful", "essential", "moral", "right", "wrong", "necessary", "sacred", "true". The seeker decides what the experience is. Your prompt invites observation, not agreement.
+
+5. **No false dichotomies.** No "X or did you have to Y", no "is it X or Y", no setups that force the seeker into one of two pre-chosen answers.
+
+6. **Present tense unless the past is the actual subject.** Default to "What is here right now…", "Where in your body…", "What does today…". Use past tense only when the prompt explicitly asks the seeker to bring forward a specific memory — and even then, frame it as observation now, not biographical excavation.
+
+7. **Keep it short.** 6 to 14 words per prompt is the sweet spot. Maximum 18. If you find yourself piling clauses, you have written two prompts; pick one.
+
+8. **Second person.** "You", not "one" or "the seeker".
+
+9. **No preamble, no "this card asks…", no quotation marks, no trailing periods on fragments.**
+
+# Per-aspect shape variance
+
+Across the 4 aspects of one card, vary the SHAPE so the seeker doesn't get four versions of the same question. Pick four different shapes from this menu (or invent your own that fits):
+
+- **Notice** — "What's the first thing you notice about [X] today?"
+- **Locate** — "Where in your body / day / room does [X] live?"
+- **Distinguish** — "What's the difference between [X] and [Y] for you here?"
+- **Name** — "Name one specific [X] showing up right now."
+- **Allow / Refuse** — "What if you let [X]? What if you didn't?"
+- **Listen** — "What is [X] trying to tell you that you've been talking over?"
+- **Trace edges** — "Where does [X] stop being true for you?"
+
+Match each shape to its aspect's hydrating thought. If aspect 1 is about noticing patterns, lead with a Notice shape; if aspect 3 is about refusing old habits, use Allow/Refuse there. Never repeat the same shape across the 4 prompts of one card.
+
+# Few-shot examples
+
+## BAD (do not emulate)
+
+Card: a card about waiting.
+- "Who taught you that waiting could be beautiful, or did you have to learn that alone, and what patience do you still carry from that?"
+  → THREE stacked questions, presupposes "waiting could be beautiful", presupposes carrying patience from teaching.
+- "What partnership or closeness were you taught was essential to your survival or worth?"
+  → presupposes teaching happened, bundles survival with worth, two-part ask.
+- "Is there a person whose life became so entangled with yours that you sometimes can't remember which choices were yours?"
+  → starts with "Is there", presupposes entanglement.
+
+## GOOD (emulate this shape)
+
+Same card about waiting, 4 prompts, 4 different shapes:
+- "Where in your day right now is waiting being asked of you?" (Locate)
+- "What's the difference between waiting and stalling here?" (Distinguish)
+- "Name one thing you're rushing that could rest." (Name)
+- "What does your body know about this pause that your mind doesn't?" (Listen)
+
+Card about boundaries:
+- "What boundary is asking to be named today?" (Notice)
+- "Where in your body do you feel the line you haven't drawn yet?" (Locate)
+- "What does saying no cost you right now? What does it free?" (Allow / Refuse — but note this one uses TWO short questions because they're a paired contrast, this is the rare allowed exception when shapes pair naturally; never abuse this)
+- "Name one place you've been treating as bigger than it is." (Name)
+
+(Even the "Allow / Refuse" exception above keeps both halves short, parallel, and present-tense. If in doubt, pick one and drop the other.)${voiceBlock}
 
 Output: JSON only, in this exact shape:
 {
@@ -290,6 +354,10 @@ const GenerateDeckInput = z.object({
   /** When true (default), skip cards that already have all 4
    *  prompts filled. Set false to force a full overwrite. */
   onlyMissing: z.boolean().optional(),
+  /** EJ40 — optional explicit list of card UUIDs to process.
+   *  When provided, only these cards are generated (subject to
+   *  having descriptions). Ignored when empty. */
+  cardIds: z.array(z.string().uuid()).optional(),
 });
 
 export const generateDeckPrompts = createServerFn({ method: "POST" })
@@ -306,21 +374,37 @@ export const generateDeckPrompts = createServerFn({ method: "POST" })
     if (eligible.length === 0) {
       return { ok: false as const, error: "no_descriptions" };
     }
-    const onlyMissing = data.onlyMissing !== false; // default true
-    const targets = onlyMissing
-      ? eligible.filter(
-          (c) =>
-            !c.journal_prompts ||
-            c.journal_prompts.length < 4 ||
-            c.journal_prompts.some((p) => !p?.trim()),
-        )
-      : eligible;
+    // EJ40 — if cardIds provided, narrow to that explicit set. Else
+    // honor onlyMissing flag (legacy behavior).
+    let targets: CardRow[];
+    if (data.cardIds && data.cardIds.length > 0) {
+      const allow = new Set(data.cardIds);
+      targets = eligible.filter((c) => allow.has(c.id));
+    } else {
+      const onlyMissing = data.onlyMissing !== false; // default true
+      targets = onlyMissing
+        ? eligible.filter(
+            (c) =>
+              !c.journal_prompts ||
+              c.journal_prompts.length < 4 ||
+              c.journal_prompts.some((p) => !p?.trim()),
+          )
+        : eligible;
+    }
     if (targets.length === 0) {
-      return { ok: true as const, generated: 0, failed: 0, creditsUsed: 0 };
+      return {
+        ok: true as const,
+        generated: 0,
+        failed: 0,
+        creditsUsed: 0,
+        cardsProcessed: 0,
+        batchesUsed: 0,
+        internalCreditsUsed: 0,
+      };
     }
     let generated = 0;
     let failed = 0;
-    let creditsUsed = 0;
+    let internalCreditsUsed = 0;
     const batches = chunk(targets, BATCH_SIZE);
     for (const b of batches) {
       const r = await runAiBatch(deck, userId, b);
@@ -328,17 +412,21 @@ export const generateDeckPrompts = createServerFn({ method: "POST" })
         failed += b.length;
         if (r.error === "quota_exceeded" || r.error === "ai_disabled") {
           // Stop early; no point hammering with more batches.
+          const userCreditsUsed = Math.ceil(generated / 10);
           return {
             ok: false as const,
             error: r.error,
             generated,
             failed,
-            creditsUsed,
+            creditsUsed: userCreditsUsed,
+            cardsProcessed: generated,
+            batchesUsed: Math.ceil(generated / BATCH_SIZE),
+            internalCreditsUsed,
           };
         }
         continue;
       }
-      creditsUsed += r.credits;
+      internalCreditsUsed += r.credits;
       for (const card of b) {
         const prompts = r.map.get(card.card_id);
         if (!prompts) {
@@ -360,7 +448,21 @@ export const generateDeckPrompts = createServerFn({ method: "POST" })
         generated += 1;
       }
     }
-    return { ok: true as const, generated, failed, creditsUsed };
+    // EJ40 — user-facing credit total is per-card normalized
+    // (1 credit per 10 cards processed, rounded up). Internal
+    // accounting via callAI / ai_call_log remains per-API-call.
+    // Both numbers returned: `creditsUsed` is what to display to
+    // the user; `internalCreditsUsed` is admin-only.
+    const creditsUsed = Math.ceil(generated / 10);
+    return {
+      ok: true as const,
+      generated,
+      failed,
+      creditsUsed,
+      cardsProcessed: generated,
+      batchesUsed: batches.length,
+      internalCreditsUsed,
+    };
   });
 
 /* ─────────────────────────────────────────────────────────────────
@@ -678,6 +780,120 @@ export const bulkPromptStatus = createServerFn({ method: "POST" })
       if (!error) updated += 1;
     }
     return { ok: true as const, updated };
+  });
+
+/* ─────────────────────────────────────────────────────────────────
+   erasePrompts — clear prompts for selected cards (EJ40)
+   Returns a snapshot of what was erased so the caller can persist
+   it in memory for the undo toast.
+   ───────────────────────────────────────────────────────────────── */
+
+const EraseInput = z.object({
+  deckId: z.string().uuid(),
+  cardIds: z.array(z.string().uuid()).min(1).max(500),
+});
+
+export const erasePrompts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => EraseInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    await loadOwnedDeck(data.deckId, userId);
+    const allow = new Set(data.cardIds);
+    const cards = await loadDeckCards(data.deckId);
+    const targets = cards.filter((c) => allow.has(c.id));
+    if (targets.length === 0) {
+      return { ok: true as const, erased: 0, snapshot: [] as EraseSnapshotItem[] };
+    }
+    const snapshot: EraseSnapshotItem[] = targets.map((c) => ({
+      cardId: c.id,
+      prompts: (c.journal_prompts ?? []).slice(0, 4),
+      status: (c.prompt_status ?? []).slice(0, 4),
+    }));
+    let erased = 0;
+    for (const c of targets) {
+      const empty: (string | null)[] = [null, null, null, null];
+      const { error } = await supabaseAdmin
+        .from("custom_deck_cards")
+        .update({
+          journal_prompts: ["", "", "", ""],
+          prompt_status: empty,
+        } as never)
+        .eq("id", c.id);
+      if (!error) erased += 1;
+    }
+    return { ok: true as const, erased, snapshot };
+  });
+
+export type EraseSnapshotItem = {
+  cardId: string;
+  prompts: string[];
+  status: (string | null)[];
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   restorePromptsFromSnapshot — undo for erasePrompts (EJ40)
+   ───────────────────────────────────────────────────────────────── */
+
+const RestoreInput = z.object({
+  deckId: z.string().uuid(),
+  snapshot: z.array(
+    z.object({
+      cardId: z.string().uuid(),
+      prompts: z.array(z.string()).max(4),
+      status: z.array(z.string().nullable()).max(4),
+    }),
+  ),
+});
+
+export const restorePromptsFromSnapshot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => RestoreInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    await loadOwnedDeck(data.deckId, userId);
+    let restored = 0;
+    for (const item of data.snapshot) {
+      const prompts = [...item.prompts];
+      while (prompts.length < 4) prompts.push("");
+      const status: (string | null)[] = [...item.status];
+      while (status.length < 4) status.push(null);
+      const { error } = await supabaseAdmin
+        .from("custom_deck_cards")
+        .update({
+          journal_prompts: prompts,
+          prompt_status: status,
+        } as never)
+        .eq("id", item.cardId);
+      if (!error) restored += 1;
+    }
+    return { ok: true as const, restored };
+  });
+
+/* ─────────────────────────────────────────────────────────────────
+   isUserAdmin — check current user's admin status (EJ40)
+   Used by the deck-edit page to decide whether to surface
+   internal credit accounting details.
+   ───────────────────────────────────────────────────────────────── */
+
+const IsAdminInput = z.object({}).optional();
+
+export const isUserAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => IsAdminInput.parse(d ?? {}))
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data, error } = await supabaseAdmin
+      .from("user_preferences")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) return { ok: false as const, isAdmin: false };
+    const role = (data as { role?: string | null } | null)?.role ?? null;
+    return {
+      ok: true as const,
+      isAdmin: role === "admin" || role === "super_admin",
+    };
   });
 
 /* ─────────────────────────────────────────────────────────────────

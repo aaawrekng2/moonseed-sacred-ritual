@@ -56,6 +56,10 @@ THOUGHT 4: <one sentence>
 VOICE GUIDE:
 <a short paragraph for the prompt-generating AI describing the deck's feel, job, tone, vocabulary, recurring themes, and what to avoid>
 
+After you write that block, end your reply with EXACTLY this line of guidance to me (so I don't forget what to do with it):
+
+"Now copy everything above starting from ASPECT 1 down through the VOICE GUIDE paragraph and paste it into Tarot Seed → Settings → Decks → [pencil icon for this deck] → 'Used AI? Paste the response here for one-click fill', then click 'Parse and fill'."
+
 The 4 aspects should fit THIS deck specifically. A shadow-work deck might have aspects like Shadow / Trigger / Pattern / Re-parent. A family-and-fun deck might have aspects like Joy / Memory / Connection / Play. Pick what fits the answers I give you.`;
 }
 
