@@ -989,8 +989,14 @@ export function QuickLog({
                               aria-hidden
                               style={{
                                 position: "absolute",
-                                inset: -6,
-                                borderRadius: 10,
+                                // EJ33 — was inset:-6, which left a
+                                // visible gap between the card edge
+                                // and the highlight band. Constellation
+                                // page's focused outline uses
+                                // outlineOffset:2; matched here at
+                                // inset:-2 so the band hugs the card.
+                                inset: -2,
+                                borderRadius: 8,
                                 boxShadow:
                                   "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
                                 pointerEvents: "none",

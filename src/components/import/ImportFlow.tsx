@@ -38,12 +38,16 @@ import {
   resolveCardName,
   splitOrientation,
   normalizeReversal,
-  getAllCardOptions,
   getCanonicalName,
+  getExtendedCardOptions,
   type CardResolveResult,
+  type DeckSearchEntry,
+  type ExtendedCardGroup,
 } from "@/lib/import/card-resolver";
 import { inferSpread } from "@/lib/import/spread-inference";
 import { executeImport, undoImport } from "@/lib/import/import-batch.functions";
+import { fetchUserDecks, fetchDeckCards } from "@/lib/custom-decks";
+import { useAuth } from "@/lib/auth";
 
 type Props = {
   onClose: () => void;
@@ -59,15 +63,15 @@ export type ImportResult = {
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
+// EJ33 — Decision carries an optional deckId so cross-deck matches
+// (oracle cards) survive through the build phase to executeImport.
 type Decision =
-  | { kind: "matched"; cardIndex: number }
-  | { kind: "probable"; cardIndex: number; accepted: boolean }
-  | { kind: "manual"; cardIndex: number }
+  | { kind: "matched"; cardIndex: number; deckId?: string; deckName?: string }
+  | { kind: "probable"; cardIndex: number; accepted: boolean; deckId?: string; deckName?: string }
+  | { kind: "manual"; cardIndex: number; deckId?: string }
   | { kind: "skip" }
   | { kind: "as-note" }
   | { kind: "pending" };
-
-const ALL_CARDS = getAllCardOptions();
 
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
@@ -86,6 +90,55 @@ export function ImportFlow({ onClose, onImported }: Props) {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<ImportResult | null>(null);
+
+  // EJ33 — load every custom deck the user owns + each deck's
+  // cards once at mount. Used to:
+  //   - cross-deck match names during step 3 (oracle cards beat
+  //     fuzzy tarot guesses like "Peach → Death")
+  //   - power the grouped "Pick the right card…" dropdown in the
+  //     resolve step
+  //   - carry deckId per slot through to executeImport so the saved
+  //     reading renders with the right card art
+  // Only oracle-typed decks contribute names — tarot-typed decks
+  // reuse the canonical 0..77 index and don't need their renamed
+  // cards in the cross-deck search.
+  const { user } = useAuth();
+  const [extraDecks, setExtraDecks] = useState<DeckSearchEntry[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const decks = await fetchUserDecks(user.id);
+        const oracleDecks = decks.filter((d) => d.deck_type === "oracle");
+        const entries: DeckSearchEntry[] = [];
+        for (const d of oracleDecks) {
+          const cards = await fetchDeckCards(d.id);
+          entries.push({
+            deckId: d.id,
+            deckName: d.name,
+            cards: cards
+              .filter((c) => !!c.card_name)
+              .map((c) => ({
+                cardIndex: c.card_id,
+                name: c.card_name ?? "",
+              })),
+          });
+        }
+        if (!cancelled) setExtraDecks(entries);
+      } catch {
+        // Non-fatal: cross-deck match degrades to tarot-only.
+        if (!cancelled) setExtraDecks([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const extendedOptions: ExtendedCardGroup[] = useMemo(
+    () => getExtendedCardOptions(extraDecks),
+    [extraDecks],
+  );
 
   /* ----------------- Step 1: file upload + parse ----------------- */
   const onFile = async (file: File) => {
@@ -118,9 +171,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
     const cols: Array<{ idx: number; col: string; reversedCol?: string }> = [];
     for (let i = 1; i <= 10; i++) {
       const col = Object.entries(mapping).find(([, v]) => v === `card_${i}`)?.[0];
-      const reversedCol = Object.entries(mapping).find(
-        ([, v]) => v === `card_${i}_reversed`,
-      )?.[0];
+      const reversedCol = Object.entries(mapping).find(([, v]) => v === `card_${i}_reversed`)?.[0];
       if (col) cols.push({ idx: i, col, reversedCol });
     }
     return cols;
@@ -147,14 +198,25 @@ export function ImportFlow({ onClose, onImported }: Props) {
       const next = new Map(prev);
       for (const name of uniqueCardNames) {
         if (next.has(name)) continue;
-        const r = resolveCardName(name);
+        // EJ33 — resolver now searches the user's oracle decks first
+        // for exact matches, so cross-deck card names (like "Peach"
+        // from Southern Gothic Oracle) resolve to a matched decision
+        // with the right deck_id instead of unmatched / fuzzy guess.
+        const r = resolveCardName(name, extraDecks);
         if (r.kind === "matched") {
-          next.set(name, { kind: "matched", cardIndex: r.cardIndex });
+          next.set(name, {
+            kind: "matched",
+            cardIndex: r.cardIndex,
+            deckId: r.deckId,
+            deckName: r.deckName,
+          });
         } else if (r.kind === "probable") {
           next.set(name, {
             kind: "probable",
             cardIndex: r.cardIndex,
             accepted: false,
+            deckId: r.deckId,
+            deckName: r.deckName,
           });
         } else {
           next.set(name, { kind: "pending" });
@@ -163,7 +225,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, uniqueCardNames.length]);
+  }, [step, uniqueCardNames.length, extraDecks.length]);
 
   const matchedCount = useMemo(() => {
     let n = 0;
@@ -175,9 +237,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
     return n;
   }, [decisions]);
 
-  const probableNames = uniqueCardNames.filter(
-    (n) => decisions.get(n)?.kind === "probable",
-  );
+  const probableNames = uniqueCardNames.filter((n) => decisions.get(n)?.kind === "probable");
   const unmatchedNames = uniqueCardNames.filter((n) => {
     const d = decisions.get(n);
     return d?.kind === "pending";
@@ -196,9 +256,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
     [mapping],
   );
   const createdAtColumn = useMemo(
-    () =>
-      Object.entries(mapping).find(([, v]) => v === "created_at_override")?.[0] ??
-      null,
+    () => Object.entries(mapping).find(([, v]) => v === "created_at_override")?.[0] ?? null,
     [mapping],
   );
   const questionColumn = useMemo(
@@ -224,6 +282,9 @@ export function ImportFlow({ onClose, onImported }: Props) {
     spread_type: "single" | "three" | "celtic";
     card_ids: number[];
     card_orientations: boolean[];
+    /** EJ33 — per-slot deck UUID. Length matches card_ids. null
+     *  entries mean "use the active deck" (default behavior). */
+    card_deck_ids: (string | null)[];
     question: string | null;
     note: string | null;
     tags: string[];
@@ -236,7 +297,14 @@ export function ImportFlow({ onClose, onImported }: Props) {
     let skipped = 0;
 
     for (const row of parsed.rows) {
-      const cards: { idx: number; reversed: boolean; raw: string; canonical: string | null }[] = [];
+      // EJ33 — track the deckId per pick alongside index + reversal.
+      const cards: {
+        idx: number;
+        reversed: boolean;
+        raw: string;
+        canonical: string | null;
+        deckId: string | null;
+      }[] = [];
       const noteExtras: string[] = [];
 
       for (const c of cardColumns) {
@@ -247,11 +315,17 @@ export function ImportFlow({ onClose, onImported }: Props) {
         if (!decision) continue;
 
         let cardIndex: number | null = null;
-        if (decision.kind === "matched") cardIndex = decision.cardIndex;
-        else if (decision.kind === "probable" && decision.accepted) {
+        let deckId: string | null = null;
+        if (decision.kind === "matched") {
           cardIndex = decision.cardIndex;
-        } else if (decision.kind === "manual") cardIndex = decision.cardIndex;
-        else if (decision.kind === "as-note") {
+          deckId = decision.deckId ?? null;
+        } else if (decision.kind === "probable" && decision.accepted) {
+          cardIndex = decision.cardIndex;
+          deckId = decision.deckId ?? null;
+        } else if (decision.kind === "manual") {
+          cardIndex = decision.cardIndex;
+          deckId = decision.deckId ?? null;
+        } else if (decision.kind === "as-note") {
           noteExtras.push(`Unmapped card: ${split.name}`);
           continue;
         } else if (decision.kind === "skip") {
@@ -270,6 +344,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
           reversed,
           raw,
           canonical: getCanonicalName(cardIndex!),
+          deckId,
         });
       }
 
@@ -280,11 +355,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
 
       const inferred = inferSpread(cards.length);
       const slotCount =
-        inferred.spread_type === "single"
-          ? 1
-          : inferred.spread_type === "three"
-            ? 3
-            : 10;
+        inferred.spread_type === "single" ? 1 : inferred.spread_type === "three" ? 3 : 10;
       const kept = cards.slice(0, slotCount);
       const overflow = cards.slice(slotCount);
       if (overflow.length > 0) {
@@ -296,17 +367,14 @@ export function ImportFlow({ onClose, onImported }: Props) {
       }
 
       const dateRaw = dateColumn ? (row[dateColumn] ?? "").toString() : "";
-      const createdAtRaw = createdAtColumn
-        ? (row[createdAtColumn] ?? "").toString()
-        : "";
+      const createdAtRaw = createdAtColumn ? (row[createdAtColumn] ?? "").toString() : "";
       const dt =
         (createdAtRaw && parseDateAs(createdAtRaw, "iso")) ||
         (dateRaw && parseDateAs(dateRaw, dateFormat)) ||
         new Date();
 
       const baseNote = notesColumn ? (row[notesColumn] ?? "").toString().trim() : "";
-      const note =
-        [baseNote, ...noteExtras].filter(Boolean).join("\n\n") || null;
+      const note = [baseNote, ...noteExtras].filter(Boolean).join("\n\n") || null;
       const question = questionColumn
         ? (row[questionColumn] ?? "").toString().trim() || null
         : null;
@@ -320,6 +388,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
         spread_type: inferred.spread_type,
         card_ids: kept.map((c) => c.idx),
         card_orientations: kept.map((c) => c.reversed),
+        card_deck_ids: kept.map((c) => c.deckId),
         question,
         note,
         tags,
@@ -373,85 +442,84 @@ export function ImportFlow({ onClose, onImported }: Props) {
   return (
     <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
       <div className="flex flex-col h-full">
-      <div
-        className="mx-auto my-4 flex w-full max-w-3xl flex-1 flex-col overflow-hidden rounded-2xl"
-        style={{
-          background: "var(--surface-elevated)",
-          color: "var(--color-foreground)",
-          border: "1px solid var(--border-default)",
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/40 px-5 py-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-              Import · Step {step} of 5
-            </span>
+        <div
+          className="mx-auto my-4 flex w-full max-w-3xl flex-1 flex-col overflow-hidden rounded-2xl"
+          style={{
+            background: "var(--surface-elevated)",
+            color: "var(--color-foreground)",
+            border: "1px solid var(--border-default)",
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border/40 px-5 py-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                Import · Step {step} of 5
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-1.5 hover:bg-foreground/10"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1.5 hover:bg-foreground/10"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">
-          {step === 1 && <Step1 onFile={onFile} />}
-          {step === 2 && parsed && (
-            <Step2Mapping
-              csv={parsed}
-              mapping={mapping}
-              setMapping={setMapping}
-              onContinue={() => setStep(3)}
-              onBack={() => {
-                setParsed(null);
-                setFormat(null);
-                setMapping({});
-                setStep(1);
-              }}
-            />
-          )}
-          {step === 3 && parsed && format && (
-            <Step3Resolution
-              format={format}
-              uniqueNames={uniqueCardNames}
-              decisions={decisions}
-              setDecisions={setDecisions}
-              matchedCount={matchedCount}
-              probableNames={probableNames}
-              unmatchedNames={unmatchedNames}
-              onBack={() =>
-                setStep(format.id === "tarotpulse" ? 1 : 2)
-              }
-              onContinue={() => setStep(4)}
-              continueDisabled={!allDecided}
-            />
-          )}
-          {step === 4 && parsed && format && (
-            <Step4Preview
-              format={format}
-              built={built}
-              total={parsed.rows.length}
-              onBack={() => setStep(3)}
-              onContinue={() => {
-                setStep(5);
-                void runImport();
-              }}
-            />
-          )}
-          {step === 5 && (
-            <Step5Result
-              running={running}
-              progress={progress}
-              result={result}
-              onClose={onClose}
-            />
-          )}
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            {step === 1 && <Step1 onFile={onFile} />}
+            {step === 2 && parsed && (
+              <Step2Mapping
+                csv={parsed}
+                mapping={mapping}
+                setMapping={setMapping}
+                onContinue={() => setStep(3)}
+                onBack={() => {
+                  setParsed(null);
+                  setFormat(null);
+                  setMapping({});
+                  setStep(1);
+                }}
+              />
+            )}
+            {step === 3 && parsed && format && (
+              <Step3Resolution
+                format={format}
+                uniqueNames={uniqueCardNames}
+                decisions={decisions}
+                setDecisions={setDecisions}
+                matchedCount={matchedCount}
+                probableNames={probableNames}
+                unmatchedNames={unmatchedNames}
+                extendedOptions={extendedOptions}
+                onBack={() => setStep(format.id === "tarotpulse" ? 1 : 2)}
+                onContinue={() => setStep(4)}
+                continueDisabled={!allDecided}
+              />
+            )}
+            {step === 4 && parsed && format && (
+              <Step4Preview
+                format={format}
+                built={built}
+                total={parsed.rows.length}
+                onBack={() => setStep(3)}
+                onContinue={() => {
+                  setStep(5);
+                  void runImport();
+                }}
+              />
+            )}
+            {step === 5 && (
+              <Step5Result
+                running={running}
+                progress={progress}
+                result={result}
+                onClose={onClose}
+              />
+            )}
+          </div>
         </div>
-      </div>
       </div>
     </FullScreenSheet>
   );
@@ -466,13 +534,10 @@ function Step1({ onFile }: { onFile: (f: File) => void }) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">
-          Import from another app
-        </h2>
+        <h2 className="text-xl font-semibold tracking-tight">Import from another app</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Drop a CSV exported from your previous tarot journal. We&apos;ll
-          recognise TarotPulse automatically; for any other app you&apos;ll
-          map columns in the next step.
+          Drop a CSV exported from your previous tarot journal. We&apos;ll recognise TarotPulse
+          automatically; for any other app you&apos;ll map columns in the next step.
         </p>
       </div>
       <label
@@ -557,8 +622,8 @@ function Step2Mapping({
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Map columns</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Generic CSV · {csv.rows.length} rows · {csv.headers.length} columns. Map at
-          least one card column to continue.
+          Generic CSV · {csv.rows.length} rows · {csv.headers.length} columns. Map at least one card
+          column to continue.
         </p>
       </div>
 
@@ -609,6 +674,7 @@ function Step3Resolution({
   matchedCount,
   probableNames,
   unmatchedNames,
+  extendedOptions,
   onBack,
   onContinue,
   continueDisabled,
@@ -620,6 +686,10 @@ function Step3Resolution({
   matchedCount: number;
   probableNames: string[];
   unmatchedNames: string[];
+  /** EJ33 — grouped card options for the "Pick the right card…"
+   *  dropdown. First group is "Standard Tarot" (78 entries, no
+   *  deckId), followed by one group per oracle deck. */
+  extendedOptions: ExtendedCardGroup[];
   onBack: () => void;
   onContinue: () => void;
   continueDisabled: boolean;
@@ -629,14 +699,40 @@ function Step3Resolution({
     next.set(name, d);
     setDecisions(next);
   };
+  // EJ33 — when the user picks from the grouped dropdown the option
+  // value is encoded as `${deckId ?? ''}|${cardIndex}` so the
+  // (cardIndex, deckId) tuple survives the round trip.
+  const parseOption = (v: string): { cardIndex: number; deckId?: string } | null => {
+    if (!v) return null;
+    const [d, idx] = v.split("|");
+    const n = Number(idx);
+    if (Number.isNaN(n)) return null;
+    return { cardIndex: n, deckId: d || undefined };
+  };
+  // EJ33 — grouped <optgroup> renderer. Re-used for the probable
+  // "Pick a different card…" and the unmatched "Pick the right
+  // card…" dropdowns.
+  const renderOptions = () =>
+    extendedOptions.map((group) => (
+      <optgroup key={group.deckId ?? "tarot"} label={group.deckName}>
+        {group.options.map((opt) => (
+          <option
+            key={`${group.deckId ?? "t"}-${opt.cardIndex}`}
+            value={`${opt.deckId ?? ""}|${opt.cardIndex}`}
+          >
+            {opt.name}
+          </option>
+        ))}
+      </optgroup>
+    ));
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Resolve cards</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Detected: <span className="font-medium">{format.label}</span> ·{" "}
-          {uniqueNames.length} unique card names · {matchedCount} matched cleanly.
+          Detected: <span className="font-medium">{format.label}</span> · {uniqueNames.length}{" "}
+          unique card names · {matchedCount} matched cleanly.
         </p>
       </div>
 
@@ -653,15 +749,43 @@ function Step3Resolution({
               >
                 <div className="min-w-0 flex-1 truncate text-sm">
                   You imported <strong>{name}</strong>. Did you mean{" "}
-                  <em>{getCanonicalName(d.cardIndex)}</em>?
+                  <em>
+                    {d.deckId
+                      ? // EJ33 — cross-deck probable: canonical comes from
+                        // the resolver result (it's the deck's actual
+                        // card_name).
+                        // We don't have getCanonicalName for oracle
+                        // indices, so trust the resolver's choice.
+                        // Fall back to the standard mapping when no
+                        // deckId.
+                        // The decision payload doesn't include canonical;
+                        // we keep it tight and show deck context after.
+                        // For simplicity, show the canonical-name we got
+                        // back via deckName.
+                        // (See getExtendedCardOptions for the option
+                        // list shown in the dropdown.)
+                        // Display: deck-card name placeholder = "" since
+                        // we don't store canonical on Decision today.
+                        // Easy enhancement: persist canonical on
+                        // Decision; for now lookup via extendedOptions.
+                        (extendedOptions
+                          .find((g) => g.deckId === d.deckId)
+                          ?.options.find((o) => o.cardIndex === d.cardIndex)?.name ?? "")
+                      : getCanonicalName(d.cardIndex)}
+                  </em>
+                  {d.deckName ? (
+                    <>
+                      {" "}
+                      <span className="text-xs text-muted-foreground">(from {d.deckName})</span>
+                    </>
+                  ) : null}
+                  ?
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <Button
                     size="sm"
                     variant={d.accepted ? "default" : "outline"}
-                    onClick={() =>
-                      update(name, { ...d, accepted: true })
-                    }
+                    onClick={() => update(name, { ...d, accepted: true })}
                   >
                     <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
                     Confirm
@@ -669,25 +793,21 @@ function Step3Resolution({
                   <select
                     value=""
                     onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (!Number.isNaN(v)) {
-                        update(name, { kind: "manual", cardIndex: v });
+                      const opt = parseOption(e.target.value);
+                      if (opt) {
+                        update(name, {
+                          kind: "manual",
+                          cardIndex: opt.cardIndex,
+                          deckId: opt.deckId,
+                        });
                       }
                     }}
                     className="rounded-md border border-border/60 bg-transparent px-2 py-1 text-xs"
                   >
                     <option value="">Pick a different card…</option>
-                    {ALL_CARDS.map((c) => (
-                      <option key={c.index} value={c.index}>
-                        {c.name}
-                      </option>
-                    ))}
+                    {renderOptions()}
                   </select>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => update(name, { kind: "skip" })}
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => update(name, { kind: "skip" })}>
                     Skip
                   </Button>
                 </div>
@@ -713,32 +833,24 @@ function Step3Resolution({
                 <select
                   value=""
                   onChange={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v)) {
-                      update(name, { kind: "manual", cardIndex: v });
+                    const opt = parseOption(e.target.value);
+                    if (opt) {
+                      update(name, {
+                        kind: "manual",
+                        cardIndex: opt.cardIndex,
+                        deckId: opt.deckId,
+                      });
                     }
                   }}
                   className="rounded-md border border-border/60 bg-transparent px-2 py-1 text-xs"
                 >
                   <option value="">Pick the right card…</option>
-                  {ALL_CARDS.map((c) => (
-                    <option key={c.index} value={c.index}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {renderOptions()}
                 </select>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => update(name, { kind: "skip" })}
-                >
+                <Button size="sm" variant="ghost" onClick={() => update(name, { kind: "skip" })}>
                   Skip
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => update(name, { kind: "as-note" })}
-                >
+                <Button size="sm" variant="ghost" onClick={() => update(name, { kind: "as-note" })}>
                   Add as note
                 </Button>
               </div>
@@ -778,6 +890,9 @@ function Step4Preview({
       spread_type: string;
       card_ids: number[];
       card_orientations: boolean[];
+      // EJ33 — per-slot deck UUIDs flow through the preview untouched
+      // so executeImport receives the right deck-per-slot mapping.
+      card_deck_ids?: (string | null)[];
       question: string | null;
       note: string | null;
       tags: string[];
@@ -813,12 +928,13 @@ function Step4Preview({
       <div className="rounded-lg border border-border/40 p-3 text-sm">
         <ul className="space-y-1 text-muted-foreground">
           <li>
-            <strong className="text-foreground">{built.rows.length}</strong>{" "}
-            readings ready to import (from {total} CSV rows · {format.label})
+            <strong className="text-foreground">{built.rows.length}</strong> readings ready to
+            import (from {total} CSV rows · {format.label})
           </li>
           {min && max && (
             <li>
-              Date range: {formatDateShort(min.toISOString())} → {formatDateShort(max.toISOString())}
+              Date range: {formatDateShort(min.toISOString())} →{" "}
+              {formatDateShort(max.toISOString())}
             </li>
           )}
           <li>
@@ -828,9 +944,7 @@ function Step4Preview({
               .join(" · ")}
           </li>
           <li>{allTags.size} unique tags discovered</li>
-          {built.skipped > 0 && (
-            <li>{built.skipped} rows skipped (no valid cards)</li>
-          )}
+          {built.skipped > 0 && <li>{built.skipped} rows skipped (no valid cards)</li>}
         </ul>
       </div>
 
@@ -839,10 +953,7 @@ function Step4Preview({
           First 5 readings
         </h3>
         {built.rows.slice(0, 5).map((r, i) => (
-          <div
-            key={i}
-            className="rounded-lg border border-border/40 px-3 py-2 text-xs"
-          >
+          <div key={i} className="rounded-lg border border-border/40 px-3 py-2 text-xs">
             <div className="text-muted-foreground">
               {new Date(r.created_at).toLocaleString()} · {r.spread_type}
             </div>
@@ -851,21 +962,13 @@ function Step4Preview({
                 .map((id, j) => `${getCanonicalName(id)}${r.card_orientations[j] ? " (R)" : ""}`)
                 .join(" · ")}
             </div>
-            {r.question && (
-              <div className="mt-1 italic text-muted-foreground">
-                “{r.question}”
-              </div>
-            )}
+            {r.question && <div className="mt-1 italic text-muted-foreground">“{r.question}”</div>}
           </div>
         ))}
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button
-          onClick={onContinue}
-          disabled={built.rows.length === 0}
-          className="gap-2"
-        >
+        <Button onClick={onContinue} disabled={built.rows.length === 0} className="gap-2">
           <Upload className="h-4 w-4" />
           Import {built.rows.length} readings
         </Button>
@@ -917,24 +1020,18 @@ function Step5Result({
   };
 
   if (running || !result) {
-    const pct = progress.total
-      ? Math.round((progress.done / progress.total) * 100)
-      : 0;
+    const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
     return (
       <div className="space-y-3">
         <h2 className="text-xl font-semibold tracking-tight">Importing…</h2>
         <div className="flex items-center gap-3 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>
-            Importing {progress.done.toLocaleString()} of{" "}
-            {progress.total.toLocaleString()}…
+            Importing {progress.done.toLocaleString()} of {progress.total.toLocaleString()}…
           </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-foreground/10">
-          <div
-            className="h-full bg-primary transition-all"
-            style={{ width: `${pct}%` }}
-          />
+          <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
     );
@@ -975,11 +1072,7 @@ function Step5Result({
             disabled={undoing}
             className="gap-2"
           >
-            {undoing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <X className="h-4 w-4" />
-            )}
+            {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
             Undo this import
           </Button>
         </div>
