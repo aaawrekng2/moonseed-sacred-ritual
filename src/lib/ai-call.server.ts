@@ -16,10 +16,7 @@ import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // USD per million tokens. Refine as providers publish new rates.
-const MODEL_RATES: Record<
-  string,
-  { input: number; output: number; cached: number }
-> = {
+const MODEL_RATES: Record<string, { input: number; output: number; cached: number }> = {
   "claude-sonnet-4-6": { input: 3.0, output: 15.0, cached: 0.3 },
   "claude-sonnet-4-5-20250929": { input: 3.0, output: 15.0, cached: 0.3 },
   "claude-haiku-4-5-20251001": { input: 1.0, output: 5.0, cached: 0.1 },
@@ -39,7 +36,8 @@ export type AICallType =
   | "story_orchestration"
   | "pattern_interpretation"
   | "memory"
-  | "insights";
+  | "insights"
+  | "journal_prompts";
 
 export type AIProvider = "anthropic" | "lovable_ai_gateway";
 
@@ -174,7 +172,9 @@ export async function getAvailableCredits(userId: string): Promise<number> {
     .from("ai_credit_grants" as never)
     .select("credits_amount, expires_at")
     .eq("user_id", userId);
-  const totalGranted = ((grants ?? []) as Array<{ credits_amount: number; expires_at: string | null }>)
+  const totalGranted = (
+    (grants ?? []) as Array<{ credits_amount: number; expires_at: string | null }>
+  )
     .filter((g) => g.expires_at == null || g.expires_at > nowIso)
     .reduce((s, g) => s + (g.credits_amount ?? 0), 0);
 
@@ -316,10 +316,7 @@ async function tripCircuitBreaker(args: {
       `Calls in window: ${args.callCount}`,
       ``,
       `Top spending users in window:`,
-      ...topUsers.map(
-        (u) =>
-          `  ${u.user_id} — $${u.cost_usd.toFixed(4)} (${u.call_count} calls)`,
-      ),
+      ...topUsers.map((u) => `  ${u.user_id} — $${u.cost_usd.toFixed(4)} (${u.call_count} calls)`),
       ``,
       `Review /admin/usage and re-enable AI when ready.`,
     ];
@@ -332,9 +329,7 @@ async function tripCircuitBreaker(args: {
       .from("user_preferences" as never)
       .select("user_id")
       .in("role", ["admin", "super_admin"]);
-    const adminIds = ((admins ?? []) as Array<{ user_id: string }>).map(
-      (a) => a.user_id,
-    );
+    const adminIds = ((admins ?? []) as Array<{ user_id: string }>).map((a) => a.user_id);
     const emails: string[] = [];
     for (const id of adminIds) {
       try {
@@ -346,21 +341,21 @@ async function tripCircuitBreaker(args: {
       }
     }
     for (const to of emails) {
-      const { error } = await supabaseAdmin.rpc("enqueue_email" as never, {
-        p_queue: "transactional_emails",
-        p_payload: {
-          to,
-          subject,
-          html,
-          text,
-          template_name: "circuit_breaker_trip",
-        },
-      } as never);
+      const { error } = await supabaseAdmin.rpc(
+        "enqueue_email" as never,
+        {
+          p_queue: "transactional_emails",
+          p_payload: {
+            to,
+            subject,
+            html,
+            text,
+            template_name: "circuit_breaker_trip",
+          },
+        } as never,
+      );
       if (error) {
-        console.warn(
-          "[circuit-breaker] enqueue_email skipped:",
-          error.message,
-        );
+        console.warn("[circuit-breaker] enqueue_email skipped:", error.message);
         break;
       }
     }
@@ -369,18 +364,12 @@ async function tripCircuitBreaker(args: {
   }
 }
 
-async function checkQuota(
-  userId: string | null,
-  callType: AICallType,
-): Promise<QuotaCheck> {
+async function checkQuota(userId: string | null, callType: AICallType): Promise<QuotaCheck> {
   const enabled = await getAdminSettingBool("ai_enabled_globally", true);
   if (!enabled) return { allowed: false, reason: "ai_disabled" };
 
   // Phase 13 — global hourly cost cap.
-  const hourlyCap = await getAdminSettingNumber(
-    "ai_global_cost_cap_hourly_usd",
-    5,
-  );
+  const hourlyCap = await getAdminSettingNumber("ai_global_cost_cap_hourly_usd", 5);
   const hourly = await getCostInWindow(1);
   if (hourly.cost >= hourlyCap) {
     await tripCircuitBreaker({
@@ -394,10 +383,7 @@ async function checkQuota(
   }
 
   // Phase 13 — global 12-hour cost cap.
-  const twelveCap = await getAdminSettingNumber(
-    "ai_global_cost_cap_12h_usd",
-    30,
-  );
+  const twelveCap = await getAdminSettingNumber("ai_global_cost_cap_12h_usd", 30);
   const twelve = await getCostInWindow(12);
   if (twelve.cost >= twelveCap) {
     await tripCircuitBreaker({
@@ -453,7 +439,13 @@ async function logCall(row: {
   callType: AICallType;
   provider: AIProvider;
   model: string;
-  status: "success" | "error_provider" | "error_app" | "rate_limited" | "quota_exceeded" | "ai_disabled";
+  status:
+    | "success"
+    | "error_provider"
+    | "error_app"
+    | "rate_limited"
+    | "quota_exceeded"
+    | "ai_disabled";
   errorCode: string | null;
   inputTokens: number;
   outputTokens: number;
@@ -493,11 +485,7 @@ async function logCall(row: {
 export async function callAI(params: CallAIParams): Promise<CallAIResult> {
   const idempotencyKey = randomUUID();
   const startTime = Date.now();
-  const planAtTime = params.userId
-    ? params.isPremium
-      ? "premium"
-      : "free"
-    : "anonymous";
+  const planAtTime = params.userId ? (params.isPremium ? "premium" : "free") : "anonymous";
 
   if (!params.bypassQuota) {
     const check = await checkQuota(params.userId, params.callType);
@@ -507,7 +495,12 @@ export async function callAI(params: CallAIParams): Promise<CallAIResult> {
         callType: params.callType,
         provider: params.provider,
         model: params.model,
-        status: check.reason === "rate_limited" ? "rate_limited" : check.reason === "ai_disabled" ? "ai_disabled" : "quota_exceeded",
+        status:
+          check.reason === "rate_limited"
+            ? "rate_limited"
+            : check.reason === "ai_disabled"
+              ? "ai_disabled"
+              : "quota_exceeded",
         errorCode: check.reason,
         inputTokens: 0,
         outputTokens: 0,
@@ -571,8 +564,7 @@ export async function callAI(params: CallAIParams): Promise<CallAIResult> {
               cache_read_input_tokens?: number;
             };
           };
-          responseContent =
-            data.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
+          responseContent = data.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
           usage = {
             input_tokens: data.usage?.input_tokens ?? 0,
             output_tokens: data.usage?.output_tokens ?? 0,
@@ -590,21 +582,18 @@ export async function callAI(params: CallAIParams): Promise<CallAIResult> {
         const messages = params.system
           ? [{ role: "system", content: params.system }, ...params.messages]
           : params.messages;
-        const resp = await fetch(
-          "https://ai.gateway.lovable.dev/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
-              model: params.model,
-              max_tokens: params.maxTokens,
-              messages,
-            }),
+        const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            model: params.model,
+            max_tokens: params.maxTokens,
+            messages,
+          }),
+        });
         providerStatus = resp.status;
         if (!resp.ok) {
           status = "error_provider";
@@ -733,11 +722,7 @@ export async function callAnthropicWithFallback(opts: {
     if (!r.ok) {
       lastErr = r.error;
       // Quota/rate/disabled: stop fast — no point trying other models.
-      if (
-        r.error === "quota_exceeded" ||
-        r.error === "rate_limited" ||
-        r.error === "ai_disabled"
-      ) {
+      if (r.error === "quota_exceeded" || r.error === "rate_limited" || r.error === "ai_disabled") {
         return { ok: false, error: r.error };
       }
       // 404/410-style "model not found" → try next model.
