@@ -623,15 +623,31 @@ function JournalPage() {
   }, []);
 
   return (
-    <div className="bg-cosmos relative flex h-dvh flex-col">
+    <div
+      className="bg-cosmos relative flex flex-col"
+      style={{
+        // EJ47 — viewport minus TopNav band, so the page's inner
+        // <main> scroll container has the correct visible height and
+        // we don't get a body-level scrollbar layered on top of the
+        // page's own scroll. Was `h-dvh`.
+        height: "calc(100dvh - var(--topbar-pad))",
+      }}
+    >
       {/* Sticky header — title, search, filter button, tab row.
           Sits OUTSIDE <main> so its glass blends with the route bg
           rather than scrolling content (FU-11). */}
       <div
-        className="page-header-glass sticky top-0"
+        className="page-header-glass sticky"
         style={{
+          // EJ47 — docks BELOW the TopNav (var(--topbar-pad))
+          // instead of viewport top, so this sticky chrome never sits
+          // behind the fixed nav. Was `sticky top-0` with
+          // `paddingTop: env(safe-area-inset-top)`. Both safe-area
+          // and the nav band are now covered by the TopNavGate
+          // spacer in document flow above.
+          top: "var(--topbar-pad)",
           zIndex: "var(--z-sticky-header)",
-          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingTop: 0,
         }}
       >
         <div className="px-5">

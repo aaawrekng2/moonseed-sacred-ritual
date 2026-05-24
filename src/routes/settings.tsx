@@ -119,8 +119,14 @@ function SettingsLayout() {
   if (authLoading) {
     return (
       <main
-        className="flex h-dvh items-center justify-center bg-cosmos px-6"
-        style={{ paddingTop: "var(--topbar-pad)" }}
+        className="flex items-center justify-center bg-cosmos px-6"
+        style={{
+          // EJ47 — TopNav spacer reserves the top band; this main
+          // takes the remaining viewport height so the loading text
+          // stays vertically centered in the visible area.
+          height: "calc(100dvh - var(--topbar-pad))",
+          paddingTop: 0,
+        }}
       >
         <p
           className="font-serif italic"
@@ -138,8 +144,11 @@ function SettingsLayout() {
   if (!user) {
     return (
       <main
-        className="flex h-dvh items-center justify-center bg-cosmos px-6"
-        style={{ paddingTop: "var(--topbar-pad)" }}
+        className="flex items-center justify-center bg-cosmos px-6"
+        style={{
+          height: "calc(100dvh - var(--topbar-pad))",
+          paddingTop: 0,
+        }}
       >
         <div className="flex max-w-sm flex-col items-center gap-4 text-center">
           <p
@@ -204,8 +213,13 @@ function SettingsLayout() {
         (do NOT render another BottomNav here — that would duplicate it).
       */}
       <main
-        className="h-dvh overflow-y-auto bg-cosmos pb-28 text-foreground"
-        style={{ paddingTop: "var(--topbar-pad)" }}
+        className="overflow-y-auto bg-cosmos pb-28 text-foreground"
+        style={{
+          // EJ47 — viewport minus TopNav band, matching the other
+          // four top-nav routes (journal, numerology, insights, home).
+          height: "calc(100dvh - var(--topbar-pad))",
+          paddingTop: 0,
+        }}
       >
         <div className="mx-auto w-full max-w-5xl px-4">
           {/* Mobile tab bar: canonical tab strip pattern (FU-12). */}
@@ -255,8 +269,12 @@ function SettingsLayout() {
             <aside
               className="sticky top-0 hidden shrink-0 self-start py-6 md:flex md:w-[240px] md:flex-col"
               style={{
-                marginTop: "calc(var(--topbar-pad) * -1)",
-                marginBottom: "calc(var(--topbar-pad) * -1)",
+                // EJ47 — negative margins removed: parent <main> no
+                // longer adds var(--topbar-pad), so the sidebar
+                // doesn't need to cancel it out. TopNav spacer
+                // reserves the top band.
+                marginTop: 0,
+                marginBottom: 0,
                 background: "var(--surface-card)",
                 borderRight: "1px solid var(--border-subtle)",
                 minHeight: "100dvh",

@@ -217,15 +217,33 @@ function NumerologyPage() {
   };
 
   return (
-    <div className="relative flex h-dvh flex-col bg-cosmos">
+    <div
+      className="relative flex flex-col bg-cosmos"
+      style={{
+        // EJ47 — viewport minus TopNav band so the page exactly fills
+        // the visible area below the fixed TopNav. Was `h-dvh` which
+        // overflows when the TopNavGate spacer is in flow above us.
+        height: "calc(100dvh - var(--topbar-pad))",
+      }}
+    >
       <div
-        className="page-header-glass sticky top-0"
-        style={{ zIndex: "var(--z-sticky-header)" }}
+        className="page-header-glass sticky"
+        style={{
+          // EJ47 — docks below TopNav (var(--topbar-pad)) instead of
+          // viewport top so the page chrome stays out from behind the
+          // fixed nav. Z-index ordering: TopNav uses --z-bottom-nav
+          // (40), this sticky header uses --z-sticky-header (30), so
+          // TopNav stays on top during scroll.
+          top: "var(--topbar-pad)",
+          zIndex: "var(--z-sticky-header)",
+        }}
       >
         <div
           className="px-4 overflow-hidden flex items-center"
           style={{
-            paddingTop: `calc(env(safe-area-inset-top,0px) + ${collapseProgress * 6}px)`,
+            // EJ47 — safe-area-inset-top dropped: TopNavGate spacer
+            // already reserves env(safe-area-inset-top) + 56px above.
+            paddingTop: `${collapseProgress * 6}px`,
             paddingBottom: `${collapseProgress * 6}px`,
             maxHeight: `${collapseProgress * 32}px`,
             transition: "max-height 150ms ease-out, padding 150ms ease-out",

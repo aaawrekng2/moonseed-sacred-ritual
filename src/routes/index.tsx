@@ -419,9 +419,14 @@ function Index() {
     <main
       className="relative grid bg-cosmos overflow-y-auto"
       style={{
-        minHeight: "100dvh",
+        // EJ47 — minimum height = viewport minus TopNav band, so the
+        // home page exactly fills the visible viewport below the
+        // TopNav without overflowing into a body-level scroll.
+        // safe-area-inset-top dropped because the TopNavGate spacer
+        // already reserves env(safe-area-inset-top, 0px) + 56px.
+        minHeight: "calc(100dvh - var(--topbar-pad))",
         gridTemplateRows: "auto minmax(240px, 1fr)",
-        paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
+        paddingTop: 4,
         paddingBottom: "calc(160px + env(safe-area-inset-bottom, 0px))",
       }}
     >

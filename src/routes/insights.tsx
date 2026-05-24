@@ -231,14 +231,29 @@ function InsightsRoute() {
   };
 
   return (
-    <div className="relative flex h-dvh flex-col bg-cosmos">
+    <div
+      className="relative flex flex-col bg-cosmos"
+      style={{
+        // EJ47 — viewport minus TopNav band (see journal.tsx).
+        height: "calc(100dvh - var(--topbar-pad))",
+      }}
+    >
       {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
       {/* FU-7 — Unified sticky header: title row + filter bar + tab strip. */}
-      <div className="page-header-glass sticky top-0" style={{ zIndex: "var(--z-sticky-header)" }}>
+      <div
+        className="page-header-glass sticky"
+        style={{
+          // EJ47 — docks below TopNav (var(--topbar-pad)) instead of
+          // viewport top so it stays out from behind the fixed nav.
+          top: "var(--topbar-pad)",
+          zIndex: "var(--z-sticky-header)",
+        }}
+      >
         <div
           className="px-4 overflow-hidden flex items-center"
           style={{
-            paddingTop: `calc(env(safe-area-inset-top,0px) + ${collapseProgress * 6}px)`,
+            // EJ47 — safe-area-inset-top removed: TopNav spacer reserves it.
+            paddingTop: `${collapseProgress * 6}px`,
             paddingBottom: `${collapseProgress * 6}px`,
             maxHeight: `${collapseProgress * 32}px`,
             transition: "max-height 150ms ease-out, padding 150ms ease-out",
