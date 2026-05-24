@@ -10,11 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  getSuitTrends,
-  type SuitBucket,
-  type SuitGranularity,
-} from "@/lib/insights.functions";
+import { getSuitTrends, type SuitBucket, type SuitGranularity } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { useTimezone } from "@/lib/use-timezone";
@@ -49,7 +45,9 @@ const TITLE_BY_GRANULARITY: Record<SuitGranularity, string> = {
 export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   const fn = useServerFn(getSuitTrends);
   const { effectiveTz } = useTimezone();
-  const [data, setData] = useState<{ buckets: SuitBucket[]; granularity: SuitGranularity } | null>(null);
+  const [data, setData] = useState<{ buckets: SuitBucket[]; granularity: SuitGranularity } | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("pct");
 
@@ -74,7 +72,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   }, [filters, fn, effectiveTz]);
 
   const chartData = useMemo(() => {
-    if (!data) return [];
+    if (!data || !Array.isArray(data.buckets)) return [];
     return data.buckets.map((b) => {
       const total = b.major + b.wands + b.cups + b.swords + b.pentacles;
       if (mode === "pct") {
@@ -100,7 +98,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   }, [data, mode]);
 
   if (loading) return null;
-  if (!data || data.buckets.length < 2) return null;
+  if (!data || !Array.isArray(data.buckets) || data.buckets.length < 2) return null;
 
   const title = TITLE_BY_GRANULARITY[data.granularity];
 
@@ -152,10 +150,12 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
           className="flex gap-1 rounded-full p-0.5"
           style={{ background: "var(--surface-card)" }}
         >
-          {([
-            { id: "pct", label: "%" },
-            { id: "count", label: "Count" },
-          ] as const).map((it) => (
+          {(
+            [
+              { id: "pct", label: "%" },
+              { id: "count", label: "Count" },
+            ] as const
+          ).map((it) => (
             <button
               key={it.id}
               type="button"
@@ -166,8 +166,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
                   mode === it.id
                     ? "color-mix(in oklch, var(--gold) 24%, transparent)"
                     : "transparent",
-                color:
-                  mode === it.id ? "var(--gold)" : "var(--color-foreground)",
+                color: mode === it.id ? "var(--gold)" : "var(--color-foreground)",
                 fontStyle: "italic",
                 opacity: mode === it.id ? 1 : 0.7,
               }}

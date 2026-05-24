@@ -54,10 +54,10 @@ export function TagCloud({
     <section className="space-y-3">
       <SectionHeader title="Themes you carry" caption="Tags you reach for, sized by frequency." />
       {loading && <SkeletonRow />}
-      {!loading && data && data.tags.length === 0 && (
+      {!loading && data && (data.tags ?? []).length === 0 && (
         <EmptyNote text="Your themes will surface here as you add tags to your readings." />
       )}
-      {!loading && data && data.tags.length > 0 && (
+      {!loading && data && (data.tags ?? []).length > 0 && (
         <>
           <div
             className="flex flex-wrap items-baseline justify-center"
