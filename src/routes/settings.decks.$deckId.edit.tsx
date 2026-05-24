@@ -28,7 +28,11 @@ import {
   type CustomDeckCard,
   type AspectConfig,
 } from "@/lib/custom-decks";
-import { buildHydratingMetaPrompt, buildCsvInstructionsPrompt } from "@/lib/journal-prompts-meta";
+import {
+  buildHydratingMetaPrompt,
+  buildCsvInstructionsPrompt,
+  parseHydratingResponse,
+} from "@/lib/journal-prompts-meta";
 import {
   setDeckAspectConfig,
   setDeckVoiceGuide,
@@ -84,6 +88,11 @@ function DeckEditPage() {
   const [aspects, setAspects] = useState<AspectConfig[]>(DEFAULT_ASPECTS);
   const [voiceGuide, setVoiceGuide] = useState<string>("");
   const [filter, setFilter] = useState<StatusFilter>("all");
+  // EJ39 — buffer for the auto-parse textarea. The user pastes their
+  // external AI's response in here once; clicking "Parse and fill"
+  // populates the 4 aspect slots + voiceGuide. All fields stay
+  // editable after parse so they can refine anything.
+  const [aiPaste, setAiPaste] = useState<string>("");
 
   // Load deck + cards.
   const reload = useCallback(async () => {
@@ -177,6 +186,38 @@ function DeckEditPage() {
     } catch {
       toast.error("Couldn't copy to clipboard");
     }
+  };
+
+  // EJ39 — auto-parse the AI's response. Extracts 4 ASPECT/THOUGHT
+  // pairs + VOICE GUIDE from one paste, populates the slots, leaves
+  // everything editable so the user can hand-tune any field.
+  const parseAiResponse = () => {
+    const trimmed = aiPaste.trim();
+    if (!trimmed) {
+      toast.error("Paste your AI's response above first");
+      return;
+    }
+    const parsed = parseHydratingResponse(trimmed);
+    if (!parsed) {
+      toast.error("Couldn't read that — check that it has lines like 'ASPECT 1:' and 'THOUGHT 1:'");
+      return;
+    }
+    // Fill aspect slots, preserving any existing value when the AI
+    // left a slot blank (this is rare but possible if the response
+    // is malformed mid-list).
+    setAspects((prev) =>
+      prev.map((cur, i) => ({
+        name: parsed.aspects[i]?.name?.trim() || cur.name,
+        hydrating_thought: parsed.aspects[i]?.hydrating_thought?.trim() || cur.hydrating_thought,
+      })),
+    );
+    if (parsed.voiceGuide && parsed.voiceGuide.trim().length > 0) {
+      setVoiceGuide(parsed.voiceGuide);
+    }
+    const filled = parsed.aspects.filter((a) => a.name?.trim()).length;
+    const voiceMsg = parsed.voiceGuide ? " + voice guide" : "";
+    toast.success(`Filled ${filled} of 4 aspects${voiceMsg}. Edit any field to refine.`);
+    setAiPaste("");
   };
 
   const copyCsvInstructions = async () => {
@@ -657,6 +698,74 @@ function DeckEditPage() {
           </button>
         </div>
 
+        {/* EJ39 — auto-parse flow. One paste, one click, all 4 slots
+            + voice guide populate. Every field stays editable below. */}
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            borderRadius: 8,
+            border: "1px dashed var(--border-default)",
+            background: "var(--surface-card)",
+          }}
+        >
+          <label
+            style={{
+              fontSize: 12,
+              color: "var(--color-foreground-muted)",
+              display: "block",
+              marginBottom: 4,
+              fontWeight: 600,
+            }}
+          >
+            Used AI? Paste the response here for one-click fill
+          </label>
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--color-foreground-muted)",
+              marginBottom: 8,
+              lineHeight: 1.4,
+            }}
+          >
+            Paste the full reply from your AI (the one with ASPECT 1, THOUGHT 1, ASPECT 2, etc., and
+            the VOICE GUIDE at the bottom). One click fills all 4 aspect slots + voice guide. You
+            can still edit any field after.
+          </div>
+          <textarea
+            value={aiPaste}
+            onChange={(e) => setAiPaste(e.target.value)}
+            rows={6}
+            placeholder="Paste your AI's full response here…"
+            style={{
+              width: "100%",
+              padding: 8,
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--color-background)",
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-mono, monospace)",
+              fontSize: 12,
+              resize: "vertical",
+            }}
+          />
+          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={parseAiResponse}
+              disabled={!aiPaste.trim()}
+              style={primaryBtnStyle(!aiPaste.trim())}
+            >
+              Parse and fill
+            </button>
+            {aiPaste.trim().length > 0 && (
+              <button type="button" onClick={() => setAiPaste("")} style={ghostBtnStyle()}>
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
         <div style={{ marginTop: 16 }}>
           <label
             style={{
@@ -666,7 +775,7 @@ function DeckEditPage() {
               marginBottom: 4,
             }}
           >
-            Voice guide (paste your AI&apos;s response here)
+            Voice guide (or paste your AI&apos;s voice guide here)
           </label>
           <textarea
             value={voiceGuide}
