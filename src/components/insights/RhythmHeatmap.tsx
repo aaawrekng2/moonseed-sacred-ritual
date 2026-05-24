@@ -8,14 +8,16 @@ export function RhythmHeatmap({
   days: Array<{ date: string; count: number }>;
   onTap?: () => void;
 }) {
-  const max = Math.max(1, ...days.map((d) => d.count));
-  const total = days.reduce((a, b) => a + b.count, 0);
+  // EJ41 — defensive: parent may pass undefined on partial payloads.
+  const safeDays = Array.isArray(days) ? days : [];
+  const max = Math.max(1, ...safeDays.map((d) => d.count));
+  const total = safeDays.reduce((a, b) => a + b.count, 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   // 26-05-08-Q11 — Pan rhythm strip to the most recent day on mount.
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollLeft = el.scrollWidth;
-  }, [days.length]);
+  }, [safeDays.length]);
   return (
     <InsightCard
       title="Rhythm — last 30 days"
@@ -27,7 +29,7 @@ export function RhythmHeatmap({
         className="flex gap-1 overflow-x-auto pb-1"
         style={{ scrollbarWidth: "none" }}
       >
-        {days.map((d) => {
+        {safeDays.map((d) => {
           const intensity = d.count === 0 ? 0.08 : 0.2 + (d.count / max) * 0.8;
           return (
             <div

@@ -5,11 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
-import {
-  EMPTY_GLOBAL_FILTERS,
-  hasAnyActive,
-  type GlobalFilters,
-} from "@/lib/filters.types";
+import { EMPTY_GLOBAL_FILTERS, hasAnyActive, type GlobalFilters } from "@/lib/filters.types";
 import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
@@ -58,7 +54,10 @@ export const Route = createFileRoute("/insights")({
   head: () => ({
     meta: [
       { title: "Insights — Tarot Seed" },
-      { name: "description", content: "Patterns, rhythms, and stalker cards across your readings." },
+      {
+        name: "description",
+        content: "Patterns, rhythms, and stalker cards across your readings.",
+      },
     ],
   }),
   validateSearch: (search: Record<string, unknown>) => ({
@@ -148,13 +147,10 @@ function InsightsRoute() {
         .limit(50);
       if (cancelled) return;
       if (error) {
-        // eslint-disable-next-line no-console
         console.warn("[insights] tag fetch failed", error);
         return;
       }
-      setUserTags(
-        (data ?? []) as Array<{ id: string; name: string; usage_count: number }>,
-      );
+      setUserTags((data ?? []) as Array<{ id: string; name: string; usage_count: number }>);
     })();
     return () => {
       cancelled = true;
@@ -238,10 +234,7 @@ function InsightsRoute() {
     <div className="relative flex h-dvh flex-col bg-cosmos">
       {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
       {/* FU-7 — Unified sticky header: title row + filter bar + tab strip. */}
-      <div
-        className="page-header-glass sticky top-0"
-        style={{ zIndex: "var(--z-sticky-header)" }}
-      >
+      <div className="page-header-glass sticky top-0" style={{ zIndex: "var(--z-sticky-header)" }}>
         <div
           className="px-4 overflow-hidden flex items-center"
           style={{
@@ -275,18 +268,20 @@ function InsightsRoute() {
                 type="button"
                 onClick={() => setTab(t.id)}
                 className="whitespace-nowrap pb-1"
-                style={{
-                  fontFamily: "var(--tab-font-family)",
-                  fontStyle: "var(--tab-font-style)",
-                  fontSize: "var(--tab-font-size)",
-                  letterSpacing: "var(--tab-letter-spacing)",
-                  textTransform: "var(--tab-text-transform)",
-                  color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
-                  opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
-                  borderBottom: active
-                    ? "1px solid var(--tab-underline-color)"
-                    : "1px solid transparent",
-                } as CSSProperties}
+                style={
+                  {
+                    fontFamily: "var(--tab-font-family)",
+                    fontStyle: "var(--tab-font-style)",
+                    fontSize: "var(--tab-font-size)",
+                    letterSpacing: "var(--tab-letter-spacing)",
+                    textTransform: "var(--tab-text-transform)",
+                    color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
+                    opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
+                    borderBottom: active
+                      ? "1px solid var(--tab-underline-color)"
+                      : "1px solid transparent",
+                  } as CSSProperties
+                }
               >
                 {t.label}
               </button>
@@ -299,13 +294,7 @@ function InsightsRoute() {
           <GlobalFilterBar
             filters={globalFilters}
             onChange={handleGlobalChange}
-            sections={[
-              "tags",
-              "spreadTypes",
-              "moonPhases",
-              "depth",
-              "reversed",
-            ]}
+            sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
             timeRange={{
               value: filters.timeRange,
               options: [
@@ -316,8 +305,7 @@ function InsightsRoute() {
                 { value: "365d", label: "Last 365 days" },
                 { value: "all", label: "All time" },
               ],
-              onChange: (v) =>
-                setFilters({ ...filters, timeRange: v as TimeRange }),
+              onChange: (v) => setFilters({ ...filters, timeRange: v as TimeRange }),
             }}
             userTags={userTags}
             availableTags={overview?.availableTags}
@@ -333,9 +321,7 @@ function InsightsRoute() {
                       value: v,
                       label: CARD_GROUP_BY_LABEL[v],
                     }))}
-                    onChange={(v) =>
-                      setFilters({ ...filters, cardGroupBy: v as CardGroupBy })
-                    }
+                    onChange={(v) => setFilters({ ...filters, cardGroupBy: v as CardGroupBy })}
                   />
                   <Dropdown
                     prefix="Sort"
@@ -344,9 +330,7 @@ function InsightsRoute() {
                       value: v,
                       label: CARD_SORT_BY_LABEL[v],
                     }))}
-                    onChange={(v) =>
-                      setFilters({ ...filters, cardSortBy: v as CardSortBy })
-                    }
+                    onChange={(v) => setFilters({ ...filters, cardSortBy: v as CardSortBy })}
                   />
                 </>
               ) : undefined
@@ -355,10 +339,7 @@ function InsightsRoute() {
         )}
       </div>
 
-      <main
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 pb-28 pt-4"
-      >
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
         <h1
           className="font-serif italic mb-4"
           style={{
@@ -554,17 +535,20 @@ function OverviewTab({
             opacity: 0.9,
           }}
         >
-          Insights become richer as you read more. Currently showing data from {overview.totalReadings} spread{overview.totalReadings === 1 ? "" : "s"}.
+          Insights become richer as you read more. Currently showing data from{" "}
+          {overview.totalReadings} spread{overview.totalReadings === 1 ? "" : "s"}.
         </div>
       )}
 
-      {stalkers && (stalkers.topCard || stalkers.stalkerCards.length > 0) && (
+      {stalkers && (stalkers.topCard || (stalkers.stalkerCards ?? []).length > 0) && (
         <HeroCard result={stalkers} onTap={onTapHero} />
       )}
 
-      {/* Q101 #6 — Horizontal 3-month calendar of stalker appearances, desktop only. */}
+      {/* Q101 #6 — Horizontal 3-month calendar of stalker appearances, desktop only.
+          EJ41 — defensive: every level of the access path can be undefined on
+          partial mobile payloads. */}
       {stalkers &&
-        stalkers.stalkerCards[0]?.appearances &&
+        stalkers.stalkerCards?.[0]?.appearances &&
         stalkers.stalkerCards[0].appearances.length > 0 && (
           <div className="hidden md:block">
             <DrawCalendar
@@ -572,9 +556,7 @@ function OverviewTab({
               tz={effectiveTz}
               monthsBack={Math.min(
                 3,
-                new Set(
-                  stalkers.stalkerCards[0].appearances.map((a) => a.date.slice(0, 7)),
-                ).size,
+                new Set(stalkers.stalkerCards[0].appearances.map((a) => a.date.slice(0, 7))).size,
               )}
             />
           </div>
@@ -582,11 +564,14 @@ function OverviewTab({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />
-        {Object.keys(overview.moonPhaseDistribution).length > 0 && (
-          <MoonPhaseRing distribution={overview.moonPhaseDistribution} onTap={onTapCalendar} />
+        {Object.keys(overview.moonPhaseDistribution ?? {}).length > 0 && (
+          <MoonPhaseRing
+            distribution={overview.moonPhaseDistribution ?? {}}
+            onTap={onTapCalendar}
+          />
         )}
         <ReversalStat rate={overview.reversalRate} onTap={() => log("reversal")} />
-        <RhythmHeatmap days={overview.readingsByDay} onTap={() => log("rhythm")} />
+        <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={() => log("rhythm")} />
       </div>
 
       <div className="pt-2 text-center">
@@ -603,6 +588,5 @@ function OverviewTab({
 }
 
 function log(cardType: string) {
-  // eslint-disable-next-line no-console
   console.log("insights.overview.tapped", { cardType });
 }

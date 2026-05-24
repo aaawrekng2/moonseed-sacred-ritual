@@ -1,4 +1,11 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import {
+  Outlet,
+  Link,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+  useLocation,
+} from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useState } from "react";
 
 import appCss from "../styles.css?url";
@@ -44,10 +51,7 @@ function useApplyRestingOpacityEarly() {
     const n = Number(raw);
     if (!Number.isFinite(n)) return;
     const pct = Math.max(25, Math.min(100, Math.round(n)));
-    document.documentElement.style.setProperty(
-      "--resting-opacity",
-      String(pct / 100),
-    );
+    document.documentElement.style.setProperty("--resting-opacity", String(pct / 100));
   }, [location.pathname]);
 }
 
@@ -77,7 +81,11 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover",
+      },
       { title: "Tarot Seed — Tarot that remembers you" },
       {
         name: "description",
@@ -97,11 +105,31 @@ export const Route = createRootRoute({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Tarot Seed — Tarot that remembers you" },
-      { name: "description", content: "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
-      { property: "og:description", content: "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
-      { name: "twitter:description", content: "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8816e549-6b01-4556-8eb7-f41f3b24a55c/id-preview-9d9015a6--ba6ec5a7-7b63-4a64-8eba-dff94a3cdd6a.lovable.app-1777058776337.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8816e549-6b01-4556-8eb7-f41f3b24a55c/id-preview-9d9015a6--ba6ec5a7-7b63-4a64-8eba-dff94a3cdd6a.lovable.app-1777058776337.png" },
+      {
+        name: "description",
+        content:
+          "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings.",
+      },
+      {
+        property: "og:description",
+        content:
+          "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8816e549-6b01-4556-8eb7-f41f3b24a55c/id-preview-9d9015a6--ba6ec5a7-7b63-4a64-8eba-dff94a3cdd6a.lovable.app-1777058776337.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8816e549-6b01-4556-8eb7-f41f3b24a55c/id-preview-9d9015a6--ba6ec5a7-7b63-4a64-8eba-dff94a3cdd6a.lovable.app-1777058776337.png",
+      },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -230,6 +258,41 @@ function RootComponent() {
   // tapping empty space no longer opens the FloatingMenu.
   // Register the PWA service worker so Tarot Seed installs to home screen.
   usePWA();
+  // EJ41 — mobile debug console (eruda). Loads only when explicitly
+  // requested via `?debug=1` query param OR when a persisted flag is
+  // set in localStorage (so the toggle survives page reloads). When
+  // active, it injects a floating bug-icon button in the corner of the
+  // page; tapping it opens a Chrome-DevTools-like console panel right
+  // on the device. Zero cost for normal users — the library is loaded
+  // from CDN lazily, only when the flag is on.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("debug") === "1") {
+        localStorage.setItem("tarotseed:eruda", "1");
+      } else if (params.get("debug") === "0") {
+        localStorage.removeItem("tarotseed:eruda");
+        return;
+      }
+      if (localStorage.getItem("tarotseed:eruda") !== "1") return;
+      // Avoid loading twice if effect re-runs.
+      const w = window as unknown as { eruda?: { init: () => void } };
+      if (w.eruda) return;
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/eruda@3";
+      s.onload = () => {
+        try {
+          (window as unknown as { eruda: { init: () => void } }).eruda.init();
+        } catch {
+          /* eruda init can be defensive */
+        }
+      };
+      document.body.appendChild(s);
+    } catch {
+      /* localStorage access can throw in some privacy modes */
+    }
+  }, []);
   void location;
   // Render the sonner Toaster only after mount. Sonner injects a DOM
   // node that is not present in the SSR markup, which caused a hard
@@ -256,8 +319,7 @@ function RootComponent() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const seen = (data as { welcome_modal_seen?: boolean } | null)
-        ?.welcome_modal_seen;
+      const seen = (data as { welcome_modal_seen?: boolean } | null)?.welcome_modal_seen;
       if (!seen) setWelcomeOpen(true);
     })();
     return () => {
@@ -278,9 +340,9 @@ function RootComponent() {
   };
   return (
     <FloatingMenuProvider>
-        <ActiveDeckProvider>
+      <ActiveDeckProvider>
         <ConfirmProvider>
-        {/*
+          {/*
           Desktop max-width frame: on screens wider than the breakpoint
           the entire app is constrained to ~430px and centered, so the
           mobile-first layouts don't stretch awkwardly on a laptop. On
@@ -288,20 +350,20 @@ function RootComponent() {
           fills the viewport. The frame also clips overflow so fixed
           children stay within the column.
         */}
-        <div
-          className="relative mx-auto flex min-h-screen w-full flex-col"
-          style={{ maxWidth: 1280 }}
-        >
-          <FloatingMenu />
-          <Outlet />
-          <BottomNavGate />
-          <DevOverlay />
-          {mounted && <Toaster />}
-          <TimezoneMismatchDialog />
-          <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
-        </div>
+          <div
+            className="relative mx-auto flex min-h-screen w-full flex-col"
+            style={{ maxWidth: 1280 }}
+          >
+            <FloatingMenu />
+            <Outlet />
+            <BottomNavGate />
+            <DevOverlay />
+            {mounted && <Toaster />}
+            <TimezoneMismatchDialog />
+            <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
+          </div>
         </ConfirmProvider>
-        </ActiveDeckProvider>
+      </ActiveDeckProvider>
     </FloatingMenuProvider>
   );
 }

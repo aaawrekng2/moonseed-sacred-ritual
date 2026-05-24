@@ -12,11 +12,13 @@ export function ReversalStat({
   // ER-8 — hide entirely when the seeker has turned off reversal tracking.
   const { trackReversals, loaded } = useTrackReversals();
   if (loaded && !trackReversals) return null;
-  const pct = Math.round(rate * 100);
+  // EJ41 — defensive: parent may pass undefined on partial payloads.
+  const safeRate = typeof rate === "number" && !Number.isNaN(rate) ? rate : 0;
+  const pct = Math.round(safeRate * 100);
   const sub =
-    rate > 0.4
+    safeRate > 0.4
       ? "Above average — shadow work is active."
-      : rate >= 0.25
+      : safeRate >= 0.25
         ? "Within typical range."
         : "Mostly upright — forward energy.";
   return (
