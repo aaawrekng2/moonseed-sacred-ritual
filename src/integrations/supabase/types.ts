@@ -1429,6 +1429,7 @@ export type Database = {
           reduce_premium_prompts: boolean
           remembered_question: string | null
           resting_opacity: number
+          reversal_chance_pct: number | null
           rising_sign: string | null
           role: string
           saved_themes: Json
@@ -1515,6 +1516,7 @@ export type Database = {
           reduce_premium_prompts?: boolean
           remembered_question?: string | null
           resting_opacity?: number
+          reversal_chance_pct?: number | null
           rising_sign?: string | null
           role?: string
           saved_themes?: Json
@@ -1601,6 +1603,7 @@ export type Database = {
           reduce_premium_prompts?: boolean
           remembered_question?: string | null
           resting_opacity?: number
+          reversal_chance_pct?: number | null
           rising_sign?: string | null
           role?: string
           saved_themes?: Json

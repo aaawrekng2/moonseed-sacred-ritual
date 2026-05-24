@@ -16,11 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -91,9 +87,7 @@ export function SettingsSection({
     <section className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {children}
     </section>
@@ -193,167 +187,163 @@ function ProfileSectionInner({
 
   return (
     <>
-    <SettingsSection title="Your Profile">
-      {isAnonymous ? (
-        <div className="flex flex-col items-center gap-6 px-2 py-6 text-center">
-          <div className="flex flex-col gap-3">
-            <h2
+      <SettingsSection title="Your Profile">
+        {isAnonymous ? (
+          <div className="flex flex-col items-center gap-6 px-2 py-6 text-center">
+            <div className="flex flex-col gap-3">
+              <h2
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-heading-md)",
+                  fontWeight: 400,
+                  color: "var(--foreground)",
+                  opacity: 0.95,
+                  lineHeight: 1.3,
+                  margin: 0,
+                }}
+              >
+                Save your sacred work
+              </h2>
+              <p
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  color: "var(--foreground)",
+                  opacity: 0.55,
+                  lineHeight: 1.7,
+                  maxWidth: 320,
+                  margin: "0 auto",
+                }}
+              >
+                Your readings, guides, and memories live only on this device right now. Without an
+                account, they can be lost forever if you clear your browser or switch devices.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              className="w-full max-w-xs rounded-xl py-4 transition-opacity active:opacity-70"
               style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-heading-md)",
-                fontWeight: 400,
-                color: "var(--foreground)",
-                opacity: 0.95,
-                lineHeight: 1.3,
-                margin: 0,
-              }}
-            >
-              Save your sacred work
-            </h2>
-            <p
-              style={{
+                background: "color-mix(in oklab, var(--gold) 15%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+                color: "var(--gold)",
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 fontSize: "var(--text-body)",
-                color: "var(--foreground)",
-                opacity: 0.55,
-                lineHeight: 1.7,
-                maxWidth: 320,
-                margin: "0 auto",
+                letterSpacing: "0.05em",
+                cursor: "pointer",
               }}
             >
-              Your readings, guides, and memories live only on this device right now. Without an account, they can be lost forever if you clear your browser or switch devices.
-            </p>
-          </div>
+              Sign in or Create Account
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setAuthOpen(true)}
-            className="w-full max-w-xs rounded-xl py-4 transition-opacity active:opacity-70"
-            style={{
-              background: "color-mix(in oklab, var(--gold) 15%, transparent)",
-              border: "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
-              color: "var(--gold)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body)",
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-            }}
-          >
-            Sign in or Create Account
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.setItem("auth-nudge-dismissed-date", "permanent");
-                toast.success("We won't remind you again.");
-              } catch {
-                // ignore
-              }
-            }}
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-caption)",
-              color: "var(--foreground)",
-              opacity: 0.2,
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-            }}
-          >
-            Don't remind me
-          </button>
-
-        </div>
-      ) : (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="display-name">Display name</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="display-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => void commitName()}
-                required
-                maxLength={80}
-              />
-              {savedFlash && (
-                <Check
-                  className="h-3 w-3"
-                  style={{ color: "var(--gold)" }}
-                  aria-label="Saved"
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input id="email" value={user.email ?? ""} readOnly disabled />
-            <p className="text-xs text-muted-foreground">
-              To change your email, please contact support.
-            </p>
-          </div>
-
-          <ReadingStatsLine userId={user.id} />
-
-          <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
-
-          <TimezoneField />
-
-          <div>
             <button
               type="button"
-              onClick={save}
-              disabled={saving}
+              onClick={() => {
+                try {
+                  localStorage.setItem("auth-nudge-dismissed-date", "permanent");
+                  toast.success("We won't remind you again.");
+                } catch {
+                  // ignore
+                }
+              }}
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: "var(--text-body-sm)",
-                color: "var(--gold)",
-                opacity: saving ? 0.4 : 0.75,
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.2,
                 background: "none",
                 border: "none",
-                padding: "4px 0",
-                cursor: saving ? "default" : "pointer",
-                textAlign: "left",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
+                padding: 0,
+                cursor: "pointer",
               }}
             >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save changes
+              Don't remind me
             </button>
           </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="display-name">Display name</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="display-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => void commitName()}
+                  required
+                  maxLength={80}
+                />
+                {savedFlash && (
+                  <Check className="h-3 w-3" style={{ color: "var(--gold)" }} aria-label="Saved" />
+                )}
+              </div>
+            </div>
 
-          <DevModeToggle userId={user.id} />
-          <ResetHintsRow userId={user.id} />
-          <WelcomeReplayRow />
-        </div>
-      )}
-    </SettingsSection>
-    {/* CO Group 1 — render AuthScreen OUTSIDE the isAnonymous branch so it
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input id="email" value={user.email ?? ""} readOnly disabled />
+              <p className="text-xs text-muted-foreground">
+                To change your email, please contact support.
+              </p>
+            </div>
+
+            <ReadingStatsLine userId={user.id} />
+
+            <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
+
+            <TimezoneField />
+
+            <div>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--gold)",
+                  opacity: saving ? 0.4 : 0.75,
+                  background: "none",
+                  border: "none",
+                  padding: "4px 0",
+                  cursor: saving ? "default" : "pointer",
+                  textAlign: "left",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save changes
+              </button>
+            </div>
+
+            <DevModeToggle userId={user.id} />
+            <ResetHintsRow userId={user.id} />
+            <WelcomeReplayRow />
+          </div>
+        )}
+      </SettingsSection>
+      {/* CO Group 1 — render AuthScreen OUTSIDE the isAnonymous branch so it
         survives the moment signUp() succeeds and the user object flips
         from anonymous → confirmed. Otherwise the parent unmounts the
         modal before the "Check your email" pane can render. */}
-    {authOpen && (
-      <AuthScreen
-        onClose={() => setAuthOpen(false)}
-        onSuccess={() => {
-          // Q89-1 — new accounts land on Home instead of staying on the
-          // (formerly blank) Profile page they signed up from.
-          setAuthOpen(false);
-          void navigate({ to: "/" });
-        }}
-      />
-    )}
+      {authOpen && (
+        <AuthScreen
+          onClose={() => setAuthOpen(false)}
+          onSuccess={() => {
+            // Q89-1 — new accounts land on Home instead of staying on the
+            // (formerly blank) Profile page they signed up from.
+            setAuthOpen(false);
+            void navigate({ to: "/" });
+          }}
+        />
+      )}
     </>
   );
 }
@@ -432,11 +422,7 @@ function DevModeToggle({ userId }: { userId: string }) {
             Shows version and resting opacity overlay.
           </div>
         </div>
-        <Switch
-          checked={enabled}
-          onCheckedChange={toggle}
-          aria-label="Toggle dev mode"
-        />
+        <Switch checked={enabled} onCheckedChange={toggle} aria-label="Toggle dev mode" />
       </div>
     </div>
   );
@@ -516,9 +502,8 @@ function ResetHintsRow({ userId }: { userId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Reset all dismissed hints?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tooltips and explanatory popups you've previously dismissed will
-              reappear next time you encounter them. You can dismiss them again
-              at any point — no data is lost.
+              Tooltips and explanatory popups you've previously dismissed will reappear next time
+              you encounter them. You can dismiss them again at any point — no data is lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -642,13 +627,15 @@ function BlueprintSectionInner({
   const [saving, setSaving] = useState(false);
 
   const sunSign = useMemo<SunSign | null>(
-    () => (prefs.birth_date ? getSunSign(prefs.birth_date) : birthDate ? getSunSign(format(birthDate, "yyyy-MM-dd")) : null),
+    () =>
+      prefs.birth_date
+        ? getSunSign(prefs.birth_date)
+        : birthDate
+          ? getSunSign(format(birthDate, "yyyy-MM-dd"))
+          : null,
     [prefs.birth_date, birthDate],
   );
-  const geocoded = useMemo(
-    () => geocodeBirthPlace(birthPlace),
-    [birthPlace],
-  );
+  const geocoded = useMemo(() => geocodeBirthPlace(birthPlace), [birthPlace]);
   const risingInfo = useMemo(() => {
     const isoDate = birthDate ? format(birthDate, "yyyy-MM-dd") : prefs.birth_date;
     if (isoDate && birthTime && geocoded) {
@@ -774,7 +761,8 @@ function BlueprintSectionInner({
             placeholder="e.g. Jane Marie Doe"
           />
           <p className="text-xs text-muted-foreground">
-            First, middle, and last as written on your birth certificate. Used for name-based numerology numbers (Expression, Soul Urge, Personality).
+            First, middle, and last as written on your birth certificate. Used for name-based
+            numerology numbers (Expression, Soul Urge, Personality).
           </p>
         </div>
 
@@ -788,9 +776,7 @@ function BlueprintSectionInner({
             {risingSign && (
               <Badge variant="outline" className="border-mystic/60 text-foreground">
                 ⬆️ {risingSign} Rising {SIGN_EMOJI[risingSign]}
-                {!risingConfident && (
-                  <span className="ml-1 text-muted-foreground">(approx)</span>
-                )}
+                {!risingConfident && <span className="ml-1 text-muted-foreground">(approx)</span>}
               </Badge>
             )}
             {!risingSign && risingMissingInputs && (
@@ -932,15 +918,14 @@ function TimezoneField() {
             </SelectContent>
           </Select>
           <p className="text-[11px] text-muted-foreground">
-            All moon math will use this zone, even if you open the app from
-            another location.
+            All moon math will use this zone, even if you open the app from another location.
           </p>
         </div>
       )}
       {isAuto && tz.profileTz && tz.profileTz !== tz.deviceTz && (
         <p className="text-[11px] text-amber-500/80">
-          Saved profile zone: <strong>{timezoneLabel(tz.profileTz)}</strong>.
-          In auto mode we'll follow the device.
+          Saved profile zone: <strong>{timezoneLabel(tz.profileTz)}</strong>. In auto mode we'll
+          follow the device.
         </p>
       )}
     </div>
@@ -975,6 +960,19 @@ function ReadingPreferencesSection({
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [savingReversed, setSavingReversed] = useState(false);
   const [savingTrackReversals, setSavingTrackReversals] = useState(false);
+  // EJ47 — local working value for the reversal-chance input. Mirror
+  // of the stored pref; persisted on blur or Enter so we don't spam
+  // Supabase on every keystroke.
+  const [reversalChanceDraft, setReversalChanceDraft] = useState<string>(
+    String(prefs.reversal_chance_pct ?? 50),
+  );
+  const [savingReversalChance, setSavingReversalChance] = useState(false);
+
+  useEffect(() => {
+    // If another surface (or a tab elsewhere) updates the pref, keep
+    // the input in sync with the canonical value.
+    setReversalChanceDraft(String(prefs.reversal_chance_pct ?? 50));
+  }, [prefs.reversal_chance_pct]);
 
   const togglePrompt = async (next: boolean) => {
     setSavingPrompt(true);
@@ -1010,6 +1008,37 @@ function ReadingPreferencesSection({
     toast.success(next ? "Reversed cards on" : "Reversed cards off", {
       icon: "✓",
     });
+  };
+
+  // EJ47 — Save the reversal-chance percent. Clamps to 1-99, no-ops
+  // if value is unchanged, and surfaces a toast on success/error.
+  const saveReversalChance = async () => {
+    const parsed = Number(reversalChanceDraft);
+    if (!Number.isFinite(parsed)) {
+      // Reset to the stored value if the input is garbage.
+      setReversalChanceDraft(String(prefs.reversal_chance_pct ?? 50));
+      return;
+    }
+    const clamped = Math.max(1, Math.min(99, Math.round(parsed)));
+    if (clamped === prefs.reversal_chance_pct) {
+      // No change — just normalize the visible string and return.
+      setReversalChanceDraft(String(clamped));
+      return;
+    }
+    setSavingReversalChance(true);
+    const previous = prefs.reversal_chance_pct;
+    setPrefs({ ...prefs, reversal_chance_pct: clamped });
+    const { error } = await updateUserPreferences(user.id, {
+      reversal_chance_pct: clamped,
+    } as never);
+    setSavingReversalChance(false);
+    setReversalChanceDraft(String(clamped));
+    if (error) {
+      setPrefs({ ...prefs, reversal_chance_pct: previous });
+      toast.error("Couldn't save reversal chance.");
+      return;
+    }
+    toast.success(`Reversal chance ${clamped}%`, { icon: "✓" });
   };
 
   const toggleTrackReversals = async (next: boolean) => {
@@ -1068,8 +1097,8 @@ function ReadingPreferencesSection({
               Show question prompt on the draw table
             </Label>
             <p className="text-xs text-muted-foreground">
-              When off, the floating quill stays collapsed until you tap it. Use
-              this if you prefer to draw without a written question.
+              When off, the floating quill stays collapsed until you tap it. Use this if you prefer
+              to draw without a written question.
             </p>
           </div>
           <Switch
@@ -1086,9 +1115,8 @@ function ReadingPreferencesSection({
               Allow reversed cards
             </Label>
             <p className="text-xs text-muted-foreground">
-              Some readers find reversed cards add nuance and depth. When on,
-              cards may appear reversed during draws, with separate
-              interpretations.
+              Some readers find reversed cards add nuance and depth. When on, cards may appear
+              reversed during draws, with separate interpretations.
             </p>
           </div>
           <Switch
@@ -1099,6 +1127,43 @@ function ReadingPreferencesSection({
           />
         </div>
 
+        {/* EJ47 — Reversal chance numeric input. Visible only when
+            "Allow reversed cards" is on. Range 1-99. Default 50. */}
+        {prefs.allow_reversed_cards && (
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="reversal-chance" className="text-sm">
+                Reversal chance
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                How often a card lands reversed. Realistic shuffling produces about 15-30%; the
+                default of 50% is fully symmetric.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Input
+                id="reversal-chance"
+                type="number"
+                min={1}
+                max={99}
+                step={1}
+                value={reversalChanceDraft}
+                disabled={savingReversalChance}
+                onChange={(e) => setReversalChanceDraft(e.target.value)}
+                onBlur={() => void saveReversalChance()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                style={{ width: 64, textAlign: "right" }}
+                aria-label="Reversal chance percent"
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+          </div>
+        )}
+
         {/* ER-7 — Track reversed cards (statistics gating) */}
         <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
           <div className="space-y-0.5">
@@ -1106,8 +1171,8 @@ function ReadingPreferencesSection({
               Track reversed cards
             </Label>
             <p className="text-xs text-muted-foreground">
-              When off, reversed cards are still drawable, but reversal stats
-              are hidden across the app.
+              When off, reversed cards are still drawable, but reversal stats are hidden across the
+              app.
             </p>
           </div>
           <Switch
@@ -1138,8 +1203,8 @@ function AutoRememberQuestionRow() {
             Auto-remember my question
           </Label>
           <p className="text-xs text-muted-foreground">
-            When on, your question on the home screen is kept across sessions
-            as soon as you start typing — no extra tap needed.
+            When on, your question on the home screen is kept across sessions as soon as you start
+            typing — no extra tap needed.
           </p>
         </div>
         <Switch
@@ -1147,10 +1212,7 @@ function AutoRememberQuestionRow() {
           checked={autoRemember}
           onCheckedChange={(next) => {
             setAutoRemember(next);
-            toast.success(
-              next ? "Auto-remember on" : "Auto-remember off",
-              { icon: "✓" },
-            );
+            toast.success(next ? "Auto-remember on" : "Auto-remember off", { icon: "✓" });
           }}
         />
       </div>
@@ -1164,9 +1226,7 @@ function AutoRememberQuestionRow() {
             const next = v as RememberScope;
             setScope(next);
             toast.success(
-              next === "cloud"
-                ? "Syncing across your browsers"
-                : "Kept on this device only",
+              next === "cloud" ? "Syncing across your browsers" : "Kept on this device only",
               { icon: "✓" },
             );
           }}
@@ -1233,7 +1293,8 @@ function MemorySection({
             Allow symbolic memory
           </Label>
           <p className="text-xs text-muted-foreground">
-            Pause this anytime. Existing threads stay visible in your Journal but won't influence new readings.
+            Pause this anytime. Existing threads stay visible in your Journal but won't influence
+            new readings.
           </p>
         </div>
         <Switch

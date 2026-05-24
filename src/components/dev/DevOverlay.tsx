@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EJ46";
+export const APP_VERSION_LETTER = "EJ47";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
@@ -104,96 +104,38 @@ export function publishMistLevel(level: number): void {
 }
 
 export function DevOverlay() {
-  const { user, loading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-  const [mist, setMist] = useState(0);
-  const [opacity, setOpacity] = useState(50);
+  // EJ47 — The standalone top-left version pill has been removed. The
+  // version letter and opacity readout now live in the DevChip header
+  // (mounted alongside this component in __root.tsx). We keep this
+  // component exported so `<DevOverlay />` in __root.tsx still
+  // resolves; it just renders nothing. Its module exports
+  // (setDevMode, publishMistLevel, readDevSlotColors,
+  // setDevSlotColors, useDevSlotColors, APP_VERSION_LETTER) are still
+  // the single source of truth — only the visible pill is gone.
+  return null;
+}
 
-  // Resolve role from user_preferences. Anonymous sessions resolve to
-  // not-admin and the overlay never renders.
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data } = await supabase
-        .from("user_preferences")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      const role = (data as { role?: string } | null)?.role;
-      setIsAdmin(role === "admin" || role === "super_admin");
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, loading]);
-
-  // Seed local state from storage; subscribe to live updates.
+// EJ47 — `useDevOpacity` is exposed so DevChip can render the same
+// opacity readout that used to live in the standalone pill. Lives in
+// this module so the existing storage-key / event-name constants stay
+// internal to one file.
+export function useDevOpacity(): number {
+  const [opacity, setOpacity] = useState<number>(() => readOpacity());
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setEnabled(readDevMode());
-    setMist(readMist());
-    setOpacity(readOpacity());
-    const onDev = (e: Event) => {
-      const detail = (e as CustomEvent<boolean>).detail;
-      setEnabled(typeof detail === "boolean" ? detail : readDevMode());
-    };
-    const onMist = (e: Event) => {
-      const detail = (e as CustomEvent<number>).detail;
-      setMist(typeof detail === "number" ? detail : readMist());
-    };
     const onOpacity = (e: Event) => {
       const detail = (e as CustomEvent<number>).detail;
       setOpacity(typeof detail === "number" ? detail : readOpacity());
     };
     const onStorage = (e: StorageEvent) => {
-      if (e.key === DEV_MODE_KEY) setEnabled(readDevMode());
-      if (e.key === MIST_KEY) setMist(readMist());
       if (e.key === OPACITY_KEY) setOpacity(readOpacity());
     };
-    window.addEventListener(DEV_EVENT, onDev);
-    window.addEventListener(MIST_EVENT, onMist);
     window.addEventListener(OPACITY_EVENT, onOpacity);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener(DEV_EVENT, onDev);
-      window.removeEventListener(MIST_EVENT, onMist);
       window.removeEventListener(OPACITY_EVENT, onOpacity);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
-
-  if (!isAdmin || !enabled) return null;
-
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: "fixed",
-        top: "calc(env(safe-area-inset-top, 0px) + 8px)",
-        left: 8,
-        zIndex: 2147483647,
-        pointerEvents: "none",
-        fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: "0.03em",
-        color: "#ffffff",
-        background: "rgba(0, 0, 0, 0.85)",
-        padding: "4px 10px",
-        borderRadius: 999,
-        border: "1px solid rgba(255, 255, 255, 0.15)",
-        whiteSpace: "nowrap",
-        lineHeight: 1.4,
-      }}
-    >
-      v{APP_VERSION_LETTER} · Op {opacity}%
-    </div>
-  );
+  return opacity;
 }

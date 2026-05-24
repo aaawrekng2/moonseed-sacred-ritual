@@ -16,7 +16,13 @@ import { useEffect, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { readDevSlotColors, setDevMode, setDevSlotColors } from "@/components/dev/DevOverlay";
+import {
+  APP_VERSION_LETTER,
+  readDevSlotColors,
+  setDevMode,
+  setDevSlotColors,
+  useDevOpacity,
+} from "@/components/dev/DevOverlay";
 
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const DEV_EVENT = "tarotseed:dev-mode-changed";
@@ -65,6 +71,9 @@ export function DevChip() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [devOn, setDevOn] = useState<boolean>(() => readDevMode());
   const [slotColorsOn, setSlotColorsOn] = useState<boolean>(() => readDevSlotColors());
+  // EJ47 — version + opacity readout for the chip header (replaces
+  // the standalone top-left DevOverlay pill).
+  const opacity = useDevOpacity();
   const [pos, setPos] = useState<Pos>(() => readPos());
   const draggingRef = useRef<{
     startX: number;
@@ -211,7 +220,7 @@ export function DevChip() {
         userSelect: "none",
       }}
     >
-      {/* Drag grip */}
+      {/* Drag grip — also displays the version + opacity readout. */}
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -222,17 +231,18 @@ export function DevChip() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 4,
-          opacity: 0.6,
+          gap: 6,
+          opacity: 0.92,
           cursor: "grab",
-          padding: "0 0 2px 0",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          padding: "0 0 4px 0",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
           touchAction: "none",
+          fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
         }}
       >
         <GripVertical size={12} strokeWidth={1.5} />
-        <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          Dev Chip
+        <span style={{ fontSize: 10, letterSpacing: "0.08em", fontWeight: 600 }}>
+          v{APP_VERSION_LETTER} · Op {opacity}%
         </span>
       </div>
 

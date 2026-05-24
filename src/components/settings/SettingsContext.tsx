@@ -37,6 +37,12 @@ export type Prefs = {
   memory_ai_permission: boolean;
   show_question_prompt: boolean;
   allow_reversed_cards: boolean;
+  /** EJ47 — per-seeker reversal probability (1-99). Only used when
+   * `allow_reversed_cards` is true. Default 50 means roughly half of
+   * drawn cards land reversed; the seeker can tune this to match
+   * their preferred shuffle technique (15-30% is realistic, 50% is
+   * the symmetric default we ship with). */
+  reversal_chance_pct: number;
   /** ER-7 — when off, reversal STATISTICS are hidden across the app. */
   track_reversals: boolean;
   /** Q42 — when on, premium teasers collapse to a single muted line. */
@@ -71,6 +77,7 @@ const DEFAULT_PREFS: Prefs = {
   memory_ai_permission: true,
   show_question_prompt: true,
   allow_reversed_cards: false,
+  reversal_chance_pct: 50,
   track_reversals: true,
   reduce_premium_prompts: false,
   accent_color: null,
@@ -110,7 +117,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, birth_latitude, birth_longitude, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, birth_latitude, birth_longitude, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, reversal_chance_pct, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -124,8 +131,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         typeof d[k] === "boolean" ? (d[k] as boolean) : fallback;
       const s = (k: string, fallback: string): string =>
         typeof d[k] === "string" ? (d[k] as string) : fallback;
-      const n = (k: string): string | null =>
-        typeof d[k] === "string" ? (d[k] as string) : null;
+      const n = (k: string): string | null => (typeof d[k] === "string" ? (d[k] as string) : null);
       const num = (k: string, fallback: number | null): number | null => {
         const v = d[k];
         return typeof v === "number" && Number.isFinite(v) ? v : fallback;
@@ -156,6 +162,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         memory_ai_permission: b("memory_ai_permission", true),
         show_question_prompt: b("show_question_prompt", true),
         allow_reversed_cards: b("allow_reversed_cards", false),
+        reversal_chance_pct: (() => {
+          // EJ47 — clamp to 1-99 so we always have a usable
+          // probability. Pre-EJ47 rows have no column and default 50.
+          const v = d.reversal_chance_pct;
+          if (typeof v !== "number" || !Number.isFinite(v)) return 50;
+          return Math.max(1, Math.min(99, Math.round(v)));
+        })(),
         track_reversals: b("track_reversals", true),
         reduce_premium_prompts: b("reduce_premium_prompts", false),
         accent_color: n("accent_color"),
