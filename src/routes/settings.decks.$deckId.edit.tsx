@@ -967,7 +967,68 @@ function DeckEditPage() {
       </div>
 
       {/* ── Aspects section ── */}
-      <Section title="The 4 aspects of this deck">
+      {/* EJ50 — id="ai-prompts" is the deep-link target from the
+          constellation page's journaling-prompts empty-state CTA.
+          The seeker lands here when they tap "Set up prompts for
+          [Deck Name]" on a card with no prompts yet. */}
+      <Section id="ai-prompts" title="The 4 aspects of this deck">
+        {/* EJ50 — Completion banner. Surfaces description-completion at
+            a glance so the seeker knows whether the deck is ready to
+            generate AI prompts. The math (cardsWithDesc / cards.length)
+            already exists for the Generate-prompts gate; this just
+            shows it visibly. < 100% renders a warning that AI prompts
+            need every card to have a description; 100% renders a
+            success cue. */}
+        {(() => {
+          const total = cards.length;
+          if (total === 0) return null;
+          const done = cardsWithDesc.length;
+          const pct = Math.round((done / total) * 100);
+          const isComplete = done === total;
+          return (
+            <div
+              style={{
+                margin: "0 0 16px",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: `1px solid ${
+                  isComplete
+                    ? "color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent)"
+                    : "color-mix(in oklab, var(--color-foreground-muted) 30%, transparent)"
+                }`,
+                background: isComplete
+                  ? "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)"
+                  : "color-mix(in oklab, var(--color-foreground-muted) 6%, transparent)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 13,
+                  fontStyle: "italic",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                {done} of {total} cards have descriptions · {pct}% complete
+              </div>
+              {!isComplete && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-foreground-muted)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  An incomplete deck cannot be used to generate AI journaling prompts. Add a
+                  description to every card above before generating.
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <p
           style={{
             margin: "0 0 12px",
@@ -1473,15 +1534,30 @@ function DeckEditPage() {
    Sub-components
    ───────────────────────────────────────────────────────────────── */
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  id,
+}: {
+  title: string;
+  children: React.ReactNode;
+  // EJ50 — Optional id allows deep-linking via hash. Used by the
+  // journaling-prompts empty-state CTA on the constellation page,
+  // which routes here with hash="ai-prompts" so the seeker lands on
+  // the AI prompts setup. scroll-margin-top accounts for the
+  // TopNav band so the section title isn't tucked under the nav.
+  id?: string;
+}) {
   return (
     <section
+      id={id}
       style={{
         marginBottom: 24,
         padding: 16,
         background: "var(--surface-card)",
         border: "1px solid var(--border-subtle)",
         borderRadius: 10,
+        scrollMarginTop: "calc(var(--topbar-pad, 56px) + 16px)",
       }}
     >
       <h2

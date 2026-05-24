@@ -42,7 +42,9 @@ export function buildHydratingMetaPrompt(deckName: string): string {
 
 4. When you pull from THIS deck, what kinds of prompts would bounce right off you or feel wrong for this deck specifically? For example: too prescriptive, too vague, saccharine spiritual-bypass language, hardcore shadow when you wanted gentle, prompts that demand action when you need to sit, generic "how do you feel" openers, anything performative, anything that names trauma you didn't bring up, anything that ignores the deck's specific feel.
 
-When I'm done answering, produce your output in EXACTLY this format — plain text, no markdown, no preamble, no commentary outside the labeled lines:
+When I'm done answering, produce your output in EXACTLY this format — plain text, no markdown, no preamble, no commentary outside the labeled lines. Begin your output with the branded header line below so I can find and recognize the block in your reply:
+
+Here is your Tarotseed Deck Prompts
 
 ASPECT 1: <a short name for the first journaling angle, 1-3 words>
 THOUGHT 1: <one sentence describing what prompts in this aspect should do for this deck>
@@ -58,7 +60,7 @@ VOICE GUIDE:
 
 After you write that block, end your reply with EXACTLY this line of guidance to me (so I don't forget what to do with it):
 
-"Now copy everything above starting from ASPECT 1 down through the VOICE GUIDE paragraph and paste it into Tarot Seed → Settings → Decks → [pencil icon for this deck] → 'Used AI? Paste the response here for one-click fill', then click 'Parse and fill'."
+"Now copy everything from the 'Here is your Tarotseed Deck Prompts' header down through the VOICE GUIDE paragraph and paste it into Tarot Seed → Settings → Decks → [pencil icon for this deck] → 'Used AI? Paste the response here for one-click fill', then click 'Parse and fill'."
 
 The 4 aspects should fit THIS deck specifically. A shadow-work deck might have aspects like Shadow / Trigger / Pattern / Re-parent. A family-and-fun deck might have aspects like Joy / Memory / Connection / Play. Pick what fits the answers I give you.`;
 }

@@ -1032,6 +1032,25 @@ export function QuickLog({
                               borderRadius: 6,
                               overflow: "hidden",
                               boxSizing: "border-box",
+                              // EJ50 — Eliminate the inline-block descender
+                              // gap. CardImage renders as inline-block,
+                              // which causes its parent to reserve invisible
+                              // space below it for line-box descenders (the
+                              // bottom of letters like g, y, p). That space
+                              // made this div measurably taller than the
+                              // card image, so the focused-state ring at
+                              // inset:-2 (rendered as a sibling of this div
+                              // on the parent wrapper) extended past the
+                              // card's actual bottom by descender-pixels +
+                              // the 2px outset, producing the visible gap
+                              // Cori flagged. Same fix the constellation
+                              // hero card uses (EJ29 — see ConstellationWeb
+                              // outer span). fontSize:0/lineHeight:0 kills
+                              // descender reservation; vertical-align:top
+                              // keeps the inline-block flush with the top.
+                              fontSize: 0,
+                              lineHeight: 0,
+                              verticalAlign: "top",
                             }}
                           >
                             <CardImage
