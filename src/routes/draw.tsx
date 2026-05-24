@@ -1,10 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
-import {
-  ManualEntryBuilder,
-  type ManualPick,
-} from "@/components/tabletop/ManualEntryBuilder";
+import { ManualEntryBuilder, type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { ConstellationPage } from "@/components/constellation/ConstellationPage";
 import { RotatePrompt } from "@/components/tabletop/RotatePrompt";
 import { useViewport } from "@/lib/use-viewport";
@@ -35,10 +32,7 @@ export const Route = createFileRoute("/draw")({
     spread: typeof s.spread === "string" ? s.spread : undefined,
     question:
       typeof s.question === "string" && s.question.trim().length > 0 ? s.question : undefined,
-    n:
-      typeof s.n === "number" && s.n >= 1 && s.n <= 10
-        ? Math.round(s.n)
-        : undefined,
+    n: typeof s.n === "number" && s.n >= 1 && s.n <= 10 ? Math.round(s.n) : undefined,
   }),
   component: DrawPage,
 });
@@ -52,20 +46,20 @@ function DrawPage() {
 
   // Q19 — per-spread entry-mode + custom-count memory. Hydrates from
   // localStorage immediately and from user_preferences once authed.
-  const { modes, loaded: modesLoaded, setMode, setCustomCount } =
-    useSpreadEntryModes(user?.id ?? null);
+  const {
+    modes,
+    loaded: modesLoaded,
+    setMode,
+    setCustomCount,
+  } = useSpreadEntryModes(user?.id ?? null);
 
   // Custom-count: URL `?n=` wins on initial mount; otherwise hydrate
   // from the persisted memory so home → /draw routes land on the
   // seeker's last-used count.
-  const [customCount, setCustomCountLocal] = useState<number | undefined>(
-    () =>
-      spread === "custom"
-        ? Math.max(
-            1,
-            Math.min(10, search.n ?? resolveCountFromMap(modes)),
-          )
-        : undefined,
+  const [customCount, setCustomCountLocal] = useState<number | undefined>(() =>
+    spread === "custom"
+      ? Math.max(1, Math.min(10, search.n ?? resolveCountFromMap(modes)))
+      : undefined,
   );
   useEffect(() => {
     if (spread !== "custom") return;
@@ -89,9 +83,9 @@ function DrawPage() {
 
   // Q19 Fix 8 — cache in-progress manual picks at the route level so
   // toggling Manual → Table → Manual preserves the seeker's selections.
-  const [manualPicksCache, setManualPicksCache] = useState<
-    (ManualPick | null)[] | undefined
-  >(undefined);
+  const [manualPicksCache, setManualPicksCache] = useState<(ManualPick | null)[] | undefined>(
+    undefined,
+  );
 
   const viewport = useViewport();
 
@@ -165,7 +159,6 @@ function DrawPage() {
     } catch {
       /* malformed payload — ignore */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Gate the entire QuestionPanel on the seeker's preference. We must
   // wait for the preference to load before mounting anything — otherwise
@@ -180,6 +173,8 @@ function DrawPage() {
   // Phase 9.55 — opt-in reversed cards. Default false (upright-only) so
   // beginners are never thrown into reversal complexity unprompted.
   const [allowReversed, setAllowReversed] = useState(false);
+  // EJ47 — per-seeker reversal probability (1..99). Default 50.
+  const [reversalChancePct, setReversalChancePct] = useState<number>(50);
   // Phase 9.5b — the seeker's currently active custom deck (if any).
   // Threaded into saved readings as `deck_id` so historical readings
   // always render with the artwork they were created from (Stamp AV).
@@ -195,9 +190,7 @@ function DrawPage() {
 
   // 26-05-08-M — Fix 4: non-blocking warning when active custom deck
   // is still processing (some images may render blank).
-  const [procStatus, setProcStatus] = useState<DeckProcessingStatus | null>(
-    null,
-  );
+  const [procStatus, setProcStatus] = useState<DeckProcessingStatus | null>(null);
   useEffect(() => {
     if (!activeDeck) {
       setProcStatus(null);
@@ -227,8 +220,7 @@ function DrawPage() {
     activeDeck !== null &&
     procStatus !== null &&
     !procStatus.isComplete &&
-    (procStatus.pending > 0 ||
-      procStatus.saved < procStatus.total - procStatus.failed);
+    (procStatus.pending > 0 || procStatus.saved < procStatus.total - procStatus.failed);
 
   useEffect(() => {
     if (!user) {
@@ -242,7 +234,7 @@ function DrawPage() {
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("show_question_prompt, allow_reversed_cards")
+        .select("show_question_prompt, allow_reversed_cards, reversal_chance_pct")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
@@ -252,6 +244,15 @@ function DrawPage() {
       const enabled = data?.show_question_prompt === true;
       setQuestionOpen(enabled);
       setAllowReversed(data?.allow_reversed_cards === true);
+      // EJ47 — read the seeker's reversal-chance preference (1..99).
+      // Default 50 if unset or invalid. Passed to generateOrientations
+      // below.
+      const rcRaw = (data as { reversal_chance_pct?: number | null } | null)?.reversal_chance_pct;
+      const rc =
+        typeof rcRaw === "number" && Number.isFinite(rcRaw)
+          ? Math.max(1, Math.min(99, Math.round(rcRaw)))
+          : 50;
+      setReversalChancePct(rc);
       setPrefsLoaded(true);
     })();
     return () => {
@@ -318,8 +319,7 @@ function DrawPage() {
             opacity: 0.9,
           }}
         >
-          Your deck is still processing. Some cards may appear blank until
-          complete.
+          Your deck is still processing. Some cards may appear blank until complete.
         </div>
       )}
       {picks && phase === "cast" ? (
@@ -343,29 +343,28 @@ function DrawPage() {
             initialPicks: manualPicksCache,
             onPicksChange: setManualPicksCache,
             onSwitchToTable: switchToTable,
-            onCustomCountChange:
-              spread === "custom" ? handleCustomCountChange : undefined,
+            onCustomCountChange: spread === "custom" ? handleCustomCountChange : undefined,
             onCancel: exit,
             onComplete: (manualPicks: ManualPick[], meta?: { createdAt?: string }) => {
-            clearTabletopSession(spread);
-            setManualPicksCache(undefined);
-            const mapped = manualPicks.map((p) => ({
-              id: p.id,
-              cardIndex: p.cardIndex,
-              isReversed: p.isReversed,
-              deckId: p.deckId ?? null,
-            }));
-            setPicks(mapped);
-            setEntryMode("manual");
-            setBackdatedAt(meta?.createdAt);
-            setPhase("reading");
-            // Q93 #7 — Backdated entries can't be modelled by recordDraw
-            // (which assumes today); replay full timeline instead.
-            if (meta?.createdAt) {
-              void recomputeStreak();
-            } else {
-              void recordDraw();
-            }
+              clearTabletopSession(spread);
+              setManualPicksCache(undefined);
+              const mapped = manualPicks.map((p) => ({
+                id: p.id,
+                cardIndex: p.cardIndex,
+                isReversed: p.isReversed,
+                deckId: p.deckId ?? null,
+              }));
+              setPicks(mapped);
+              setEntryMode("manual");
+              setBackdatedAt(meta?.createdAt);
+              setPhase("reading");
+              // Q93 #7 — Backdated entries can't be modelled by recordDraw
+              // (which assumes today); replay full timeline instead.
+              if (meta?.createdAt) {
+                void recomputeStreak();
+              } else {
+                void recordDraw();
+              }
             },
           };
           // ED — gate the viewport-based branch on viewport.mounted.
@@ -392,9 +391,7 @@ function DrawPage() {
           onQuestionChange={setQuestion}
           onSwitchToManual={switchToManual}
           onOpenQuestion={() => setQuestionOpen(true)}
-          onCustomCountChange={
-            spread === "custom" ? handleCustomCountChange : undefined
-          }
+          onCustomCountChange={spread === "custom" ? handleCustomCountChange : undefined}
           onComplete={(p, mode, meta) => {
             // Phase 9.55 — assign orientation per card based on the
             // seeker's preference. `generateOrientations` returns
@@ -407,7 +404,7 @@ function DrawPage() {
             const isManual = meta?.entryMode === "manual";
             const orientations = isManual
               ? p.map((pp) => pp.isReversed ?? false)
-              : generateOrientations(p.length, allowReversed);
+              : generateOrientations(p.length, allowReversed, reversalChancePct);
             setPicks(
               p.map((pick, i) => ({
                 ...pick,

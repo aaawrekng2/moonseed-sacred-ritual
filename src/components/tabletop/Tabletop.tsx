@@ -1,11 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Undo2, Redo2, X, MessageCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Undo2, Redo2, X, MessageCircle, HelpCircle } from "lucide-react";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
@@ -82,20 +76,14 @@ export function Tabletop({
     void (async () => {
       // Q20 Fix 3 — Hint B: surface toggle (always relevant on table).
       if (onSwitchToManual) {
-        const dismissedB = await isHintHardDismissed(
-          "entry_mode_toggle",
-          authUser?.id ?? null,
-        );
+        const dismissedB = await isHintHardDismissed("entry_mode_toggle", authUser?.id ?? null);
         if (!cancelled && !dismissedB) {
           timers.push(window.setTimeout(() => setShowEntryHint(true), 400));
         }
       }
       // Q20 Fix 3 — Hint A: count stepper (custom only).
       if (spread === "custom" && onCustomCountChange) {
-        const dismissedA = await isHintHardDismissed(
-          "custom_count_stepper",
-          authUser?.id ?? null,
-        );
+        const dismissedA = await isHintHardDismissed("custom_count_stepper", authUser?.id ?? null);
         if (!cancelled && !dismissedA) {
           timers.push(window.setTimeout(() => setShowCountHint(true), 800));
         }
@@ -120,7 +108,9 @@ export function Tabletop({
   // CardSlot so a card returning from a slot to the table can compute
   // its absolute landing point in viewport space (slot rects are in
   // viewport coords; scatter rects are in container coords).
-  const [containerOrigin, setContainerOrigin] = useState<{ left: number; top: number } | null>(null);
+  const [containerOrigin, setContainerOrigin] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
   // Refs to each slot DOM element. Used to compute flight target rects in
@@ -255,9 +245,7 @@ export function Tabletop({
   // design: empty slots read as full-size mirrors of the cards). On mobile
   // they shrink so a 10-slot Celtic rail still fits in one row.
   const slotW = isMobile ? responsiveSlotWidth(size?.w ?? 0, required) : cardW;
-  const slotH = isMobile
-    ? Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO)
-    : cardH;
+  const slotH = isMobile ? Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO) : cardH;
   // The slot rail always uses the short labels — slot tiles are tiny on
   // mobile and only ~64px wide on desktop, so the new full position names
   // ("The Present", "Hopes & Fears", …) wouldn't fit. The full names are
@@ -334,27 +322,18 @@ export function Tabletop({
   }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);
 
   // Map slot index -> tarot card id (shuffled at session start).
-  const deckMapping = useMemo(
-    () => shuffleDeck(TABLETOP_CONFIG.DECK_SIZE, seed),
-    [seed],
-  );
+  const deckMapping = useMemo(() => shuffleDeck(TABLETOP_CONFIG.DECK_SIZE, seed), [seed]);
 
   // Hydrate cards + undo/redo from the cross-route session store on
   // first mount. If the user navigated away from /draw and came back,
   // their entire in-flight session (scatter, picks, history) is
   // restored rather than starting over.
   const restored = readTabletopSession(spread);
-  const [cards, setCards] = useState<CardState[]>(
-    () => restored?.cards ?? [],
-  );
+  const [cards, setCards] = useState<CardState[]>(() => restored?.cards ?? []);
 
   // ---- Drag + undo/redo (cross-route session) ---------------------------
-  const [undoStack, setUndoStack] = useState<DragAction[]>(
-    () => restored?.undoStack ?? [],
-  );
-  const [redoStack, setRedoStack] = useState<DragAction[]>(
-    () => restored?.redoStack ?? [],
-  );
+  const [undoStack, setUndoStack] = useState<DragAction[]>(() => restored?.undoStack ?? []);
+  const [redoStack, setRedoStack] = useState<DragAction[]>(() => restored?.redoStack ?? []);
   // Highlighted slot index while a card is being dragged over the rail.
   const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
   // Ghost preview of where the card would land if dropped on the table
@@ -395,106 +374,97 @@ export function Tabletop({
    * because the inverse for `place` involves restoring the previous slot
    * occupant if any.
    */
-  const applyAction = useCallback(
-    (action: DragAction) => {
-      setCards((prev) => {
-        if (action.kind === "move") {
-          return prev.map((c) =>
-            c.id === action.cardId
-              ? {
-                  ...c,
-                  x: action.toX,
-                  y: action.toY,
-                  lastTableX: action.toX,
-                  lastTableY: action.toY,
-                  lastTableRotation: c.rotation,
-                  isDragDrop: false,
-                }
-              : c,
-          );
-        }
-        if (action.kind === "place") {
-          const targetOrder = action.toSlot + 1;
-          const dragOrigCoords = action.fromSlot === null
-            ? { x: action.fromX, y: action.fromY }
-            : null;
-          return prev.map((c) => {
-            if (c.id === action.cardId) {
-              return { ...c, selectionOrder: targetOrder, isDragDrop: true };
-            }
-            if (
-              action.displacedCardId !== null &&
-              c.id === action.displacedCardId
-            ) {
-              if (action.displacedToSlot !== null) {
-                // Swap: occupant takes the dragged card's previous slot.
-                return {
-                  ...c,
-                  selectionOrder: action.displacedToSlot + 1,
-                  isDragDrop: false,
-                };
+  const applyAction = useCallback((action: DragAction) => {
+    setCards((prev) => {
+      if (action.kind === "move") {
+        return prev.map((c) =>
+          c.id === action.cardId
+            ? {
+                ...c,
+                x: action.toX,
+                y: action.toY,
+                lastTableX: action.toX,
+                lastTableY: action.toY,
+                lastTableRotation: c.rotation,
+                isDragDrop: false,
               }
-              // Bumped onto the table at its own pre-drag coords.
+            : c,
+        );
+      }
+      if (action.kind === "place") {
+        const targetOrder = action.toSlot + 1;
+        const dragOrigCoords =
+          action.fromSlot === null ? { x: action.fromX, y: action.fromY } : null;
+        return prev.map((c) => {
+          if (c.id === action.cardId) {
+            return { ...c, selectionOrder: targetOrder, isDragDrop: true };
+          }
+          if (action.displacedCardId !== null && c.id === action.displacedCardId) {
+            if (action.displacedToSlot !== null) {
+              // Swap: occupant takes the dragged card's previous slot.
               return {
                 ...c,
-                selectionOrder: null,
-                x: action.displacedFromX,
-                y: action.displacedFromY,
-                lastTableX: action.displacedFromX,
-                lastTableY: action.displacedFromY,
-                lastTableRotation: c.rotation,
+                selectionOrder: action.displacedToSlot + 1,
                 isDragDrop: false,
               };
             }
-            return c;
-          });
-          // (dragOrigCoords is only consulted by undo, kept here for clarity)
-          void dragOrigCoords;
-        }
-        if (action.kind === "unplace") {
-          return prev.map((c) =>
-            c.id === action.cardId
-              ? {
-                  ...c,
-                  selectionOrder: null,
-                  x: action.toX,
-                  y: action.toY,
-                  lastTableX: action.toX,
-                  lastTableY: action.toY,
-                  lastTableRotation: c.rotation,
-                  isDragDrop: false,
-                }
-              : c,
-          );
-        }
-        if (action.kind === "tap-place") {
-          const targetOrder = action.toSlot + 1;
-          return prev.map((c) =>
-            c.id === action.cardId
-              ? { ...c, selectionOrder: targetOrder, isDragDrop: false }
-              : c,
-          );
-        }
-        if (action.kind === "tap-unplace") {
-          return prev.map((c) =>
-            c.id === action.cardId
-              ? {
-                  ...c,
-                  selectionOrder: null,
-                  x: action.toX,
-                  y: action.toY,
-                  lastTableX: action.toX,
-                  lastTableY: action.toY,
-                  isDragDrop: false,
-                }
-              : c,
-          );
-        }
-        return prev;
-      });
-    },
-    [],
-  );
+            // Bumped onto the table at its own pre-drag coords.
+            return {
+              ...c,
+              selectionOrder: null,
+              x: action.displacedFromX,
+              y: action.displacedFromY,
+              lastTableX: action.displacedFromX,
+              lastTableY: action.displacedFromY,
+              lastTableRotation: c.rotation,
+              isDragDrop: false,
+            };
+          }
+          return c;
+        });
+        // (dragOrigCoords is only consulted by undo, kept here for clarity)
+        void dragOrigCoords;
+      }
+      if (action.kind === "unplace") {
+        return prev.map((c) =>
+          c.id === action.cardId
+            ? {
+                ...c,
+                selectionOrder: null,
+                x: action.toX,
+                y: action.toY,
+                lastTableX: action.toX,
+                lastTableY: action.toY,
+                lastTableRotation: c.rotation,
+                isDragDrop: false,
+              }
+            : c,
+        );
+      }
+      if (action.kind === "tap-place") {
+        const targetOrder = action.toSlot + 1;
+        return prev.map((c) =>
+          c.id === action.cardId ? { ...c, selectionOrder: targetOrder, isDragDrop: false } : c,
+        );
+      }
+      if (action.kind === "tap-unplace") {
+        return prev.map((c) =>
+          c.id === action.cardId
+            ? {
+                ...c,
+                selectionOrder: null,
+                x: action.toX,
+                y: action.toY,
+                lastTableX: action.toX,
+                lastTableY: action.toY,
+                isDragDrop: false,
+              }
+            : c,
+        );
+      }
+      return prev;
+    });
+  }, []);
 
   /** Undo the most recent action. */
   const undo = useCallback(() => {
@@ -536,10 +506,7 @@ export function Tabletop({
                 isDragDrop: false,
               };
             }
-            if (
-              action.displacedCardId !== null &&
-              c.id === action.displacedCardId
-            ) {
+            if (action.displacedCardId !== null && c.id === action.displacedCardId) {
               // Displaced card returns to the slot we just vacated.
               return { ...c, selectionOrder: targetOrder, isDragDrop: false };
             }
@@ -595,12 +562,7 @@ export function Tabletop({
       for (let i = 0; i < slotRects.length; i++) {
         const r = slotRects[i];
         if (!r) continue;
-        if (
-          clientX >= r.left &&
-          clientX <= r.right &&
-          clientY >= r.top &&
-          clientY <= r.bottom
-        ) {
+        if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
           return i;
         }
       }
@@ -628,13 +590,10 @@ export function Tabletop({
       setTableGhost(null);
       const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
       const isReady = selectedCount === required;
-      const slotIdx =
-        usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
+      const slotIdx = usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
       const dragged = cards.find((c) => c.id === cardId) ?? null;
       const fromSlot =
-        dragged && dragged.selectionOrder !== null
-          ? dragged.selectionOrder - 1
-          : null;
+        dragged && dragged.selectionOrder !== null ? dragged.selectionOrder - 1 : null;
       if (slotIdx !== null) {
         // Dropping into a slot. Three sub-cases handled below:
         //  - same slot the card already occupies → no-op
@@ -656,8 +615,7 @@ export function Tabletop({
           // Swap into vacated slot when dragged came from one; otherwise
           // bump occupant to the table at *its* current coords (which
           // are its pre-drag coords since occupant didn't move).
-          displacedToSlot:
-            willDisplace && fromSlot !== null ? fromSlot : null,
+          displacedToSlot: willDisplace && fromSlot !== null ? fromSlot : null,
           displacedFromX: willDisplace ? willDisplace.x : 0,
           displacedFromY: willDisplace ? willDisplace.y : 0,
         };
@@ -704,16 +662,10 @@ export function Tabletop({
 
   /** Called continuously while dragging so we can light up a slot. */
   const handleDragMove = useCallback(
-    (
-      clientX: number,
-      clientY: number,
-      projectedLeft: number,
-      projectedTop: number,
-    ) => {
+    (clientX: number, clientY: number, projectedLeft: number, projectedTop: number) => {
       const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
       const isReady = selectedCount === required;
-      const overSlot =
-        usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
+      const overSlot = usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
       setDragHoverSlot(overSlot);
       // Compute the clamped table landing point in container coords. We
       // mirror the same clamp `finishDrag` will apply on release so the
@@ -732,17 +684,11 @@ export function Tabletop({
       const targetTop = projectedTop - containerOrigin.top;
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
-        Math.min(
-          size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
-          targetLeft,
-        ),
+        Math.min(size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING, targetLeft),
       );
       const clampedY = Math.max(
         TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING,
-        Math.min(
-          size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
-          targetTop,
-        ),
+        Math.min(size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING, targetTop),
       );
       setTableGhost({ x: clampedX, y: clampedY });
     },
@@ -813,11 +759,9 @@ export function Tabletop({
           const minVisibleH = cardH * 0.3;
           const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
           const offRight = c.x > size.w - minVisibleW;
-          const offBottom =
-            c.y > usableH - minVisibleH + TABLETOP_CONFIG.TOP_RESERVE;
+          const offBottom = c.y > usableH - minVisibleH + TABLETOP_CONFIG.TOP_RESERVE;
           const offLeft = c.x < -cardW + minVisibleW;
-          const offTop =
-            c.y < TABLETOP_CONFIG.TOP_RESERVE - cardH + minVisibleH;
+          const offTop = c.y < TABLETOP_CONFIG.TOP_RESERVE - cardH + minVisibleH;
           const isOffScreen = offRight || offBottom || offLeft || offTop;
           if (!isOffScreen) return c;
         }
@@ -849,9 +793,7 @@ export function Tabletop({
   useEffect(() => {
     if (!usesSlots) return;
     const measure = () => {
-      const next = slotRefs.current.map((el) =>
-        el ? el.getBoundingClientRect() : null,
-      );
+      const next = slotRefs.current.map((el) => (el ? el.getBoundingClientRect() : null));
       setSlotRects(next);
     };
     measure();
@@ -865,9 +807,7 @@ export function Tabletop({
     if (!usesSlots) return;
     // Two ticks: layout pass + paint, then read.
     const id = window.requestAnimationFrame(() => {
-      const next = slotRefs.current.map((el) =>
-        el ? el.getBoundingClientRect() : null,
-      );
+      const next = slotRefs.current.map((el) => (el ? el.getBoundingClientRect() : null));
       setSlotRects(next);
     });
     return () => window.cancelAnimationFrame(id);
@@ -926,9 +866,7 @@ export function Tabletop({
       // returned to the table from slot N, the next selection refills slot N
       // rather than appending past the last filled slot.
       const occupied = new Set(
-        prev
-          .map((c) => c.selectionOrder)
-          .filter((n): n is number => n !== null),
+        prev.map((c) => c.selectionOrder).filter((n): n is number => n !== null),
       );
       let nextSlot: number | null = null;
       for (let i = 1; i <= required; i++) {
@@ -984,9 +922,7 @@ export function Tabletop({
 
   // Celtic Cross gets a contextual ? icon in the global FloatingMenu
   // that re-opens the position explainer. Other spreads register null.
-  useRegisterHelpHandler(
-    spread === "celtic" ? () => setCelticHelpOpen(true) : null,
-  );
+  useRegisterHelpHandler(spread === "celtic" ? () => setCelticHelpOpen(true) : null);
 
   // Hide the global BottomNav (and the floating quill in /draw) while
   // the seeker is on the table choosing cards. Both reappear once the
@@ -1075,10 +1011,8 @@ export function Tabletop({
             fontSize: "var(--text-caption)",
             color: "var(--color-foreground)",
             opacity: 0.55,
-            WebkitMaskImage:
-              "linear-gradient(to right, black 70%, transparent 100%)",
-            maskImage:
-              "linear-gradient(to right, black 70%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, black 70%, transparent 100%)",
+            maskImage: "linear-gradient(to right, black 70%, transparent 100%)",
           }}
         >
           {question.trim()}
@@ -1101,11 +1035,7 @@ export function Tabletop({
       >
         <div style={{ pointerEvents: "auto", paddingLeft: 16 }}>
           {onSwitchToManual && (
-            <EntryModeToggle
-              ref={entryToggleRef}
-              current="table"
-              onToggle={onSwitchToManual}
-            />
+            <EntryModeToggle ref={entryToggleRef} current="table" onToggle={onSwitchToManual} />
           )}
         </div>
         {onOpenQuestion && (
@@ -1308,7 +1238,7 @@ export function Tabletop({
             settleDelay={Math.min(idx * 4, 320)}
             slotRect={
               usesSlots && c.selectionOrder !== null
-                ? slotRects[c.selectionOrder - 1] ?? null
+                ? (slotRects[c.selectionOrder - 1] ?? null)
                 : null
             }
             flightMs={TABLETOP_CONFIG.FLIGHT_MS}
@@ -1357,11 +1287,7 @@ export function Tabletop({
                 "overflow-visible",
               )}
               style={(() => {
-                const fits = slotRailFitsViewport(
-                  viewportW ?? 0,
-                  required,
-                  slotW,
-                );
+                const fits = slotRailFitsViewport(viewportW ?? 0, required, slotW);
                 // Q68 — drive the rendered gap from the same function
                 // `responsiveSlotWidth` uses, instead of Tailwind
                 // gap-1/gap-2 (which were 4px / 8px and didn't match the
@@ -1432,22 +1358,22 @@ export function Tabletop({
                         border: isDragHover
                           ? "2px solid var(--gold)"
                           : isNext
-                          ? undefined
-                          : filled
-                            ? "none"
-                            : "1px solid rgba(212,175,55,0.2)",
+                            ? undefined
+                            : filled
+                              ? "none"
+                              : "1px solid rgba(212,175,55,0.2)",
                         background: isDragHover
                           ? "rgba(212,175,55,0.18)"
                           : isNext
-                          ? undefined
-                          : filled
-                            ? "transparent"
-                            : "rgba(212,175,55,0.03)",
+                            ? undefined
+                            : filled
+                              ? "transparent"
+                              : "rgba(212,175,55,0.03)",
                         boxShadow: isDragHover
                           ? "0 0 18px var(--gold), 0 0 32px rgba(212,175,55,0.6)"
                           : filled
-                          ? "none"
-                          : undefined,
+                            ? "none"
+                            : undefined,
                         transition: isNext
                           ? undefined
                           : "background 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out",
@@ -1605,8 +1531,7 @@ export function Tabletop({
               height: 8,
               borderRadius: "50%",
               backgroundColor: "var(--gold)",
-              boxShadow:
-                "0 0 14px rgba(212,175,55,0.85), 0 0 28px rgba(212,175,55,0.45)",
+              boxShadow: "0 0 14px rgba(212,175,55,0.85), 0 0 28px rgba(212,175,55,0.45)",
               margin: "6px 0",
             }}
           />
@@ -1663,18 +1588,44 @@ export function Tabletop({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Leave this reading?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your selections will be lost.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Your selections will be lost.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={performExit}>
-              Leave
-            </AlertDialogAction>
+            <AlertDialogAction onClick={performExit}>Leave</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* EJ47 — Inline `?` for Celtic Cross. Was previously surfaced
+          only through the FloatingMenu pop-down, which has been
+          removed. Now anchored to the top-right of the tabletop so
+          the position-meaning explainer stays one tap away. */}
+      {spread === "celtic" && (
+        <button
+          type="button"
+          onClick={() => setCelticHelpOpen(true)}
+          aria-label="What each Celtic Cross position means"
+          title="What each position means"
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+            zIndex: 50,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "color-mix(in oklab, var(--gold) 8%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+            color: "var(--gold)",
+            cursor: "pointer",
+          }}
+        >
+          <HelpCircle size={18} strokeWidth={1.6} />
+        </button>
+      )}
       {celticHelpOpen && spread === "celtic" && (
         <div
           role="dialog"
@@ -1706,10 +1657,8 @@ export function Tabletop({
               overflowY: "auto",
               borderRadius: 16,
               border: "1px solid color-mix(in oklch, var(--gold) 35%, transparent)",
-              background:
-                "color-mix(in oklch, var(--background) 92%, transparent)",
-              boxShadow:
-                "0 24px 64px -12px rgba(0,0,0,0.7), 0 0 32px -8px rgba(212,175,55,0.25)",
+              background: "color-mix(in oklch, var(--background) 92%, transparent)",
+              boxShadow: "0 24px 64px -12px rgba(0,0,0,0.7), 0 0 32px -8px rgba(212,175,55,0.25)",
               padding: "20px 22px",
               color: "var(--foreground)",
             }}
@@ -1745,27 +1694,21 @@ export function Tabletop({
                     className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-display text-[11px]"
                     style={{
                       color: "var(--gold)",
-                      border:
-                        "1px solid color-mix(in oklch, var(--gold) 45%, transparent)",
-                      background:
-                        "color-mix(in oklch, var(--gold) 8%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--gold) 45%, transparent)",
+                      background: "color-mix(in oklch, var(--gold) 8%, transparent)",
                     }}
                   >
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p
-                      className="font-display text-[13px] italic"
-                      style={{ color: "var(--gold)" }}
-                    >
+                    <p className="font-display text-[13px] italic" style={{ color: "var(--gold)" }}>
                       {label}
                     </p>
                     {positionDescriptions[i] && (
                       <p
                         className="text-[12px] leading-snug"
                         style={{
-                          color:
-                            "color-mix(in oklab, var(--foreground) 75%, transparent)",
+                          color: "color-mix(in oklab, var(--foreground) 75%, transparent)",
                         }}
                       >
                         {positionDescriptions[i]}

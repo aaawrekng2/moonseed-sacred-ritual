@@ -10,12 +10,15 @@ import { useEffect, useLayoutEffect, useState } from "react";
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { TopNav, isTopNavRoute } from "@/components/nav/TopNav";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
 // Q24 Fix 1 — useTapToPeek is dormant; Clarity feature was dropped, and
 // "tap empty space → menu opens" is no longer desired UX.
 import { usePWA } from "@/lib/use-pwa";
-import { FloatingMenu } from "@/components/nav/FloatingMenu";
+// EJ47 — FloatingMenu mount removed from this file. Provider stays
+// mounted because Tabletop / ReadingScreen still publish to it
+// (tabletopActive flag, etc.). The visible `···` pop-down is gone.
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { useThemeColorSync } from "@/lib/use-theme-color-sync";
@@ -355,7 +358,12 @@ function RootComponent() {
             className="relative mx-auto flex min-h-screen w-full flex-col"
             style={{ maxWidth: 1280 }}
           >
-            <FloatingMenu />
+            {/* EJ47 — <FloatingMenu /> mount removed. The whole
+                top-right `···` pop-down is gone; its functions either
+                migrated into inline UI (Celtic Cross `?`) or live
+                exclusively in Settings now (sanctuaries, moon
+                carousel toggle, etc.). */}
+            <TopNavGate />
             <Outlet />
             <BottomNavGate />
             <DevOverlay />
@@ -371,16 +379,31 @@ function RootComponent() {
 }
 
 /**
+ * EJ47 — Top nav gate. Renders TopNav only on home, journal,
+ * numerology, insights, settings (and their sub-routes). The
+ * BottomNavGate below suppresses BottomNav on the same routes so we
+ * never show two nav surfaces at once.
+ */
+function TopNavGate() {
+  const location = useLocation();
+  if (location.pathname.startsWith("/admin")) return null;
+  if (!isTopNavRoute(location.pathname)) return null;
+  return <TopNav />;
+}
+
+/**
  * Bottom nav gate — hides the global BottomNav while the seeker is on
  * the draw table choosing cards. Visibility is driven by a flag the
- * Tabletop component publishes on the FloatingMenu context. The nav
- * reappears the moment the table unmounts (cast / reading phases) or
- * the seeker leaves the /draw flow entirely.
+ * FloatingMenu context publishes from Tabletop. Also suppresses
+ * BottomNav on the five routes where TopNav handles primary nav
+ * (EJ47).
  */
 function BottomNavGate() {
   const { tabletopActive } = useFloatingMenu();
   const location = useLocation();
   if (location.pathname.startsWith("/admin")) return null;
   if (tabletopActive) return null;
+  // EJ47 — defer to TopNav on the five primary destinations.
+  if (isTopNavRoute(location.pathname)) return null;
   return <BottomNav />;
 }
