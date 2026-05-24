@@ -49,6 +49,7 @@ import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import { useTimezone } from "@/lib/use-timezone";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
@@ -102,12 +103,11 @@ function InsightsRoute() {
   }, [moonEnabled, tab, patternCount]);
   const activeTabLabel = visibleTabs.find((t) => t.id === tab)?.label ?? "";
   const pageTitle = activeTabLabel ? `Insights: ${activeTabLabel}` : "Insights";
-  const [userId, setUserId] = useState<string | null>(null);
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
-  }, []);
+  // EJ43 — was a one-shot supabase.auth.getUser() that captured null
+  // forever if it ran before the anonymous session existed. Now
+  // subscribes via useAuth so userId updates the moment auth resolves.
+  const { user: authedUser } = useAuth();
+  const userId = authedUser?.id ?? null;
   const readingStats = useReadingStats(userId);
   const statsLine = formatReadingStatsLine(readingStats);
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
