@@ -388,7 +388,26 @@ function TopNavGate() {
   const location = useLocation();
   if (location.pathname.startsWith("/admin")) return null;
   if (!isTopNavRoute(location.pathname)) return null;
-  return <TopNav />;
+  return (
+    <>
+      <TopNav />
+      {/* EJ47 — Flow-occupying spacer that reserves the visual band
+          taken by the fixed TopNav (safe-area-inset-top + 56px =
+          var(--topbar-pad)). This pushes ALL subsequent Outlet
+          content down by exactly the TopNav's height, so pages can't
+          accidentally render content under the nav. Pages that
+          already added their own `env(safe-area-inset-top)` padding
+          had that padding REMOVED for top-nav routes (see EJ48-A
+          sweep below) so we don't double-count the safe area. */}
+      <div
+        aria-hidden
+        style={{
+          height: "var(--topbar-pad)",
+          flexShrink: 0,
+        }}
+      />
+    </>
+  );
 }
 
 /**
