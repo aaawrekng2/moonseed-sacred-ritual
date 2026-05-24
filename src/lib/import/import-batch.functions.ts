@@ -17,8 +17,18 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ReadingInput = z.object({
   spread_type: z.enum(["single", "three", "celtic"]),
-  card_ids: z.array(z.number().int().min(0).max(77)),
+  // EJ33 — was max(77). Oracle deck cards use card_id 1000+, so the
+  // upper bound is now generous (10000) to accept any plausible
+  // future deck-id range. Validity per-deck is still enforced
+  // server-side when the row is rendered (CardImage falls back to
+  // empty if it can't resolve).
+  card_ids: z.array(z.number().int().min(0).max(10000)),
   card_orientations: z.array(z.boolean()),
+  // EJ33 — per-card deck UUID. When omitted, the reading is treated
+  // as using the user's active deck for every slot (legacy behavior).
+  // When provided, must be the same length as card_ids. Each entry
+  // is the deck UUID for that slot, or null to fall back to active.
+  card_deck_ids: z.array(z.string().uuid().nullable()).optional(),
   question: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
@@ -70,46 +80,59 @@ export const executeImport = createServerFn({ method: "POST" })
           (name) => !existingLowered.has(name.toLowerCase()),
         );
         if (missing.length > 0) {
-          const { error: tagErr } = await supabaseAdmin
-            .from("user_tags")
-            .insert(
-              missing.map((name) => ({
-                user_id: userId,
-                name,
-                usage_count: 1,
-              })),
-            );
+          const { error: tagErr } = await supabaseAdmin.from("user_tags").insert(
+            missing.map((name) => ({
+              user_id: userId,
+              name,
+              usage_count: 1,
+            })),
+          );
           if (tagErr) {
-            // eslint-disable-next-line no-console
             console.warn("[import] user_tags sync failed", tagErr.message);
           }
         }
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.warn("[import] user_tags sync threw", (e as Error).message);
     }
 
     const CHUNK = 50;
     for (let i = 0; i < data.readings.length; i += CHUNK) {
-      const chunk = data.readings.slice(i, i + CHUNK).map((r) => ({
-        user_id: userId,
-        spread_type: r.spread_type,
-        card_ids: r.card_ids,
-        card_orientations: r.card_orientations,
-        question: r.question ?? null,
-        note: r.note ?? null,
-        tags: r.tags ?? [],
-        created_at: r.created_at ?? new Date().toISOString(),
-        entry_mode: "manual",
-        mode: "personal",
-        import_batch_id: batchId,
-      }));
+      const chunk = data.readings.slice(i, i + CHUNK).map((r) => {
+        // EJ33 — per-card deck_id is part of every row now. When the
+        // caller didn't supply card_deck_ids, default to an
+        // all-null array of the same length as card_ids so the row
+        // shape stays consistent. The reading's singular `deck_id`
+        // is set to the first non-null card_deck_id for backward
+        // compatibility with code paths that haven't been refactored
+        // to read the per-card array yet.
+        const requested = r.card_deck_ids ?? [];
+        const cardDeckIds =
+          requested.length === r.card_ids.length
+            ? requested
+            : (r.card_ids.map(() => null) as (string | null)[]);
+        const primaryDeckId = cardDeckIds.find((d): d is string => typeof d === "string") ?? null;
+        return {
+          user_id: userId,
+          spread_type: r.spread_type,
+          card_ids: r.card_ids,
+          card_orientations: r.card_orientations,
+          card_deck_ids: cardDeckIds,
+          deck_id: primaryDeckId,
+          question: r.question ?? null,
+          note: r.note ?? null,
+          tags: r.tags ?? [],
+          created_at: r.created_at ?? new Date().toISOString(),
+          entry_mode: "manual",
+          mode: "personal",
+          import_batch_id: batchId,
+        };
+      });
       const { error } = await supabaseAdmin.from("readings").insert(chunk);
       if (error) {
         // Mark every row in this chunk as failed and continue.
         for (let j = 0; j < chunk.length; j++) failed.push(i + j);
-        // eslint-disable-next-line no-console
+
         console.warn("[import] chunk insert failed", error.message);
       } else {
         imported += chunk.length;

@@ -19,46 +19,150 @@
  */
 import { TAROT_DECK, getCardName } from "@/lib/tarot";
 
+/**
+ * EJ33 — cross-deck import matching.
+ *
+ * Result types now carry an optional `deckId`. When the matched card
+ * comes from one of the user's custom decks (oracle or alternate
+ * tarot), `deckId` is the deck's UUID so the resulting reading row
+ * can be tagged with `card_deck_ids[idx] = deckId` and the card
+ * renders with the right art. When `deckId` is undefined, the match
+ * is against the canonical 0..77 standard tarot index and renders
+ * via the user's active deck (or the default deck).
+ */
 export type CardResolveResult =
-  | { kind: "matched"; cardIndex: number; confidence: number; canonical: string }
-  | { kind: "probable"; cardIndex: number; confidence: number; canonical: string }
+  | {
+      kind: "matched";
+      cardIndex: number;
+      confidence: number;
+      canonical: string;
+      deckId?: string;
+      deckName?: string;
+    }
+  | {
+      kind: "probable";
+      cardIndex: number;
+      confidence: number;
+      canonical: string;
+      deckId?: string;
+      deckName?: string;
+    }
   | { kind: "unmatched"; rawName: string };
+
+/**
+ * EJ33 — minimum shape the resolver needs to search across the
+ * user's custom decks. Caller builds this from the existing
+ * fetchUserDecks / fetchDeckCards helpers in `@/lib/custom-decks`
+ * (only oracle / custom-name decks contribute; tarot decks reuse the
+ * canonical 0..77 index so they don't need to be searched).
+ */
+export type DeckSearchCard = {
+  /** Canonical card_id within the deck (0..77 for tarot, 1000+ for oracle). */
+  cardIndex: number;
+  /** User-supplied card name. Required for the cross-deck match. */
+  name: string;
+};
+export type DeckSearchEntry = {
+  deckId: string;
+  deckName: string;
+  /** "oracle" cards only — tarot decks rename but share the 0..77 index. */
+  cards: DeckSearchCard[];
+};
 
 const MAJOR_NAMES = TAROT_DECK.slice(0, 22) as readonly string[];
 
 const ROMAN_TO_NUM: Record<string, number> = {
-  "0": 0, O: 0,
-  I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10,
-  XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16, XVII: 17,
-  XVIII: 18, XIX: 19, XX: 20, XXI: 21,
+  "0": 0,
+  O: 0,
+  I: 1,
+  II: 2,
+  III: 3,
+  IV: 4,
+  V: 5,
+  VI: 6,
+  VII: 7,
+  VIII: 8,
+  IX: 9,
+  X: 10,
+  XI: 11,
+  XII: 12,
+  XIII: 13,
+  XIV: 14,
+  XV: 15,
+  XVI: 16,
+  XVII: 17,
+  XVIII: 18,
+  XIX: 19,
+  XX: 20,
+  XXI: 21,
 };
 
 const SUIT_CANONICAL: Record<string, "Wands" | "Cups" | "Swords" | "Pentacles"> = {
-  wands: "Wands", wand: "Wands", staves: "Wands", stave: "Wands",
-  rods: "Wands", rod: "Wands", batons: "Wands", baton: "Wands",
-  cups: "Cups", cup: "Cups", chalices: "Cups", chalice: "Cups",
+  wands: "Wands",
+  wand: "Wands",
+  staves: "Wands",
+  stave: "Wands",
+  rods: "Wands",
+  rod: "Wands",
+  batons: "Wands",
+  baton: "Wands",
+  cups: "Cups",
+  cup: "Cups",
+  chalices: "Cups",
+  chalice: "Cups",
   hearts: "Cups",
-  swords: "Swords", sword: "Swords", blades: "Swords", blade: "Swords",
+  swords: "Swords",
+  sword: "Swords",
+  blades: "Swords",
+  blade: "Swords",
   spades: "Swords",
-  pentacles: "Pentacles", pentacle: "Pentacles",
-  coins: "Pentacles", coin: "Pentacles",
-  disks: "Pentacles", disk: "Pentacles", discs: "Pentacles", disc: "Pentacles",
+  pentacles: "Pentacles",
+  pentacle: "Pentacles",
+  coins: "Pentacles",
+  coin: "Pentacles",
+  disks: "Pentacles",
+  disk: "Pentacles",
+  discs: "Pentacles",
+  disc: "Pentacles",
   diamonds: "Pentacles",
 };
 
 const RANK_CANONICAL: Record<string, string> = {
-  ace: "Ace", "1": "Ace", i: "Ace",
-  two: "Two", "2": "Two", ii: "Two",
-  three: "Three", "3": "Three", iii: "Three",
-  four: "Four", "4": "Four", iv: "Four",
-  five: "Five", "5": "Five", v: "Five",
-  six: "Six", "6": "Six", vi: "Six",
-  seven: "Seven", "7": "Seven", vii: "Seven",
-  eight: "Eight", "8": "Eight", viii: "Eight",
-  nine: "Nine", "9": "Nine", ix: "Nine",
-  ten: "Ten", "10": "Ten", x: "Ten",
-  page: "Page", princess: "Page", jack: "Page",
-  knight: "Knight", prince: "Knight",
+  ace: "Ace",
+  "1": "Ace",
+  i: "Ace",
+  two: "Two",
+  "2": "Two",
+  ii: "Two",
+  three: "Three",
+  "3": "Three",
+  iii: "Three",
+  four: "Four",
+  "4": "Four",
+  iv: "Four",
+  five: "Five",
+  "5": "Five",
+  v: "Five",
+  six: "Six",
+  "6": "Six",
+  vi: "Six",
+  seven: "Seven",
+  "7": "Seven",
+  vii: "Seven",
+  eight: "Eight",
+  "8": "Eight",
+  viii: "Eight",
+  nine: "Nine",
+  "9": "Nine",
+  ix: "Nine",
+  ten: "Ten",
+  "10": "Ten",
+  x: "Ten",
+  page: "Page",
+  princess: "Page",
+  jack: "Page",
+  knight: "Knight",
+  prince: "Knight",
   queen: "Queen",
   king: "King",
 };
@@ -119,8 +223,20 @@ const SUIT_OFFSET: Record<string, number> = {
   Pentacles: 22 + 42,
 };
 const RANK_INDEX: Record<string, number> = {
-  Ace: 0, Two: 1, Three: 2, Four: 3, Five: 4, Six: 5, Seven: 6,
-  Eight: 7, Nine: 8, Ten: 9, Page: 10, Knight: 11, Queen: 12, King: 13,
+  Ace: 0,
+  Two: 1,
+  Three: 2,
+  Four: 3,
+  Five: 4,
+  Six: 5,
+  Seven: 6,
+  Eight: 7,
+  Nine: 8,
+  Ten: 9,
+  Page: 10,
+  Knight: 11,
+  Queen: 12,
+  King: 13,
 };
 
 function minorIndex(rank: string, suit: string): number | null {
@@ -175,17 +291,28 @@ for (const suit of ["Wands", "Cups", "Swords", "Pentacles"] as const) {
       if (canon !== suit) continue;
       add(`${rankKey} of ${synSuit}`, idx);
       // Compact forms like "3W", "3-Wands", "3 Wands"
-      const rankCompact = rankKey === "Ace" ? "1"
-        : rankKey === "Two" ? "2"
-        : rankKey === "Three" ? "3"
-        : rankKey === "Four" ? "4"
-        : rankKey === "Five" ? "5"
-        : rankKey === "Six" ? "6"
-        : rankKey === "Seven" ? "7"
-        : rankKey === "Eight" ? "8"
-        : rankKey === "Nine" ? "9"
-        : rankKey === "Ten" ? "10"
-        : rankKey.charAt(0); // P, Kn, Q, K — covered as Page/Knight/Queen/King below
+      const rankCompact =
+        rankKey === "Ace"
+          ? "1"
+          : rankKey === "Two"
+            ? "2"
+            : rankKey === "Three"
+              ? "3"
+              : rankKey === "Four"
+                ? "4"
+                : rankKey === "Five"
+                  ? "5"
+                  : rankKey === "Six"
+                    ? "6"
+                    : rankKey === "Seven"
+                      ? "7"
+                      : rankKey === "Eight"
+                        ? "8"
+                        : rankKey === "Nine"
+                          ? "9"
+                          : rankKey === "Ten"
+                            ? "10"
+                            : rankKey.charAt(0); // P, Kn, Q, K — covered as Page/Knight/Queen/King below
       add(`${rankCompact} ${synSuit}`, idx);
       add(`${rankCompact} of ${synSuit}`, idx);
     }
@@ -193,8 +320,15 @@ for (const suit of ["Wands", "Cups", "Swords", "Pentacles"] as const) {
     const romanEntry = Object.entries(ROMAN_TO_NUM).find(([, n]) => {
       if (rankKey === "Ace") return n === 1;
       const map: Record<string, number> = {
-        Two: 2, Three: 3, Four: 4, Five: 5, Six: 6, Seven: 7,
-        Eight: 8, Nine: 9, Ten: 10,
+        Two: 2,
+        Three: 3,
+        Four: 4,
+        Five: 5,
+        Six: 6,
+        Seven: 7,
+        Eight: 8,
+        Nine: 9,
+        Ten: 10,
       };
       return map[rankKey] === n;
     });
@@ -273,13 +407,50 @@ function tryRankSuitParse(s: string): number | null {
   return null;
 }
 
-/** Resolve a raw user-supplied card name to a deck index. */
-export function resolveCardName(raw: string): CardResolveResult {
+/**
+ * Resolve a raw user-supplied card name to a deck index.
+ *
+ * EJ33 — `extraDecks` (optional) gives the resolver a way to match
+ * names that don't belong to the canonical 0..77 tarot index. The
+ * priority is:
+ *   1. Exact normalized name match in any extraDeck → matched
+ *      with that deck's `deckId`.
+ *   2. Standard tarot dictionary / rank-suit / roman / arabic
+ *      parsing → matched (no deckId).
+ *   3. Fuzzy Levenshtein against extraDeck names (≤2 edits)
+ *      → probable with deckId.
+ *   4. Fuzzy Levenshtein against canonical tarot → probable.
+ *   5. Unmatched.
+ *
+ * Cross-deck exact match wins over tarot-name fuzzy match because
+ * "Peach" is a real oracle card, not a misspelling of "Death".
+ */
+export function resolveCardName(raw: string, extraDecks?: DeckSearchEntry[]): CardResolveResult {
   const stripped = stripReversal(String(raw ?? ""));
   const norm = normalize(stripped);
   if (!norm) return { kind: "unmatched", rawName: raw };
 
-  // 1. Direct dictionary hit
+  // 1. Exact match against any custom-deck card name (EJ33).
+  //    Searched FIRST so oracle cards beat tarot fuzzy matches.
+  if (extraDecks && extraDecks.length > 0) {
+    for (const deck of extraDecks) {
+      for (const card of deck.cards) {
+        if (!card.name) continue;
+        if (normalize(card.name) === norm) {
+          return {
+            kind: "matched",
+            cardIndex: card.cardIndex,
+            confidence: 1.0,
+            canonical: card.name,
+            deckId: deck.deckId,
+            deckName: deck.deckName,
+          };
+        }
+      }
+    }
+  }
+
+  // 2. Direct tarot dictionary hit
   const direct = DICT.get(norm);
   if (direct != null) {
     return {
@@ -290,7 +461,7 @@ export function resolveCardName(raw: string): CardResolveResult {
     };
   }
 
-  // 2. Rank+suit token parse (handles synonyms like "Knight of Coins")
+  // 3. Rank+suit token parse (handles synonyms like "Knight of Coins")
   const rs = tryRankSuitParse(norm);
   if (rs != null) {
     return {
@@ -301,7 +472,7 @@ export function resolveCardName(raw: string): CardResolveResult {
     };
   }
 
-  // 3. Major arcana via Roman or Arabic numeral
+  // 4. Major arcana via Roman or Arabic numeral
   const roman = tryParseRoman(norm);
   if (roman != null) {
     return {
@@ -321,7 +492,48 @@ export function resolveCardName(raw: string): CardResolveResult {
     };
   }
 
-  // 4. Levenshtein fuzzy match against canonical names
+  // 5. Levenshtein fuzzy match against cross-deck cards (EJ33).
+  //    Tried BEFORE tarot fuzzy so "Hurikane Lamp" → "Hurricane Lamp"
+  //    rather than getting routed to a tarot guess.
+  let bestExtra: {
+    idx: number;
+    dist: number;
+    deckId: string;
+    deckName: string;
+    canonical: string;
+  } | null = null;
+  if (extraDecks && extraDecks.length > 0) {
+    for (const deck of extraDecks) {
+      for (const card of deck.cards) {
+        if (!card.name) continue;
+        const candidate = normalize(card.name);
+        const d = levenshtein(norm, candidate);
+        if (bestExtra == null || d < bestExtra.dist) {
+          bestExtra = {
+            idx: card.cardIndex,
+            dist: d,
+            deckId: deck.deckId,
+            deckName: deck.deckName,
+            canonical: card.name,
+          };
+        }
+        if (d === 0) break;
+      }
+    }
+  }
+  if (bestExtra && bestExtra.dist <= 2) {
+    const conf = bestExtra.dist === 1 ? 0.8 : 0.65;
+    return {
+      kind: "probable",
+      cardIndex: bestExtra.idx,
+      confidence: conf,
+      canonical: bestExtra.canonical,
+      deckId: bestExtra.deckId,
+      deckName: bestExtra.deckName,
+    };
+  }
+
+  // 6. Levenshtein fuzzy match against canonical tarot names
   let best: { idx: number; dist: number } | null = null;
   for (let i = 0; i < TAROT_DECK.length; i++) {
     const candidate = normalize(TAROT_DECK[i]);
@@ -348,4 +560,54 @@ export function getCanonicalName(cardIndex: number): string {
 
 export function getAllCardOptions(): { index: number; name: string }[] {
   return TAROT_DECK.map((name, index) => ({ index, name }));
+}
+
+/**
+ * EJ33 — Card options grouped for the import wizard's "Pick the
+ * right card…" dropdown. Standard tarot first (78 entries), then
+ * each user custom deck (oracle decks contribute their named cards;
+ * custom-named tarot decks reuse the canonical index so they're
+ * already covered by the tarot group).
+ *
+ * Each option carries the (cardIndex, deckId) tuple the resolver
+ * decision needs. Tarot group has `deckId: undefined`.
+ */
+export type ExtendedCardOption = {
+  cardIndex: number;
+  deckId: string | undefined;
+  name: string;
+};
+export type ExtendedCardGroup = {
+  deckId: string | undefined;
+  deckName: string;
+  options: ExtendedCardOption[];
+};
+export function getExtendedCardOptions(extraDecks?: DeckSearchEntry[]): ExtendedCardGroup[] {
+  const groups: ExtendedCardGroup[] = [
+    {
+      deckId: undefined,
+      deckName: "Standard Tarot",
+      options: TAROT_DECK.map((name, cardIndex) => ({
+        cardIndex,
+        deckId: undefined,
+        name,
+      })),
+    },
+  ];
+  if (!extraDecks) return groups;
+  for (const deck of extraDecks) {
+    if (!deck.cards.length) continue;
+    groups.push({
+      deckId: deck.deckId,
+      deckName: deck.deckName,
+      options: deck.cards
+        .filter((c) => !!c.name)
+        .map((c) => ({
+          cardIndex: c.cardIndex,
+          deckId: deck.deckId,
+          name: c.name,
+        })),
+    });
+  }
+  return groups;
 }
