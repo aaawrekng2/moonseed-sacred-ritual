@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  Sparkles,
   Star,
   Trash2,
   X,
@@ -206,9 +207,7 @@ function DecksPage() {
         onClick={() => setView({ kind: "create" })}
         className={cn(
           "inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm",
-          overLimit
-            ? "cursor-not-allowed opacity-40"
-            : "hover:bg-gold/10",
+          overLimit ? "cursor-not-allowed opacity-40" : "hover:bg-gold/10",
         )}
         title={overLimit ? `Free tier limited to ${FREE_DECK_LIMIT} decks` : undefined}
       >
@@ -217,7 +216,8 @@ function DecksPage() {
 
       {overLimit && (
         <div className="rounded-md border border-gold/30 bg-gold/5 p-3 text-sm">
-          You've reached the free tier limit of {FREE_DECK_LIMIT} decks. Delete one to add another, or upgrade for unlimited decks.
+          You've reached the free tier limit of {FREE_DECK_LIMIT} decks. Delete one to add another,
+          or upgrade for unlimited decks.
         </div>
       )}
 
@@ -241,6 +241,12 @@ function DecksPage() {
               key={d.id}
               deck={d}
               onEdit={() => setView({ kind: "edit", deck: d })}
+              onEditPrompts={() =>
+                navigate({
+                  to: "/settings/decks/$deckId/edit",
+                  params: { deckId: d.id },
+                })
+              }
               onImportZip={() => setView({ kind: "edit-import", deck: d })}
               onToggleActive={() => void handleSetActive(d)}
               onDelete={() => void handleDelete(d)}
@@ -257,10 +263,7 @@ function DecksPage() {
                     .is("archived_at", null)
                     .in("processing_status", ["pending", "failed"]);
                   try {
-                    await supabase.functions.invoke(
-                      "process-variant-queue",
-                      {},
-                    );
+                    await supabase.functions.invoke("process-variant-queue", {});
                   } catch {
                     /* non-fatal */
                   }
@@ -329,23 +332,19 @@ function DefaultDeckRow({
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
         aria-label="Use default Rider-Waite deck"
       >
-       <div className="flex h-14 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
+        <div className="flex h-14 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
           <Star className="h-5 w-5 opacity-60" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-medium sm:text-base">
-              Rider-Waite (default)
-            </p>
+            <p className="truncate text-sm font-medium sm:text-base">Rider-Waite (default)</p>
             {isActive && (
               <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
                 <Star className="h-3 w-3" /> Active
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground sm:text-xs">
-            78 cards · classic tarot
-          </p>
+          <p className="text-[11px] text-muted-foreground sm:text-xs">78 cards · classic tarot</p>
         </div>
       </button>
     </li>
@@ -355,6 +354,7 @@ function DefaultDeckRow({
 function DeckRow({
   deck,
   onEdit,
+  onEditPrompts,
   onImportZip,
   onToggleActive,
   onDelete,
@@ -362,6 +362,7 @@ function DeckRow({
 }: {
   deck: CustomDeck;
   onEdit: () => void;
+  onEditPrompts: () => void;
   onImportZip: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
@@ -390,9 +391,7 @@ function DeckRow({
       if (s.pending > 0 && lastSavedRef.current === s.saved) {
         stallCountRef.current += 1;
         if (stallCountRef.current >= 3) {
-          console.warn(
-            `[DeckRow] queue stalled at ${s.saved}/${s.total}, kicking…`,
-          );
+          console.warn(`[DeckRow] queue stalled at ${s.saved}/${s.total}, kicking…`);
           try {
             await supabase
               .from("custom_deck_cards")
@@ -434,8 +433,7 @@ function DeckRow({
   // window would invoke generate-deck-variants in a tight loop and
   // CPU-time-out (the source of the 546 errors).
   const isProcessing =
-    procStatus !== null &&
-    (procStatus.pending > 0 || procStatus.saved < procStatus.total);
+    procStatus !== null && (procStatus.pending > 0 || procStatus.saved < procStatus.total);
   // 26-05-08-N — Fix 2: if the deck is now in background processing,
   // the manual optimize loop is no longer running (and should not be).
   // Force-clear any stuck variantBusy state so the stale spinner clears.
@@ -461,10 +459,7 @@ function DeckRow({
       wasProcessingRef.current = false;
       return () => clearTimeout(t);
     }
-    if (
-      procStatus.pending > 0 ||
-      procStatus.saved < procStatus.total - procStatus.failed
-    ) {
+    if (procStatus.pending > 0 || procStatus.saved < procStatus.total - procStatus.failed) {
       wasProcessingRef.current = true;
     }
   }, [procStatus]);
@@ -534,24 +529,18 @@ function DeckRow({
           .is("archived_at", null);
         if (listErr) throw listErr;
         const candidates = (cardsList ?? []).filter(
-          (c) =>
-            c.display_path &&
-            !c.display_path.endsWith("-full.webp"),
+          (c) => c.display_path && !c.display_path.endsWith("-full.webp"),
         );
         if (candidates.length > 0) {
           let fullDone = 0;
-          toast.loading(
-            `Generating master images… 0/${candidates.length}`,
-            { id: progressToastId },
-          );
+          toast.loading(`Generating master images… 0/${candidates.length}`, {
+            id: progressToastId,
+          });
           for (const c of candidates) {
-            const result = await supabase.functions.invoke(
-              "generate-deck-variants",
-              {
-                body: { deckId: deck.id, cardId: c.card_id },
-                headers: { Authorization: `Bearer ${jwt}` },
-              },
-            );
+            const result = await supabase.functions.invoke("generate-deck-variants", {
+              body: { deckId: deck.id, cardId: c.card_id },
+              headers: { Authorization: `Bearer ${jwt}` },
+            });
             if (result.error) {
               console.warn("[Optimize] single-card failed", {
                 cardId: c.card_id,
@@ -562,10 +551,9 @@ function DeckRow({
               totalGenerated++;
             }
             fullDone++;
-            toast.loading(
-              `Generating master images… ${fullDone}/${candidates.length}`,
-              { id: progressToastId },
-            );
+            toast.loading(`Generating master images… ${fullDone}/${candidates.length}`, {
+              id: progressToastId,
+            });
           }
         }
       } catch (passErr) {
@@ -575,13 +563,10 @@ function DeckRow({
       // ≤ 7 invocations. Cap loops at 50 to avoid pathological cycles.
       let safety = 50;
       while (cursor !== null && safety-- > 0) {
-        const { data, error } = await supabase.functions.invoke(
-          "generate-deck-variants",
-          {
-            body: { deckId: deck.id, cursor },
-            headers: { Authorization: `Bearer ${jwt}` },
-          },
-        );
+        const { data, error } = await supabase.functions.invoke("generate-deck-variants", {
+          body: { deckId: deck.id, cursor },
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
         if (error) throw error;
         const summary = (data ?? {}) as {
           generated?: number;
@@ -601,18 +586,14 @@ function DeckRow({
         totalCards = summary.totalCards ?? totalCards;
         const processed = summary.processed ?? 0;
         toast.loading(
-          totalCards > 0
-            ? `Optimizing… ${processed}/${totalCards} cards`
-            : "Optimizing…",
+          totalCards > 0 ? `Optimizing… ${processed}/${totalCards} cards` : "Optimizing…",
           { id: progressToastId },
         );
         cursor = summary.nextCursor ?? null;
       }
       toast.dismiss(progressToastId);
       if (totalGenerated === 0) {
-        toast.success(
-          `Already optimized (${totalSkipped} variants present).`,
-        );
+        toast.success(`Already optimized (${totalSkipped} variants present).`);
       } else {
         toast.success(
           `Generated ${totalGenerated} variants` +
@@ -657,18 +638,16 @@ function DeckRow({
           {deck.card_back_thumb_url || deck.card_back_url ? (
             <img
               src={
-                (variantUrlFor(
-                  deck.card_back_thumb_url ?? deck.card_back_url,
-                  "full",
-                ) ?? (deck.card_back_thumb_url ?? deck.card_back_url)) as string
+                (variantUrlFor(deck.card_back_thumb_url ?? deck.card_back_url, "full") ??
+                  deck.card_back_thumb_url ??
+                  deck.card_back_url) as string
               }
               onError={(e) => {
                 // 26-05-08-L — Fix 5: when a back was set via the
                 // "Choose from uploaded cards" path, the stored URL
                 // may not match the variantUrlFor pattern. Fall back
                 // to the raw URL before showing a broken image.
-                const raw =
-                  deck.card_back_thumb_url ?? deck.card_back_url ?? "";
+                const raw = deck.card_back_thumb_url ?? deck.card_back_url ?? "";
                 if (raw && e.currentTarget.src !== raw) {
                   e.currentTarget.src = raw;
                 }
@@ -708,8 +687,7 @@ function DeckRow({
                   <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Loader2 className="h-3 w-3 animate-spin text-gold" />
                     Optimizing… {procStatus.saved} of {procStatus.total}
-                    {procStatus.failed > 0 &&
-                      ` · ${procStatus.failed} failed`}
+                    {procStatus.failed > 0 && ` · ${procStatus.failed} failed`}
                   </span>
                 ) : (
                   procStatus.failed > 0 && (
@@ -743,19 +721,19 @@ function DeckRow({
             procStatus.failed === 0 &&
             procStatus.saved === procStatus.total &&
             procStatus.total > 0 && (
-            <div className="mt-1">
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider"
-                style={{
-                  borderColor: "var(--border-subtle)",
-                  background: "var(--surface-card)",
-                  color: "var(--gold)",
-                }}
-              >
-                <Check className="h-3 w-3" /> Ready · {procStatus.saved} cards
-              </span>
-            </div>
-          )}
+              <div className="mt-1">
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider"
+                  style={{
+                    borderColor: "var(--border-subtle)",
+                    background: "var(--surface-card)",
+                    color: "var(--gold)",
+                  }}
+                >
+                  <Check className="h-3 w-3" /> Ready · {procStatus.saved} cards
+                </span>
+              </div>
+            )}
         </div>
       </div>
       {/* 9-6-N — visible Edit pencil on mobile so the row's primary
@@ -770,6 +748,19 @@ function DeckRow({
         aria-label={`Edit ${deck.name}`}
       >
         <Pencil className="h-4 w-4" />
+      </button>
+      {/* EJ36 — mobile entry to the Aspects + Journal Prompts page. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEditPrompts();
+        }}
+        className="rounded-md p-1.5 hover:bg-foreground/10 sm:hidden"
+        aria-label={`Edit prompts for ${deck.name}`}
+        title="Edit journal prompts"
+      >
+        <Sparkles className="h-4 w-4" />
       </button>
       {/* Mobile: compact overflow menu */}
       <div className="relative flex sm:hidden" ref={menuRef}>
@@ -869,7 +860,10 @@ function DeckRow({
         {deck.deck_type !== "oracle" && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleActive();
+            }}
             className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
           >
             {deck.is_active ? "Deactivate" : "Set active"}
@@ -877,14 +871,34 @@ function DeckRow({
         )}
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
           className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
         >
           Edit
         </button>
+        {/* EJ36 — sparkles button opens /settings/decks/{id}/edit with
+            Aspects + Journal Prompts UI. */}
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onImportZip(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditPrompts();
+          }}
+          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+          title="Edit journal prompts"
+          aria-label="Edit journal prompts"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onImportZip();
+          }}
           className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
           title="Import / replace from zip"
         >
@@ -913,7 +927,10 @@ function DeckRow({
         </button>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
           className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
           aria-label="Delete deck"
         >
@@ -958,9 +975,7 @@ function DeckEditor({
   // overview screen reads the deck record directly.
   // 9-6-A — deck type chosen at creation time. Drives oracle-vs-tarot
   // import flow downstream (skip matcher, hide suit chips, etc.).
-  const [deckType, setDeckType] = useState<"tarot" | "oracle">(
-    existing?.deck_type ?? "tarot",
-  );
+  const [deckType, setDeckType] = useState<"tarot" | "oracle">(existing?.deck_type ?? "tarot");
   const [mode, setMode] = useState<EditorMode>(
     existing
       ? startInUploadPhase
@@ -978,14 +993,10 @@ function DeckEditor({
   // EH-4 — wire FloatingMenu X icon to close back to deck list when
   // we're in the grid overview. Workspace mode is handled inside
   // ZipImporter itself.
-  useRegisterCloseHandler(
-    mode.kind === "grid" ? () => onClose(true) : null,
-  );
+  useRegisterCloseHandler(mode.kind === "grid" ? () => onClose(true) : null);
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
-  const [deckBackUrl, setDeckBackUrl] = useState<string | null>(
-    existing?.card_back_url ?? null,
-  );
+  const [deckBackUrl, setDeckBackUrl] = useState<string | null>(existing?.card_back_url ?? null);
   // 9-6-AC — capture the freshly-inserted deck row when the user
   // creates a new deck, so the import / workspace / grid branches
   // have a concrete deck record to render even though `existing`
@@ -996,14 +1007,11 @@ function DeckEditor({
   // 9-6-W — tap a tile to open the per-card crop + radius editor.
   const [editingCardId, setEditingCardId] = useState<number | null>(null);
   // BL Fix 8 — resume-prompt state
-  const [resumePrompt, setResumePrompt] = useState<
-    | null
-    | {
-        assigned: number;
-        unassigned: number;
-        skipped: number;
-      }
-  >(null);
+  const [resumePrompt, setResumePrompt] = useState<null | {
+    assigned: number;
+    unassigned: number;
+    skipped: number;
+  }>(null);
 
   const reloadCards = useCallback(async (deckId: string) => {
     const list = await fetchDeckCards(deckId);
@@ -1062,7 +1070,11 @@ function DeckEditor({
       try {
         const { checkCustomDeckLimit } = await import("@/lib/custom-decks");
         const limitMsg = await checkCustomDeckLimit(userId);
-        if (limitMsg) { toast.error(limitMsg); setSaving(false); return; }
+        if (limitMsg) {
+          toast.error(limitMsg);
+          setSaving(false);
+          return;
+        }
         const { data, error } = await supabase
           .from("custom_decks")
           .insert({
@@ -1286,44 +1298,43 @@ function DeckEditor({
             }
           }}
         />
-        {resumePrompt && createPortal(
-          <ResumePromptModal
-            assigned={resumePrompt.assigned}
-            unassigned={resumePrompt.unassigned}
-            skipped={resumePrompt.skipped}
-            onResume={() => {
-              setResumePrompt(null);
-              setMode({ kind: "import", deckId });
-            }}
-            onDiscard={async () => {
-              if (!existing) return;
-              await deleteSession(existing.id);
-              setResumePrompt(null);
-              toast("Import session discarded");
-            }}
-          />,
-          document.body,
-        )}
+        {resumePrompt &&
+          createPortal(
+            <ResumePromptModal
+              assigned={resumePrompt.assigned}
+              unassigned={resumePrompt.unassigned}
+              skipped={resumePrompt.skipped}
+              onResume={() => {
+                setResumePrompt(null);
+                setMode({ kind: "import", deckId });
+              }}
+              onDiscard={async () => {
+                if (!existing) return;
+                await deleteSession(existing.id);
+                setResumePrompt(null);
+                toast("Import session discarded");
+              }}
+            />,
+            document.body,
+          )}
       </>
     );
   }
 
   // legacy grid retained below for reference; replaced by DeckOverviewScreen above.
-  // eslint-disable-next-line no-constant-condition
+
   if (false as boolean) {
     const deckId = (mode as { deckId: string }).deckId;
-    const photographedMap = new Map<number, CustomDeckCard>(
-      cards.map((c) => [c.card_id, c]),
-    );
+    const photographedMap = new Map<number, CustomDeckCard>(cards.map((c) => [c.card_id, c]));
     return (
       <section className="py-6">
         {/* EH-4 — close affordance moved to global FloatingMenu */}
         <header className="mb-6">
           <h1 className="truncate text-2xl font-semibold">{name}</h1>
           <p className="text-sm text-muted-foreground">
-          {deckType === "oracle"
-            ? `${photographedIds.length} cards`
-            : `${photographedIds.length}/78 cards customized`}
+            {deckType === "oracle"
+              ? `${photographedIds.length} cards`
+              : `${photographedIds.length}/78 cards customized`}
           </p>
         </header>
 
@@ -1377,17 +1388,14 @@ function DeckEditor({
                 .sort((a, b) => a.cardId - b.cardId);
               tiles = [
                 ...entries.map(
-                  ({ cardId, photo }) =>
-                    ({ kind: "existing", cardId, photo } as Tile),
+                  ({ cardId, photo }) => ({ kind: "existing", cardId, photo }) as Tile,
                 ),
                 { kind: "add-new" } as Tile,
               ];
             }
             const ORACLE_BASE = 1000;
             const nextOracleId = () => {
-              const ids = [...photographedMap.keys()].filter(
-                (id) => id >= ORACLE_BASE,
-              );
+              const ids = [...photographedMap.keys()].filter((id) => id >= ORACLE_BASE);
               return ids.length === 0 ? ORACLE_BASE : Math.max(...ids) + 1;
             };
             return tiles.map((tile) => {
@@ -1415,9 +1423,7 @@ function DeckEditor({
                   <button
                     key={tile.cardId}
                     type="button"
-                    onClick={() =>
-                      setMode({ kind: "capture", deckId, cardId: tile.cardId })
-                    }
+                    onClick={() => setMode({ kind: "capture", deckId, cardId: tile.cardId })}
                     className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60"
                     title={getCardName(tile.cardId)}
                   >
@@ -1434,16 +1440,11 @@ function DeckEditor({
                   </button>
                 );
               }
-              const rawSrc =
-                tile.photo.thumbnail_url ?? tile.photo.display_url ?? null;
-              const tileSrc = rawSrc
-                ? variantUrlFor(rawSrc, "md") ?? rawSrc
-                : null;
+              const rawSrc = tile.photo.thumbnail_url ?? tile.photo.display_url ?? null;
+              const tileSrc = rawSrc ? (variantUrlFor(rawSrc, "md") ?? rawSrc) : null;
               const label =
                 tile.photo.card_name ??
-                (tile.cardId < 1000
-                  ? getCardName(tile.cardId)
-                  : `Card ${tile.cardId}`);
+                (tile.cardId < 1000 ? getCardName(tile.cardId) : `Card ${tile.cardId}`);
               return (
                 <button
                   key={tile.cardId}
@@ -1469,30 +1470,31 @@ function DeckEditor({
           })()}
         </div>
 
-        {reviewingCardId !== null && (() => {
-          const photo = photographedMap.get(reviewingCardId);
-          if (!photo) return null;
-          const cardId = reviewingCardId;
-          return (
-            <PerCardReviewModal
-              userId={userId}
-              deckId={deckId}
-              cardId={cardId}
-              photo={photo}
-              shape={shape}
-              cornerRadius={cornerRadius}
-              onClose={() => setReviewingCardId(null)}
-              onRetake={() => {
-                setMode({ kind: "capture", deckId, cardId });
-                setReviewingCardId(null);
-              }}
-              onChanged={async () => {
-                await reloadCards(deckId);
-                setReviewingCardId(null);
-              }}
-            />
-          );
-        })()}
+        {reviewingCardId !== null &&
+          (() => {
+            const photo = photographedMap.get(reviewingCardId);
+            if (!photo) return null;
+            const cardId = reviewingCardId;
+            return (
+              <PerCardReviewModal
+                userId={userId}
+                deckId={deckId}
+                cardId={cardId}
+                photo={photo}
+                shape={shape}
+                cornerRadius={cornerRadius}
+                onClose={() => setReviewingCardId(null)}
+                onRetake={() => {
+                  setMode({ kind: "capture", deckId, cardId });
+                  setReviewingCardId(null);
+                }}
+                onChanged={async () => {
+                  await reloadCards(deckId);
+                  setReviewingCardId(null);
+                }}
+              />
+            );
+          })()}
 
         {editingCardId !== null && (
           <PerCardEditModal
@@ -1507,92 +1509,92 @@ function DeckEditor({
           />
         )}
 
-        {resumePrompt && createPortal(
-          <div
-            className="fixed inset-0 z-[115] flex items-center justify-center p-6"
-            style={{
-              background:
-                "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
-            }}
-          >
+        {resumePrompt &&
+          createPortal(
             <div
-              className="flex w-full max-w-sm flex-col gap-4 rounded-xl border"
+              className="fixed inset-0 z-[115] flex items-center justify-center p-6"
               style={{
-                background: "var(--surface-card)",
-                borderColor: "var(--border-subtle)",
-                color: "var(--color-foreground)",
-                padding: "var(--space-5, 1.25rem)",
-                borderRadius: "var(--radius-lg, 0.75rem)",
+                background:
+                  "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
               }}
             >
-              <h3
-                className="italic"
+              <div
+                className="flex w-full max-w-sm flex-col gap-4 rounded-xl border"
                 style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "var(--text-heading-sm)",
+                  background: "var(--surface-card)",
+                  borderColor: "var(--border-subtle)",
                   color: "var(--color-foreground)",
+                  padding: "var(--space-5, 1.25rem)",
+                  borderRadius: "var(--radius-lg, 0.75rem)",
                 }}
               >
-                Resume your import?
-              </h3>
-              <p
-                style={{
-                  fontSize: "var(--text-body-sm)",
-                  color: "var(--color-foreground)",
-                }}
-              >
-                You have an in-progress import for this deck (
-                {resumePrompt.assigned} assigned, {resumePrompt.unassigned}{" "}
-                unassigned, {resumePrompt.skipped} skipped).
-              </p>
-              <p
-                style={{
-                  fontSize: "var(--text-caption)",
-                  color: "var(--color-foreground)",
-                  opacity: 0.6,
-                  fontStyle: "italic",
-                }}
-              >
-                Available on this device only
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResumePrompt(null);
-                    setMode({ kind: "import", deckId });
-                  }}
-                  className="rounded-md px-4 py-2 font-medium"
+                <h3
+                  className="italic"
                   style={{
-                    background: "var(--accent)",
-                    color: "var(--accent-foreground, #000)",
-                    fontSize: "var(--text-body-sm)",
-                  }}
-                >
-                  Resume
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!existing) return;
-                    await deleteSession(existing.id);
-                    setResumePrompt(null);
-                    toast("Import session discarded");
-                  }}
-                  className="rounded-md px-4 py-2"
-                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-heading-sm)",
                     color: "var(--color-foreground)",
-                    fontSize: "var(--text-body-sm)",
-                    background: "transparent",
                   }}
                 >
-                  Discard and start over
-                </button>
+                  Resume your import?
+                </h3>
+                <p
+                  style={{
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  You have an in-progress import for this deck ({resumePrompt.assigned} assigned,{" "}
+                  {resumePrompt.unassigned} unassigned, {resumePrompt.skipped} skipped).
+                </p>
+                <p
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    color: "var(--color-foreground)",
+                    opacity: 0.6,
+                    fontStyle: "italic",
+                  }}
+                >
+                  Available on this device only
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumePrompt(null);
+                      setMode({ kind: "import", deckId });
+                    }}
+                    className="rounded-md px-4 py-2 font-medium"
+                    style={{
+                      background: "var(--accent)",
+                      color: "var(--accent-foreground, #000)",
+                      fontSize: "var(--text-body-sm)",
+                    }}
+                  >
+                    Resume
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!existing) return;
+                      await deleteSession(existing.id);
+                      setResumePrompt(null);
+                      toast("Import session discarded");
+                    }}
+                    className="rounded-md px-4 py-2"
+                    style={{
+                      color: "var(--color-foreground)",
+                      fontSize: "var(--text-body-sm)",
+                      background: "transparent",
+                    }}
+                  >
+                    Discard and start over
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+            </div>,
+            document.body,
+          )}
       </section>
     );
   }
@@ -1752,8 +1754,8 @@ function ResumePromptModal({
           Resume your import?
         </h3>
         <p style={{ fontSize: "var(--text-body-sm)" }}>
-          You have an in-progress import for this deck ({assigned} assigned,{" "}
-          {unassigned} unassigned, {skipped} skipped).
+          You have an in-progress import for this deck ({assigned} assigned, {unassigned}{" "}
+          unassigned, {skipped} skipped).
         </p>
         <p
           style={{
@@ -1830,11 +1832,7 @@ async function uploadAndStoreCard(args: {
   const url = signed?.signedUrl ?? "";
 
   // Replace any prior row for this (deck, card).
-  await supabase
-    .from("custom_deck_cards")
-    .delete()
-    .eq("deck_id", deckId)
-    .eq("card_id", cardId);
+  await supabase.from("custom_deck_cards").delete().eq("deck_id", deckId).eq("card_id", cardId);
 
   const { error: insErr } = await supabase.from("custom_deck_cards").insert({
     deck_id: deckId,
@@ -1853,10 +1851,7 @@ async function uploadAndStoreCard(args: {
     .select("id", { count: "exact", head: true })
     .eq("deck_id", deckId);
   if ((count ?? 0) >= 78) {
-    await supabase
-      .from("custom_decks")
-      .update({ is_complete: true })
-      .eq("id", deckId);
+    await supabase.from("custom_decks").update({ is_complete: true }).eq("id", deckId);
   }
 }
 
@@ -1902,7 +1897,7 @@ async function uploadDeckBack(args: {
 function CornerRadiusPreview({ cornerRadiusPercent }: { cornerRadiusPercent: number }) {
   const w = 160;
   const h = 240;
-  const radiusPx = (cornerRadiusPercent / 100) * Math.min(w, h) / 2;
+  const radiusPx = ((cornerRadiusPercent / 100) * Math.min(w, h)) / 2;
   return (
     <div className="mt-3 flex justify-center">
       <div
@@ -1981,10 +1976,7 @@ function PerCardReviewModal({
   const [confirmReset, setConfirmReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const previewBorderRadius =
-    shape === "round"
-      ? "9999px"
-      : `${(cornerRadius / 100) * 200}px`; // approximate visible rounding
+  const previewBorderRadius = shape === "round" ? "9999px" : `${(cornerRadius / 100) * 200}px`; // approximate visible rounding
 
   const handleReset = async () => {
     setBusy(true);
@@ -2171,8 +2163,8 @@ function PerCardReviewModal({
         ) : (
           <div className="flex w-full flex-col gap-3">
             <p className="text-sm">
-              Remove your custom image and use the default? Your photo will be
-              archived and can be restored later.
+              Remove your custom image and use the default? Your photo will be archived and can be
+              restored later.
             </p>
             <div className="flex gap-2">
               <button
