@@ -28,7 +28,7 @@ import {
   type PasteOutcome,
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
-import { useActiveDeck } from "@/lib/active-deck";
+import { useActiveDeck, useActiveDeckCardName } from "@/lib/active-deck";
 import { useElementWidth } from "@/lib/use-element-width";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ import type { SpreadMode } from "@/lib/spreads";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { useAuth } from "@/lib/auth";
 import { fetchUserDecks, fetchDeckCards } from "@/lib/custom-decks";
-import { TAROT_DECK, getCardName } from "@/lib/tarot";
+import { TAROT_DECK } from "@/lib/tarot";
 import { buildCardDescriptor, getCardMeta } from "@/lib/card-astrology";
 import {
   getQuickLogCardStats,
@@ -99,6 +99,10 @@ export function QuickLog({
   const { user } = useAuth();
   const navigate = useNavigate();
   const { effectiveTz } = useTimezone();
+  // EJ35 — resolve oracle card names through the active deck's
+  // card_name overrides so constellation / chip labels show
+  // "Hurricane Lamp" instead of "Card 1000".
+  const resolveCardName = useActiveDeckCardName();
 
   // Seed from any cached picks; QuickLog is additive (no null gaps).
   const [picks, setPicks] = useState<ManualPick[]>(() =>
@@ -578,7 +582,7 @@ export function QuickLog({
                   opacity: 0.8,
                 }}
               >
-                {constellation.participatingCardIds.map((id) => getCardName(id)).join(" · ")}
+                {constellation.participatingCardIds.map((id) => resolveCardName(id)).join(" · ")}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {constellation.matchingReadings.map((r) => {
@@ -1517,6 +1521,9 @@ function CompanionsAndJournal({
   constellation: ConstellationState;
   onOpenReading: (id: string) => void;
 }) {
+  // EJ35 — resolver for oracle card_ids (>= 1000). Falls back to the
+  // tarot dictionary for 0..77.
+  const resolveCardName = useActiveDeckCardName();
   const companions = stats?.companions ?? [];
   const selected = companions[selectedIdx] ?? companions[0] ?? null;
 
@@ -1570,8 +1577,8 @@ function CompanionsAndJournal({
               const isSelected = idx === selectedIdx;
               const isInPull = pullSet.has(c.cardId);
               const showGoldRing = constellationActive && isInPull;
-              const heroName = heroPick ? getCardName(heroPick.cardIndex) : "this card";
-              const companionName = getCardName(c.cardId);
+              const heroName = heroPick ? resolveCardName(heroPick.cardIndex) : "this card";
+              const companionName = resolveCardName(c.cardId);
               const tooltipText = `${heroName} and ${companionName} have appeared together in ${c.count} of your spreads (matching your filters).`;
               return (
                 <button
@@ -1668,7 +1675,7 @@ function CompanionsAndJournal({
               textTransform: "uppercase",
             }}
           >
-            {getCardName(heroPick.cardIndex)} + {getCardName(selected.cardId)}
+            {resolveCardName(heroPick.cardIndex)} + {resolveCardName(selected.cardId)}
           </p>
           {journalRows.length === 0 ? (
             <p
@@ -2057,6 +2064,9 @@ function OverlapStrip({
    *  so the seeker sees the asterism's days at 100% visibility. */
   asterismBadgeHovered?: boolean;
 }) {
+  // EJ35 — resolver for oracle card_ids in day-cell tooltips that
+  // surface matched-card lists.
+  const resolveCardName = useActiveDeckCardName();
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
   const tealSet = useMemo(() => new Set(tealSelectedIds), [tealSelectedIds]);
@@ -2494,7 +2504,7 @@ function OverlapStrip({
                       matchCount === maxMatchInCalendar &&
                       pullSet.size > 1;
                     const dateLabel = formatDateLong(`${day.date}T00:00:00`);
-                    const heroName = heroCardId != null ? getCardName(heroCardId) : "";
+                    const heroName = heroCardId != null ? resolveCardName(heroCardId) : "";
                     // EJ10 — stacked tooltip lines, replacing the prior
                     // flat "X% Match · Y of N of these cards were drawn
                     // on date" sentence. Each active signal becomes its
@@ -2821,6 +2831,11 @@ function Tile({ label, value, subline }: { label: string; value: string; subline
 }
 
 function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
+  // EJ35 — resolver for consistency. ThisPullTiles only ever surfaces
+  // tarot card_ids today (its filtering chain excludes oracle picks
+  // via getCardMeta), but routing through the resolver keeps the
+  // contract identical to every other naming site.
+  const resolveCardName = useActiveDeckCardName();
   const metas = picks
     .map((p) => ({ pick: p, meta: getCardMeta(p.cardIndex) }))
     .filter((x) => x.meta != null) as Array<{
@@ -2869,7 +2884,7 @@ function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
     if (dominantN === 1 && roots.length === 1) {
       numerologyValue = `1 of 1 reduces to ${dominantRoot}`;
     }
-    const names = (rootCounts.get(dominantRoot) ?? []).map((p) => getCardName(p.cardIndex));
+    const names = (rootCounts.get(dominantRoot) ?? []).map((p) => resolveCardName(p.cardIndex));
     numerologySub = names.length > 3 ? `${names.slice(0, 3).join(", ")}…` : names.join(", ");
   }
 

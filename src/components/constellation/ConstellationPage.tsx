@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
-import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
+import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { computeMatchSignals } from "@/lib/match-signals";
@@ -48,6 +48,7 @@ import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
 import { TAROT_DECK } from "@/lib/tarot";
+import { useActiveDeckCardName } from "@/lib/active-deck";
 import {
   getQuickLogCardStats,
   getQuickLogOverlap,
@@ -519,6 +520,13 @@ export function ConstellationPage() {
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  // EJ35 — resolve oracle card_ids (>= 1000) through the active deck's
+  // card_name overrides. Falls back to "Card N" only when neither the
+  // tarot dictionary nor the deck has a name. Used everywhere the
+  // constellation surface displays a card name to the seeker — hover
+  // popovers, line tooltips, asterism listings — so oracle cards stop
+  // appearing as raw IDs.
+  const resolveCardName = useActiveDeckCardName();
 
   // EJ5 — master switch for hover tips on this surface. When
   // effectiveEnabled is false, all popovers (legend ⓘ, card, badge,
@@ -2261,8 +2269,27 @@ export function ConstellationPage() {
   // visible on the slim. Clicking the slim escalates to the rich
   // popover at the same anchor.
   const renderSlimHoverInner = (cardId: number): React.ReactNode => {
-    const m = TAROT_MEANINGS[cardId];
-    if (!m) return null;
+    // EJ35 — oracle cards (cardId >= 1000) aren't in TAROT_MEANINGS.
+    // Previously this returned null, leaving the hover popover empty.
+    // Now we synthesize a minimal entry with the deck-resolved name so
+    // the popover still renders all the count/last-seen/etc chips.
+    const tarotMeaning = TAROT_MEANINGS[cardId];
+    const isOracle = !tarotMeaning;
+    const m =
+      tarotMeaning ??
+      ({
+        name: resolveCardName(cardId),
+        uprightKeywords: [],
+        reversedKeywords: [],
+        uprightMeaning: "",
+        reversedMeaning: "",
+        element: "",
+        zodiac: null,
+        planet: null,
+        numerology: null,
+        yesNo: "maybe" as YesNo,
+      } as CardMeaning);
+    void isOracle;
     const pd = popoverDataMap?.[cardId];
     const rank = drawCounts?.perCardRank?.[cardId];
     const universeSize = drawCounts?.rankUniverseSize ?? 0;
@@ -2655,8 +2682,26 @@ export function ConstellationPage() {
   };
 
   const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => {
-    const m = TAROT_MEANINGS[cardId];
-    if (!m) return null;
+    // EJ35 — oracle cards get a synthesized minimal CardMeaning so the
+    // popover still renders (name + stats only). Keyword/meaning blocks
+    // are guarded with `isOracle` below so they skip cleanly when we
+    // don't have meaning data.
+    const tarotMeaning = TAROT_MEANINGS[cardId];
+    const isOracle = !tarotMeaning;
+    const m =
+      tarotMeaning ??
+      ({
+        name: resolveCardName(cardId),
+        uprightKeywords: [],
+        reversedKeywords: [],
+        uprightMeaning: "",
+        reversedMeaning: "",
+        element: "",
+        zodiac: null,
+        planet: null,
+        numerology: null,
+        yesNo: "maybe" as YesNo,
+      } as CardMeaning);
     const effectiveEditable = opts.editable && popoverEditMode;
     // EI5 — drive popover purely from activePopover state. cardId
     // is derived from activePopover.key (which is stable while
@@ -3321,48 +3366,12 @@ export function ConstellationPage() {
         )}
 
         {/* Upright meaning */}
-        {popoverSection(
-          "meanings",
-          <>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 10,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "var(--accent, var(--gold))",
-                  opacity: 0.9,
-                }}
-              >
-                Upright
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 11.5,
-                  color: "var(--color-foreground)",
-                  opacity: 0.85,
-                  lineHeight: 1.35,
-                }}
-              >
-                {m.uprightKeywords.join(", ")}.
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: 12,
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {m.uprightMeaning}
-              </div>
-            </div>
-
-            {/* Reversed meaning */}
-            {allowReversed && (
+        {/* EJ35 — oracle cards don't have predefined keywords or
+            upright/reversed meanings, so skip this entire section. */}
+        {!isOracle &&
+          popoverSection(
+            "meanings",
+            <>
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 <div
                   style={{
@@ -3374,7 +3383,7 @@ export function ConstellationPage() {
                     opacity: 0.9,
                   }}
                 >
-                  Reversed
+                  Upright
                 </div>
                 <div
                   style={{
@@ -3386,7 +3395,7 @@ export function ConstellationPage() {
                     lineHeight: 1.35,
                   }}
                 >
-                  {m.reversedKeywords.join(", ")}.
+                  {m.uprightKeywords.join(", ")}.
                 </div>
                 <div
                   style={{
@@ -3396,12 +3405,51 @@ export function ConstellationPage() {
                     lineHeight: 1.45,
                   }}
                 >
-                  {m.reversedMeaning}
+                  {m.uprightMeaning}
                 </div>
               </div>
-            )}
-          </>,
-        )}
+
+              {/* Reversed meaning */}
+              {allowReversed && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.9,
+                    }}
+                  >
+                    Reversed
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11.5,
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {m.reversedKeywords.join(", ")}.
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      color: "var(--color-foreground)",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {m.reversedMeaning}
+                  </div>
+                </div>
+              )}
+            </>,
+          )}
 
         {/* Companion chips. Only shown when the hovered card is
             the hero (we have its top-7 from server data). For
@@ -3452,7 +3500,7 @@ export function ConstellationPage() {
                       color: "var(--color-foreground)",
                     }}
                   >
-                    {TAROT_DECK[c.cardId] ?? `Card ${c.cardId}`}{" "}
+                    {resolveCardName(c.cardId)}{" "}
                     <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.coCount}</span>
                   </span>
                 ))}
@@ -5696,7 +5744,7 @@ export function ConstellationPage() {
                 return list.map((r, i) => {
                   const cardsLabel = r.cardIds
                     .slice(0, 5)
-                    .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
+                    .map((id) => resolveCardName(id))
                     .join(" · ");
                   const extra = r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
                   const readingCardSet = new Set(r.cardIds);
@@ -5995,9 +6043,7 @@ function ReadingsModal({
               const maxMatchCount = matchCounts.reduce((m, n) => (n > m ? n : m), 0);
               return matches.map((r, i) => {
                 const date = formatDateShort(r.createdAt);
-                const cardsLabel = r.cardIds
-                  .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
-                  .join(" · ");
+                const cardsLabel = r.cardIds.map((id) => resolveCardName(id)).join(" · ");
                 const hasQuestion = !!(r.question && r.question.trim());
                 // Compute signals — uses neutral defaults when no
                 // context (modal opened without signal context).
