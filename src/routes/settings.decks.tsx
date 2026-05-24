@@ -5,7 +5,7 @@
  * and delete. Free tier capped at FREE_DECK_LIMIT (Stamp AW); when the user
  * exceeds the cap the "New deck" button becomes a paywall hint.
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -84,6 +84,14 @@ type WizardState =
   | { kind: "edit-import"; deck: CustomDeck };
 
 function DecksPage() {
+  // EJ36.1 — when a child route is active (e.g. /settings/decks/$deckId/edit),
+  // delegate to the Outlet so the child renders instead of the deck list.
+  // Without this, TanStack's route tree mounts the child route but its UI
+  // has no slot to render in, leaving the page blank. The check happens
+  // BEFORE any other hooks via useChildMatches() (which is itself a hook,
+  // safe to call here as the first hook in the component).
+  const childMatches = useChildMatches();
+  const hasChildRoute = childMatches.length > 0;
   const { user } = useAuth();
   const navigate = useNavigate();
   const { refresh: refreshActiveDeck } = useActiveDeck();
@@ -143,6 +151,10 @@ function DecksPage() {
     await supabase.from("custom_decks").delete().eq("id", deck.id);
     await Promise.all([load(), refreshActiveDeck()]);
   };
+
+  if (hasChildRoute) {
+    return <Outlet />;
+  }
 
   if (!user) {
     return (
