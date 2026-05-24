@@ -5888,6 +5888,7 @@ function ReadingsModal({
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
+  const resolveCardName = useActiveDeckCardName();
   if (!open) return null;
   const node = (
     <div
