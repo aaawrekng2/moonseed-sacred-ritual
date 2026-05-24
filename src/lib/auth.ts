@@ -30,12 +30,7 @@ export function useAuth(): { user: User | null; loading: boolean } {
       setUser(session?.user ?? null);
     });
 
-    const INTERACTION_EVENTS = [
-      "pointerdown",
-      "keydown",
-      "touchstart",
-      "scroll",
-    ] as const;
+    const INTERACTION_EVENTS = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
 
     const removeInteractionListeners = () => {
       if (typeof window === "undefined") return;
@@ -52,13 +47,28 @@ export function useAuth(): { user: User | null; loading: boolean } {
         if (!cancelled) setUser(existing.session.user);
         return;
       }
+      // EJ43 — surface signInAnonymously failures so eruda can show
+      // them. Previously errors were swallowed silently, which made it
+      // impossible to diagnose mobile sessions where anonymous auth was
+      // failing (quota exhausted, anonymous sign-in disabled at the
+      // project level, stale invalid token, network/CORS, etc.).
       const { data: anon, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.warn("[auth] signInAnonymously failed:", {
+          message: error.message,
+          status: (error as { status?: number }).status,
+          code: (error as { code?: string }).code,
+          name: error.name,
+        });
+      }
       if (!cancelled && !error && anon.user) {
         setUser(anon.user);
       }
     };
 
     const onFirstInteraction = () => {
+      // EJ43 — log to confirm the gate unlocked.
+      console.warn("[auth] interaction fired; signing in anonymously");
       removeInteractionListeners();
       void ensureAnonymousSession();
     };
@@ -72,6 +82,10 @@ export function useAuth(): { user: User | null; loading: boolean } {
         } else if (typeof window !== "undefined") {
           // Defer anonymous sign-in until the visitor actually interacts
           // with the page. Bots/crawlers don't fire these events.
+          // EJ43 — log so eruda surfaces whether the interaction gate is
+          // armed. If you never see "[auth] interaction fired" after
+          // tapping, the gate or the listeners are broken.
+          console.warn("[auth] no session yet; arming interaction listeners");
           for (const ev of INTERACTION_EVENTS) {
             window.addEventListener(ev, onFirstInteraction, {
               capture: true,

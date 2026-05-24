@@ -1,10 +1,4 @@
-import {
-  createFileRoute,
-  Link,
-  Outlet,
-  redirect,
-  useLocation,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useLocation } from "@tanstack/react-router";
 import { type CSSProperties } from "react";
 import {
   Database,
@@ -42,10 +36,7 @@ export const Route = createFileRoute("/settings")({
     meta: [{ title: "Settings — Tarot Seed" }],
   }),
   beforeLoad: ({ location }) => {
-    if (
-      location.pathname === "/settings" ||
-      location.pathname === "/settings/"
-    ) {
+    if (location.pathname === "/settings" || location.pathname === "/settings/") {
       throw redirect({ to: "/settings/profile" });
     }
   },
@@ -121,7 +112,87 @@ function SettingsLayout() {
   // top-bar cluster.
   useRegisterCloseHandler(() => void navigate({ to: "/" }));
 
-  if (authLoading || !user) return null;
+  // EJ43 — used to be `if (authLoading || !user) return null` which
+  // produced a fully blank screen if the anonymous session never
+  // resolved. Replaced with a visible fallback so blank screens become
+  // diagnostic instead of mysterious.
+  if (authLoading) {
+    return (
+      <main
+        className="flex h-dvh items-center justify-center bg-cosmos px-6"
+        style={{ paddingTop: "var(--topbar-pad)" }}
+      >
+        <p
+          className="font-serif italic"
+          style={{
+            color: "var(--color-foreground)",
+            opacity: 0.55,
+            fontSize: "var(--text-body)",
+          }}
+        >
+          Loading…
+        </p>
+      </main>
+    );
+  }
+  if (!user) {
+    return (
+      <main
+        className="flex h-dvh items-center justify-center bg-cosmos px-6"
+        style={{ paddingTop: "var(--topbar-pad)" }}
+      >
+        <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+          <p
+            className="font-serif italic"
+            style={{
+              color: "var(--color-foreground)",
+              opacity: 0.85,
+              fontSize: "var(--text-body-lg)",
+              lineHeight: 1.5,
+            }}
+          >
+            Couldn't set up your session.
+          </p>
+          <p
+            className="font-serif italic"
+            style={{
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+              fontSize: "var(--text-body-sm)",
+              lineHeight: 1.6,
+            }}
+          >
+            Tap the moon below to try again. If this keeps happening, open tarotseed.com/?debug=1 to
+            surface the cause in the console.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                window.location.reload();
+              } catch {
+                /* noop */
+              }
+            }}
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--gold)",
+              opacity: 0.85,
+              background: "none",
+              border: "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
+              padding: "10px 22px",
+              borderRadius: 999,
+              cursor: "pointer",
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <SettingsProvider>
@@ -149,18 +220,22 @@ function SettingsLayout() {
                     role="tab"
                     aria-selected={active}
                     className="whitespace-nowrap pb-1"
-                    style={{
-                      fontFamily: "var(--tab-font-family)",
-                      fontStyle: "var(--tab-font-style)",
-                      fontSize: "var(--tab-font-size)",
-                      letterSpacing: "var(--tab-letter-spacing)",
-                      textTransform: "var(--tab-text-transform)",
-                      color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
-                      opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
-                      borderBottom: active
-                        ? "1px solid var(--tab-underline-color)"
-                        : "1px solid transparent",
-                    } as CSSProperties}
+                    style={
+                      {
+                        fontFamily: "var(--tab-font-family)",
+                        fontStyle: "var(--tab-font-style)",
+                        fontSize: "var(--tab-font-size)",
+                        letterSpacing: "var(--tab-letter-spacing)",
+                        textTransform: "var(--tab-text-transform)",
+                        color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
+                        opacity: active
+                          ? "var(--tab-active-opacity)"
+                          : "var(--tab-inactive-opacity)",
+                        borderBottom: active
+                          ? "1px solid var(--tab-underline-color)"
+                          : "1px solid transparent",
+                      } as CSSProperties
+                    }
                   >
                     {t.label}
                   </Link>
@@ -209,9 +284,7 @@ function SettingsLayout() {
                     <Icon
                       className="h-4 w-4"
                       style={{
-                        opacity: active
-                          ? "var(--ro-plus-10)"
-                          : "var(--ro-plus-0)",
+                        opacity: active ? "var(--ro-plus-10)" : "var(--ro-plus-0)",
                       }}
                     />
                     <span>{t.label}</span>

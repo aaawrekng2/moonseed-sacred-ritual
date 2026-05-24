@@ -36,8 +36,7 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
  */
 export function FloatingMenu() {
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
-  const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } =
-    useFloatingMenu();
+  const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } = useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
   const { user } = useAuth();
   const moonPrefs = useMoonPrefs();
@@ -80,32 +79,26 @@ export function FloatingMenu() {
       );
     };
     window.addEventListener("tarotseed:dev-mode-changed", onChange);
-    return () =>
-      window.removeEventListener("tarotseed:dev-mode-changed", onChange);
+    return () => window.removeEventListener("tarotseed:dev-mode-changed", onChange);
   }, []);
   const navigate = useNavigate();
   const userInitial =
     (user?.email?.[0] as string | undefined) ??
-    ((user?.user_metadata as { display_name?: string } | undefined)
-      ?.display_name?.[0] as string | undefined) ??
+    ((user?.user_metadata as { display_name?: string } | undefined)?.display_name?.[0] as
+      | string
+      | undefined) ??
     null;
 
   const [open, setOpen] = useState(false);
-  const [phase, setPhase] = useState<"closed" | "open-bright" | "open-dim">(
-    "closed",
-  );
+  const [phase, setPhase] = useState<"closed" | "open-bright" | "open-dim">("closed");
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [tapLabel, setTapLabel] = useState<{ text: string; x: number } | null>(
-    null,
-  );
+  const [tapLabel, setTapLabel] = useState<{ text: string; x: number } | null>(null);
   const holdTimer = useRef<number | null>(null);
   const fadeTimer = useRef<number | null>(null);
   const labelTimer = useRef<number | null>(null);
   const mountedRef = useRef(false);
   const pillRef = useRef<HTMLDivElement | null>(null);
-  const pointerDownRef = useRef(false);
-  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -114,52 +107,10 @@ export function FloatingMenu() {
     return () => window.clearTimeout(t);
   }, []);
 
-  // Q33 Fix 5 — Path B: long-press anywhere on the page background opens
-  // the menu. The ··· trigger and the X close button are gone.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let timer: number | null = null;
-    const cancel = () => {
-      if (timer !== null) { window.clearTimeout(timer); timer = null; }
-      pointerDownRef.current = false;
-      pointerStartRef.current = null;
-    };
-    const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 && e.button !== -1) return;
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("button, input, a, [role=button], [data-no-peek]"))
-        return;
-      cancel();
-      pointerDownRef.current = true;
-      pointerStartRef.current = { x: e.clientX, y: e.clientY };
-      timer = window.setTimeout(() => {
-        timer = null;
-        if (!pointerDownRef.current) return;
-        openMenu();
-      }, 800);
-    };
-    const onMove = (e: PointerEvent) => {
-      if (!pointerStartRef.current) return;
-      const dx = e.clientX - pointerStartRef.current.x;
-      const dy = e.clientY - pointerStartRef.current.y;
-      if (Math.sqrt(dx * dx + dy * dy) > 12) cancel();
-    };
-    const onUp = () => cancel();
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
-    document.addEventListener("visibilitychange", cancel);
-    return () => {
-      cancel();
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
-      document.removeEventListener("visibilitychange", cancel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // EJ43 — long-press handler removed. Cori reported it stomps the
+  // native long-press / context-menu gesture on mobile, and the global
+  // FloatingMenu trigger is preserved via other entry points (BottomNav
+  // taps surface the menu when needed). Path B (Q33 Fix 5) is retired.
 
   const openMenu = () => {
     if (holdTimer.current) window.clearTimeout(holdTimer.current);
@@ -253,8 +204,7 @@ export function FloatingMenu() {
   const cycleSanctuary = (e: React.MouseEvent) => {
     if (occupied.length === 0) return;
     const currentIdx = occupied.findIndex((t) => t.slot === activeSlot);
-    const nextIdx =
-      currentIdx === -1 ? 0 : (currentIdx + 1) % occupied.length;
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % occupied.length;
     const next = occupied[nextIdx];
     if (!next) return;
     applySanctuary(next);
@@ -292,14 +242,9 @@ export function FloatingMenu() {
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           background: "oklch(0.10 0.03 280 / 35%)",
-          border:
-            "1px solid color-mix(in oklch, var(--gold) 12%, transparent)",
+          border: "1px solid color-mix(in oklch, var(--gold) 12%, transparent)",
           boxShadow: "0 2px 16px oklch(0 0 0 / 0.25)",
-          opacity: open
-            ? phase === "open-bright"
-              ? "var(--ro-plus-40)"
-              : "var(--ro-plus-10)"
-            : 0,
+          opacity: open ? (phase === "open-bright" ? "var(--ro-plus-40)" : "var(--ro-plus-10)") : 0,
           transform: open ? "translateY(0)" : "translateY(-12px)",
           pointerEvents: open ? "auto" : "none",
           transition: open
@@ -307,122 +252,112 @@ export function FloatingMenu() {
             : "opacity 600ms ease, transform 600ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
+        <MenuButton
+          onClick={(e) => {
+            if (helpHandler) {
+              helpHandler();
+            } else {
+              void navigate({ to: "/help" });
+            }
+            showLabel("Help", e);
+            resetTimer();
+          }}
+          ariaLabel="Help"
+        >
+          <HelpCircle size={17} strokeWidth={1.5} />
+        </MenuButton>
+
+        {copyText && (
           <MenuButton
             onClick={(e) => {
-              if (helpHandler) {
-                helpHandler();
-              } else {
-                void navigate({ to: "/help" });
-              }
-              showLabel("Help", e);
-              resetTimer();
+              handleCopy();
+              showLabel("Copied", e);
             }}
-            ariaLabel="Help"
+            ariaLabel="Copy reading"
           >
-            <HelpCircle size={17} strokeWidth={1.5} />
+            {copied ? (
+              <CheckCheck size={17} strokeWidth={1.5} />
+            ) : (
+              <Clipboard size={17} strokeWidth={1.5} />
+            )}
           </MenuButton>
+        )}
 
-          {copyText && (
-            <MenuButton
-              onClick={(e) => {
-                handleCopy();
-                showLabel("Copied", e);
-              }}
-              ariaLabel="Copy reading"
-            >
-              {copied ? (
-                <CheckCheck size={17} strokeWidth={1.5} />
-              ) : (
-                <Clipboard size={17} strokeWidth={1.5} />
-              )}
-            </MenuButton>
-          )}
-
-          {showRefresh && (
-            <MenuButton
-              onClick={(e) => {
-                handleRefresh();
-                showLabel("Refreshing", e);
-              }}
-              ariaLabel="Refresh"
-            >
-              <RotateCw
-                size={17}
-                strokeWidth={1.5}
-                style={{
-                  animation: refreshing ? "spin 1s linear infinite" : undefined,
-                }}
-              />
-            </MenuButton>
-          )}
-
+        {showRefresh && (
           <MenuButton
-            onClick={toggleMoonCarousel}
-            ariaLabel={moonPrefs.moon_show_carousel ? "Hide moon carousel" : "Show moon carousel"}
+            onClick={(e) => {
+              handleRefresh();
+              showLabel("Refreshing", e);
+            }}
+            ariaLabel="Refresh"
           >
-            <Moon
+            <RotateCw
               size={17}
               strokeWidth={1.5}
-              fill={moonPrefs.moon_show_carousel ? "currentColor" : "none"}
+              style={{
+                animation: refreshing ? "spin 1s linear infinite" : undefined,
+              }}
             />
           </MenuButton>
+        )}
 
-          {occupied.length > 0 && (
-            <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle saved themes">
-              <Wand2 size={17} strokeWidth={1.5} />
-            </MenuButton>
-          )}
+        <MenuButton
+          onClick={toggleMoonCarousel}
+          ariaLabel={moonPrefs.moon_show_carousel ? "Hide moon carousel" : "Show moon carousel"}
+        >
+          <Moon
+            size={17}
+            strokeWidth={1.5}
+            fill={moonPrefs.moon_show_carousel ? "currentColor" : "none"}
+          />
+        </MenuButton>
 
-          <button
-            type="button"
-            onClick={() => {
+        {occupied.length > 0 && (
+          <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle saved themes">
+            <Wand2 size={17} strokeWidth={1.5} />
+          </MenuButton>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            resetTimer();
+            void navigate({ to: "/settings/profile" });
+          }}
+          aria-label="Your profile"
+          className="flex items-center justify-center rounded-full transition-opacity focus:outline-none"
+          style={{
+            width: 26,
+            height: 26,
+            marginLeft: 4,
+            marginRight: 4,
+            background: "color-mix(in oklab, var(--gold) 18%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+            color: "var(--gold)",
+            fontSize: "var(--text-caption)",
+            fontFamily: "var(--font-serif)",
+            fontWeight: 600,
+            letterSpacing: "0.05em",
+            cursor: "pointer",
+          }}
+        >
+          {userInitial ? userInitial.toUpperCase() : <UserRound size={13} strokeWidth={1.5} />}
+        </button>
+
+        {isAdmin && (
+          <MenuButton
+            onClick={(e) => {
+              const next = !devOn;
+              setDevMode(next);
+              setDevOn(next);
+              showLabel(next ? "Dev on" : "Dev off", e);
               resetTimer();
-              void navigate({ to: "/settings/profile" });
             }}
-            aria-label="Your profile"
-            className="flex items-center justify-center rounded-full transition-opacity focus:outline-none"
-            style={{
-              width: 26,
-              height: 26,
-              marginLeft: 4,
-              marginRight: 4,
-              background:
-                "color-mix(in oklab, var(--gold) 18%, transparent)",
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
-              color: "var(--gold)",
-              fontSize: "var(--text-caption)",
-              fontFamily: "var(--font-serif)",
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-            }}
+            ariaLabel={devOn ? "Disable dev mode" : "Enable dev mode"}
           >
-            {userInitial ? (
-              userInitial.toUpperCase()
-            ) : (
-              <UserRound size={13} strokeWidth={1.5} />
-            )}
-          </button>
-
-          {isAdmin && (
-            <MenuButton
-              onClick={(e) => {
-                const next = !devOn;
-                setDevMode(next);
-                setDevOn(next);
-                showLabel(next ? "Dev on" : "Dev off", e);
-                resetTimer();
-              }}
-              ariaLabel={devOn ? "Disable dev mode" : "Enable dev mode"}
-            >
-              <Bug
-                size={17}
-                strokeWidth={1.5}
-                style={{ opacity: devOn ? 1 : 0.4 }}
-              />
-            </MenuButton>
-          )}
+            <Bug size={17} strokeWidth={1.5} style={{ opacity: devOn ? 1 : 0.4 }} />
+          </MenuButton>
+        )}
       </div>
 
       {tapLabel && (

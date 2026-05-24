@@ -86,50 +86,57 @@ export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } 
       onGenerate={onGenerate}
       isGenerating={isGenerating}
     >
-      {themes?.map((t) => (
-        <div
-          key={t.theme}
-          className="p-3"
-          style={{ background: "var(--surface-card)", borderRadius: 14 }}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-body)",
-                color: "var(--color-foreground)",
-              }}
-            >
-              {t.theme}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                color: "var(--gold)",
-              }}
-            >
-              {t.percentage}%
-            </span>
+      {themes?.map((t) => {
+        // EJ43 — sample_questions can be undefined on legacy cached
+        // rows written before the field was always defaulted to [].
+        // Without this guard, accessing .length or .slice crashes the
+        // overview block and renders nothing below the page header.
+        const samples = Array.isArray(t.sample_questions) ? t.sample_questions : [];
+        return (
+          <div
+            key={t.theme}
+            className="p-3"
+            style={{ background: "var(--surface-card)", borderRadius: 14 }}
+          >
+            <div className="flex items-center justify-between">
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                {t.theme}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  color: "var(--gold)",
+                }}
+              >
+                {t.percentage}%
+              </span>
+            </div>
+            {samples.length > 0 && (
+              <ul
+                style={{
+                  marginTop: 6,
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  opacity: 0.7,
+                  lineHeight: 1.5,
+                }}
+              >
+                {samples.slice(0, 2).map((q, i) => (
+                  <li key={i}>“{q}”</li>
+                ))}
+              </ul>
+            )}
           </div>
-          {t.sample_questions.length > 0 && (
-            <ul
-              style={{
-                marginTop: 6,
-                fontStyle: "italic",
-                fontSize: "var(--text-body-sm)",
-                opacity: 0.7,
-                lineHeight: 1.5,
-              }}
-            >
-              {t.sample_questions.slice(0, 2).map((q, i) => (
-                <li key={i}>“{q}”</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </AIGatedSection>
   );
 }
