@@ -16,13 +16,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EJ45";
+export const APP_VERSION_LETTER = "EJ46";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
 const MIST_EVENT = "tarotseed:mist-level-changed";
 const OPACITY_EVENT = "arcana:resting-opacity-changed";
 const DEV_EVENT = "tarotseed:dev-mode-changed";
+// EJ46 — slot-colors sub-toggle. When dev mode is ON, the saturated
+// debug colors in CardImage (green wrapper, red img tint, yellow
+// empty, magenta loading, orange back outline) can be suppressed
+// independently. Default: ON (colors visible) — matches the prior
+// behavior, only the SUPPRESS path is new.
+const DEV_SLOT_COLORS_KEY = "tarotseed:dev_slot_colors";
+const DEV_SLOT_COLORS_EVENT = "tarotseed:dev-slot-colors-changed";
 
 function readDevMode(): boolean {
   if (typeof window === "undefined") return false;
@@ -41,6 +48,45 @@ function readOpacity(): number {
   const raw = window.localStorage.getItem(OPACITY_KEY);
   const n = raw == null ? 50 : Number(raw);
   return Number.isFinite(n) ? Math.max(25, Math.min(100, Math.round(n))) : 50;
+}
+
+// EJ46 — slot-color sub-toggle reader. Default ON when no key set.
+export function readDevSlotColors(): boolean {
+  if (typeof window === "undefined") return true;
+  const raw = window.localStorage.getItem(DEV_SLOT_COLORS_KEY);
+  // Treat missing key as ON to preserve current behavior.
+  if (raw === null) return true;
+  return raw === "true";
+}
+
+export function setDevSlotColors(on: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DEV_SLOT_COLORS_KEY, on ? "true" : "false");
+  window.dispatchEvent(new CustomEvent<boolean>(DEV_SLOT_COLORS_EVENT, { detail: on }));
+}
+
+// EJ46 — live-tracking React hook for the slot-colors sub-toggle.
+// Mirrors the same listener pattern CardImage uses for dev mode so the
+// suppression flips immediately when the user toggles it.
+export function useDevSlotColors(): boolean {
+  const [on, setOn] = useState<boolean>(() => readDevSlotColors());
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setOn(typeof detail === "boolean" ? detail : readDevSlotColors());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DEV_SLOT_COLORS_KEY) setOn(readDevSlotColors());
+    };
+    window.addEventListener(DEV_SLOT_COLORS_EVENT, handler);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(DEV_SLOT_COLORS_EVENT, handler);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return on;
 }
 
 export function setDevMode(on: boolean): void {

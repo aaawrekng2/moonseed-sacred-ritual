@@ -35,6 +35,7 @@ import {
   useDeckCornerRadius,
   useDeckImage,
 } from "@/lib/active-deck";
+import { useDevSlotColors } from "@/components/dev/DevOverlay";
 import type { CardBackId } from "@/lib/card-backs";
 
 /**
@@ -299,11 +300,16 @@ export function CardImage({
   // EY-1 — Saturated diagnostic colors. The card art still
   // shows through the IMG layer at 50% opacity; everything else
   // is fully opaque so layer geometry is unambiguous.
-  const DEV_WRAPPER_BG = devMode ? "#00FF00" : undefined; // green
-  const DEV_IMG_TINT_BG = devMode ? "rgba(255, 0, 0, 0.5)" : undefined; // red 50%
-  const DEV_BACK_OUTLINE = devMode ? "3px solid #FF4F00" : undefined; // international orange
-  const DEV_EMPTY_BG = devMode ? "#FFFF00" : undefined; // yellow
-  const DEV_LOADING_OUTLINE = devMode ? "3px solid #FF00FF" : undefined; // magenta
+  // EJ46 — slot colors are gated by a sub-toggle so dev mode can
+  // stay ON for version pill / opacity readout / DevChip without
+  // the saturated colors painting every card. Default ON.
+  const slotColorsOn = useDevSlotColors();
+  const devColorsActive = devMode && slotColorsOn;
+  const DEV_WRAPPER_BG = devColorsActive ? "#00FF00" : undefined; // green
+  const DEV_IMG_TINT_BG = devColorsActive ? "rgba(255, 0, 0, 0.5)" : undefined; // red 50%
+  const DEV_BACK_OUTLINE = devColorsActive ? "3px solid #FF4F00" : undefined; // international orange
+  const DEV_EMPTY_BG = devColorsActive ? "#FFFF00" : undefined; // yellow
+  const DEV_LOADING_OUTLINE = devColorsActive ? "3px solid #FF00FF" : undefined; // magenta
 
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;

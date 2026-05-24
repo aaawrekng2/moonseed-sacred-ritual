@@ -22,6 +22,7 @@ import { useThemeColorSync } from "@/lib/use-theme-color-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { DevOverlay } from "@/components/dev/DevOverlay";
+import { DevChip } from "@/components/dev/DevChip";
 import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
 import { ActiveDeckProvider } from "@/lib/active-deck";
 import { cleanupStaleSessions } from "@/lib/import-session";
@@ -358,6 +359,7 @@ function RootComponent() {
             <Outlet />
             <BottomNavGate />
             <DevOverlay />
+            <DevChip />
             {mounted && <Toaster />}
             <TimezoneMismatchDialog />
             <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
