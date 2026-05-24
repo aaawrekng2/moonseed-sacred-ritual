@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
-import { getCardName } from "@/lib/tarot";
-import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import {
-  buildDeckImageMap,
-  resolveCardImage,
-  type DeckImageMap,
-} from "@/lib/custom-decks";
+  useActiveCardBackUrl,
+  useActiveDeckImage,
+  useActiveDeckCornerRadius,
+  useActiveDeckCardName,
+} from "@/lib/active-deck";
+import { buildDeckImageMap, resolveCardImage, type DeckImageMap } from "@/lib/custom-decks";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -17,10 +17,7 @@ import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "./CardZoomModal";
-import {
-  useRegisterCloseHandler,
-  useRegisterCopyText,
-} from "@/lib/floating-menu-context";
+import { useRegisterCloseHandler, useRegisterCopyText } from "@/lib/floating-menu-context";
 import { nextYesNoSaying } from "@/lib/yes-no-sayings";
 import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/ManualEntryBuilder";
 
@@ -94,9 +91,7 @@ export function SpreadLayout({
   useRegisterCopyText(copyText);
 
   // Per-card revealed state. Cards must be flipped in slot order.
-  const [revealedFlags, setRevealedFlags] = useState<boolean[]>(
-    () => picks.map(() => false),
-  );
+  const [revealedFlags, setRevealedFlags] = useState<boolean[]>(() => picks.map(() => false));
   // Index of the card that just received a wrong tap (red border flash).
   // Cleared 400ms after it's set.
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
@@ -321,15 +316,11 @@ function SpreadContent({
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
-  const sizing = useMemo(
-    () => spreadSizing(spread, picks.length),
-    [spread, picks.length],
-  );
+  const sizing = useMemo(() => spreadSizing(spread, picks.length), [spread, picks.length]);
   // CM Group 2 — reveal phase = all slots filled but not every card flipped.
   const required = picks.length;
   const revealedCount = revealedFlags.filter(Boolean).length;
-  const isRevealPhase =
-    required > 0 && revealedCount < required && picks.length === required;
+  const isRevealPhase = required > 0 && revealedCount < required && picks.length === required;
 
   if (spread === "celtic") {
     return (
@@ -518,9 +509,7 @@ function SpreadContent({
               key={`label-${pick.id}`}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}
             >
-              {showLabels && (
-                <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
-              )}
+              {showLabels && <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>}
               {showLabels && revealedFlags[i] && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
@@ -558,8 +547,7 @@ function spreadSizing(spread: SpreadMode, count?: number): Sizing {
   // 3-card sizing is now responsive and matches ReadingScreen's CardStrip
   // exactly, so the cards do not resize when the inline reading flow
   // takes over after the last reveal.
-  const isMobile =
-    typeof window !== "undefined" && window.innerWidth < 768;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   switch (spread) {
     case "celtic":
       return { w: 56, h: 98 };
@@ -608,15 +596,11 @@ function CardFace({
   // BX — when a custom deck is active, render its photographed back.
   const customBackUrl = useActiveCardBackUrl();
   const deckRadiusPx = useActiveDeckCornerRadius();
+  // EJ35 — resolve oracle card names for alt + aria-label.
+  const resolveCardName = useActiveDeckCardName();
   // CM Group 2 — focus dim during the reveal phase only. Next-to-flip
   // stays full opacity, already-flipped fade to 0.8, others to 0.6.
-  const cardOpacity = !isRevealPhase
-    ? 1
-    : isNext
-      ? 1
-      : revealed
-        ? 0.8
-        : 0.6;
+  const cardOpacity = !isRevealPhase ? 1 : isNext ? 1 : revealed ? 0.8 : 0.6;
   return (
     <div
       style={{
@@ -625,89 +609,90 @@ function CardFace({
         transition: "opacity 400ms ease-out",
       }}
     >
-    <div
-      className="cast-card-emerge"
-      style={{
-        // Custom prop consumed by the cast-card-emerge keyframes.
-        ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
-        display: "inline-block",
-      }}
-    >
-    <div
-      className="relative"
-      style={{
-        width: sizing.w,
-        height: sizing.h,
-        transform: rotated ? "rotate(90deg)" : undefined,
-        transformOrigin: "center center",
-      }}
-    >
       <div
-        className={cn(
-          "relative h-full w-full rounded-[10px] flip-3d",
-          revealed && "is-flipped",
-          !revealed && isNext && "cast-next-hint",
-          isWrong && "cast-wrong-flash",
-        )}
+        className="cast-card-emerge"
         style={{
-          // @ts-expect-error custom prop
-          "--flip-ms": "1100ms",
-          boxShadow: "0 6px 18px rgba(0,0,0,0.5)",
+          // Custom prop consumed by the cast-card-emerge keyframes.
+          ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
+          display: "inline-block",
         }}
       >
-        <div className="flip-face back">
-          <CardBack id={cardBack} imageUrl={customBackUrl} width={sizing.w} className="h-full w-full" />
-        </div>
         <div
-          className="flip-face front overflow-hidden bg-card"
+          className="relative"
+          style={{
+            width: sizing.w,
+            height: sizing.h,
+            transform: rotated ? "rotate(90deg)" : undefined,
+            transformOrigin: "center center",
+          }}
         >
-          {/* Always render the face image so it's preloaded before the flip
+          <div
+            className={cn(
+              "relative h-full w-full rounded-[10px] flip-3d",
+              revealed && "is-flipped",
+              !revealed && isNext && "cast-next-hint",
+              isWrong && "cast-wrong-flash",
+            )}
+            style={{
+              // @ts-expect-error custom prop
+              "--flip-ms": "1100ms",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div className="flip-face back">
+              <CardBack
+                id={cardBack}
+                imageUrl={customBackUrl}
+                width={sizing.w}
+                className="h-full w-full"
+              />
+            </div>
+            <div className="flip-face front overflow-hidden bg-card">
+              {/* Always render the face image so it's preloaded before the flip
               animation begins — otherwise the first reveal shows a blank
               front while the image is still fetching. */}
-          <img
-            src={cardImg(pick.cardIndex) ?? undefined}
-            alt={getCardName(pick.cardIndex)}
-            className="h-full w-full object-contain"
-            loading="eager"
-            style={{
-              transform: pick.isReversed ? "rotate(180deg)" : undefined,
-              transition: "transform 600ms ease-out",
-            }}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
+              <img
+                src={cardImg(pick.cardIndex) ?? undefined}
+                alt={resolveCardName(pick.cardIndex)}
+                className="h-full w-full object-contain"
+                loading="eager"
+                style={{
+                  transform: pick.isReversed ? "rotate(180deg)" : undefined,
+                  transition: "transform 600ms ease-out",
+                }}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </div>
+          </div>
+          {interactive && (
+            <button
+              type="button"
+              aria-label={isNext ? "Reveal this card" : "Tap the highlighted card first"}
+              onClick={onTap}
+              className="absolute inset-0 cursor-pointer rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              // The "next" card must always sit on top of any sibling card's
+              // tap target — critical for the Celtic Cross where the rotated
+              // Obstacle (slot 2) overlaps the Present (slot 1) and would
+              // otherwise swallow every tap meant for Present.
+              style={{ background: "transparent", zIndex: isNext ? 30 : 10 }}
+            />
+          )}
+          {revealed && onZoom && (
+            <button
+              type="button"
+              aria-label={`Zoom ${resolveCardName(pick.cardIndex)}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onZoom(pick.cardIndex, !!pick.isReversed, pick.deckId ?? null);
+              }}
+              className="absolute inset-0 cursor-zoom-in rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+              style={{ background: "transparent", zIndex: 15 }}
+            />
+          )}
         </div>
       </div>
-      {interactive && (
-        <button
-          type="button"
-          aria-label={
-            isNext ? "Reveal this card" : "Tap the highlighted card first"
-          }
-          onClick={onTap}
-          className="absolute inset-0 cursor-pointer rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          // The "next" card must always sit on top of any sibling card's
-          // tap target — critical for the Celtic Cross where the rotated
-          // Obstacle (slot 2) overlaps the Present (slot 1) and would
-          // otherwise swallow every tap meant for Present.
-          style={{ background: "transparent", zIndex: isNext ? 30 : 10 }}
-        />
-      )}
-      {revealed && onZoom && (
-        <button
-          type="button"
-          aria-label={`Zoom ${getCardName(pick.cardIndex)}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onZoom(pick.cardIndex, !!pick.isReversed, pick.deckId ?? null);
-          }}
-          className="absolute inset-0 cursor-zoom-in rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
-          style={{ background: "transparent", zIndex: 15 }}
-        />
-      )}
-    </div>
-    </div>
     </div>
   );
 }
@@ -758,11 +743,11 @@ function CardNameLabel({
   cardWidth: number;
   nameOverride?: string;
 }) {
+  // EJ35 — resolve oracle card names via active deck so the label
+  // under each card reads "Hurricane Lamp" not "Card 1000".
+  const resolveCardName = useActiveDeckCardName();
   return (
-    <div
-      className="flex flex-col items-center"
-      style={{ width: cardWidth, maxWidth: cardWidth }}
-    >
+    <div className="flex flex-col items-center" style={{ width: cardWidth, maxWidth: cardWidth }}>
       <span
         style={{
           fontSize: "var(--text-body-sm)",
@@ -777,7 +762,7 @@ function CardNameLabel({
           width: "100%",
         }}
       >
-        {nameOverride ?? getCardName(cardIndex)}
+        {nameOverride ?? resolveCardName(cardIndex)}
       </span>
       {isReversed && (
         <span
@@ -980,9 +965,7 @@ function ThreeRow({
             }}
           >
             {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>
-                {labels[i] ?? `Card ${i + 1}`}
-              </PositionLabel>
+              <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
             )}
             {showLabels && revealedFlags[i] && (
               <CardNameLabel
@@ -1083,55 +1066,55 @@ function CelticCross({
         <div className="flex flex-col items-center" style={{ gap: rowGap }}>
           {cardWithLabel(future, labels[5] ?? "Future")}
           <div className="flex flex-col items-center gap-1.5">
-          <div
-            className="relative flex items-center justify-center"
-            style={{ width: sizing.w, height: sizing.h }}
-          >
-            {/* Present (slot 1) and Obstacle (slot 2) share this cell.
+            <div
+              className="relative flex items-center justify-center"
+              style={{ width: sizing.w, height: sizing.h }}
+            >
+              {/* Present (slot 1) and Obstacle (slot 2) share this cell.
                 Both wrappers are absolutely positioned and overlap, so
                 stacking order is determined by their parent stacking
                 contexts — NOT by the inner button's z-index (the rotated
                 Obstacle creates its own stacking context via `transform`).
                 Lift whichever card is currently the next-required tap so
                 its tap target sits on top of its sibling. */}
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ zIndex: nextIndex === 0 ? 20 : 10 }}
-            >
-              <CardFace
-                pick={present.pick!}
-                cardBack={cardBack}
-                revealed={!!revealedFlags[0]}
-                isNext={nextIndex === 0}
-                isWrong={wrongIndex === 0}
-                onTap={() => onTap(0)}
-                sizing={sizing}
-                emergeDelayMs={0}
-                isRevealPhase={isRevealPhase}
-                onZoom={onZoom}
-              />
-            </div>
-            {obstacle.pick ? (
               <div
                 className="absolute inset-0 flex items-center justify-center"
-                style={{ zIndex: nextIndex === 1 ? 20 : 10 }}
+                style={{ zIndex: nextIndex === 0 ? 20 : 10 }}
               >
                 <CardFace
-                  pick={obstacle.pick}
+                  pick={present.pick!}
                   cardBack={cardBack}
-                  revealed={!!revealedFlags[1]}
-                  isNext={nextIndex === 1}
-                  isWrong={wrongIndex === 1}
-                  onTap={() => onTap(1)}
+                  revealed={!!revealedFlags[0]}
+                  isNext={nextIndex === 0}
+                  isWrong={wrongIndex === 0}
+                  onTap={() => onTap(0)}
                   sizing={sizing}
-                  rotated
-                  emergeDelayMs={70}
+                  emergeDelayMs={0}
                   isRevealPhase={isRevealPhase}
                   onZoom={onZoom}
                 />
               </div>
-            ) : null}
-          </div>
+              {obstacle.pick ? (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ zIndex: nextIndex === 1 ? 20 : 10 }}
+                >
+                  <CardFace
+                    pick={obstacle.pick}
+                    cardBack={cardBack}
+                    revealed={!!revealedFlags[1]}
+                    isNext={nextIndex === 1}
+                    isWrong={wrongIndex === 1}
+                    onTap={() => onTap(1)}
+                    sizing={sizing}
+                    rotated
+                    emergeDelayMs={70}
+                    isRevealPhase={isRevealPhase}
+                    onZoom={onZoom}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
           {cardWithLabel(root, labels[2] ?? "Root")}
         </div>
@@ -1144,10 +1127,7 @@ function CelticCross({
       <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
         {staff.map((cell) =>
           cell.pick ? (
-            <div
-              key={cell.pick.id}
-              className="flex flex-col items-center gap-1.5"
-            >
+            <div key={cell.pick.id} className="flex flex-col items-center gap-1.5">
               <CardFace
                 pick={cell.pick}
                 cardBack={cardBack}
@@ -1205,23 +1185,17 @@ export function ManualSpreadSlots({
 }) {
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
-  const sizing = useMemo(
-    () => spreadSizing(spread, customCount),
-    [spread, customCount],
-  );
+  const sizing = useMemo(() => spreadSizing(spread, customCount), [spread, customCount]);
   const activeResolve = useActiveDeckImage();
   const deckRadiusPx = useActiveDeckCornerRadius();
+  // EJ35 — resolver routes through the active deck's nameByCardId so
+  // oracle picks without an explicit pick.cardName still surface a
+  // real label instead of "Card 1000".
+  const resolveCardName = useActiveDeckCardName();
 
   // 9-6-M — load image maps for any non-active deck IDs the picks reference.
   const uniqueDeckIds = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          picks
-            .map((p) => p?.deckId ?? null)
-            .filter((d): d is string => !!d),
-        ),
-      ),
+    () => Array.from(new Set(picks.map((p) => p?.deckId ?? null).filter((d): d is string => !!d))),
     [picks],
   );
   const uniqueKey = uniqueDeckIds.join(",");
@@ -1258,7 +1232,7 @@ export function ManualSpreadSlots({
     return resolveCardImage(pick.cardIndex, map ?? null, "thumbnail");
   };
   const nameForPick = (pick: NonNullable<ManualSlotPick>): string =>
-    pick.cardName ?? getCardName(pick.cardIndex) ?? `Card ${pick.cardIndex}`;
+    pick.cardName ?? resolveCardName(pick.cardIndex) ?? `Card ${pick.cardIndex}`;
 
   // 9-6-O — track natural aspect of each picked image so the slot
   // adapts to non-tarot card shapes (oracle decks). Empty slots keep
@@ -1279,7 +1253,7 @@ export function ManualSpreadSlots({
     responsiveWidth?: boolean;
     cellWidth?: number;
   }) => {
-    const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
+    const aspect = pick ? (pickAspects[slotIndex] ?? defaultAspect) : defaultAspect;
     const baseW = cellWidth ?? sizing.w;
     const baseH = cellWidth ? Math.round(cellWidth / defaultAspect) : sizing.h;
     const height = pick ? Math.round(baseW / aspect) : baseH;
@@ -1290,8 +1264,7 @@ export function ManualSpreadSlots({
     const sizeStyle: React.CSSProperties = responsiveWidth
       ? { width: "100%", aspectRatio: String(aspect) }
       : { width: baseW, height };
-    const showShimmer =
-      !!pick && pick.deckId != null && deckMapsLoading;
+    const showShimmer = !!pick && pick.deckId != null && deckMapsLoading;
     return (
       <button
         type="button"
@@ -1315,7 +1288,11 @@ export function ManualSpreadSlots({
           if (Number.isNaN(fromIdx) || fromIdx === slotIndex) return;
           onSlotReorder(fromIdx, slotIndex);
         }}
-        aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
+        aria-label={
+          pick
+            ? `Replace ${nameForPick(pick)}`
+            : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`
+        }
         className={cn(
           "relative transition active:scale-[0.98]",
           pick
@@ -1339,30 +1316,31 @@ export function ManualSpreadSlots({
               style={{
                 width: "100%",
                 height: "100%",
-                background:
-                  "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
+                background: "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
                 borderRadius: "var(--radius-sm)",
               }}
             />
           ) : (
-          <img
-            src={resolveForPick(pick) ?? undefined}
-            alt={nameForPick(pick)}
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              if (img.naturalWidth && img.naturalHeight) {
-                const a = img.naturalWidth / img.naturalHeight;
-                setPickAspects((prev) =>
-                  prev[slotIndex] === a ? prev : { ...prev, [slotIndex]: a },
-                );
-              }
-            }}
-            className="h-full w-full object-contain"
-            style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
-          />
+            <img
+              src={resolveForPick(pick) ?? undefined}
+              alt={nameForPick(pick)}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth && img.naturalHeight) {
+                  const a = img.naturalWidth / img.naturalHeight;
+                  setPickAspects((prev) =>
+                    prev[slotIndex] === a ? prev : { ...prev, [slotIndex]: a },
+                  );
+                }
+              }}
+              className="h-full w-full object-contain"
+              style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
+            />
           )
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">
+            +
+          </span>
         )}
       </button>
     );
@@ -1392,11 +1370,20 @@ export function ManualSpreadSlots({
           <div className="flex flex-col items-center" style={{ gap: rowGap }}>
             {cellWithLabel(5, labels[5] ?? "Future")}
             <div className="flex flex-col items-center gap-1.5">
-              <div className="relative flex items-center justify-center" style={{ width: sizing.w, height: sizing.h }}>
-                <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
+              <div
+                className="relative flex items-center justify-center"
+                style={{ width: sizing.w, height: sizing.h }}
+              >
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ zIndex: 10 }}
+                >
                   <Slot pick={picks[0] ?? null} slotIndex={0} />
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 11 }}>
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ zIndex: 11 }}
+                >
                   <Slot pick={picks[1] ?? null} slotIndex={1} rotated />
                 </div>
               </div>
@@ -1416,7 +1403,9 @@ export function ManualSpreadSlots({
           {[6, 7, 8, 9].map((i) => (
             <div key={i} className="flex flex-col items-center gap-1.5">
               <Slot pick={picks[i] ?? null} slotIndex={i} />
-              {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>}
+              {showLabels && (
+                <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>
+              )}
               {showLabels && picks[i] && (
                 <CardNameLabel
                   cardIndex={picks[i]!.cardIndex}
@@ -1509,9 +1498,7 @@ export function ManualSpreadSlots({
               }}
             >
               {showLabels && labels[i] && (
-                <PositionLabel cardWidth={cellW}>
-                  {labels[i]}
-                </PositionLabel>
+                <PositionLabel cardWidth={cellW}>{labels[i]}</PositionLabel>
               )}
               {showLabels && pick && (
                 <CardNameLabel
@@ -1531,8 +1518,7 @@ export function ManualSpreadSlots({
   if (spread === "custom") {
     // Q39 Fix 3 — deterministic 1-10 card grid. Cards bottom-anchored to a
     // shared floor; labels in a separate row aligned to the same top.
-    const cols =
-      picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
+    const cols = picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
     const gap = 8;
     const sidePad = 48; // 16px each side + 8px safety margin each side
     const availW =
@@ -1590,11 +1576,7 @@ export function ManualSpreadSlots({
                         justifyContent: "center",
                       }}
                     >
-                      <Slot
-                        pick={pick}
-                        slotIndex={absIdx}
-                        cellWidth={cellW}
-                      />
+                      <Slot pick={pick} slotIndex={absIdx} cellWidth={cellW} />
                     </div>
                   );
                 })}
@@ -1655,9 +1637,7 @@ export function ManualSpreadSlots({
           gap: 2,
         }}
       >
-        {showLabels && labels[0] && (
-          <PositionLabel cardWidth={sizing.w}>{labels[0]}</PositionLabel>
-        )}
+        {showLabels && labels[0] && <PositionLabel cardWidth={sizing.w}>{labels[0]}</PositionLabel>}
         {showLabels && picks[0] && (
           <CardNameLabel
             cardIndex={picks[0]!.cardIndex}

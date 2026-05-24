@@ -7,8 +7,7 @@
  */
 import { useMemo } from "react";
 import { CardImage } from "@/components/card/CardImage";
-import { getCardName } from "@/lib/tarot";
-import { useActiveDeckCornerRadius } from "@/lib/active-deck";
+import { useActiveDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
@@ -176,6 +175,11 @@ export function ConstellationWeb({
   dragOverTargetId = null,
   onConstellationDragOver = undefined,
 }: Props) {
+  // EJ35 — resolve oracle card names through the active deck's
+  // card_name overrides so the pair-line tooltip and any other
+  // labels in this surface read "Hurricane Lamp + Axe" instead of
+  // "Card 1000 + Card 1013".
+  const resolveCardName = useActiveDeckCardName();
   return (
     <div
       style={{
@@ -438,7 +442,7 @@ function ConstellationSvg({
             opacity={opacity}
             style={{ cursor: "help" }}
           >
-            <title>{`${getCardName(pair.a)} + ${getCardName(pair.b)} — co-occurred in ${pair.count} ${pair.count === 1 ? "spread" : "spreads"} (matching your filters)`}</title>
+            <title>{`${resolveCardName(pair.a)} + ${resolveCardName(pair.b)} — co-occurred in ${pair.count} ${pair.count === 1 ? "spread" : "spreads"} (matching your filters)`}</title>
           </line>
         );
       })}
