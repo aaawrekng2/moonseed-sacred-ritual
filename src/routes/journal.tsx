@@ -1,6 +1,22 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost, Heart, Image as ImageIcon, MessageCircle, Network, Star, StickyNote, Tag as TagIcon, Wand2, X as XIcon } from "lucide-react";
+import {
+  Archive as ArchiveIcon,
+  BookOpen,
+  Bookmark,
+  CalendarDays,
+  Camera,
+  Ghost,
+  Heart,
+  Image as ImageIcon,
+  MessageCircle,
+  Network,
+  Star,
+  StickyNote,
+  Tag as TagIcon,
+  Wand2,
+  X as XIcon,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -19,7 +35,7 @@ import { stripMarkdown, stripLegacyTarotSeedPrefix } from "@/lib/strip-markdown"
 import {
   useDeckImage,
   useDeckCornerRadius,
-  useActiveDeckCardName,
+  useAnyDeckCardName,
   useDeckCardName,
   useMultiDeckCardName,
   useMultiDeckImage,
@@ -28,10 +44,7 @@ import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { toast } from "sonner";
-import {
-  EnrichmentPanel,
-  type EnrichmentTag,
-} from "@/components/journal/EnrichmentPanel";
+import { EnrichmentPanel, type EnrichmentTag } from "@/components/journal/EnrichmentPanel";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
@@ -48,10 +61,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import { EmptyNote } from "@/components/ui/empty-note";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
-import {
-  EMPTY_GLOBAL_FILTERS,
-  type GlobalFilters,
-} from "@/lib/filters.types";
+import { EMPTY_GLOBAL_FILTERS, type GlobalFilters } from "@/lib/filters.types";
 import { useTimezone } from "@/lib/use-timezone";
 import {
   addDaysInTz,
@@ -100,8 +110,7 @@ function CardThumb({
         className={className}
         style={{
           background: "color-mix(in oklab, var(--gold) 6%, transparent)",
-          border:
-            "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
           opacity: 0.4,
           ...(style ?? {}),
         }}
@@ -132,8 +141,7 @@ export const Route = createFileRoute("/journal")({
       { title: "Journal — Tarot Seed" },
       {
         name: "description",
-        content:
-          "Your archive of tarot readings — search, filter, and revisit.",
+        content: "Your archive of tarot readings — search, filter, and revisit.",
       },
       { property: "og:title", content: "Journal — Tarot Seed" },
       {
@@ -181,14 +189,7 @@ type ReadingRow = {
 
 type TagRow = { id: string; name: string; usage_count: number };
 
-type ViewMode =
-  | "readings"
-  | "gallery"
-  | "notes"
-  | "favorites"
-  | "threads"
-  | "calendar"
-  | "archive";
+type ViewMode = "readings" | "gallery" | "notes" | "favorites" | "threads" | "calendar" | "archive";
 
 /** Draw types the seeker can filter by. Maps to `readings.spread_type`. */
 type DrawTypeKey = "single" | "three" | "celtic" | "yes_no";
@@ -327,30 +328,29 @@ function JournalPage() {
     }
     let cancelled = false;
     void (async () => {
-      const [{ data: rows }, { data: tagRows }, { data: photoRows }] =
-        await Promise.all([
-          supabase
-            .from("readings")
-            .select(
-              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
-            )
-            .eq("user_id", user.id)
-            .is("archived_at", null)
-            .order("created_at", { ascending: false })
-            .limit(500),
-          supabase
-            .from("user_tags")
-            .select("id,name,usage_count")
-            .eq("user_id", user.id)
-            .order("usage_count", { ascending: false })
-            .limit(100),
-          supabase
-            .from("reading_photos")
-            .select("reading_id,storage_path,created_at")
-            .eq("user_id", user.id)
-            .is("archived_at", null)
-            .order("created_at", { ascending: true }),
-        ]);
+      const [{ data: rows }, { data: tagRows }, { data: photoRows }] = await Promise.all([
+        supabase
+          .from("readings")
+          .select(
+            "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+          )
+          .eq("user_id", user.id)
+          .is("archived_at", null)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("user_tags")
+          .select("id,name,usage_count")
+          .eq("user_id", user.id)
+          .order("usage_count", { ascending: false })
+          .limit(100),
+        supabase
+          .from("reading_photos")
+          .select("reading_id,storage_path,created_at")
+          .eq("user_id", user.id)
+          .is("archived_at", null)
+          .order("created_at", { ascending: true }),
+      ]);
       if (cancelled) return;
       setReadings((rows ?? []) as ReadingRow[]);
       setTags((tagRows ?? []) as TagRow[]);
@@ -421,16 +421,14 @@ function JournalPage() {
         }
       }
       if (journalFilters.spreadTypes.length > 0) {
-        if (!journalFilters.spreadTypes.includes(r.spread_type as DrawTypeKey))
-          return false;
+        if (!journalFilters.spreadTypes.includes(r.spread_type as DrawTypeKey)) return false;
       }
       if (journalFilters.deepOnly && !r.is_deep_reading) return false;
       if (journalFilters.bookmarked && !r.mirror_saved) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
       if (journalFilters.storyIds.length > 0) {
-        if (!r.pattern_id || !journalFilters.storyIds.includes(r.pattern_id))
-          return false;
+        if (!r.pattern_id || !journalFilters.storyIds.includes(r.pattern_id)) return false;
       }
       if (activeDate) {
         const local = isoDayInTz(new Date(r.created_at), tz);
@@ -453,14 +451,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [
-    readings,
-    search,
-    journalFilters,
-    activeDate,
-    batchParam,
-    tz,
-  ]);
+  }, [readings, search, journalFilters, activeDate, batchParam, tz]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -470,10 +461,7 @@ function JournalPage() {
     () => filtered.filter((r) => (r.note ?? "").trim().length > 0),
     [filtered],
   );
-  const favItems = useMemo(
-    () => filtered.filter((r) => r.is_favorite),
-    [filtered],
-  );
+  const favItems = useMemo(() => filtered.filter((r) => r.is_favorite), [filtered]);
 
   const topTags = tags.slice(0, 8);
   // DN-5 — Stories the user can filter by: every pattern referenced
@@ -483,10 +471,7 @@ function JournalPage() {
   // so the default top-5 chips reflect what the seeker is currently
   // working with, not arbitrary alphabetical order.
   const allStories = useMemo(() => {
-    const map = new Map<
-      string,
-      { id: string; name: string; lastActiveAt: string }
-    >();
+    const map = new Map<string, { id: string; name: string; lastActiveAt: string }>();
     for (const r of readings) {
       if (!r.pattern_id) continue;
       const p = patternsById[r.pattern_id];
@@ -500,13 +485,11 @@ function JournalPage() {
         });
       }
     }
-    return Array.from(map.values()).sort((a, b) =>
-      b.lastActiveAt.localeCompare(a.lastActiveAt),
-    );
+    return Array.from(map.values()).sort((a, b) => b.lastActiveAt.localeCompare(a.lastActiveAt));
   }, [readings, patternsById]);
   const openReading = openId
-    ? readings.find((r) => r.id === openId) ??
-      (openOverride && openOverride.id === openId ? openOverride : null)
+    ? (readings.find((r) => r.id === openId) ??
+      (openOverride && openOverride.id === openId ? openOverride : null))
     : null;
 
   // ED-2A — when an Archive row is tapped, the reading isn't in
@@ -563,22 +546,15 @@ function JournalPage() {
     [],
   );
   const handleTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
-    setTags(
-      [...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100),
-    );
+    setTags([...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100));
   }, []);
 
   // DB-3.2 — Patch a reading's deck_id locally after the override picker
   // updates the row in the database. Keeps the journal list & detail view
   // in sync without a refetch.
-  const handleReadingDeckChange = useCallback(
-    (id: string, deckId: string | null) => {
-      setReadings((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, deck_id: deckId } : r)),
-      );
-    },
-    [],
-  );
+  const handleReadingDeckChange = useCallback((id: string, deckId: string | null) => {
+    setReadings((prev) => prev.map((r) => (r.id === id ? { ...r, deck_id: deckId } : r)));
+  }, []);
 
   // DA — Load metadata for the optional ?batch=... filter banner.
   useEffect(() => {
@@ -608,45 +584,42 @@ function JournalPage() {
       cancelled = true;
     };
   }, [batchParam, user]);
-  const handlePhotoCountChange = useCallback(
-    (readingId: string, count: number) => {
-      setPhotoCounts((prev) => {
-        if ((prev[readingId] ?? 0) === count) return prev;
-        const next = { ...prev };
-        if (count <= 0) delete next[readingId];
-        else next[readingId] = count;
-        return next;
-      });
-      // Refresh the cover photo for this reading so the Gallery view stays
-      // in sync after uploads/removals from the Detail enrichment panel.
-      void (async () => {
-        if (count <= 0) {
-          setPhotoCovers((prev) => {
-            if (!(readingId in prev)) return prev;
-            const next = { ...prev };
-            delete next[readingId];
-            return next;
-          });
-          return;
-        }
-        const { data: row } = await supabase
-          .from("reading_photos")
-          .select("storage_path")
-          .eq("reading_id", readingId)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        if (!row?.storage_path) return;
-        const { data: signed } = await supabase.storage
-          .from("reading-photos")
-          .createSignedUrl(row.storage_path, 60 * 60);
-        if (signed?.signedUrl) {
-          setPhotoCovers((prev) => ({ ...prev, [readingId]: signed.signedUrl }));
-        }
-      })();
-    },
-    [],
-  );
+  const handlePhotoCountChange = useCallback((readingId: string, count: number) => {
+    setPhotoCounts((prev) => {
+      if ((prev[readingId] ?? 0) === count) return prev;
+      const next = { ...prev };
+      if (count <= 0) delete next[readingId];
+      else next[readingId] = count;
+      return next;
+    });
+    // Refresh the cover photo for this reading so the Gallery view stays
+    // in sync after uploads/removals from the Detail enrichment panel.
+    void (async () => {
+      if (count <= 0) {
+        setPhotoCovers((prev) => {
+          if (!(readingId in prev)) return prev;
+          const next = { ...prev };
+          delete next[readingId];
+          return next;
+        });
+        return;
+      }
+      const { data: row } = await supabase
+        .from("reading_photos")
+        .select("storage_path")
+        .eq("reading_id", readingId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!row?.storage_path) return;
+      const { data: signed } = await supabase.storage
+        .from("reading-photos")
+        .createSignedUrl(row.storage_path, 60 * 60);
+      if (signed?.signedUrl) {
+        setPhotoCovers((prev) => ({ ...prev, [readingId]: signed.signedUrl }));
+      }
+    })();
+  }, []);
 
   return (
     <div className="bg-cosmos relative flex h-dvh flex-col">
@@ -661,234 +634,266 @@ function JournalPage() {
         }}
       >
         <div className="px-5">
-        <div
-          className="overflow-hidden flex items-center"
-          style={{
-            paddingTop: `${collapseProgress * 6}px`,
-            paddingBottom: `${collapseProgress * 6}px`,
-            maxHeight: `${collapseProgress * 32}px`,
-            transition: "max-height 150ms ease-out, padding 150ms ease-out",
-          }}
-        >
-          <h1
-            className="font-serif italic"
+          <div
+            className="overflow-hidden flex items-center"
             style={{
-              fontSize: "var(--text-heading-sm)",
-              color: "var(--color-foreground)",
-              opacity: 0.9 * collapseProgress,
-              transition: "opacity 150ms ease-out",
-              margin: 0,
-              lineHeight: 1,
+              paddingTop: `${collapseProgress * 6}px`,
+              paddingBottom: `${collapseProgress * 6}px`,
+              maxHeight: `${collapseProgress * 32}px`,
+              transition: "max-height 150ms ease-out, padding 150ms ease-out",
             }}
           >
-            Journal
-          </h1>
-        </div>
-        {statsLine ? (
-          <p
-            className="font-serif italic"
-            style={{
-              fontSize: "var(--text-caption, 0.75rem)",
-              color: "var(--color-foreground)",
-              opacity: 0.55,
-              margin: "4px 0 0 0",
-            }}
-          >
-            {statsLine}
-          </p>
-        ) : null}
-
-      {/* Search */}
-      <SearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder={"Search readings…"}
-        className="mt-2"
-      />
-
-      {/* FU-3 — Unified filter pattern via GlobalFilterBar. */}
-      <GlobalFilterBar
-        filters={journalFilters}
-        onChange={setJournalFilters}
-        sections={["tags", "spreadTypes", "depth"]}
-        userTags={topTags}
-        allStories={allStories}
-        trailingChips={
-          activeDate ? (
-            <button
-              type="button"
-              onClick={() => setActiveDate(null)}
-              className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
-              style={{ opacity: "var(--ro-plus-20)" }}
-            >
-              <XIcon size={11} strokeWidth={1.5} />
-              {formatDateShort(new Date(activeDate + "T12:00:00").toISOString())}
-            </button>
-          ) : null
-        }
-      />
-
-      {/* View tabs — icons only on mobile (< sm), label-only at sm+.
-          BO Fix 1 — wrapped in HorizontalScroll so the row gets edge
-          fades + chevron affordance when the six tabs overflow. */}
-      <HorizontalScroll className="mt-2" contentClassName="items-center gap-5">
-        {(
-          [
-            ["readings", "Readings", BookOpen],
-            ["gallery", "Gallery", ImageIcon],
-            ["notes", "Notes", StickyNote],
-            ["favorites", "Favorites", Heart],
-            ["calendar", "Calendar", CalendarDays],
-            ["threads", "Stories", Network],
-            ["archive", "Archive", ArchiveIcon],
-          ] as const
-        ).map(([key, label, Icon]) => {
-          const active = view === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setView(key)}
-              aria-label={label}
-              className="shrink-0 font-display text-[13px] italic text-gold transition-opacity"
+            <h1
+              className="font-serif italic"
               style={{
-                opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
-                borderBottom: active
-                  ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                  : "1px solid transparent",
-                paddingBottom: 2,
+                fontSize: "var(--text-heading-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.9 * collapseProgress,
+                transition: "opacity 150ms ease-out",
+                margin: 0,
+                lineHeight: 1,
               }}
             >
-              {Icon ? (
-                <>
-                  <span className="inline-flex sm:hidden">
-                    <Icon size={16} strokeWidth={1.5} aria-hidden />
-                  </span>
-                  <span className="hidden sm:inline">{label}</span>
-                </>
-              ) : (
-                <span>{label}</span>
-              )}
-            </button>
-          );
-        })}
-      </HorizontalScroll>
-        <div className="h-3" />
+              Journal
+            </h1>
+          </div>
+          {statsLine ? (
+            <p
+              className="font-serif italic"
+              style={{
+                fontSize: "var(--text-caption, 0.75rem)",
+                color: "var(--color-foreground)",
+                opacity: 0.55,
+                margin: "4px 0 0 0",
+              }}
+            >
+              {statsLine}
+            </p>
+          ) : null}
+
+          {/* Search */}
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder={"Search readings…"}
+            className="mt-2"
+          />
+
+          {/* FU-3 — Unified filter pattern via GlobalFilterBar. */}
+          <GlobalFilterBar
+            filters={journalFilters}
+            onChange={setJournalFilters}
+            sections={["tags", "spreadTypes", "depth"]}
+            userTags={topTags}
+            allStories={allStories}
+            trailingChips={
+              activeDate ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveDate(null)}
+                  className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+                  style={{ opacity: "var(--ro-plus-20)" }}
+                >
+                  <XIcon size={11} strokeWidth={1.5} />
+                  {formatDateShort(new Date(activeDate + "T12:00:00").toISOString())}
+                </button>
+              ) : null
+            }
+          />
+
+          {/* View tabs — icons only on mobile (< sm), label-only at sm+.
+          BO Fix 1 — wrapped in HorizontalScroll so the row gets edge
+          fades + chevron affordance when the six tabs overflow. */}
+          <HorizontalScroll className="mt-2" contentClassName="items-center gap-5">
+            {(
+              [
+                ["readings", "Readings", BookOpen],
+                ["gallery", "Gallery", ImageIcon],
+                ["notes", "Notes", StickyNote],
+                ["favorites", "Favorites", Heart],
+                ["calendar", "Calendar", CalendarDays],
+                ["threads", "Stories", Network],
+                ["archive", "Archive", ArchiveIcon],
+              ] as const
+            ).map(([key, label, Icon]) => {
+              const active = view === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setView(key)}
+                  aria-label={label}
+                  className="shrink-0 font-display text-[13px] italic text-gold transition-opacity"
+                  style={{
+                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {Icon ? (
+                    <>
+                      <span className="inline-flex sm:hidden">
+                        <Icon size={16} strokeWidth={1.5} aria-hidden />
+                      </span>
+                      <span className="hidden sm:inline">{label}</span>
+                    </>
+                  ) : (
+                    <span>{label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </HorizontalScroll>
+          <div className="h-3" />
         </div>
       </div>
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-28">
+        {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
+        <h1
+          className="font-serif italic mt-4 mb-2"
+          style={{
+            fontSize: "var(--text-display, 32px)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            lineHeight: 1.25,
+          }}
+        >
+          Journal
+        </h1>
 
-      {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
-      <h1
-        className="font-serif italic mt-4 mb-2"
-        style={{
-          fontSize: "var(--text-display, 32px)",
-          color: "var(--color-foreground)",
-          opacity: 0.9,
-          lineHeight: 1.25,
-        }}
-      >
-        Journal
-      </h1>
+        {/* Body */}
+        <div className="mt-4">
+          {batchParam && (
+            <div
+              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
+              style={{
+                border: "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+                background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+              }}
+            >
+              <span
+                className="font-display text-[12px] italic text-foreground"
+                style={{ opacity: "var(--ro-plus-30)" }}
+              >
+                {batchMeta
+                  ? `Showing ${filtered.length.toLocaleString()} reading${
+                      filtered.length === 1 ? "" : "s"
+                    } imported from ${batchMeta.sourceFormat} on ${formatDateLong(batchMeta.createdAt)}`
+                  : "No readings found for this import."}
+              </span>
+              <button
+                type="button"
+                onClick={() => void navigate({ to: "/journal", search: { batch: undefined } })}
+                className="font-display text-[12px] italic text-gold transition-opacity hover:opacity-80"
+              >
+                Show all readings →
+              </button>
+            </div>
+          )}
+          {!loaded ? (
+            <p
+              className="mt-12 text-center font-display text-sm italic text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-10)" }}
+            >
+              …
+            </p>
+          ) : view === "readings" ? (
+            <ReadingsList
+              items={filtered}
+              photoCounts={photoCounts}
+              patternsById={patternsById}
+              onOpen={setOpenId}
+              mapsLoading={journalMapsLoading}
+              onArchive={(id) => {
+                setReadings((prev) => prev.filter((r) => r.id !== id));
+                setArchiveCounter((c) => c + 1);
+              }}
+              emptyCta={{
+                label: "Begin a new spread",
+                onClick: () => navigate({ to: "/" }),
+              }}
+            />
+          ) : view === "gallery" ? (
+            <GalleryView items={galleryItems} covers={photoCovers} onOpen={setOpenId} />
+          ) : view === "notes" ? (
+            <NotesView items={noteItems} onOpen={setOpenId} />
+          ) : view === "favorites" ? (
+            <ReadingsList
+              items={favItems}
+              emptyOracle="Nothing yet held close to the heart…"
+              emptyPlain="Favorite a spread to see it here."
+              photoCounts={photoCounts}
+              patternsById={patternsById}
+              onOpen={setOpenId}
+              mapsLoading={journalMapsLoading}
+              onArchive={(id) => {
+                setReadings((prev) => prev.filter((r) => r.id !== id));
+                setArchiveCounter((c) => c + 1);
+              }}
+            />
+          ) : view === "calendar" ? (
+            <CalendarView
+              readings={readings}
+              activeTags={journalFilters.tags}
+              tagMode={journalFilters.tagMode}
+              activeDrawTypes={journalFilters.spreadTypes as DrawTypeKey[]}
+              activeDate={activeDate}
+              tz={tz}
+              onSelectDate={(d) => {
+                setActiveDate((cur) => (cur === d ? null : d));
+                setView("readings");
+              }}
+            />
+          ) : view === "archive" ? (
+            <ArchiveView
+              key={`archive-${archiveCounter}`}
+              onOpen={(id) => setOpenId(id)}
+              onChanged={() => {
+                // Restore puts a reading back in the active list — pull
+                // a fresh copy so it shows up everywhere.
+                if (!user) return;
+                void (async () => {
+                  const { data: rows } = await supabase
+                    .from("readings")
+                    .select(
+                      "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+                    )
+                    .eq("user_id", user.id)
+                    .is("archived_at", null)
+                    .order("created_at", { ascending: false })
+                    .limit(500);
+                  setReadings((rows ?? []) as ReadingRow[]);
+                })();
+              }}
+            />
+          ) : (
+            <ThreadsView
+              threads={threads}
+              patternsById={patternsById}
+              readings={filtered}
+              onOpenReading={(id) => setOpenId(id)}
+            />
+          )}
+        </div>
 
-      {/* Body */}
-      <div className="mt-4">
-        {batchParam && (
-          <div
-            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
-            style={{
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
-              background:
-                "color-mix(in oklab, var(--gold) 6%, transparent)",
-            }}
-          >
-            <span
-              className="font-display text-[12px] italic text-foreground"
-              style={{ opacity: "var(--ro-plus-30)" }}
-            >
-              {batchMeta
-                ? `Showing ${filtered.length.toLocaleString()} reading${
-                    filtered.length === 1 ? "" : "s"
-                  } imported from ${batchMeta.sourceFormat} on ${formatDateLong(batchMeta.createdAt)}`
-                : "No readings found for this import."}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                void navigate({ to: "/journal", search: { batch: undefined } })
-              }
-              className="font-display text-[12px] italic text-gold transition-opacity hover:opacity-80"
-            >
-              Show all readings →
-            </button>
-          </div>
-        )}
-        {!loaded ? (
-          <p
-            className="mt-12 text-center font-display text-sm italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-10)" }}
-          >
-            …
-          </p>
-        ) : view === "readings" ? (
-          <ReadingsList
-            items={filtered}
-            photoCounts={photoCounts}
-            patternsById={patternsById}
-            onOpen={setOpenId}
-            mapsLoading={journalMapsLoading}
-            onArchive={(id) => {
+        {openReading && (
+          <ReadingDetail
+            reading={openReading}
+            onClose={() => setOpenId(null)}
+            tagLibrary={tags}
+            onReadingChange={handleReadingChange}
+            onTagLibraryChange={handleTagLibraryChange}
+            onPhotoCountChange={handlePhotoCountChange}
+            onDeckChange={handleReadingDeckChange}
+            onArchived={(id) => {
               setReadings((prev) => prev.filter((r) => r.id !== id));
-              setArchiveCounter((c) => c + 1);
+              setOpenId(null);
             }}
-            emptyCta={{
-              label: "Begin a new spread",
-              onClick: () => navigate({ to: "/" }),
-            }}
-          />
-        ) : view === "gallery" ? (
-          <GalleryView
-            items={galleryItems}
-            covers={photoCovers}
-            onOpen={setOpenId}
-          />
-        ) : view === "notes" ? (
-          <NotesView items={noteItems} onOpen={setOpenId} />
-        ) : view === "favorites" ? (
-          <ReadingsList
-            items={favItems}
-            emptyOracle="Nothing yet held close to the heart…"
-            emptyPlain="Favorite a spread to see it here."
-            photoCounts={photoCounts}
-            patternsById={patternsById}
-            onOpen={setOpenId}
-            mapsLoading={journalMapsLoading}
-            onArchive={(id) => {
-              setReadings((prev) => prev.filter((r) => r.id !== id));
-              setArchiveCounter((c) => c + 1);
-            }}
-          />
-        ) : view === "calendar" ? (
-          <CalendarView
-            readings={readings}
-            activeTags={journalFilters.tags}
-            tagMode={journalFilters.tagMode}
-            activeDrawTypes={journalFilters.spreadTypes as DrawTypeKey[]}
-            activeDate={activeDate}
-            tz={tz}
-            onSelectDate={(d) => {
-              setActiveDate((cur) => (cur === d ? null : d));
-              setView("readings");
-            }}
-          />
-        ) : view === "archive" ? (
-          <ArchiveView
-            key={`archive-${archiveCounter}`}
-            onOpen={(id) => setOpenId(id)}
-            onChanged={() => {
-              // Restore puts a reading back in the active list — pull
-              // a fresh copy so it shows up everywhere.
+            onRestored={() => {
+              // ED-2B — refetch active readings so the restored row
+              // shows back up in Readings/Favorites/etc.
               if (!user) return;
               void (async () => {
                 const { data: rows } = await supabase
@@ -902,53 +907,12 @@ function JournalPage() {
                   .limit(500);
                 setReadings((rows ?? []) as ReadingRow[]);
               })();
+              setOpenOverride(null);
+              setOpenId(null);
             }}
           />
-        ) : (
-          <ThreadsView
-            threads={threads}
-            patternsById={patternsById}
-            readings={filtered}
-            onOpenReading={(id) => setOpenId(id)}
-          />
         )}
-      </div>
-
-      {openReading && (
-        <ReadingDetail
-          reading={openReading}
-          onClose={() => setOpenId(null)}
-          tagLibrary={tags}
-          onReadingChange={handleReadingChange}
-          onTagLibraryChange={handleTagLibraryChange}
-          onPhotoCountChange={handlePhotoCountChange}
-          onDeckChange={handleReadingDeckChange}
-          onArchived={(id) => {
-            setReadings((prev) => prev.filter((r) => r.id !== id));
-            setOpenId(null);
-          }}
-          onRestored={() => {
-            // ED-2B — refetch active readings so the restored row
-            // shows back up in Readings/Favorites/etc.
-            if (!user) return;
-            void (async () => {
-              const { data: rows } = await supabase
-                .from("readings")
-                .select(
-                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
-                )
-                .eq("user_id", user.id)
-                .is("archived_at", null)
-                .order("created_at", { ascending: false })
-                .limit(500);
-              setReadings((rows ?? []) as ReadingRow[]);
-            })();
-            setOpenOverride(null);
-            setOpenId(null);
-          }}
-        />
-      )}
-    </main>
+      </main>
     </div>
   );
 }
@@ -1104,8 +1068,7 @@ function ReadingCard({
           )}
           style={{
             width: REVEAL_PX,
-            background:
-              "color-mix(in oklab, var(--gold) 14%, transparent)",
+            background: "color-mix(in oklab, var(--gold) 14%, transparent)",
           }}
           tabIndex={isMobile ? -1 : 0}
         >
@@ -1113,213 +1076,262 @@ function ReadingCard({
         </button>
       )}
       <button
-      type="button"
-      onClick={() => onOpen(reading.id)}
-      className="relative z-0 block w-full rounded-2xl px-4 py-4 text-left transition-[transform,background-color] hover:bg-foreground/[0.04]"
-      style={{
-        border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
-        background: "color-mix(in oklab, var(--surface-overlay) 30%, transparent)",
-        transform: `translateX(${swipeX}px)`,
-      }}
-    >
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            <span style={{ opacity: "var(--ro-plus-30)" }}>
-              {formatDateShort(reading.created_at)} · {formatTimeAgo(reading.created_at)} · {spreadLabel(reading.spread_type)}
-            </span>
+        type="button"
+        onClick={() => onOpen(reading.id)}
+        className="relative z-0 block w-full rounded-2xl px-4 py-4 text-left transition-[transform,background-color] hover:bg-foreground/[0.04]"
+        style={{
+          border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
+          background: "color-mix(in oklab, var(--surface-overlay) 30%, transparent)",
+          transform: `translateX(${swipeX}px)`,
+        }}
+      >
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              <span style={{ opacity: "var(--ro-plus-30)" }}>
+                {formatDateShort(reading.created_at)} · {formatTimeAgo(reading.created_at)} ·{" "}
+                {spreadLabel(reading.spread_type)}
+              </span>
+            </div>
+          </div>
+          {/* Q13 Fix 3 — unified right-edge icon row. */}
+          <div className="flex items-center gap-2 shrink-0">
+            {hasQuestion && (
+              <MessageCircle
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.7 }}
+                aria-label="Has question"
+              >
+                <title>Has question</title>
+              </MessageCircle>
+            )}
+            {hasNote && (
+              <StickyNote
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.7 }}
+                aria-label="Has note"
+              >
+                <title>Has note</title>
+              </StickyNote>
+            )}
+            {reading.is_favorite && (
+              <Heart
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.8 }}
+                aria-label="Favorite"
+              >
+                <title>Favorite</title>
+              </Heart>
+            )}
+            {reading.mirror_saved && (
+              <Bookmark
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.8 }}
+                aria-label="Bookmarked"
+              >
+                <title>Bookmarked</title>
+              </Bookmark>
+            )}
+            {reading.is_deep_reading && (
+              <Star
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.8 }}
+                aria-label="Deep reading"
+              >
+                <title>Deep reading</title>
+              </Star>
+            )}
+            {reading.interpretation && reading.interpretation.trim() !== "" && (
+              <Wand2
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.7 }}
+                aria-label="AI interpreted"
+              >
+                <title>AI interpreted</title>
+              </Wand2>
+            )}
+            {hasTags && (
+              <TagIcon
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.7 }}
+                aria-label="Has tags"
+              >
+                <title>Has tags</title>
+              </TagIcon>
+            )}
+            {hasPhoto && (
+              <Camera
+                size={16}
+                strokeWidth={1.5}
+                fill="currentColor"
+                style={{ color: "var(--accent)", opacity: 0.7 }}
+                aria-label="Has photo"
+              >
+                <title>Has photo</title>
+              </Camera>
+            )}
+            {reading.pattern_id && patternsById[reading.pattern_id] && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate({ to: "/stories", search: { focus: reading.pattern_id! } });
+                }}
+                aria-label="In Story"
+                title={`View Story: ${patternsById[reading.pattern_id].name}`}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  color: "var(--accent)",
+                  opacity: 0.85,
+                }}
+              >
+                <Ghost
+                  size={16}
+                  strokeWidth={1.5}
+                  fill="currentColor"
+                  className="animate-glow-breathe"
+                />
+              </button>
+            )}
           </div>
         </div>
-        {/* Q13 Fix 3 — unified right-edge icon row. */}
-        <div className="flex items-center gap-2 shrink-0">
-          {hasQuestion && (
-            <MessageCircle size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question">
-              <title>Has question</title>
-            </MessageCircle>
-          )}
-          {hasNote && (
-            <StickyNote size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note">
-              <title>Has note</title>
-            </StickyNote>
-          )}
-          {reading.is_favorite && (
-            <Heart size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite">
-              <title>Favorite</title>
-            </Heart>
-          )}
-          {reading.mirror_saved && (
-            <Bookmark size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked">
-              <title>Bookmarked</title>
-            </Bookmark>
-          )}
-          {reading.is_deep_reading && (
-            <Star size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading">
-              <title>Deep reading</title>
-            </Star>
-          )}
-          {reading.interpretation && reading.interpretation.trim() !== "" && (
-            <Wand2 size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted">
-              <title>AI interpreted</title>
-            </Wand2>
-          )}
-          {hasTags && (
-            <TagIcon size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags">
-              <title>Has tags</title>
-            </TagIcon>
-          )}
-          {hasPhoto && (
-            <Camera size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo">
-              <title>Has photo</title>
-            </Camera>
-          )}
-          {reading.pattern_id && patternsById[reading.pattern_id] && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate({ to: "/stories", search: { focus: reading.pattern_id! } });
-              }}
-              aria-label="In Story"
-              title={`View Story: ${patternsById[reading.pattern_id].name}`}
-              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--accent)", opacity: 0.85 }}
-            >
-              <Ghost size={16} strokeWidth={1.5} fill="currentColor" className="animate-glow-breathe" />
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Card thumbnails */}
-      {isMobile ? (
-        // DA — Mobile: full swipeable strip with all cards.
-        <div
-          className="journal-thumb-strip mt-3 flex items-center gap-1.5 overflow-x-auto pb-1"
-          style={{
-            scrollbarWidth: "none",
-            WebkitOverflowScrolling: "touch",
-            maskImage:
-              reading.card_ids.length > 4
-                ? "linear-gradient(to right, black 90%, transparent 100%)"
-                : undefined,
-            WebkitMaskImage:
-              reading.card_ids.length > 4
-                ? "linear-gradient(to right, black 90%, transparent 100%)"
-                : undefined,
-          }}
-        >
-          {reading.card_ids.map((id, idx) => {
-            const isReversed = !!reading.card_orientations?.[idx];
-            const perCardDeckId =
-              (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
-            return (
-              <CardImage
-                key={`${id}-${idx}`}
-                cardId={id}
-                variant="face"
-                reversed={isReversed}
-                size="thumbnail"
-                deckId={perCardDeckId}
-                loading={!!mapsLoading && perCardDeckId != null}
-                className="flex-shrink-0"
-                style={{ opacity: "var(--ro-plus-30)" }}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <div className="mt-3 flex items-center gap-1.5">
-          {visible.map((id) => {
-            const idx = reading.card_ids.indexOf(id);
-            const isReversed =
-              idx >= 0 ? !!reading.card_orientations?.[idx] : false;
-            const perCardDeckId =
-              (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
-            return (
-              <CardImage
-                key={id}
-                cardId={id}
-                variant="face"
-                reversed={isReversed}
-                size="thumbnail"
-                deckId={perCardDeckId}
-                loading={!!mapsLoading && perCardDeckId != null}
-                style={{ opacity: "var(--ro-plus-30)" }}
-              />
-            );
-          })}
-          {overflow > 0 && (
-            <span
-              className="ml-1 font-display text-[11px] italic text-muted-foreground"
-              style={{ opacity: "var(--ro-plus-20)" }}
-            >
-              +{overflow} more
-            </span>
-          )}
-        </div>
-      )}
+        {/* Card thumbnails */}
+        {isMobile ? (
+          // DA — Mobile: full swipeable strip with all cards.
+          <div
+            className="journal-thumb-strip mt-3 flex items-center gap-1.5 overflow-x-auto pb-1"
+            style={{
+              scrollbarWidth: "none",
+              WebkitOverflowScrolling: "touch",
+              maskImage:
+                reading.card_ids.length > 4
+                  ? "linear-gradient(to right, black 90%, transparent 100%)"
+                  : undefined,
+              WebkitMaskImage:
+                reading.card_ids.length > 4
+                  ? "linear-gradient(to right, black 90%, transparent 100%)"
+                  : undefined,
+            }}
+          >
+            {reading.card_ids.map((id, idx) => {
+              const isReversed = !!reading.card_orientations?.[idx];
+              const perCardDeckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
+              return (
+                <CardImage
+                  key={`${id}-${idx}`}
+                  cardId={id}
+                  variant="face"
+                  reversed={isReversed}
+                  size="thumbnail"
+                  deckId={perCardDeckId}
+                  loading={!!mapsLoading && perCardDeckId != null}
+                  className="flex-shrink-0"
+                  style={{ opacity: "var(--ro-plus-30)" }}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-3 flex items-center gap-1.5">
+            {visible.map((id) => {
+              const idx = reading.card_ids.indexOf(id);
+              const isReversed = idx >= 0 ? !!reading.card_orientations?.[idx] : false;
+              const perCardDeckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
+              return (
+                <CardImage
+                  key={id}
+                  cardId={id}
+                  variant="face"
+                  reversed={isReversed}
+                  size="thumbnail"
+                  deckId={perCardDeckId}
+                  loading={!!mapsLoading && perCardDeckId != null}
+                  style={{ opacity: "var(--ro-plus-30)" }}
+                />
+              );
+            })}
+            {overflow > 0 && (
+              <span
+                className="ml-1 font-display text-[11px] italic text-muted-foreground"
+                style={{ opacity: "var(--ro-plus-20)" }}
+              >
+                +{overflow} more
+              </span>
+            )}
+          </div>
+        )}
 
-      {/* Interpretation excerpt */}
-      {hasQuestion && (
-        <p
-          className="mt-3 font-display text-[15px] italic leading-snug text-foreground"
-          style={{
-            color: "var(--gold)",
-            opacity: "var(--ro-plus-10)",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          “{reading.question!.trim()}”
-        </p>
-      )}
-      {interpClean && !hasQuestion && (
-        <p
-          className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
-          style={{
-            opacity: "var(--ro-plus-20)",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {interpClean}
-        </p>
-      )}
+        {/* Interpretation excerpt */}
+        {hasQuestion && (
+          <p
+            className="mt-3 font-display text-[15px] italic leading-snug text-foreground"
+            style={{
+              color: "var(--gold)",
+              opacity: "var(--ro-plus-10)",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            “{reading.question!.trim()}”
+          </p>
+        )}
+        {interpClean && !hasQuestion && (
+          <p
+            className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
+            style={{
+              opacity: "var(--ro-plus-20)",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {interpClean}
+          </p>
+        )}
 
-      {/* Tags */}
-      {(reading.tags ?? []).length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-          {(reading.tags ?? []).map((t) => (
-            <span
-              key={t}
-              className="font-display text-[11px] italic text-gold"
-              style={{ opacity: "var(--ro-plus-20)" }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-    </button>
+        {/* Tags */}
+        {(reading.tags ?? []).length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+            {(reading.tags ?? []).map((t) => (
+              <span
+                key={t}
+                className="font-display text-[11px] italic text-gold"
+                style={{ opacity: "var(--ro-plus-20)" }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+      </button>
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Archive this reading?</AlertDialogTitle>
             <AlertDialogDescription>
-              It moves to the Archive tab. Restore within 30 days, or it is
-              permanently removed.
+              It moves to the Archive tab. Restore within 30 days, or it is permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1363,14 +1375,7 @@ function GalleryView({
     <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
       {items.map((r) => {
         const photoUrl = covers[r.id];
-        return (
-          <GalleryTile
-            key={r.id}
-            reading={r}
-            photoUrl={photoUrl}
-            onOpen={onOpen}
-          />
-        );
+        return <GalleryTile key={r.id} reading={r} photoUrl={photoUrl} onOpen={onOpen} />;
       })}
     </div>
   );
@@ -1401,8 +1406,7 @@ function GalleryTile({
       onClick={() => onOpen(reading.id)}
       className="relative aspect-square overflow-hidden rounded-md"
       style={{
-        border:
-          "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+        border: "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
       }}
     >
       <CardThumb
@@ -1410,17 +1414,12 @@ function GalleryTile({
         alt=""
         loading="lazy"
         className="h-full w-full object-cover"
-        style={
-          photoUrl
-            ? undefined
-            : { opacity: "var(--ro-plus-30)" }
-        }
+        style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
       />
       <div
         className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
         style={{
-          background:
-            "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
+          background: "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
           color: "var(--gold)",
           opacity: "var(--ro-plus-20)",
         }}
@@ -1434,13 +1433,7 @@ function GalleryTile({
 
 /* ---------- Notes view ---------- */
 
-function NotesView({
-  items,
-  onOpen,
-}: {
-  items: ReadingRow[];
-  onOpen: (id: string) => void;
-}) {
+function NotesView({ items, onOpen }: { items: ReadingRow[]; onOpen: (id: string) => void }) {
   if (items.length === 0) {
     return (
       <Empty
@@ -1459,12 +1452,8 @@ function NotesView({
             className="block w-full rounded-xl px-4 py-3 text-left transition-colors hover:bg-foreground/[0.04]"
           >
             <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              <span style={{ opacity: "var(--ro-plus-20)" }}>
-                {formatTimeAgo(r.created_at)}
-              </span>
-              <span style={{ opacity: "var(--ro-plus-30)" }}>
-                {spreadLabel(r.spread_type)}
-              </span>
+              <span style={{ opacity: "var(--ro-plus-20)" }}>{formatTimeAgo(r.created_at)}</span>
+              <span style={{ opacity: "var(--ro-plus-30)" }}>{spreadLabel(r.spread_type)}</span>
             </div>
             <p
               className="mt-2 font-display text-[15px] italic leading-snug text-foreground"
@@ -1530,16 +1519,9 @@ function ThreadsView({
   // Lifecycle counts across all known patterns (not just those with readings).
   const lifecycleCounts: Record<string, number> = {};
   for (const p of Object.values(patternsById)) {
-    lifecycleCounts[p.lifecycle_state] =
-      (lifecycleCounts[p.lifecycle_state] ?? 0) + 1;
+    lifecycleCounts[p.lifecycle_state] = (lifecycleCounts[p.lifecycle_state] ?? 0) + 1;
   }
-  const lifecycleOrder = [
-    "emerging",
-    "active",
-    "reawakened",
-    "quieting",
-    "retired",
-  ];
+  const lifecycleOrder = ["emerging", "active", "reawakened", "quieting", "retired"];
   const lifecycleEntries = lifecycleOrder
     .filter((s) => (lifecycleCounts[s] ?? 0) > 0)
     .map((s) => [s, lifecycleCounts[s]] as const);
@@ -1571,10 +1553,7 @@ function ThreadsView({
     quieting: 3,
     retired: 4,
   };
-  const allPatternIds = new Set<string>([
-    ...readingsByPattern.keys(),
-    ...grouped.keys(),
-  ]);
+  const allPatternIds = new Set<string>([...readingsByPattern.keys(), ...grouped.keys()]);
   const orderedPatternIds = Array.from(allPatternIds).sort((a, b) => {
     const pa = patternsById[a];
     const pb = patternsById[b];
@@ -1587,9 +1566,7 @@ function ThreadsView({
   const filteredPatternIds =
     lifecycleFilter === "all"
       ? orderedPatternIds
-      : orderedPatternIds.filter(
-          (pid) => patternsById[pid]?.lifecycle_state === lifecycleFilter,
-        );
+      : orderedPatternIds.filter((pid) => patternsById[pid]?.lifecycle_state === lifecycleFilter);
   const filterOptions: Array<{ value: string; label: string }> = [
     { value: "all", label: "All" },
     { value: "emerging", label: "Emerging" },
@@ -1608,8 +1585,7 @@ function ThreadsView({
       >
         {filterOptions.map((opt) => {
           const active = lifecycleFilter === opt.value;
-          const disabled =
-            opt.value !== "all" && (lifecycleCounts[opt.value] ?? 0) === 0;
+          const disabled = opt.value !== "all" && (lifecycleCounts[opt.value] ?? 0) === 0;
           return (
             <button
               key={opt.value}
@@ -1708,91 +1684,91 @@ function ThreadsView({
                   {patternReadings.length === 1 ? "spread" : "spreads"}
                 </span>
               </div>
-            {p.description && p.description.trim() && (
-              <p
-                className="m-0 font-display whitespace-pre-wrap"
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "var(--text-body-sm)",
-                  lineHeight: 1.6,
-                  color: "var(--color-foreground)",
-                  opacity: 0.8,
-                }}
-              >
-                {p.description}
-              </p>
-            )}
-            {patternReadings.length > 0 && (
-              <ul className="flex flex-col gap-1.5">
-                {patternReadings.slice(0, 6).map((r) => {
-                  const hasQuestion = !!r.question?.trim();
-                  const label = hasQuestion
-                    ? `"${r.question!.trim()}"`
-                    : firstCardName(r.card_ids);
-                  return (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onOpenReading(r.id);
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "baseline",
-                          justifyContent: "space-between",
-                          gap: "var(--space-3, 12px)",
-                          width: "100%",
-                          padding: "var(--space-2, 8px) var(--space-3, 12px)",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "var(--radius-md, 10px)",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          touchAction: "manipulation",
-                        }}
-                      >
-                        <span
+              {p.description && p.description.trim() && (
+                <p
+                  className="m-0 font-display whitespace-pre-wrap"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-body-sm)",
+                    lineHeight: 1.6,
+                    color: "var(--color-foreground)",
+                    opacity: 0.8,
+                  }}
+                >
+                  {p.description}
+                </p>
+              )}
+              {patternReadings.length > 0 && (
+                <ul className="flex flex-col gap-1.5">
+                  {patternReadings.slice(0, 6).map((r) => {
+                    const hasQuestion = !!r.question?.trim();
+                    const label = hasQuestion
+                      ? `"${r.question!.trim()}"`
+                      : firstCardName(r.card_ids);
+                    return (
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onOpenReading(r.id);
+                          }}
                           style={{
-                            fontFamily: "var(--font-serif)",
-                            fontStyle: hasQuestion ? "italic" : "normal",
-                            fontSize: "var(--text-body-sm)",
-                            color: "var(--color-foreground)",
-                            opacity: 0.85,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
+                            display: "flex",
+                            alignItems: "baseline",
+                            justifyContent: "space-between",
+                            gap: "var(--space-3, 12px)",
+                            width: "100%",
+                            padding: "var(--space-2, 8px) var(--space-3, 12px)",
+                            background: "transparent",
+                            border: "none",
+                            borderRadius: "var(--radius-md, 10px)",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            touchAction: "manipulation",
                           }}
                         >
-                          {label}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "var(--text-caption)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.15em",
-                            color: "var(--color-foreground)",
-                            opacity: 0.5,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {formatTimeAgo(r.created_at)}
-                        </span>
-                      </button>
+                          <span
+                            style={{
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: hasQuestion ? "italic" : "normal",
+                              fontSize: "var(--text-body-sm)",
+                              color: "var(--color-foreground)",
+                              opacity: 0.85,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {label}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "var(--text-caption)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.15em",
+                              color: "var(--color-foreground)",
+                              opacity: 0.5,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {formatTimeAgo(r.created_at)}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {patternReadings.length > 6 && (
+                    <li
+                      className="px-2 font-display text-[11px] italic text-muted-foreground"
+                      style={{ opacity: "var(--ro-plus-20)" }}
+                    >
+                      + {patternReadings.length - 6} more
                     </li>
-                  );
-                })}
-                {patternReadings.length > 6 && (
-                  <li
-                    className="px-2 font-display text-[11px] italic text-muted-foreground"
-                    style={{ opacity: "var(--ro-plus-20)" }}
-                  >
-                    + {patternReadings.length - 6} more
-                  </li>
-                )}
-              </ul>
-            )}
+                  )}
+                </ul>
+              )}
             </section>
           </Link>
         );
@@ -1803,8 +1779,7 @@ function ThreadsView({
           style={{ opacity: "var(--ro-plus-10)" }}
         >
           {unlinkedReadings.length} reading
-          {unlinkedReadings.length === 1 ? "" : "s"} not yet woven into a
-          pattern.
+          {unlinkedReadings.length === 1 ? "" : "s"} not yet woven into a pattern.
         </p>
       )}
     </div>
@@ -1939,11 +1914,7 @@ function CalendarView({
               onClick={() => onSelectDate(c.key)}
               className={cn(
                 "relative flex aspect-square items-center justify-center rounded-md text-[13px] transition-colors",
-                selected
-                  ? "bg-gold/15 text-gold"
-                  : isToday
-                    ? "text-gold"
-                    : "text-foreground",
+                selected ? "bg-gold/15 text-gold" : isToday ? "text-gold" : "text-foreground",
               )}
               style={{
                 border: selected
@@ -1978,8 +1949,7 @@ function CalendarView({
                   style={{
                     background: "var(--gold)",
                     color: "var(--accent-foreground)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--gold) 70%, transparent)",
+                    border: "1px solid color-mix(in oklab, var(--gold) 70%, transparent)",
                     boxShadow: "0 1px 4px oklch(0 0 0 / 0.5)",
                   }}
                   aria-label={`${count} ${count === 1 ? "spread" : "spreads"}`}
@@ -2050,7 +2020,7 @@ function ReadingDetail({
     });
     return ids;
   }, [reading.deck_id, reading.card_deck_ids]);
-  const activeNameResolve = useActiveDeckCardName();
+  const activeNameResolve = useAnyDeckCardName();
   const multiNameResolve = useMultiDeckCardName(allDeckIds);
   // Q44 Fix 6 — preload all referenced deck image maps in parallel
   // so oracle/custom cards appear instantly instead of after a roundtrip.
@@ -2068,7 +2038,11 @@ function ReadingDetail({
   const [shareOpen, setShareOpen] = useState(false);
   // DD-4 — tap-to-zoom on saved-reading cards. Reuses the same modal
   // the active draw uses (CZ Group 3) so behavior matches everywhere.
-  const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean; idx: number } | null>(null);
+  const [zoomedCard, setZoomedCard] = useState<{
+    cardId: number;
+    reversed: boolean;
+    idx: number;
+  } | null>(null);
   // EZ-5 / FA-2 — Cards in journal reading-detail size to a 3-card-spread
   // baseline. A single-card reading renders at the same physical
   // width as one of three cards (centered, prominent — not full-row).
@@ -2092,24 +2066,16 @@ function ReadingDetail({
   // Q44 Fix 5 — split into 2 rows on desktop when more than 5 cards.
   const useTwoRows = !isMobile && ezCardCount > 5;
   const cardsPerRow = useTwoRows ? Math.ceil(ezCardCount / 2) : ezCardCount;
-  const row1Ids = useTwoRows
-    ? reading.card_ids.slice(0, cardsPerRow)
-    : reading.card_ids;
+  const row1Ids = useTwoRows ? reading.card_ids.slice(0, cardsPerRow) : reading.card_ids;
   const row2Ids = useTwoRows ? reading.card_ids.slice(cardsPerRow) : [];
   // Q50 Fix 6 — scale cards up so they feel focal instead of cramped.
   const ezBaseDivisor =
-    ezCardCount === 1
-      ? 1.5
-      : cardsPerRow <= 3
-        ? cardsPerRow * 0.7
-        : cardsPerRow * 0.85;
+    ezCardCount === 1 ? 1.5 : cardsPerRow <= 3 ? cardsPerRow * 0.7 : cardsPerRow * 0.85;
   // FA-2 — use measured row width instead of hardcoded 320 so
   // single cards actually fill the available space.
   const ezCardWidthRaw = Math.max(
     32,
-    Math.floor(
-      (measuredRowWidth - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor,
-    ),
+    Math.floor((measuredRowWidth - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor),
   );
   // Q44 Fix 4 — cap desktop single-card width so it does not
   // dominate the entire screen. Mobile keeps responsive sizing.
@@ -2120,9 +2086,7 @@ function ReadingDetail({
   // 375px viewport overflows the left edge because ezBaseDivisor's 0.7
   // multiplier scales cards larger than 1/n of the row.
   if (!swipeMobile) {
-    const cap = Math.floor(
-      (measuredRowWidth - ezGapPx * (cardsPerRow - 1)) / cardsPerRow,
-    );
+    const cap = Math.floor((measuredRowWidth - ezGapPx * (cardsPerRow - 1)) / cardsPerRow);
     if (cap > 0) ezCardWidthPx = Math.min(ezCardWidthPx, cap);
   }
   // Q89-7 — when the row is horizontally swipeable on mobile (4+ cards),
@@ -2151,7 +2115,7 @@ function ReadingDetail({
     };
   }, [reading.user_id]);
   const currentDeckName = reading.deck_id
-    ? decks.find((d) => d.id === reading.deck_id)?.name ?? "Custom deck"
+    ? (decks.find((d) => d.id === reading.deck_id)?.name ?? "Custom deck")
     : "Default";
   const handleSelectDeck = async (newDeckId: string | null) => {
     if (deckSaving) return;
@@ -2176,9 +2140,7 @@ function ReadingDetail({
   const [archiving, setArchiving] = useState(false);
   // ED-2B — read-only mode when this reading is in the Archive.
   const isArchived = reading.archived_at != null;
-  const archivedDays = reading.archived_at
-    ? daysUntilPurge(reading.archived_at)
-    : 0;
+  const archivedDays = reading.archived_at ? daysUntilPurge(reading.archived_at) : 0;
   const [restoring, setRestoring] = useState(false);
   const handleRestore = async () => {
     if (restoring) return;
@@ -2216,8 +2178,7 @@ function ReadingDetail({
     cardIndex: id,
     isReversed: reading.card_orientations?.[idx] ?? false,
   }));
-  const sharePositions =
-    positions ?? reading.card_ids.map((id, idx) => resolveCardName(id, idx));
+  const sharePositions = positions ?? reading.card_ids.map((id, idx) => resolveCardName(id, idx));
 
   // Lock body scroll while the overlay is open.
   useEffect(() => {
@@ -2251,10 +2212,8 @@ function ReadingDetail({
             role="status"
             className="mb-4 flex items-center justify-between gap-3 rounded-xl px-3 py-2"
             style={{
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
-              background:
-                "color-mix(in oklab, var(--gold) 8%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+              background: "color-mix(in oklab, var(--gold) 8%, transparent)",
             }}
           >
             <div
@@ -2270,8 +2229,7 @@ function ReadingDetail({
               disabled={restoring}
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic transition-colors disabled:opacity-50"
               style={{
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
                 color: "var(--gold)",
                 background: "transparent",
               }}
@@ -2361,10 +2319,8 @@ function ReadingDetail({
               ? {
                   scrollbarWidth: "none",
                   WebkitOverflowScrolling: "touch",
-                  maskImage:
-                    "linear-gradient(to right, black 90%, transparent 100%)",
-                  WebkitMaskImage:
-                    "linear-gradient(to right, black 90%, transparent 100%)",
+                  maskImage: "linear-gradient(to right, black 90%, transparent 100%)",
+                  WebkitMaskImage: "linear-gradient(to right, black 90%, transparent 100%)",
                 }
               : { paddingBottom: 16 /* EZ-4 — room for drop shadow */ }
           }
@@ -2374,8 +2330,7 @@ function ReadingDetail({
             // scroll-snap row is unaffected by the alignment fix.
             const renderSwipeCard = (id: number, idx: number) => {
               const isReversed = !!reading.card_orientations?.[idx];
-              const perCardDeckId =
-                (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
+              const perCardDeckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
               return (
                 <div
                   key={`${id}-${idx}`}
@@ -2389,9 +2344,7 @@ function ReadingDetail({
                     deckId={perCardDeckId}
                     shadow
                     ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
-                    onClick={() =>
-                      setZoomedCard({ cardId: id, reversed: isReversed, idx })
-                    }
+                    onClick={() => setZoomedCard({ cardId: id, reversed: isReversed, idx })}
                   />
                   <span
                     className="mt-1 text-center font-display italic break-words"
@@ -2430,9 +2383,7 @@ function ReadingDetail({
               );
             };
             if (swipeMobile) {
-              return reading.card_ids.map((id, idx) =>
-                renderSwipeCard(id, idx),
-              );
+              return reading.card_ids.map((id, idx) => renderSwipeCard(id, idx));
             }
             // Q47 — desktop / non-swipe path: cards anchored to a shared
             // floor in a fixed-height grid; labels in a separate
@@ -2443,8 +2394,7 @@ function ReadingDetail({
             const cardAreaH = Math.round(ezCardWidthPx * 2);
             const renderCardCell = (id: number, idx: number) => {
               const isReversed = !!reading.card_orientations?.[idx];
-              const perCardDeckId =
-                (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
+              const perCardDeckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
               return (
                 <div
                   key={`card-${id}-${idx}`}
@@ -2463,9 +2413,7 @@ function ReadingDetail({
                     deckId={perCardDeckId}
                     shadow
                     ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
-                    onClick={() =>
-                      setZoomedCard({ cardId: id, reversed: isReversed, idx })
-                    }
+                    onClick={() => setZoomedCard({ cardId: id, reversed: isReversed, idx })}
                   />
                 </div>
               );
@@ -2473,10 +2421,7 @@ function ReadingDetail({
             const renderLabelCell = (id: number, idx: number) => {
               const isReversed = !!reading.card_orientations?.[idx];
               return (
-                <div
-                  key={`label-${id}-${idx}`}
-                  className="flex flex-col items-center"
-                >
+                <div key={`label-${id}-${idx}`} className="flex flex-col items-center">
                   <span
                     className="mt-1 text-center font-display italic break-words"
                     style={{
@@ -2513,11 +2458,7 @@ function ReadingDetail({
                 </div>
               );
             };
-            const renderRowPair = (
-              ids: number[],
-              startIdx: number,
-              key: string,
-            ) => {
+            const renderRowPair = (ids: number[], startIdx: number, key: string) => {
               const cols = ids.length;
               const gridCols = `repeat(${cols}, ${ezCardWidthPx}px)`;
               return (
@@ -2553,8 +2494,7 @@ function ReadingDetail({
             return (
               <div className="flex w-full flex-col items-center gap-4">
                 {renderRowPair(row1Ids, 0, "row-1")}
-                {row2Ids.length > 0 &&
-                  renderRowPair(row2Ids, cardsPerRow, "row-2")}
+                {row2Ids.length > 0 && renderRowPair(row2Ids, cardsPerRow, "row-2")}
               </div>
             );
           })()}
@@ -2647,97 +2587,91 @@ function ReadingDetail({
         {/* Q13 Fix 4 — "Deck: …" label removed per spec. */}
 
         <div
-          style={
-            isArchived
-              ? { opacity: 0.45, pointerEvents: "none" }
-              : undefined
-          }
+          style={isArchived ? { opacity: 0.45, pointerEvents: "none" } : undefined}
           aria-disabled={isArchived ? true : undefined}
         >
-        <EnrichmentPanel
-          reading={{
-            id: reading.id,
-            user_id: reading.user_id,
-            note: reading.note,
-            is_favorite: reading.is_favorite,
-            tags: reading.tags,
-          }}
-          tagLibrary={tagLibrary}
-          onReadingChange={(next) =>
-            onReadingChange({
-              id: next.id,
-              note: next.note,
-              is_favorite: next.is_favorite,
-              tags: next.tags,
-            })
-          }
-          onTagLibraryChange={onTagLibraryChange}
-          onPhotoCountChange={onPhotoCountChange}
-          copyText={reading.interpretation ?? undefined}
-          onShare={() => setShareOpen(true)}
-          cardIds={reading.card_ids}
-          question={reading.question ?? null}
-          tailoredPrompt={reading.tailored_prompt ?? null}
-          onTailoredPromptUpdate={(next) =>
-            onReadingChange({
+          <EnrichmentPanel
+            reading={{
               id: reading.id,
+              user_id: reading.user_id,
               note: reading.note,
               is_favorite: reading.is_favorite,
               tags: reading.tags,
-              // tailored_prompt isn't part of the parent's onReadingChange
-              // contract; the cached value stays on the row server-side
-              // and is re-fetched on next open.
-            } as { id: string; note: string | null; is_favorite: boolean; tags: string[] | null })
-          }
-          defaultNoteOpen
-          journalPromptUsed={!!reading.journal_prompt_used}
-          onJournalPromptUsed={() => {
-            // Q16 Fix 1 secondary — update local state too so the panel
-            // collapses immediately without waiting for a refetch.
-            onReadingChange({
-              id: reading.id,
-              note: reading.note,
-              is_favorite: reading.is_favorite,
-              tags: reading.tags,
-              journal_prompt_used: true,
-            });
-            void supabase
-              .from("readings")
-              .update({ journal_prompt_used: true })
-              .eq("id", reading.id);
-          }}
-        />
+            }}
+            tagLibrary={tagLibrary}
+            onReadingChange={(next) =>
+              onReadingChange({
+                id: next.id,
+                note: next.note,
+                is_favorite: next.is_favorite,
+                tags: next.tags,
+              })
+            }
+            onTagLibraryChange={onTagLibraryChange}
+            onPhotoCountChange={onPhotoCountChange}
+            copyText={reading.interpretation ?? undefined}
+            onShare={() => setShareOpen(true)}
+            cardIds={reading.card_ids}
+            question={reading.question ?? null}
+            tailoredPrompt={reading.tailored_prompt ?? null}
+            onTailoredPromptUpdate={(next) =>
+              onReadingChange({
+                id: reading.id,
+                note: reading.note,
+                is_favorite: reading.is_favorite,
+                tags: reading.tags,
+                // tailored_prompt isn't part of the parent's onReadingChange
+                // contract; the cached value stays on the row server-side
+                // and is re-fetched on next open.
+              } as { id: string; note: string | null; is_favorite: boolean; tags: string[] | null })
+            }
+            defaultNoteOpen
+            journalPromptUsed={!!reading.journal_prompt_used}
+            onJournalPromptUsed={() => {
+              // Q16 Fix 1 secondary — update local state too so the panel
+              // collapses immediately without waiting for a refetch.
+              onReadingChange({
+                id: reading.id,
+                note: reading.note,
+                is_favorite: reading.is_favorite,
+                tags: reading.tags,
+                journal_prompt_used: true,
+              });
+              void supabase
+                .from("readings")
+                .update({ journal_prompt_used: true })
+                .eq("id", reading.id);
+            }}
+          />
         </div>
 
         {/* DV — Archive (soft-delete) action. Confirmed via dialog;
             row stays restorable from the Archive tab for 30 days. */}
         {!isArchived && (
-        <div className="mx-auto mt-6 flex max-w-prose justify-center">
-          <button
-            type="button"
-            onClick={() => setArchiveConfirmOpen(true)}
-            disabled={archiving}
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
-            style={{
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-              opacity: "var(--ro-plus-30)",
-            }}
-          >
-            <ArchiveIcon size={13} strokeWidth={1.5} aria-hidden />
-            Archive reading
-          </button>
-        </div>
+          <div className="mx-auto mt-6 flex max-w-prose justify-center">
+            <button
+              type="button"
+              onClick={() => setArchiveConfirmOpen(true)}
+              disabled={archiving}
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
+              style={{
+                border: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+            >
+              <ArchiveIcon size={13} strokeWidth={1.5} aria-hidden />
+              Archive reading
+            </button>
+          </div>
         )}
         <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Archive this reading?</AlertDialogTitle>
               <AlertDialogDescription>
-                It will be hidden from your journal, gallery, notes,
-                favorites, calendar, and stories. You can restore it
-                from the Archive tab within 30 days, after which it&rsquo;s
-                permanently deleted.
+                It will be hidden from your journal, gallery, notes, favorites, calendar, and
+                stories. You can restore it from the Archive tab within 30 days, after which
+                it&rsquo;s permanently deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -2781,7 +2715,6 @@ function ReadingDetail({
           guideName: guide.name,
           deckId: reading.deck_id ?? null,
         }}
-
         defaultLevel={reading.interpretation?.trim() ? "reading" : "pull"}
       />
       {zoomedCard && (
@@ -2789,10 +2722,9 @@ function ReadingDetail({
           cardId={zoomedCard.cardId}
           reversed={zoomedCard.reversed}
           onClose={() => setZoomedCard(null)}
-          deckId={(reading.card_deck_ids?.[zoomedCard.idx] ?? reading.deck_id) ?? null}
+          deckId={reading.card_deck_ids?.[zoomedCard.idx] ?? reading.deck_id ?? null}
         />
       )}
     </FullScreenSheet>
   );
 }
-
