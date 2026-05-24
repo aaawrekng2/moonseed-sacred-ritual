@@ -520,7 +520,7 @@ function DeckEditPage() {
           justifyContent: "center",
         }}
       >
-        <LoadingText text="Loading deck…" />
+        <LoadingText>Loading deck…</LoadingText>
       </div>
     );
   }
@@ -710,7 +710,7 @@ function DeckEditPage() {
           style={primaryBtnStyle(genGateReasons.length > 0 || generating)}
         >
           {generating ? (
-            <LoadingText text="Generating…" />
+            <LoadingText>Generating…</LoadingText>
           ) : (
             <>
               <Sparkles size={14} />
@@ -831,7 +831,7 @@ function DeckEditPage() {
             style={primaryBtnStyle(rejectedBusy)}
           >
             {rejectedBusy ? (
-              <LoadingText text="Regenerating…" />
+              <LoadingText>Regenerating…</LoadingText>
             ) : (
               `Regenerate all ✗ (~${rejectedCardCount} credits)`
             )}
