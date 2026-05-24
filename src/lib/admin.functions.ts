@@ -1534,6 +1534,15 @@ export const copyDeckToUser = createServerFn({ method: "POST" })
       }
       const newDisplayUrl = await signOne(newDisplayPath);
       const newThumbUrl = await signOne(newThumbPath);
+      // EJ32 — preserve full per-card content. Earlier versions
+      // dropped journal_prompts (oracle decks lost the user's
+      // per-card prompts), corner_radius_percent + radius_overridden
+      // (per-card visual overrides lost), and crop_coords (re-crop
+      // capability lost). All four are now copied straight through.
+      // Also EJ32 — set processing_status: "saved" + processed_at
+      // since the variant files are already in storage at the new
+      // path. Without this, the deck UI shows "Optimizing… 0 of N"
+      // forever even though the images work.
       const insertRow: Record<string, unknown> = {
         deck_id: newDeckId,
         user_id: data.targetUserId,
@@ -1545,6 +1554,12 @@ export const copyDeckToUser = createServerFn({ method: "POST" })
         source: "imported",
         card_name: c.card_name ?? null,
         card_description: c.card_description ?? null,
+        journal_prompts: c.journal_prompts ?? null,
+        corner_radius_percent: c.corner_radius_percent ?? null,
+        radius_overridden: c.radius_overridden ?? false,
+        crop_coords: c.crop_coords ?? null,
+        processing_status: "saved",
+        processed_at: new Date().toISOString(),
       };
       const { error: insErr } = await supabaseAdmin
         .from("custom_deck_cards")
@@ -1558,6 +1573,21 @@ export const copyDeckToUser = createServerFn({ method: "POST" })
       }
       cardsCopied += 1;
     }
+    // EJ32 — recompute is_complete based on actual cards inserted.
+    // Tarot decks expect exactly 78 cards; oracle decks are
+    // variable so we trust the source's flag IF every card we
+    // attempted got inserted (no partial copy).
+    const deckType = (srcRow.deck_type as string | null) ?? "tarot";
+    const finalIsComplete =
+      deckType === "tarot"
+        ? cardsCopied === 78
+        : cardsCopied === cards.length && !!srcRow.is_complete;
+    if (finalIsComplete !== !!srcRow.is_complete) {
+      await supabaseAdmin
+        .from("custom_decks")
+        .update({ is_complete: finalIsComplete } as never)
+        .eq("id", newDeckId);
+    }
     // Look up target email for the audit log.
     const { data: targetAuth } = await supabaseAdmin.auth.admin.getUserById(data.targetUserId);
     const targetEmail = targetAuth?.user?.email ?? null;
@@ -1567,10 +1597,76 @@ export const copyDeckToUser = createServerFn({ method: "POST" })
       new_deck_id: newDeckId,
       cards_copied: cardsCopied,
       cards_total: cards.length,
+      is_complete: finalIsComplete,
     });
     return {
       new_deck_id: newDeckId,
       cards_copied: cardsCopied,
       cards_total: cards.length,
+    };
+  });
+
+/* ────────────────────────────────────────────────────────────────────
+   EJ32 — Portable per-deck export bundle.
+   Returns the raw deck + cards data plus signed URLs for every
+   image file. The client (deck-download.ts) assembles a portable
+   zip that strips identity (no user_id, no UUIDs, no source-user
+   paths) so the resulting file imports cleanly into any account.
+   ──────────────────────────────────────────────────────────────────── */
+
+export const getDeckExportBundle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ deckId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId: actorId } = context;
+    await assertAdmin(supabase, actorId);
+    const { data: deck, error: deckErr } = await supabaseAdmin
+      .from("custom_decks")
+      .select("*")
+      .eq("id", data.deckId)
+      .maybeSingle();
+    if (deckErr) throw new Error(deckErr.message);
+    if (!deck) throw new Error("Deck not found");
+    const { data: cards, error: cardErr } = await supabaseAdmin
+      .from("custom_deck_cards")
+      .select("*")
+      .eq("deck_id", data.deckId)
+      .is("archived_at", null)
+      .order("card_id", { ascending: true });
+    if (cardErr) throw new Error(cardErr.message);
+    const cardRows = (cards ?? []) as Array<Record<string, unknown>>;
+    // Sign every storage path the client will need to fetch.
+    // 10-min expiry — enough to download + zip all blobs even for
+    // large oracle decks.
+    const expirySecs = 60 * 10;
+    const allPaths: string[] = [];
+    for (const c of cardRows) {
+      const dp = (c.display_path as string | null) ?? null;
+      const tp = (c.thumbnail_path as string | null) ?? null;
+      if (dp) allPaths.push(dp);
+      if (tp) allPaths.push(tp);
+    }
+    const deckRow = deck as Record<string, unknown>;
+    const backPath = (deckRow.card_back_path as string | null) ?? null;
+    const backThumbPath = (deckRow.card_back_thumb_path as string | null) ?? null;
+    if (backPath) allPaths.push(backPath);
+    if (backThumbPath) allPaths.push(backThumbPath);
+    const signedByPath: Record<string, string> = {};
+    if (allPaths.length > 0) {
+      // dedupe
+      const unique = Array.from(new Set(allPaths));
+      const { data: signedArr } = await supabaseAdmin.storage
+        .from(DECK_BUCKET)
+        .createSignedUrls(unique, expirySecs);
+      for (const entry of signedArr ?? []) {
+        if (entry.path && entry.signedUrl) {
+          signedByPath[entry.path] = entry.signedUrl;
+        }
+      }
+    }
+    return {
+      deck: deckRow,
+      cards: cardRows,
+      signed_urls: signedByPath,
     };
   });
