@@ -280,6 +280,7 @@ export type Database = {
           original_path: string | null
           processed_at: string | null
           processing_status: string
+          prompt_status: string[] | null
           radius_overridden: boolean
           source: string
           thumbnail_path: string
@@ -305,6 +306,7 @@ export type Database = {
           original_path?: string | null
           processed_at?: string | null
           processing_status?: string
+          prompt_status?: string[] | null
           radius_overridden?: boolean
           source?: string
           thumbnail_path: string
@@ -330,6 +332,7 @@ export type Database = {
           original_path?: string | null
           processed_at?: string | null
           processing_status?: string
+          prompt_status?: string[] | null
           radius_overridden?: boolean
           source?: string
           thumbnail_path?: string
@@ -351,6 +354,8 @@ export type Database = {
       }
       custom_decks: {
         Row: {
+          ai_voice_guide: string | null
+          aspect_config: Json | null
           card_back_path: string | null
           card_back_thumb_path: string | null
           card_back_thumb_url: string | null
@@ -372,6 +377,8 @@ export type Database = {
           width_inches: number | null
         }
         Insert: {
+          ai_voice_guide?: string | null
+          aspect_config?: Json | null
           card_back_path?: string | null
           card_back_thumb_path?: string | null
           card_back_thumb_url?: string | null
@@ -393,6 +400,8 @@ export type Database = {
           width_inches?: number | null
         }
         Update: {
+          ai_voice_guide?: string | null
+          aspect_config?: Json | null
           card_back_path?: string | null
           card_back_thumb_path?: string | null
           card_back_thumb_url?: string | null
