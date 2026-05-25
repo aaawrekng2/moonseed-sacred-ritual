@@ -868,7 +868,7 @@ export function QuickLog({
                       const isDragOver = dragOverIdx === idx && dragSourceIdx !== idx;
                       const isFocused = focusedSlotIdx === idx;
                       return (
-                        <div
+                        <span
                           key={pick.id}
                           className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
                           draggable
@@ -972,36 +972,29 @@ export function QuickLog({
                             }
                           }}
                           style={{
+                            // EJ55 — Matches the constellation hero card
+                            // structure exactly. The outer wrapper MUST be
+                            // an inline-block element (a <span> with
+                            // display: inline-block, NOT a block-level
+                            // <div>) for the vertical-align: top to take
+                            // effect. EJ54 set vertical-align: top on a
+                            // <div>, which is block-level — that property
+                            // is silently ignored on block elements,
+                            // which is why nothing changed visually.
+                            //
+                            // With inline-block + vertical-align: top +
+                            // font-size: 0 + line-height: 0, the wrapper
+                            // hugs the inline-block CardImage inside it
+                            // with no descender reservation. This is the
+                            // EJ29 fix that earned "FINALLY!!" on the
+                            // hero card. Identical recipe, identical
+                            // element types, now works identically.
+                            display: "inline-block",
                             position: "relative",
                             width: slotW,
                             flexShrink: 0,
                             opacity: isDragSource ? 0.4 : 1,
                             cursor: "grab",
-                            // EJ54 — Complete constellation hug recipe.
-                            // The "FINALLY!!" fix on the constellation
-                            // hero card was FIVE pieces working together,
-                            // not just one. EJ50/EJ52 tried piece #2 only;
-                            // EJ53 reverted it; neither worked. This time
-                            // all five are here:
-                            //
-                            //   1. width: slotW, height: auto (EJ2 — auto
-                            //      height = natural aspect via CardImage).
-                            //   2. font-size:0, line-height:0,
-                            //      vertical-align:top on this wrapper —
-                            //      kills the line-box descender reservation
-                            //      that inline-block children create. EJ29.
-                            //   3. vertical-align:top on the inner image-
-                            //      clip span (below) AND no borderRadius /
-                            //      overflow:hidden on it (EJ27 — the image
-                            //      carries its own baked rounding via the
-                            //      alpha mask; a second CSS clip layered
-                            //      another shape on top, causing visible
-                            //      corner wedges).
-                            //   4. Highlight ring borderRadius derives
-                            //      from the deck's stored corner_radius_
-                            //      percent via deckRadiusPct (EJ27/EJ28).
-                            //   5. Same deck-derived math on drag-over
-                            //      and breathe rings.
                             fontSize: 0,
                             lineHeight: 0,
                             verticalAlign: "top",
@@ -1072,27 +1065,18 @@ export function QuickLog({
                               }}
                             />
                           )}
-                          <div
+                          <span
                             style={{
+                              // EJ55 — Must be a <span> with display:
+                              // inline-block (NOT a block <div>) for
+                              // vertical-align: top to take effect.
+                              // Matches the constellation hero card's
+                              // inner image-clip span exactly.
+                              display: "inline-block",
                               position: "relative",
                               zIndex: 1,
                               width: slotW,
                               boxSizing: "border-box",
-                              // EJ54 — EJ27 fix piece #3: removed
-                              // borderRadius:6 and overflow:hidden.
-                              // The card image carries its own baked
-                              // rounding via the alpha-channel mask
-                              // applied at deck import; a CSS clip
-                              // here layered a second different shape
-                              // on top, causing visible corner wedges
-                              // between the rounded card art and the
-                              // square-cornered clip.
-                              //
-                              // EJ29 fix piece #3: vertical-align:top
-                              // keeps the inline-block CardImage flush
-                              // with the top of the parent's line-box
-                              // — no baseline alignment offset reserved
-                              // below it.
                               verticalAlign: "top",
                             }}
                           >
@@ -1104,7 +1088,7 @@ export function QuickLog({
                               size="custom"
                               widthPx={slotW}
                             />
-                          </div>
+                          </span>
                           <div
                             className="tarotseed-slot-controls"
                             data-slot-controls
@@ -1185,7 +1169,7 @@ export function QuickLog({
                               <X size={12} />
                             </button>
                           </div>
-                        </div>
+                        </span>
                       );
                     })}
                     {/* Trailing dashed "+" slot */}
