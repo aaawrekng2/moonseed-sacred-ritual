@@ -1000,86 +1000,79 @@ export function QuickLog({
                             verticalAlign: "top",
                           }}
                         >
-                          {isInConstellation && !isFocused && (
-                            <div
-                              aria-hidden
-                              className="tarotseed-constellation-breathe"
-                              style={{
-                                position: "absolute",
-                                top: -3,
-                                left: -3,
-                                right: -3,
-                                bottom: -3,
-                                background:
-                                  "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
-                                // EJ54 — was hardcoded 8. Now derives
-                                // from deck radius so the breathe glow
-                                // hugs whatever rounded shape the deck
-                                // images use. +3 matches the outset.
-                                borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
-                                pointerEvents: "none",
-                                zIndex: 0,
-                              }}
-                            />
-                          )}
-                          {isFocused && (
-                            <div
-                              aria-hidden
-                              style={{
-                                position: "absolute",
-                                // EJ33 — was inset:-6, which left a
-                                // visible gap between the card edge
-                                // and the highlight band. Constellation
-                                // page's focused outline uses
-                                // outlineOffset:2; matched here at
-                                // inset:-2 so the band hugs the card.
-                                inset: -2,
-                                // EJ54 — was hardcoded 8. Now derives
-                                // from deck radius. EJ27 formula:
-                                // (pct/100) * slotW + outset, where
-                                // outset is 2 to match inset:-2.
-                                borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 2,
-                                boxShadow:
-                                  "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                                pointerEvents: "none",
-                                zIndex: 4,
-                              }}
-                            />
-                          )}
-                          {isDragOver && (
-                            <div
-                              aria-hidden
-                              style={{
-                                position: "absolute",
-                                top: -3,
-                                left: -3,
-                                right: -3,
-                                bottom: -3,
-                                border: "2px solid var(--accent, var(--gold))",
-                                // EJ54 — was hardcoded 8. Now derives
-                                // from deck radius. +3 matches the
-                                // -3 outset of the drag-over ring.
-                                borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
-                                pointerEvents: "none",
-                                zIndex: 2,
-                              }}
-                            />
-                          )}
+                          {/* EJ56 — REMOVED the three external absolute
+                              rings (constellation breathe, focused
+                              highlight, drag-over). They were positioned
+                              relative to the outer slot wrapper, which
+                              required the wrapper to perfectly hug
+                              CardImage's bounds via inline-block +
+                              descender-kill. That chain has been fragile
+                              and didn't fully work in EJ54/EJ55.
+
+                              CardImage now owns the focused-state
+                              outline natively via the `selected` prop.
+                              It renders the outline on its own wrapper
+                              (which has display:inline-block and the
+                              deck-derived borderRadius applied to
+                              itself), so the ring is guaranteed to
+                              hug the rendered card no matter what
+                              parent layout looks like.
+
+                              Constellation-breathe + drag-over rings
+                              re-rendered below as CardImage children
+                              via a wrapping relative span so they're
+                              positioned to CardImage's bounds, not the
+                              slot's. */}
                           <span
                             style={{
-                              // EJ55 — Must be a <span> with display:
-                              // inline-block (NOT a block <div>) for
-                              // vertical-align: top to take effect.
-                              // Matches the constellation hero card's
-                              // inner image-clip span exactly.
+                              // EJ56 — relative wrapper around CardImage
+                              // so the breathe + drag-over rings can be
+                              // absolute children that hug the CardImage
+                              // bounds exactly. font-size:0, line-height:0
+                              // and vertical-align:top still in place
+                              // for the inline-block descender suppression.
                               display: "inline-block",
                               position: "relative",
-                              zIndex: 1,
                               width: slotW,
-                              boxSizing: "border-box",
                               verticalAlign: "top",
+                              fontSize: 0,
+                              lineHeight: 0,
                             }}
                           >
+                            {isInConstellation && !isFocused && (
+                              <span
+                                aria-hidden
+                                className="tarotseed-constellation-breathe"
+                                style={{
+                                  position: "absolute",
+                                  top: -3,
+                                  left: -3,
+                                  right: -3,
+                                  bottom: -3,
+                                  background:
+                                    "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
+                                  borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
+                                  pointerEvents: "none",
+                                  zIndex: 0,
+                                }}
+                              />
+                            )}
+                            {isDragOver && (
+                              <span
+                                aria-hidden
+                                style={{
+                                  position: "absolute",
+                                  top: -3,
+                                  left: -3,
+                                  right: -3,
+                                  bottom: -3,
+                                  border: "2px solid var(--accent, var(--gold))",
+                                  borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
+                                  pointerEvents: "none",
+                                  zIndex: 2,
+                                }}
+                              />
+                            )}
                             <CardImage
                               variant="face"
                               cardId={pick.cardIndex}
@@ -1087,6 +1080,7 @@ export function QuickLog({
                               deckId={pick.deckId ?? undefined}
                               size="custom"
                               widthPx={slotW}
+                              selected={isFocused}
                             />
                           </span>
                           <div
