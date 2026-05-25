@@ -525,7 +525,13 @@ export function ConstellationPage() {
   // generate AI prompts. Only available for custom decks; default deck
   // users see the empty state without a CTA (default deck has built-in
   // prompts).
-  const { activeDeck: activeDeckForCta } = useActiveDeck();
+  // EJ51 — Pull allDecks too. The CTA needs to route to the deck that
+  // OWNS the active card (pick.deckId), not the currently-active deck.
+  // A seeker who drew a card from "Zombie" deck and then switched their
+  // active deck to "Southern Oracle" should still see "Set up prompts
+  // for Zombie →" — because the card was drawn from Zombie and its
+  // prompts (or lack thereof) live in Zombie.
+  const { activeDeck: activeDeckForCta, allDecks: allDecksForCta } = useActiveDeck();
   // EJ35 — resolve oracle card_ids (>= 1000) through the active deck's
   // card_name overrides. Falls back to "Card N" only when neither the
   // tarot dictionary nor the deck has a name. Used everywhere the
@@ -3389,7 +3395,7 @@ export function ConstellationPage() {
                     opacity: 0.9,
                   }}
                 >
-                  Upright
+                  Upright meaning
                 </div>
                 <div
                   style={{
@@ -3428,7 +3434,7 @@ export function ConstellationPage() {
                       opacity: 0.9,
                     }}
                   >
-                    Reversed
+                    Reversed meaning
                   </div>
                   <div
                     style={{
@@ -5655,39 +5661,56 @@ export function ConstellationPage() {
                   </div>
                   {/* EJ50 — CTA to deck edit page. Only shown for custom
                       decks (the default deck's prompts ship built-in).
-                      Routes to the existing edit page today; when item 3
-                      ships, this will deep-link to the AI prompts
-                      section anchor on the unified deck edit page. */}
-                  {activeDeckForCta?.id && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPromptsModalOpen(false);
-                        void navigate({
-                          to: "/settings/decks/$deckId/edit",
-                          params: { deckId: activeDeckForCta.id },
-                          hash: "ai-prompts",
-                        });
-                      }}
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 13,
-                        color: "var(--accent, var(--gold))",
-                        background:
-                          "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
-                        border:
-                          "1px solid color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)",
-                        borderRadius: 6,
-                        padding: "10px 14px",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      Set up prompts for {activeDeckForCta.name ?? "this deck"} →
-                    </button>
-                  )}
+                      EJ51 — Routes to the deck that OWNS the active
+                      card (activePick.deckId), NOT the currently-
+                      active deck. The seeker may have drawn this card
+                      from a deck other than the one they're using
+                      now; the prompts (or lack thereof) live in the
+                      original deck and the CTA should take them
+                      there. Falls back to the active deck if the
+                      pick has no deckId (a default-deck tarot card)
+                      since default-deck cards have built-in prompts
+                      and shouldn't usually hit this empty state. */}
+                  {(() => {
+                    const ownerDeckId = activePick?.deckId ?? activeDeckForCta?.id ?? null;
+                    if (!ownerDeckId) return null;
+                    const ownerDeck = allDecksForCta[ownerDeckId] ?? null;
+                    const ownerName =
+                      ownerDeck?.name ??
+                      (ownerDeckId === activeDeckForCta?.id
+                        ? (activeDeckForCta?.name ?? "this deck")
+                        : "this deck");
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPromptsModalOpen(false);
+                          void navigate({
+                            to: "/settings/decks/$deckId/edit",
+                            params: { deckId: ownerDeckId },
+                            hash: "ai-prompts",
+                          });
+                        }}
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 13,
+                          color: "var(--accent, var(--gold))",
+                          background:
+                            "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                          border:
+                            "1px solid color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)",
+                          borderRadius: 6,
+                          padding: "10px 14px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        Set up prompts for {ownerName} →
+                      </button>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

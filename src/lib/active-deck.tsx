@@ -80,6 +80,17 @@ type Ctx = {
    * different deck the user owns).
    */
   allDeckMaps: Record<string, DeckImageMap>;
+  /**
+   * EJ51 — Lightweight map of ALL the user's custom deck metadata
+   * (id + name + corner radius + etc), keyed by deckId. Populated in
+   * the same background sweep as allDeckMaps. Used by code paths that
+   * need the deck NAME or routing target for a card that was drawn
+   * from a deck other than the currently-active one — e.g., the
+   * journaling-prompts empty-state CTA needs to say "Set up prompts
+   * for [Deck That Owns This Card]" and route to its edit page, not
+   * to the currently-active deck which may be different.
+   */
+  allDecks: Record<string, CustomDeck>;
 };
 
 const ActiveDeckCtx = createContext<Ctx>({
@@ -88,6 +99,7 @@ const ActiveDeckCtx = createContext<Ctx>({
   loading: true,
   refresh: async () => {},
   allDeckMaps: {},
+  allDecks: {},
 });
 
 export function ActiveDeckProvider({ children }: { children: ReactNode }) {
@@ -120,6 +132,10 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   // user's reading history references cards from a deck no longer set
   // active, the image still resolves correctly.
   const [allDeckMaps, setAllDeckMaps] = useState<Record<string, DeckImageMap>>({});
+  // EJ51 — Deck metadata map, populated by the same background fetch
+  // that builds allDeckMaps. Stored by deckId so consumers can resolve
+  // a deck's NAME or routing target by id without re-fetching.
+  const [allDecks, setAllDecks] = useState<Record<string, CustomDeck>>({});
   // EH3 — hydrate from localStorage exactly once after mount. Effect
   // body runs only on client (window guarded by readCachedDeck).
   const cachedDeckHydratedRef = useRef(false);
@@ -190,6 +206,7 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (authLoading || !user) {
       setAllDeckMaps({});
+      setAllDecks({});
       return;
     }
     let cancelled = false;
@@ -197,9 +214,20 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
       try {
         const decks = await fetchUserDecks(user.id);
         if (cancelled || decks.length === 0) {
-          if (!cancelled) setAllDeckMaps({});
+          if (!cancelled) {
+            setAllDeckMaps({});
+            setAllDecks({});
+          }
           return;
         }
+        // EJ51 — build deck-metadata map FIRST so consumers that only
+        // need names/IDs can resolve without waiting on image-map
+        // network rounds. The image-map fetch below can take a moment.
+        const deckById: Record<string, CustomDeck> = {};
+        for (const d of decks) {
+          deckById[d.id] = d;
+        }
+        if (!cancelled) setAllDecks(deckById);
         const entries = await Promise.all(
           decks.map(async (d) => {
             try {
@@ -217,7 +245,10 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
         }
         setAllDeckMaps(next);
       } catch {
-        if (!cancelled) setAllDeckMaps({});
+        if (!cancelled) {
+          setAllDeckMaps({});
+          setAllDecks({});
+        }
       }
     })();
     return () => {
@@ -241,8 +272,8 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   }, [activeDeck?.id]);
 
   const value = useMemo<Ctx>(
-    () => ({ activeDeck, imageMap, loading, refresh, allDeckMaps }),
-    [activeDeck, imageMap, loading, refresh, allDeckMaps],
+    () => ({ activeDeck, imageMap, loading, refresh, allDeckMaps, allDecks }),
+    [activeDeck, imageMap, loading, refresh, allDeckMaps, allDecks],
   );
 
   return <ActiveDeckCtx.Provider value={value}>{children}</ActiveDeckCtx.Provider>;
