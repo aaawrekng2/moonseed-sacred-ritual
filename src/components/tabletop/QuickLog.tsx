@@ -968,20 +968,20 @@ export function QuickLog({
                             flexShrink: 0,
                             opacity: isDragSource ? 0.4 : 1,
                             cursor: "grab",
-                            // EJ52 — apply the EJ29 two-layer descender
-                            // fix to the OUTER wrapper too. EJ50 only
-                            // patched the inner content div, which
-                            // wasn't enough; the EJ29 fix on the
-                            // constellation hero card touched BOTH the
-                            // outer wrapper span (font-size:0 +
-                            // line-height:0) AND the inner image-clip
-                            // span (vertical-align:top). Either layer
-                            // alone leaves descender pixels that push
-                            // the focused-state highlight ring past
-                            // the card's actual edge.
-                            fontSize: 0,
-                            lineHeight: 0,
-                            verticalAlign: "top",
+                            // EJ53 — REVERTED the EJ52 fontSize:0/
+                            // lineHeight:0/verticalAlign:top additions
+                            // here. That pattern is the EJ29 fix for
+                            // the constellation hero card's inline-
+                            // block descender problem — different DOM
+                            // structure entirely. QuickLog's slot ring
+                            // is fixed by inset:-2 (EJ33) on the
+                            // absolute box-shadow child, NOT by
+                            // descender-killing on the wrapper.
+                            // Applying the constellation pattern here
+                            // made the wrapper SHORTER than the card
+                            // image, so the inset:-2 ring sized to
+                            // the wrapper sat inside the card's
+                            // actual rendered bottom.
                           }}
                         >
                           {isInConstellation && !isFocused && (
@@ -1046,25 +1046,19 @@ export function QuickLog({
                               borderRadius: 6,
                               overflow: "hidden",
                               boxSizing: "border-box",
-                              // EJ50 — Eliminate the inline-block descender
-                              // gap. CardImage renders as inline-block,
-                              // which causes its parent to reserve invisible
-                              // space below it for line-box descenders (the
-                              // bottom of letters like g, y, p). That space
-                              // made this div measurably taller than the
-                              // card image, so the focused-state ring at
-                              // inset:-2 (rendered as a sibling of this div
-                              // on the parent wrapper) extended past the
-                              // card's actual bottom by descender-pixels +
-                              // the 2px outset, producing the visible gap
-                              // Cori flagged. Same fix the constellation
-                              // hero card uses (EJ29 — see ConstellationWeb
-                              // outer span). fontSize:0/lineHeight:0 kills
-                              // descender reservation; vertical-align:top
-                              // keeps the inline-block flush with the top.
-                              fontSize: 0,
-                              lineHeight: 0,
-                              verticalAlign: "top",
+                              // EJ53 — REVERTED the EJ50 fontSize:0/
+                              // lineHeight:0/verticalAlign:top additions
+                              // here. Same reason as the outer wrapper
+                              // revert above — wrong fix pattern for
+                              // this DOM. The QuickLog focused-slot
+                              // ring hugs the card via inset:-2 on the
+                              // absolute box-shadow child (EJ33), not
+                              // via descender-killing on this content
+                              // div. The constellation EJ29 pattern
+                              // applied here was making this div
+                              // collapse shorter than the CardImage's
+                              // natural height, exacerbating the
+                              // visible gap rather than fixing it.
                             }}
                           >
                             <CardImage
