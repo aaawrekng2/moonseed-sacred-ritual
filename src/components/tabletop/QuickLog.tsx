@@ -968,6 +968,20 @@ export function QuickLog({
                             flexShrink: 0,
                             opacity: isDragSource ? 0.4 : 1,
                             cursor: "grab",
+                            // EJ52 — apply the EJ29 two-layer descender
+                            // fix to the OUTER wrapper too. EJ50 only
+                            // patched the inner content div, which
+                            // wasn't enough; the EJ29 fix on the
+                            // constellation hero card touched BOTH the
+                            // outer wrapper span (font-size:0 +
+                            // line-height:0) AND the inner image-clip
+                            // span (vertical-align:top). Either layer
+                            // alone leaves descender pixels that push
+                            // the focused-state highlight ring past
+                            // the card's actual edge.
+                            fontSize: 0,
+                            lineHeight: 0,
+                            verticalAlign: "top",
                           }}
                         >
                           {isInConstellation && !isFocused && (

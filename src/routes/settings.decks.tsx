@@ -251,28 +251,16 @@ function DecksPage() {
             <DeckRow
               key={d.id}
               deck={d}
-              // EJ50 — Single entry point: the Edit pencil routes
-              // straight to the dedicated edit page where both the
-              // card-grid editor and the AI prompts section live.
-              // Previously Edit opened an in-page wizard and Sparkles
-              // (now removed) was a separate door to the dedicated
-              // page; merged into one.
-              onEdit={() =>
-                navigate({
-                  to: "/settings/decks/$deckId/edit",
-                  params: { deckId: d.id },
-                })
-              }
-              // EJ50 — onEditPrompts retained for backwards compat
-              // (DeckRow signature) but no longer surfaced in the UI;
-              // points at the same destination as onEdit.
-              onEditPrompts={() =>
-                navigate({
-                  to: "/settings/decks/$deckId/edit",
-                  params: { deckId: d.id },
-                  hash: "ai-prompts",
-                })
-              }
+              // EJ52 — REVERT of EJ50. Edit pencil reopens the in-page
+              // wizard (card-grid editor with per-card name + AI
+              // description editing) where it lived before. EJ50
+              // rerouted it to the dedicated /edit page and that
+              // hid the card-editing UI entirely. The dedicated
+              // page's Aspects + AI-prompts section now lives at
+              // the BOTTOM of the in-page wizard instead (see
+              // settings/CustomDeckEditWizard.tsx).
+              onEdit={() => setView({ kind: "edit", deck: d })}
+              onEditPrompts={() => setView({ kind: "edit", deck: d })}
               onImportZip={() => setView({ kind: "edit-import", deck: d })}
               onToggleActive={() => void handleSetActive(d)}
               onDelete={() => void handleDelete(d)}

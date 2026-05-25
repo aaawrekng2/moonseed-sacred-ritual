@@ -18,6 +18,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   Camera,
@@ -30,6 +31,7 @@ import {
   List as ListIcon,
   Pencil,
   Plus,
+  Sparkles,
   Wand2,
   Trash2,
   Upload,
@@ -113,6 +115,10 @@ export function DeckOverviewScreen({
   onClose,
   initialAction,
 }: Props) {
+  // EJ52 — navigate hook for the AI prompts CTA injected at the
+  // bottom of this surface (replacing the standalone /edit page
+  // entry point that EJ50 broke by hiding the per-card editing UI).
+  const navigate = useNavigate();
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCardId, setEditingCardId] = useState<number | null>(null);
@@ -1315,6 +1321,82 @@ export function DeckOverviewScreen({
         )}
         </>
       )}
+
+      {/* EJ52 — AI journaling prompts entry point at the BOTTOM of
+          the in-page editing surface. Shows description-completion
+          status (read from the same `cards` state the grid uses) and
+          a CTA that opens the dedicated AI prompts page. The
+          standalone Sparkles button on the deck row was removed in
+          EJ50/51; this section is now the single entry point. The
+          dedicated page exists at /settings/decks/$deckId/edit and
+          houses the Aspects + Voice guide + Generate workflow; that
+          content is not yet inlined here because the page is ~1300
+          lines of stateful logic — a future refactor can fully
+          embed it. For now, this CTA preserves the editing flow
+          Cori asked for while keeping the AI prompts surface
+          accessible. */}
+      <section
+        className="mt-8 rounded-lg border border-border/40 bg-card/30 p-4"
+        aria-label="AI journaling prompts"
+      >
+        <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5" />
+          AI journaling prompts
+        </div>
+        {(() => {
+          const total = cards.length;
+          const withDesc = cards.filter(
+            (c) => (c.card_description ?? "").trim().length > 0,
+          ).length;
+          const pct = total === 0 ? 0 : Math.round((withDesc / total) * 100);
+          const isComplete = total > 0 && withDesc === total;
+          return (
+            <>
+              <p className="mb-3 text-sm italic text-muted-foreground">
+                Generate 4 journaling prompts per card based on the
+                description you give each card above.
+              </p>
+              {total > 0 && (
+                <div
+                  className="mb-3 rounded-md border px-3 py-2 text-sm"
+                  style={{
+                    background: isComplete
+                      ? "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)"
+                      : "color-mix(in oklab, var(--color-foreground-muted) 6%, transparent)",
+                    borderColor: isComplete
+                      ? "color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent)"
+                      : "color-mix(in oklab, var(--color-foreground-muted) 30%, transparent)",
+                  }}
+                >
+                  <div className="italic">
+                    {withDesc} of {total} cards have descriptions · {pct}% complete
+                  </div>
+                  {!isComplete && (
+                    <div className="mt-1 text-xs leading-snug text-muted-foreground">
+                      An incomplete deck cannot generate AI prompts. Add a description to every
+                      card above before generating.
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() =>
+                  void navigate({
+                    to: "/settings/decks/$deckId/edit",
+                    params: { deckId },
+                    hash: "ai-prompts",
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 text-sm italic text-gold hover:bg-gold/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {isComplete ? "Set up AI prompts →" : "Configure AI prompts →"}
+              </button>
+            </>
+          );
+        })()}
+      </section>
 
       {/* Per-card edit modal */}
       {editingCardId !== null && (
