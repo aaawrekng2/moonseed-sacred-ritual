@@ -14,6 +14,7 @@ import {
   Star,
   StickyNote,
   Tag as TagIcon,
+  Trash2,
   Wand2,
   X as XIcon,
 } from "lucide-react";
@@ -1032,13 +1033,19 @@ function ReadingCard({
     const dx = t.clientX - touchStart.current.x;
     const dy = t.clientY - touchStart.current.y;
     if (Math.abs(dy) > Math.abs(dx)) return; // vertical scroll wins
-    const next = Math.max(-REVEAL_PX, Math.min(0, dx));
+    // EJ52 — swipe RIGHT now reveals the archive button (moved from
+    // right edge to left edge of the row). Clamp dx to [0, REVEAL_PX]
+    // so leftward swipes do nothing and rightward swipes top out at
+    // the reveal width.
+    const next = Math.max(0, Math.min(REVEAL_PX, dx));
     setSwipeX(next);
   };
   const onTouchEnd = () => {
     touchStart.current = null;
-    if (swipeX <= -REVEAL_PX * 0.6) {
-      setSwipeX(-REVEAL_PX);
+    // EJ52 — threshold flipped to the positive side to match the
+    // rightward swipe direction above.
+    if (swipeX >= REVEAL_PX * 0.6) {
+      setSwipeX(REVEAL_PX);
     } else {
       setSwipeX(0);
     }
@@ -1075,10 +1082,14 @@ function ReadingCard({
             setConfirmOpen(true);
           }}
           className={cn(
-            "absolute inset-y-0 right-0 z-10 flex items-center justify-center px-4 text-gold transition-opacity",
+            // EJ52 — reveal button moved from right-0 to left-0. On
+            // mobile this matches the rightward swipe; on desktop the
+            // hover-reveal now sits on the left edge of the row.
+            "absolute inset-y-0 left-0 z-10 flex items-center justify-center px-4 text-gold transition-opacity",
             // EA-5 — never capture clicks unless actually revealed.
             isMobile
-              ? swipeX <= -REVEAL_PX * 0.6
+              ? // EJ52 — threshold flipped to positive (swipeX >= 0.6 * REVEAL_PX).
+                swipeX >= REVEAL_PX * 0.6
                 ? "opacity-100"
                 : "opacity-0 pointer-events-none"
               : "opacity-0 pointer-events-none group-hover/reading:opacity-100 group-hover/reading:pointer-events-auto focus:opacity-100 focus:pointer-events-auto",
@@ -1089,17 +1100,30 @@ function ReadingCard({
           }}
           tabIndex={isMobile ? -1 : 0}
         >
-          <ArchiveIcon size={18} strokeWidth={1.5} />
+          {/* EJ52 — Trash2 (lucide) has the classic trash-can
+              silhouette with hatched lid lines. ArchiveIcon (the
+              old icon) reads as a box rather than a trash can.
+              Underlying action is still soft-archive (restorable
+              for 30 days), only the icon changed. */}
+          <Trash2 size={18} strokeWidth={1.5} />
         </button>
       )}
       <button
         type="button"
         onClick={() => onOpen(reading.id)}
-        className="relative z-0 block w-full rounded-2xl px-4 py-4 text-left transition-[transform,background-color] hover:bg-foreground/[0.04]"
+        className="relative z-0 block w-full rounded-2xl py-4 pr-4 text-left transition-[transform,background-color] hover:bg-foreground/[0.04]"
         style={{
           border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
           background: "color-mix(in oklab, var(--surface-overlay) 30%, transparent)",
           transform: `translateX(${swipeX}px)`,
+          // EJ52 — content's left padding equals the reveal-button
+          // width so the row's data sits to the right of the trash
+          // can's hover/swipe zone instead of being hidden under it.
+          // Cori asked for content to "move over just a bit, the
+          // width of the trash can." Using REVEAL_PX (44px) keeps
+          // them in lockstep — if the reveal width changes later,
+          // the content padding tracks it.
+          paddingLeft: REVEAL_PX,
         }}
       >
         {/* Header row */}
