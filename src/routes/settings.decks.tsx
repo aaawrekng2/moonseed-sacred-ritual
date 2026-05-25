@@ -16,7 +16,6 @@ import {
   MoreVertical,
   Pencil,
   Plus,
-  Sparkles,
   Star,
   Trash2,
   X,
@@ -252,11 +251,26 @@ function DecksPage() {
             <DeckRow
               key={d.id}
               deck={d}
-              onEdit={() => setView({ kind: "edit", deck: d })}
+              // EJ50 — Single entry point: the Edit pencil routes
+              // straight to the dedicated edit page where both the
+              // card-grid editor and the AI prompts section live.
+              // Previously Edit opened an in-page wizard and Sparkles
+              // (now removed) was a separate door to the dedicated
+              // page; merged into one.
+              onEdit={() =>
+                navigate({
+                  to: "/settings/decks/$deckId/edit",
+                  params: { deckId: d.id },
+                })
+              }
+              // EJ50 — onEditPrompts retained for backwards compat
+              // (DeckRow signature) but no longer surfaced in the UI;
+              // points at the same destination as onEdit.
               onEditPrompts={() =>
                 navigate({
                   to: "/settings/decks/$deckId/edit",
                   params: { deckId: d.id },
+                  hash: "ai-prompts",
                 })
               }
               onImportZip={() => setView({ kind: "edit-import", deck: d })}
@@ -761,19 +775,11 @@ function DeckRow({
       >
         <Pencil className="h-4 w-4" />
       </button>
-      {/* EJ36 — mobile entry to the Aspects + Journal Prompts page. */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onEditPrompts();
-        }}
-        className="rounded-md p-1.5 hover:bg-foreground/10 sm:hidden"
-        aria-label={`Edit prompts for ${deck.name}`}
-        title="Edit journal prompts"
-      >
-        <Sparkles className="h-4 w-4" />
-      </button>
+      {/* EJ51 — mobile Sparkles button removed (EJ50 removed the
+          desktop sibling; this mobile one was missed). The Edit pencil
+          on mobile now routes to the same dedicated edit page that
+          contains both the card grid AND the AI prompts setup, so a
+          separate "edit prompts" entry point is redundant. */}
       {/* Mobile: compact overflow menu */}
       <div className="relative flex sm:hidden" ref={menuRef}>
         <button
@@ -891,20 +897,11 @@ function DeckRow({
         >
           Edit
         </button>
-        {/* EJ36 — sparkles button opens /settings/decks/{id}/edit with
-            Aspects + Journal Prompts UI. */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditPrompts();
-          }}
-          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
-          title="Edit journal prompts"
-          aria-label="Edit journal prompts"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-        </button>
+        {/* EJ50 — Sparkles button removed. Edit pencil is now the
+            single entry point to deck editing; the AI prompts setup
+            section lives at the bottom of the edit page, anchored at
+            id="ai-prompts" so the journaling-prompts empty-state CTA
+            can deep-link there. */}
         <button
           type="button"
           onClick={(e) => {
