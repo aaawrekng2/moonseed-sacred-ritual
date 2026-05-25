@@ -28,7 +28,7 @@ import {
   type PasteOutcome,
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
-import { useActiveDeck, useActiveDeckCardName } from "@/lib/active-deck";
+import { useActiveDeck, useActiveDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import { useElementWidth } from "@/lib/use-element-width";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { cn } from "@/lib/utils";
@@ -103,6 +103,15 @@ export function QuickLog({
   // card_name overrides so constellation / chip labels show
   // "Hurricane Lamp" instead of "Card 1000".
   const resolveCardName = useActiveDeckCardName();
+  // EJ54 — Read the active deck's seeker-chosen corner radius (0–15%).
+  // Used to derive the focused-ring + drag-over + breathe-glow
+  // borderRadius so each highlight silhouette matches the deck's
+  // baked-in rounded corners. Fallback 0 (sharp) when no override is
+  // saved — matches the EJ28 fallback for default decks. The math
+  // (deckRadiusPct / 100) * slotW gives the pixel radius of the
+  // card's actual rounded corners; +2 (the highlight outset) keeps
+  // the ring concentric with the card silhouette.
+  const deckRadiusPct = useActiveDeckCornerRadius() ?? 0;
 
   // Seed from any cached picks; QuickLog is additive (no null gaps).
   const [picks, setPicks] = useState<ManualPick[]>(() =>
@@ -968,20 +977,34 @@ export function QuickLog({
                             flexShrink: 0,
                             opacity: isDragSource ? 0.4 : 1,
                             cursor: "grab",
-                            // EJ53 — REVERTED the EJ52 fontSize:0/
-                            // lineHeight:0/verticalAlign:top additions
-                            // here. That pattern is the EJ29 fix for
-                            // the constellation hero card's inline-
-                            // block descender problem — different DOM
-                            // structure entirely. QuickLog's slot ring
-                            // is fixed by inset:-2 (EJ33) on the
-                            // absolute box-shadow child, NOT by
-                            // descender-killing on the wrapper.
-                            // Applying the constellation pattern here
-                            // made the wrapper SHORTER than the card
-                            // image, so the inset:-2 ring sized to
-                            // the wrapper sat inside the card's
-                            // actual rendered bottom.
+                            // EJ54 — Complete constellation hug recipe.
+                            // The "FINALLY!!" fix on the constellation
+                            // hero card was FIVE pieces working together,
+                            // not just one. EJ50/EJ52 tried piece #2 only;
+                            // EJ53 reverted it; neither worked. This time
+                            // all five are here:
+                            //
+                            //   1. width: slotW, height: auto (EJ2 — auto
+                            //      height = natural aspect via CardImage).
+                            //   2. font-size:0, line-height:0,
+                            //      vertical-align:top on this wrapper —
+                            //      kills the line-box descender reservation
+                            //      that inline-block children create. EJ29.
+                            //   3. vertical-align:top on the inner image-
+                            //      clip span (below) AND no borderRadius /
+                            //      overflow:hidden on it (EJ27 — the image
+                            //      carries its own baked rounding via the
+                            //      alpha mask; a second CSS clip layered
+                            //      another shape on top, causing visible
+                            //      corner wedges).
+                            //   4. Highlight ring borderRadius derives
+                            //      from the deck's stored corner_radius_
+                            //      percent via deckRadiusPct (EJ27/EJ28).
+                            //   5. Same deck-derived math on drag-over
+                            //      and breathe rings.
+                            fontSize: 0,
+                            lineHeight: 0,
+                            verticalAlign: "top",
                           }}
                         >
                           {isInConstellation && !isFocused && (
@@ -996,7 +1019,11 @@ export function QuickLog({
                                 bottom: -3,
                                 background:
                                   "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
-                                borderRadius: 8,
+                                // EJ54 — was hardcoded 8. Now derives
+                                // from deck radius so the breathe glow
+                                // hugs whatever rounded shape the deck
+                                // images use. +3 matches the outset.
+                                borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
                                 pointerEvents: "none",
                                 zIndex: 0,
                               }}
@@ -1014,7 +1041,11 @@ export function QuickLog({
                                 // outlineOffset:2; matched here at
                                 // inset:-2 so the band hugs the card.
                                 inset: -2,
-                                borderRadius: 8,
+                                // EJ54 — was hardcoded 8. Now derives
+                                // from deck radius. EJ27 formula:
+                                // (pct/100) * slotW + outset, where
+                                // outset is 2 to match inset:-2.
+                                borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 2,
                                 boxShadow:
                                   "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
                                 pointerEvents: "none",
@@ -1032,7 +1063,10 @@ export function QuickLog({
                                 right: -3,
                                 bottom: -3,
                                 border: "2px solid var(--accent, var(--gold))",
-                                borderRadius: 8,
+                                // EJ54 — was hardcoded 8. Now derives
+                                // from deck radius. +3 matches the
+                                // -3 outset of the drag-over ring.
+                                borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
                                 pointerEvents: "none",
                                 zIndex: 2,
                               }}
@@ -1043,22 +1077,23 @@ export function QuickLog({
                               position: "relative",
                               zIndex: 1,
                               width: slotW,
-                              borderRadius: 6,
-                              overflow: "hidden",
                               boxSizing: "border-box",
-                              // EJ53 — REVERTED the EJ50 fontSize:0/
-                              // lineHeight:0/verticalAlign:top additions
-                              // here. Same reason as the outer wrapper
-                              // revert above — wrong fix pattern for
-                              // this DOM. The QuickLog focused-slot
-                              // ring hugs the card via inset:-2 on the
-                              // absolute box-shadow child (EJ33), not
-                              // via descender-killing on this content
-                              // div. The constellation EJ29 pattern
-                              // applied here was making this div
-                              // collapse shorter than the CardImage's
-                              // natural height, exacerbating the
-                              // visible gap rather than fixing it.
+                              // EJ54 — EJ27 fix piece #3: removed
+                              // borderRadius:6 and overflow:hidden.
+                              // The card image carries its own baked
+                              // rounding via the alpha-channel mask
+                              // applied at deck import; a CSS clip
+                              // here layered a second different shape
+                              // on top, causing visible corner wedges
+                              // between the rounded card art and the
+                              // square-cornered clip.
+                              //
+                              // EJ29 fix piece #3: vertical-align:top
+                              // keeps the inline-block CardImage flush
+                              // with the top of the parent's line-box
+                              // — no baseline alignment offset reserved
+                              // below it.
+                              verticalAlign: "top",
                             }}
                           >
                             <CardImage
