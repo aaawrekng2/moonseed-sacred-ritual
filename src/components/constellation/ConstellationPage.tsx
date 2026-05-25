@@ -4097,6 +4097,17 @@ export function ConstellationPage() {
                       type="button"
                       onClick={() => setFocusedSlotIdx(idx)}
                       style={{
+                        // EJ59 — Dropped the `outline: 2px solid accent;
+                        // outline-offset: 2px; border-radius: 5` ring.
+                        // CSS outline does NOT curve to border-radius
+                        // reliably AND borderRadius: 5 was hardcoded
+                        // instead of deck-derived. Both reasons the
+                        // ring corners didn't hug the card silhouette.
+                        // The hug now comes from CardImage's internal
+                        // selection ring (EJ57): an absolute span at
+                        // inset:-2 with borderRadius derived per-card
+                        // from the deck's stored corner_radius_percent,
+                        // matching the constellation hero pattern.
                         position: "relative",
                         zIndex: 1,
                         width: slotW,
@@ -4104,9 +4115,6 @@ export function ConstellationPage() {
                         background: "transparent",
                         border: "none",
                         cursor: "pointer",
-                        borderRadius: 5,
-                        outline: isFocused ? "2px solid var(--accent, var(--gold))" : "none",
-                        outlineOffset: 2,
                         display: "block",
                       }}
                     >
@@ -4117,6 +4125,7 @@ export function ConstellationPage() {
                         deckId={pick.deckId ?? undefined}
                         size="custom"
                         widthPx={slotW}
+                        selected={isFocused}
                       />
                     </button>
                     {/* DV — hover/focus X remove control, top-right of slot. */}
