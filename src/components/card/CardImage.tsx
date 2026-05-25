@@ -211,6 +211,31 @@ export interface CardImageProps {
   flipped?: boolean;
   /** Q48 Fix 5 — when true, IMG uses loading="eager" instead of "lazy". */
   eager?: boolean;
+  /**
+   * EJ56 — Selection / focus state. When true, CardImage renders a CSS
+   * `outline` on its own wrapper, sized to the deck's corner radius
+   * so the ring hugs the actual card silhouette. Because `outline`
+   * traces the wrapper's border box (and the wrapper hugs the IMG
+   * via `display: inline-block` + auto height), this is the simplest
+   * way to make every surface that uses CardImage render a consistent
+   * highlight without layout concerns in the parent.
+   */
+  selected?: boolean;
+  /** EJ56 — Color of the selected outline. Defaults to var(--accent, var(--gold)). */
+  selectedColor?: string;
+  /**
+   * EJ56 — Optional badge slots. Rendered as absolute children INSIDE
+   * CardImage's wrapper so they anchor to the card's actual rendered
+   * edges, not to whatever wrapper is above. Use any ReactNode (e.g.
+   * a CardCountBadge, a delete X button, etc.). Use the `inset` props
+   * to fine-tune the offset from the corresponding corner.
+   */
+  topLeftBadge?: import("react").ReactNode;
+  topRightBadge?: import("react").ReactNode;
+  bottomLeftBadge?: import("react").ReactNode;
+  bottomRightBadge?: import("react").ReactNode;
+  /** EJ56 — Inset (px) for the badge from its anchor corner. Default 4. */
+  badgeInset?: number;
 }
 
 // Q48 Fix 5 — `eager` opts a CardImage out of native lazy loading,
@@ -254,6 +279,14 @@ export function CardImage({
   shadow = false,
   flipped,
   eager = false,
+  // EJ56 — selection/badge props
+  selected = false,
+  selectedColor,
+  topLeftBadge,
+  topRightBadge,
+  bottomLeftBadge,
+  bottomRightBadge,
+  badgeInset = 4,
 }: CardImageProps) {
   // Resolve image source + radius from active deck OR a specific deck
   // when `deckId` is supplied. Both hooks are always called (Rules of
@@ -336,8 +369,30 @@ export function CardImage({
           : anyName;
 
   const width = resolveWidth(size, widthPx);
-  const radiusStyle: CSSProperties = {};
-  void deckRadius;
+  // EJ56 — Compute the deck's corner radius in pixels. CardImage's
+  // wrapper was previously rendered with NO border-radius (the dev
+  // green outline traced a sharp rectangle around rounded card art,
+  // which is why the focused ring on QuickLog appeared not to hug
+  // the corners — the wrapper itself was square). Now we apply the
+  // deck's stored corner_radius_percent to the wrapper so the
+  // wrapper's box matches the printed card's rounded silhouette.
+  // The IMG inside inherits the wrapper's overflow:hidden clip so
+  // the card art conforms to the same radius.
+  const deckRadiusPx = Math.round(((deckRadius ?? 0) / 100) * width);
+  const radiusStyle: CSSProperties =
+    deckRadiusPx > 0 ? { borderRadius: deckRadiusPx } : {};
+  // EJ56 — Selection outline. Outline traces the border box of the
+  // wrapper (which now matches the rounded card silhouette thanks to
+  // borderRadius above), so the ring is automatically rounded for
+  // each deck. Outline doesn't affect layout (no clipping concerns)
+  // and outlineOffset:2 produces the 2px outset the constellation
+  // hero pattern uses.
+  const outlineStyle: CSSProperties = selected
+    ? {
+        outline: `2px solid ${selectedColor ?? "var(--accent, var(--gold))"}`,
+        outlineOffset: 2,
+      }
+    : {};
 
   // EY-2 — No hardcoded aspect ratio. The IMG sources its own
   // natural dimensions; the wrapper hugs the IMG. This means the
@@ -366,7 +421,12 @@ export function CardImage({
     // EZ-3 — Wrapper green as outline so it's visible as a ring
     // around the actual card boundary (the wrapper hugs the IMG
     // per EY-2, so a background fill would be invisible).
-    ...(DEV_WRAPPER_BG ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 } : null),
+    // EJ56 — When dev colors are active, dev green wins (debugging
+    // priority). Otherwise the selection outline (if `selected`)
+    // wins. Otherwise no outline.
+    ...(DEV_WRAPPER_BG
+      ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 }
+      : outlineStyle),
     ...(style ?? {}),
   };
 
@@ -683,6 +743,64 @@ export function CardImage({
     </>
   );
 
+  // EJ56 — Badge slots. Rendered as absolute children INSIDE the
+  // CardImage wrapper so they anchor to the card's actual rendered
+  // edges (the wrapper hugs the IMG via display:inline-block +
+  // natural-aspect height). Each badge gets a wrapper span so the
+  // caller's badge node is positioned without leaking style.
+  const badgeNodes = (topLeftBadge || topRightBadge || bottomLeftBadge || bottomRightBadge) ? (
+    <>
+      {topLeftBadge ? (
+        <span
+          style={{
+            position: "absolute",
+            top: badgeInset,
+            left: badgeInset,
+            zIndex: 3,
+          }}
+        >
+          {topLeftBadge}
+        </span>
+      ) : null}
+      {topRightBadge ? (
+        <span
+          style={{
+            position: "absolute",
+            top: badgeInset,
+            right: badgeInset,
+            zIndex: 3,
+          }}
+        >
+          {topRightBadge}
+        </span>
+      ) : null}
+      {bottomLeftBadge ? (
+        <span
+          style={{
+            position: "absolute",
+            bottom: badgeInset,
+            left: badgeInset,
+            zIndex: 3,
+          }}
+        >
+          {bottomLeftBadge}
+        </span>
+      ) : null}
+      {bottomRightBadge ? (
+        <span
+          style={{
+            position: "absolute",
+            bottom: badgeInset,
+            right: badgeInset,
+            zIndex: 3,
+          }}
+        >
+          {bottomRightBadge}
+        </span>
+      ) : null}
+    </>
+  ) : null;
+
   if (onClick) {
     return (
       <button
@@ -699,6 +817,7 @@ export function CardImage({
         }}
       >
         {inner}
+        {badgeNodes}
       </button>
     );
   }
@@ -706,6 +825,7 @@ export function CardImage({
   return (
     <div className={className} style={wrapperStyle} aria-label={ariaLabel}>
       {inner}
+      {badgeNodes}
     </div>
   );
 }
