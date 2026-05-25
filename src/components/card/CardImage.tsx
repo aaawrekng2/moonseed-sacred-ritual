@@ -369,30 +369,27 @@ export function CardImage({
           : anyName;
 
   const width = resolveWidth(size, widthPx);
-  // EJ56 — Compute the deck's corner radius in pixels. CardImage's
-  // wrapper was previously rendered with NO border-radius (the dev
-  // green outline traced a sharp rectangle around rounded card art,
-  // which is why the focused ring on QuickLog appeared not to hug
-  // the corners — the wrapper itself was square). Now we apply the
-  // deck's stored corner_radius_percent to the wrapper so the
-  // wrapper's box matches the printed card's rounded silhouette.
-  // The IMG inside inherits the wrapper's overflow:hidden clip so
-  // the card art conforms to the same radius.
-  const deckRadiusPx = Math.round(((deckRadius ?? 0) / 100) * width);
-  const radiusStyle: CSSProperties =
-    deckRadiusPx > 0 ? { borderRadius: deckRadiusPx } : {};
-  // EJ56 — Selection outline. Outline traces the border box of the
-  // wrapper (which now matches the rounded card silhouette thanks to
-  // borderRadius above), so the ring is automatically rounded for
-  // each deck. Outline doesn't affect layout (no clipping concerns)
-  // and outlineOffset:2 produces the 2px outset the constellation
-  // hero pattern uses.
-  const outlineStyle: CSSProperties = selected
-    ? {
-        outline: `2px solid ${selectedColor ?? "var(--accent, var(--gold))"}`,
-        outlineOffset: 2,
-      }
-    : {};
+  // EJ57 — REVERTED the EJ56 wrapper-borderRadius. The EJ27 hero
+  // architectural rule is explicit: the image is pre-processed at
+  // deck-import time with a baked rounded alpha mask (FD/FE
+  // pipeline) and its transparent corners ARE the card silhouette.
+  // Adding a CSS clip via borderRadius on the wrapper layers a
+  // second different rounded rectangle on top, creating visible
+  // corner wedges when the two radii drift apart. EJ56 reintroduced
+  // exactly that mistake. radiusStyle stays empty here — the alpha
+  // mask is the only source of truth for the visible card shape.
+  const radiusStyle: CSSProperties = {};
+  // EJ57 — The selection ring is rendered as an absolute child
+  // INSIDE the wrapper (see below), positioned at inset:-2 with
+  // borderRadius computed from the deck's stored corner_radius_
+  // percent. This matches the constellation hero card's EJ27
+  // pattern exactly. Each CardImage internally resolves its own
+  // per-deck radius (via the `deckId` prop -> useDeckCornerRadius),
+  // so a slot row with cards from multiple decks gets a per-card
+  // ring radius that matches each card's alpha-mask silhouette.
+  const selectionRingRadius =
+    Math.round(((deckRadius ?? 0) / 100) * width) + 2;
+  const selectionRingColor = selectedColor ?? "var(--accent, var(--gold))";
 
   // EY-2 — No hardcoded aspect ratio. The IMG sources its own
   // natural dimensions; the wrapper hugs the IMG. This means the
@@ -412,7 +409,15 @@ export function CardImage({
     // and overlays still inherit the same border-radius, so the
     // visible card shape stays correctly rounded; the shadow now
     // renders outside that silhouette via filter: drop-shadow().
-    overflow: shadow ? "visible" : "hidden",
+    // EJ57 — overflow is always visible. Previous behavior was
+    // `hidden` (unless shadow=true) to clip the IMG to the wrapper's
+    // borderRadius. But EJ27 / EJ57 architecture: the IMG carries
+    // its own baked rounded alpha mask, so CSS clipping isn't
+    // needed AND would conflict with the alpha mask if the two
+    // radii didn't match. Visible also lets the selection ring
+    // (rendered as an absolute child at inset:-2) extend past
+    // the wrapper bounds without being clipped.
+    overflow: "visible",
     display: "inline-block",
     ...radiusStyle,
     // FA-3 — tighter shadow: less blur, slightly more opacity.
@@ -421,12 +426,14 @@ export function CardImage({
     // EZ-3 — Wrapper green as outline so it's visible as a ring
     // around the actual card boundary (the wrapper hugs the IMG
     // per EY-2, so a background fill would be invisible).
-    // EJ56 — When dev colors are active, dev green wins (debugging
-    // priority). Otherwise the selection outline (if `selected`)
-    // wins. Otherwise no outline.
+    // EJ57 — The selection ring lives as an absolute child of the
+    // wrapper (see selection-ring span below), not as an outline
+    // here. CSS outline doesn't reliably respect border-radius
+    // anyway, which is why the EJ27 hero pattern uses an absolute
+    // span instead.
     ...(DEV_WRAPPER_BG
       ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 }
-      : outlineStyle),
+      : null),
     ...(style ?? {}),
   };
 
@@ -801,6 +808,30 @@ export function CardImage({
     </>
   ) : null;
 
+  // EJ57 — Selection ring as an absolute child of the wrapper.
+  // Matches the constellation hero card's EJ27 pattern: positioned
+  // at inset:-2, borderRadius derives from the deck's stored
+  // corner_radius_percent (resolved per-card by CardImage via the
+  // deckId prop) so each card's ring radius matches its alpha-
+  // mask silhouette. zIndex below badges (3) but above the IMG.
+  const selectionRing =
+    selected ? (
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: -2,
+          left: -2,
+          right: -2,
+          bottom: -2,
+          borderRadius: selectionRingRadius,
+          boxShadow: `0 0 0 2px ${selectionRingColor}`,
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      />
+    ) : null;
+
   if (onClick) {
     return (
       <button
@@ -817,6 +848,7 @@ export function CardImage({
         }}
       >
         {inner}
+        {selectionRing}
         {badgeNodes}
       </button>
     );
@@ -825,6 +857,7 @@ export function CardImage({
   return (
     <div className={className} style={wrapperStyle} aria-label={ariaLabel}>
       {inner}
+      {selectionRing}
       {badgeNodes}
     </div>
   );
