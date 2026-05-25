@@ -972,117 +972,49 @@ export function QuickLog({
                             }
                           }}
                           style={{
-                            // EJ55 — Matches the constellation hero card
-                            // structure exactly. The outer wrapper MUST be
-                            // an inline-block element (a <span> with
-                            // display: inline-block, NOT a block-level
-                            // <div>) for the vertical-align: top to take
-                            // effect. EJ54 set vertical-align: top on a
-                            // <div>, which is block-level — that property
-                            // is silently ignored on block elements,
-                            // which is why nothing changed visually.
-                            //
-                            // With inline-block + vertical-align: top +
-                            // font-size: 0 + line-height: 0, the wrapper
-                            // hugs the inline-block CardImage inside it
-                            // with no descender reservation. This is the
-                            // EJ29 fix that earned "FINALLY!!" on the
-                            // hero card. Identical recipe, identical
-                            // element types, now works identically.
+                            // EJ58 — Stripped to bare minimum. The
+                            // wrapper is just a host for event handlers
+                            // and the absolute slot-controls overlay.
+                            // It does NOT need to hug CardImage or apply
+                            // any descender fix, because the selection
+                            // ring lives INSIDE CardImage (EJ57) — the
+                            // wrapper's bounds are irrelevant to the
+                            // ring's position. position:relative is
+                            // kept so the slot controls absolute span
+                            // anchors to the wrapper. display:inline-
+                            // block keeps the wrapper sized to its
+                            // content (CardImage) without expanding to
+                            // fill the row.
                             display: "inline-block",
                             position: "relative",
-                            width: slotW,
                             flexShrink: 0,
                             opacity: isDragSource ? 0.4 : 1,
                             cursor: "grab",
-                            fontSize: 0,
-                            lineHeight: 0,
-                            verticalAlign: "top",
                           }}
                         >
-                          {/* EJ56 — REMOVED the three external absolute
-                              rings (constellation breathe, focused
-                              highlight, drag-over). They were positioned
-                              relative to the outer slot wrapper, which
-                              required the wrapper to perfectly hug
-                              CardImage's bounds via inline-block +
-                              descender-kill. That chain has been fragile
-                              and didn't fully work in EJ54/EJ55.
-
-                              CardImage now owns the focused-state
-                              outline natively via the `selected` prop.
-                              It renders the outline on its own wrapper
-                              (which has display:inline-block and the
-                              deck-derived borderRadius applied to
-                              itself), so the ring is guaranteed to
-                              hug the rendered card no matter what
-                              parent layout looks like.
-
-                              Constellation-breathe + drag-over rings
-                              re-rendered below as CardImage children
-                              via a wrapping relative span so they're
-                              positioned to CardImage's bounds, not the
-                              slot's. */}
-                          <span
-                            style={{
-                              // EJ56 — relative wrapper around CardImage
-                              // so the breathe + drag-over rings can be
-                              // absolute children that hug the CardImage
-                              // bounds exactly. font-size:0, line-height:0
-                              // and vertical-align:top still in place
-                              // for the inline-block descender suppression.
-                              display: "inline-block",
-                              position: "relative",
-                              width: slotW,
-                              verticalAlign: "top",
-                              fontSize: 0,
-                              lineHeight: 0,
-                            }}
-                          >
-                            {isInConstellation && !isFocused && (
-                              <span
-                                aria-hidden
-                                className="tarotseed-constellation-breathe"
-                                style={{
-                                  position: "absolute",
-                                  top: -3,
-                                  left: -3,
-                                  right: -3,
-                                  bottom: -3,
-                                  background:
-                                    "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
-                                  borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
-                                  pointerEvents: "none",
-                                  zIndex: 0,
-                                }}
-                              />
-                            )}
-                            {isDragOver && (
-                              <span
-                                aria-hidden
-                                style={{
-                                  position: "absolute",
-                                  top: -3,
-                                  left: -3,
-                                  right: -3,
-                                  bottom: -3,
-                                  border: "2px solid var(--accent, var(--gold))",
-                                  borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
-                                  pointerEvents: "none",
-                                  zIndex: 2,
-                                }}
-                              />
-                            )}
-                            <CardImage
-                              variant="face"
-                              cardId={pick.cardIndex}
-                              reversed={pick.isReversed}
-                              deckId={pick.deckId ?? undefined}
-                              size="custom"
-                              widthPx={slotW}
-                              selected={isFocused}
-                            />
-                          </span>
+                          {/* EJ58 — STRIPPED. No inner wrapper span, no
+                              breathe glow, no drag-over overlay, no
+                              font-size:0 / line-height:0 / vertical-
+                              align:top dance. CardImage owns the
+                              selection ring natively (EJ57) and is
+                              already display:inline-block with the
+                              correct width. The outer slot wrapper
+                              just hosts event handlers + the absolute
+                              slot controls. Whatever the wrapper does
+                              or doesn't do can't affect the ring
+                              because the ring lives INSIDE CardImage,
+                              not as a child of the wrapper. If a gap
+                              shows up after this, the bug is inside
+                              CardImage. */}
+                          <CardImage
+                            variant="face"
+                            cardId={pick.cardIndex}
+                            reversed={pick.isReversed}
+                            deckId={pick.deckId ?? undefined}
+                            size="custom"
+                            widthPx={slotW}
+                            selected={isFocused}
+                          />
                           <div
                             className="tarotseed-slot-controls"
                             data-slot-controls
