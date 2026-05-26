@@ -17,6 +17,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
+import {
+  getCardPopoverData,
+  type CardPopoverData,
+} from "@/lib/quicklog.functions";
+import { CardStatsPanel } from "@/components/card/CardStatsPanel";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
@@ -73,12 +78,48 @@ type Detail = {
   availableMoonPhases?: string[];
 };
 
+// EJ60 — Roman numerals for the major arcana (cardId 0..21). Used by
+// the CardStatsPanel header. Non-majors get null and the panel
+// suppresses the slot.
+const ROMAN_NUMERALS = [
+  "0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+  "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI",
+];
+
+// EJ60 — Build the header tag list (e.g. ["MAJOR", "CAPRICORN"]) for a
+// card. Majors get arcana + zodiac. Minors get suit + element. Empty
+// strings filtered out so the panel renders a clean " · "-joined list.
+function buildCardTags(
+  cardId: number,
+  meaning: { element?: string; zodiac?: string | null; planet?: string | null } | null,
+): string[] {
+  if (!meaning) return [];
+  const tags: string[] = [];
+  if (cardId <= 21) {
+    tags.push("Major");
+  } else {
+    // Minor arcana: cardId 22..77. Suit derived from blocks of 14.
+    const suitIdx = Math.floor((cardId - 22) / 14);
+    const suit = ["Wands", "Cups", "Swords", "Pentacles"][suitIdx];
+    if (suit) tags.push(suit);
+  }
+  if (meaning.zodiac) tags.push(meaning.zodiac);
+  if (meaning.element) tags.push(meaning.element);
+  return tags.filter(Boolean);
+}
+
 function CardTraceRoute() {
   const { cardId } = Route.useParams();
   const cid = Number(cardId);
   const navigate = useNavigate();
   const fn = useServerFn(getStalkerCardDetail);
+  const popoverFn = useServerFn(getCardPopoverData);
   const [data, setData] = useState<Detail | null>(null);
+  // EJ60 — Popover rich-data (12-month sparkline, moon phase, time of day,
+  // day of week, companions, longest gap, avg spacing). Same shape and
+  // server function used by the constellation hover popover, so the same
+  // data appears in both surfaces. Rendered via <CardStatsPanel/>.
+  const [popoverData, setPopoverData] = useState<CardPopoverData | null>(null);
   const resolveImage = useActiveDeckImage();
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -178,6 +219,57 @@ function CardTraceRoute() {
     user?.id,
     cid,
     fn,
+    trendWin,
+    gFilters.tags,
+    gFilters.spreadTypes,
+    gFilters.moonPhases,
+    gFilters.deepOnly,
+    gFilters.reversedOnly,
+    effectiveTz,
+  ]);
+
+  // EJ60 — Fetch the rich popover-stats data for this single card.
+  // Same server function the constellation popover uses; we just pass
+  // a single-card list and read out the one entry. Refetches whenever
+  // filters change so the panel stays in sync with the page-level
+  // filter bar.
+  useEffect(() => {
+    if (!user?.id || !Number.isFinite(cid)) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const map = await popoverFn({
+          data: {
+            cardIds: [cid],
+            tz: effectiveTz,
+            filters: {
+              timeRange: trendWin,
+              tagIds: gFilters.tags,
+              spreadTypes: gFilters.spreadTypes,
+              moonPhases: gFilters.moonPhases as MoonPhaseName[],
+              deepOnly: gFilters.deepOnly,
+              reversedOnly: gFilters.reversedOnly,
+            },
+          },
+          headers,
+        });
+        if (!cancelled) {
+          setPopoverData(map[cid] ?? null);
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[card-trace] popover data fetch failed", e);
+        if (!cancelled) setPopoverData(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    user?.id,
+    cid,
+    popoverFn,
     trendWin,
     gFilters.tags,
     gFilters.spreadTypes,
@@ -321,6 +413,24 @@ function CardTraceRoute() {
           {/* 3f — Metadata row */}
           {meaning && <MetadataRow meaning={meaning} />}
         </div>
+
+        {/* EJ60 — Rich card stats panel. Same data the constellation
+            hover popover renders (12-month frequency bars, moon phase,
+            time of day, day of week, companions, longest gap, avg
+            spacing). Inserted between the constrained card hero/meaning
+            column and the wider co-occurrence strip below. */}
+        {data && count > 0 && (
+          <div className="mx-auto my-6 px-4" style={{ maxWidth: 480 }}>
+            <CardStatsPanel
+              cardName={cardName}
+              count={count}
+              data={popoverData}
+              resolveCardName={(id) => getCardName(id)}
+              roman={cid <= 21 ? ROMAN_NUMERALS[cid] : null}
+              tags={buildCardTags(cid, meaning)}
+            />
+          </div>
+        )}
 
         {/* 3e — Co-occurrence — Q74: span the wider content area. */}
         {data && data.totalCount >= 3 && data.coOccurrences.length > 0 && (
