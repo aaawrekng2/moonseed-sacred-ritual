@@ -859,8 +859,14 @@ export function CardImage({
           cursor: "pointer",
         }}
       >
-        {inner}
+        {/* EJ62 — selectionRing rendered BEFORE inner so the IMG
+            paints ON TOP of the solid background fill. With both at
+            zIndex 0, DOM order determines stacking — later siblings
+            paint above. Matches the constellation hero pattern in
+            ConstellationWeb.tsx (backdrop span first, image-clip
+            span second). */}
         {selectionRing}
+        {inner}
         {badgeNodes}
       </button>
     );
@@ -868,8 +874,9 @@ export function CardImage({
 
   return (
     <div className={className} style={wrapperStyle} aria-label={ariaLabel}>
-      {inner}
+      {/* EJ62 — same ordering as the button branch above. */}
       {selectionRing}
+      {inner}
       {badgeNodes}
     </div>
   );

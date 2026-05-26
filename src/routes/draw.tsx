@@ -25,7 +25,7 @@ import {
 import { clearTabletopSession } from "@/components/tabletop/config";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 
-type Search = { spread?: string; question?: string; n?: number };
+type Search = { spread?: string; question?: string; n?: number; entry?: EntryMode };
 
 export const Route = createFileRoute("/draw")({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -33,6 +33,12 @@ export const Route = createFileRoute("/draw")({
     question:
       typeof s.question === "string" && s.question.trim().length > 0 ? s.question : undefined,
     n: typeof s.n === "number" && s.n >= 1 && s.n <= 10 ? Math.round(s.n) : undefined,
+    // EJ63 — Optional ?entry=table|manual hint passed by Home (and any
+    // other surface that wants to force the initial entry mode). When
+    // present, overrides the seeker's saved per-spread preference for
+    // THIS arrival. Subsequent toggle clicks still flip the mode
+    // normally and persist back to user_preferences.
+    entry: s.entry === "table" || s.entry === "manual" ? (s.entry as EntryMode) : undefined,
   }),
   component: DrawPage,
 });
@@ -72,14 +78,20 @@ function DrawPage() {
 
   // Q19 — entry mode (table | manual) lifted out of Tabletop so the
   // toggle can flip surfaces mid-draw without losing state.
+  // EJ63 — `?entry=table|manual` search param overrides the saved
+  // per-spread mode on initial mount. Used by Home to force the table
+  // surface as the canonical landing for fresh draws. Once mounted,
+  // the toggle still flips and persists normally.
   const [entrySurface, setEntrySurface] = useState<EntryMode>(() =>
-    resolveModeFromMap(modes, spread),
+    search.entry ?? resolveModeFromMap(modes, spread),
   );
   useEffect(() => {
     if (!modesLoaded) return;
-    setEntrySurface(resolveModeFromMap(modes, spread));
+    // After modes load, honor the URL hint if present; otherwise the
+    // saved mode wins.
+    setEntrySurface(search.entry ?? resolveModeFromMap(modes, spread));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modesLoaded, spread]);
+  }, [modesLoaded, spread, search.entry]);
 
   // Q19 Fix 8 — cache in-progress manual picks at the route level so
   // toggling Manual → Table → Manual preserves the seeker's selections.
@@ -378,7 +390,14 @@ function DrawPage() {
           if (!viewport.mounted) return <ManualEntryBuilder {...sharedProps} />;
           const isDesktopLandscape = viewport.width >= 1024 && viewport.isLandscape;
           const isDesktopPortrait = viewport.width >= 1024 && !viewport.isLandscape;
-          if (isDesktopLandscape) return <ConstellationPage />;
+          // EJ63 — Pass `onSwitchToTable` so the EntryModeToggle
+          // (Draw button upper-left) actually flips entrySurface
+          // instead of trying to navigate to /draw (where we already
+          // are). Without this prop, ConstellationPage falls back to
+          // a navigate() that becomes a no-op because the route
+          // doesn't change.
+          if (isDesktopLandscape)
+            return <ConstellationPage onSwitchToTable={switchToTable} />;
           if (isDesktopPortrait) return <RotatePrompt />;
           return <ManualEntryBuilder {...sharedProps} />;
         })()

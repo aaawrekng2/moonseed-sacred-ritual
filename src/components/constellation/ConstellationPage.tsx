@@ -520,7 +520,20 @@ function BadgeLegend() {
   );
 }
 
-export function ConstellationPage() {
+/**
+ * EJ63 — `onSwitchToTable` lets the parent /draw route inject a
+ * surface-flip callback so the EntryModeToggle's "Draw" button can
+ * switch the rendered surface from ConstellationPage to Tabletop
+ * IN PLACE (no route change, state preserved). When undefined, the
+ * Draw button falls back to navigating to /draw?entry=table — which
+ * works when ConstellationPage is mounted via the standalone
+ * /constellation route, since that's a different URL.
+ */
+type ConstellationPageProps = {
+  onSwitchToTable?: () => void;
+};
+
+export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = {}) {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
@@ -3786,9 +3799,22 @@ export function ConstellationPage() {
         >
           <EntryModeToggle
             current="manual"
-            onToggle={() =>
-              requestNavigate(() => navigate({ to: "/draw" }))
-            }
+            onToggle={() => {
+              // EJ63 — When the parent /draw route provides
+              // `onSwitchToTable`, use it to flip the rendered
+              // surface in place (Tabletop replaces ConstellationPage
+              // without changing the URL). When ConstellationPage is
+              // mounted via the standalone /constellation route,
+              // no callback is provided, so we navigate to /draw
+              // with the entry hint that forces table mode.
+              if (onSwitchToTable) {
+                requestNavigate(onSwitchToTable);
+              } else {
+                requestNavigate(() =>
+                  navigate({ to: "/draw", search: { entry: "table" } }),
+                );
+              }
+            }}
           />
           <h1
             style={{
