@@ -4108,6 +4108,18 @@ export function ConstellationPage() {
                         // inset:-2 with borderRadius derived per-card
                         // from the deck's stored corner_radius_percent,
                         // matching the constellation hero pattern.
+                        // EJ60 — font-size:0, line-height:0, vertical-
+                        // align:top to kill the inline-block descender
+                        // strut. CardImage's wrapper is display:inline-
+                        // block. Without these on the parent, the
+                        // parent's line-height inflates the inline-
+                        // block's effective vertical space and the
+                        // wrapper renders measurably taller than the
+                        // IMG inside it. Result: the selection ring
+                        // (at inset:-2 of the wrapper) extended past
+                        // the visible card. Matches the hero pattern
+                        // in ConstellationWeb.tsx (EJ29 fix that
+                        // earned "FINALLY!!").
                         position: "relative",
                         zIndex: 1,
                         width: slotW,
@@ -4116,6 +4128,9 @@ export function ConstellationPage() {
                         border: "none",
                         cursor: "pointer",
                         display: "block",
+                        fontSize: 0,
+                        lineHeight: 0,
+                        verticalAlign: "top",
                       }}
                     >
                       <CardImage
