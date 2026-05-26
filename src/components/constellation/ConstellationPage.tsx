@@ -48,7 +48,11 @@ import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
 import { TAROT_DECK } from "@/lib/tarot";
-import { useAnyDeckCardName, useActiveDeck } from "@/lib/active-deck";
+import {
+  useAnyDeckCardName,
+  useActiveDeck,
+  useActiveDeckCornerRadius,
+} from "@/lib/active-deck";
 import {
   getQuickLogCardStats,
   getQuickLogOverlap,
@@ -65,6 +69,7 @@ import {
   type CardPopoverDataMap,
 } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
@@ -532,6 +537,11 @@ export function ConstellationPage() {
   // for Zombie →" — because the card was drawn from Zombie and its
   // prompts (or lack thereof) live in Zombie.
   const { activeDeck: activeDeckForCta, allDecks: allDecksForCta } = useActiveDeck();
+  // EJ61 — Active deck corner radius (0..100 percent). Used to give the
+  // slot breathe glow a deck-aware border-radius so the glow corners
+  // curve with the card silhouette rather than the previous hardcoded
+  // 8px which didn't match any specific deck.
+  const deckRadiusPct = useActiveDeckCornerRadius() ?? 0;
   // EJ35 — resolve oracle card_ids (>= 1000) through the active deck's
   // card_name overrides. Falls back to "Card N" only when neither the
   // tarot dictionary nor the deck has a name. Used everywhere the
@@ -3750,13 +3760,20 @@ export function ConstellationPage() {
     >
       {/* Header row — DU: subtitle inline with H1 on the same row.
           EJ11 — H1 reduced 26 → 18 and row vertical padding tightened
-          to close the gap above the constellation. */}
+          to close the gap above the constellation.
+          EJ61 — Added the canonical EntryModeToggle on the upper-left,
+          matching the Draw/Log icon + label pattern already used on
+          Tabletop, ManualEntryBuilder, and QuickLog. Tapping "Draw"
+          navigates to /draw (the tabletop scatter surface). This
+          surfaces the navigation back to the table that was previously
+          only reachable via the broken Classic Manual Entry link. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 24px 0",
+          gap: 12,
         }}
       >
         <div
@@ -3767,6 +3784,12 @@ export function ConstellationPage() {
             flexWrap: "wrap",
           }}
         >
+          <EntryModeToggle
+            current="manual"
+            onToggle={() =>
+              requestNavigate(() => navigate({ to: "/draw" }))
+            }
+          />
           <h1
             style={{
               margin: 0,
@@ -4089,7 +4112,13 @@ export function ConstellationPage() {
                             "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent) 50%, transparent 78%)",
                           pointerEvents: "none",
                           zIndex: 0,
-                          borderRadius: 8,
+                          // EJ61 — Deck-derived corner radius. Was hardcoded
+                          // 8px which didn't match the card silhouette for
+                          // any specific deck. The glow lives at inset:-3 so
+                          // the radius adds 3px on top of the deck radius
+                          // to keep the outer curve concentric with the
+                          // card's printed (alpha-masked) corners.
+                          borderRadius: Math.round((deckRadiusPct / 100) * slotW) + 3,
                         }}
                       />
                     )}

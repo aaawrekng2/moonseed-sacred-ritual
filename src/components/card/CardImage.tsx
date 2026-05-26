@@ -814,6 +814,18 @@ export function CardImage({
   // corner_radius_percent (resolved per-card by CardImage via the
   // deckId prop) so each card's ring radius matches its alpha-
   // mask silhouette. zIndex below badges (3) but above the IMG.
+  // EJ61 — Replaced `box-shadow: 0 0 0 2px <color>` with
+  // `background: <color>`. The hero ring in ConstellationWeb.tsx
+  // EJ27 is explicit: "NO box-shadow glow (the glow was extending
+  // visibly past the card's bottom and corners)." Box-shadow with
+  // 2px spread adds 2 extra px OUTSIDE the span's box, on top of
+  // the span's own inset:-2 offset — net ring sits 4px past the
+  // wrapper instead of 2px. Background fill produces a solid
+  // colored span at the correct -2 outset; the IMG covers most of
+  // the span, and the visible 2px border is the span's bg showing
+  // through. Matches hero pattern exactly. zIndex 0 so the IMG
+  // (at z-auto in the wrapper line) renders ON TOP of the ring
+  // and the ring shows only as the 2px border around the IMG.
   const selectionRing =
     selected ? (
       <span
@@ -825,9 +837,9 @@ export function CardImage({
           right: -2,
           bottom: -2,
           borderRadius: selectionRingRadius,
-          boxShadow: `0 0 0 2px ${selectionRingColor}`,
+          background: selectionRingColor,
           pointerEvents: "none",
-          zIndex: 2,
+          zIndex: 0,
         }}
       />
     ) : null;
