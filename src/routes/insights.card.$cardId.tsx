@@ -56,6 +56,22 @@ export const Route = createFileRoute("/insights/card/$cardId")({
   }),
 });
 
+/**
+ * EJ64 — Thin route wrapper. The real component is CardTraceView,
+ * exported so other surfaces (like SpreadLayout's flip-table tap)
+ * can render the same view as a modal overlay.
+ */
+function CardTraceRoute() {
+  const { cardId } = Route.useParams();
+  const navigate = useNavigate();
+  return (
+    <CardTraceView
+      cardId={Number(cardId)}
+      onClose={() => navigate({ to: "/insights" })}
+    />
+  );
+}
+
 type Appearance = {
   readingId: string;
   date: string;
@@ -108,9 +124,27 @@ function buildCardTags(
   return tags.filter(Boolean);
 }
 
-function CardTraceRoute() {
-  const { cardId } = Route.useParams();
-  const cid = Number(cardId);
+/**
+ * EJ64 — CardTraceView (exported). The main Card Trace render body.
+ * Accepts cardId as a prop so the same view can be rendered:
+ *   1. By the /insights/card/$cardId route (where the route wrapper
+ *      provides cardId from params and onClose that navigates to
+ *      /insights).
+ *   2. As a portal-rendered modal on top of other surfaces (like
+ *      SpreadLayout's flip-table — where onClose just dismisses the
+ *      modal and the underlying flip-table state is preserved).
+ *
+ * Already `fixed inset-0 z-50` so it overlays whatever is beneath
+ * without needing a separate wrapper.
+ */
+export function CardTraceView({
+  cardId,
+  onClose,
+}: {
+  cardId: number;
+  onClose: () => void;
+}) {
+  const cid = cardId;
   const navigate = useNavigate();
   const fn = useServerFn(getStalkerCardDetail);
   const popoverFn = useServerFn(getCardPopoverData);
@@ -279,7 +313,11 @@ function CardTraceRoute() {
     effectiveTz,
   ]);
 
-  const close = () => navigate({ to: "/insights" });
+  // EJ64 — `close` now calls the onClose prop instead of hardcoding
+  // a navigate to /insights. The route wrapper passes a navigate
+  // callback; modal callers pass a dismiss callback that preserves
+  // the underlying surface state (e.g. flip-table picks).
+  const close = onClose;
   const url = resolveImage(cid, "display") ?? getCardImagePath(cid);
   const cardName = data?.cardName ?? getCardName(cid);
   const meaning = getCardMeaning(cid);

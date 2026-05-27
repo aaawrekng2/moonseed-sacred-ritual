@@ -17,6 +17,11 @@ import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "./CardZoomModal";
+// EJ64 — Tap on a face-up card on the flip table no longer opens
+// the hero zoom; it opens Card Trace as a modal overlay so the
+// seeker sees the card's full history without losing the spread
+// state behind it.
+import { CardTraceView } from "@/routes/insights.card.$cardId";
 import { useRegisterCloseHandler, useRegisterCopyText } from "@/lib/floating-menu-context";
 import { nextYesNoSaying } from "@/lib/yes-no-sayings";
 import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/ManualEntryBuilder";
@@ -280,11 +285,9 @@ export function SpreadLayout({
         </div>
       )}
       {zoomedCard && (
-        <CardZoomModal
+        <CardTraceView
           cardId={zoomedCard.cardIndex}
-          reversed={zoomedCard.reversed}
           onClose={() => setZoomedCard(null)}
-          deckId={zoomedCard.pickDeckId ?? deckId ?? null}
         />
       )}
     </main>
