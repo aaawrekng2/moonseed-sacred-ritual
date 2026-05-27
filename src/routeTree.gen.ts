@@ -37,7 +37,6 @@ import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
-import { Route as DrawClassicRouteImport } from './routes/draw.classic'
 import { Route as CreditsSuccessRouteImport } from './routes/credits.success'
 import { Route as CreditsCancelRouteImport } from './routes/credits.cancel'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
@@ -193,11 +192,6 @@ const InsightsYearOfLunationsRoute = InsightsYearOfLunationsRouteImport.update({
   path: '/year-of-lunations',
   getParentRoute: () => InsightsRoute,
 } as any)
-const DrawClassicRoute = DrawClassicRouteImport.update({
-  id: '/classic',
-  path: '/classic',
-  getParentRoute: () => DrawRoute,
-} as any)
 const CreditsSuccessRoute = CreditsSuccessRouteImport.update({
   id: '/credits/success',
   path: '/credits/success',
@@ -277,7 +271,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/constellation': typeof ConstellationRoute
-  '/draw': typeof DrawRouteWithChildren
+  '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
@@ -290,7 +284,6 @@ export interface FileRoutesByFullPath {
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
-  '/draw/classic': typeof DrawClassicRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -321,7 +314,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/constellation': typeof ConstellationRoute
-  '/draw': typeof DrawRouteWithChildren
+  '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
@@ -334,7 +327,6 @@ export interface FileRoutesByTo {
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
-  '/draw/classic': typeof DrawClassicRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -367,7 +359,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/constellation': typeof ConstellationRoute
-  '/draw': typeof DrawRouteWithChildren
+  '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
@@ -380,7 +372,6 @@ export interface FileRoutesById {
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
-  '/draw/classic': typeof DrawClassicRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -427,7 +418,6 @@ export interface FileRouteTypes {
     | '/admin/usage'
     | '/credits/cancel'
     | '/credits/success'
-    | '/draw/classic'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -471,7 +461,6 @@ export interface FileRouteTypes {
     | '/admin/usage'
     | '/credits/cancel'
     | '/credits/success'
-    | '/draw/classic'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -516,7 +505,6 @@ export interface FileRouteTypes {
     | '/admin/usage'
     | '/credits/cancel'
     | '/credits/success'
-    | '/draw/classic'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -549,7 +537,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   ConstellationRoute: typeof ConstellationRoute
-  DrawRoute: typeof DrawRouteWithChildren
+  DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
   InsightsRoute: typeof InsightsRouteWithChildren
@@ -767,13 +755,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InsightsYearOfLunationsRouteImport
       parentRoute: typeof InsightsRoute
     }
-    '/draw/classic': {
-      id: '/draw/classic'
-      path: '/classic'
-      fullPath: '/draw/classic'
-      preLoaderRoute: typeof DrawClassicRouteImport
-      parentRoute: typeof DrawRoute
-    }
     '/credits/success': {
       id: '/credits/success'
       path: '/credits/success'
@@ -899,16 +880,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface DrawRouteChildren {
-  DrawClassicRoute: typeof DrawClassicRoute
-}
-
-const DrawRouteChildren: DrawRouteChildren = {
-  DrawClassicRoute: DrawClassicRoute,
-}
-
-const DrawRouteWithChildren = DrawRoute._addFileChildren(DrawRouteChildren)
-
 interface HelpRouteChildren {
   HelpCategoryArticleRoute: typeof HelpCategoryArticleRoute
 }
@@ -1016,7 +987,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   ConstellationRoute: ConstellationRoute,
-  DrawRoute: DrawRouteWithChildren,
+  DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
   InsightsRoute: InsightsRouteWithChildren,
