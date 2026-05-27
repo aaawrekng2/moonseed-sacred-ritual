@@ -69,7 +69,9 @@ import {
   type CardPopoverDataMap,
 } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
-import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { LayoutGrid, Calendar as CalendarIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
@@ -894,6 +896,103 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       // non-fatal — the toggle still works in-session.
     }
   }, [showOlder]);
+  // EJ65 — Recent (newer 6 months) calendar row visibility. Defaults
+  // to true (showing newer row). When false AND showOlder is also
+  // false → 0 rows visible. When false AND showOlder is true → that
+  // case should not occur in normal cycling (we step through none →
+  // recent → both → none), but we tolerate it: if showRecent=false &&
+  // showOlder=true the OverlapStrip still renders only the older row.
+  // Persists across sessions.
+  const [showRecent, setShowRecent] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const v = window.localStorage.getItem("tarotseed:show-recent");
+      return v === null ? true : v === "true";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("tarotseed:show-recent", showRecent ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  }, [showRecent]);
+  // EJ65 — Calendar cycler. Three states: 0 rows ("none"), 1 row
+  // ("recent" only), 2 rows ("both"). The PageMenu's calendar cycle
+  // button advances through them: none → recent → both → none. The
+  // underlying showRecent + showOlder booleans are the source of
+  // truth so the OverlapStrip render logic stays consistent.
+  const calendarState: "none" | "recent" | "both" = !showRecent
+    ? "none"
+    : showOlder
+      ? "both"
+      : "recent";
+  const cycleCalendar = () => {
+    if (calendarState === "none") {
+      setShowRecent(true);
+      setShowOlder(false);
+    } else if (calendarState === "recent") {
+      setShowRecent(true);
+      setShowOlder(true);
+    } else {
+      // both → none
+      setShowRecent(false);
+      setShowOlder(false);
+    }
+  };
+
+  // EJ65 — Left fly-out page menu state. ConstellationPage's config
+  // items: VIEW SWAP (switch to Card Draw Table) and HIDE/SHOW
+  // (calendar 0/1/2 cycler).
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  const calendarCycleLabel =
+    calendarState === "none" ? "Hidden" : calendarState === "recent" ? "1 row" : "2 rows";
+  const pageMenuSections: PageMenuSection[] = [
+    {
+      id: "view-swap",
+      title: "View",
+      items: [
+        {
+          id: "draw-table",
+          label: "Card Draw Table",
+          description: "Pick from all 78 cards",
+          Icon: LayoutGrid,
+          mode: "navigate",
+          onClick: () => {
+            setPageMenuOpen(false);
+            if (onSwitchToTable) {
+              requestNavigate(onSwitchToTable);
+            } else {
+              requestNavigate(() =>
+                navigate({ to: "/draw", search: { entry: "table" } }),
+              );
+            }
+          },
+        },
+      ],
+    },
+    {
+      id: "hide-show",
+      title: "Hide / Show",
+      items: [
+        {
+          id: "calendars",
+          label: "Calendars",
+          description: "Cycle through hidden, 1 row, 2 rows",
+          Icon: CalendarIcon,
+          mode: "cycle",
+          cycleLabel: calendarCycleLabel,
+          onClick: () => {
+            cycleCalendar();
+            // Keep the menu open so the seeker can keep cycling.
+          },
+        },
+      ],
+    },
+  ];
   // EJ25 — true while seeker hovers the asterism (teal) badge. When true,
   // every calendar day-cell that has the trace stroke (all asterism
   // cards co-occurred) swaps its fill from gold heatmap to solid trace
@@ -3771,15 +3870,21 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         padding: "2px 0 80px",
       }}
     >
+      {/* EJ65 — Left fly-out page menu trigger + panel. Holds the
+          VIEW SWAP (→ Card Draw Table) and HIDE/SHOW (calendars
+          cycler) config for this page. */}
+      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+      <PageMenu
+        open={pageMenuOpen}
+        onClose={() => setPageMenuOpen(false)}
+        sections={pageMenuSections}
+      />
       {/* Header row — DU: subtitle inline with H1 on the same row.
           EJ11 — H1 reduced 26 → 18 and row vertical padding tightened
           to close the gap above the constellation.
-          EJ61 — Added the canonical EntryModeToggle on the upper-left,
-          matching the Draw/Log icon + label pattern already used on
-          Tabletop, ManualEntryBuilder, and QuickLog. Tapping "Draw"
-          navigates to /draw (the tabletop scatter surface). This
-          surfaces the navigation back to the table that was previously
-          only reachable via the broken Classic Manual Entry link. */}
+          EJ65 — EntryModeToggle (Draw button) removed from inline
+          header; view swap lives in the PageMenu fly-out instead.
+          The Classic Manual Entry link is gone with /draw/classic. */}
       <div
         style={{
           display: "flex",
@@ -3797,25 +3902,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             flexWrap: "wrap",
           }}
         >
-          <EntryModeToggle
-            current="manual"
-            onToggle={() => {
-              // EJ63 — When the parent /draw route provides
-              // `onSwitchToTable`, use it to flip the rendered
-              // surface in place (Tabletop replaces ConstellationPage
-              // without changing the URL). When ConstellationPage is
-              // mounted via the standalone /constellation route,
-              // no callback is provided, so we navigate to /draw
-              // with the entry hint that forces table mode.
-              if (onSwitchToTable) {
-                requestNavigate(onSwitchToTable);
-              } else {
-                requestNavigate(() =>
-                  navigate({ to: "/draw", search: { entry: "table" } }),
-                );
-              }
-            }}
-          />
+          {/* EJ65 — EntryModeToggle removed from inline header. View
+              swap to Card Draw Table now lives in the left fly-out
+              panel (PageMenu), so all page controls share one home. */}
           <h1
             style={{
               margin: 0,
@@ -3844,23 +3933,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            type="button"
-            onClick={() => requestNavigate(() => navigate({ to: "/draw/classic" }))}
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 11,
-              color: "var(--accent, var(--gold))",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              textDecoration: "underline",
-              padding: 4,
-            }}
-          >
-            Classic Manual Entry →
-          </button>
+          {/* EJ65 — Classic Manual Entry link removed (legacy QuickLog
+              surface deleted). Manual Entry is now the only manual
+              surface and the Draw view-swap lives in the left fly-out
+              panel. */}
           {picks.length > 0 && (
             <button
               type="button"
@@ -4716,36 +4792,45 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
 
       {/* Calendar strip — DY: snug to constellation (was 10px gap).
           DZ — day cells are clickable; tapping a day with readings opens
-          the day-readings popover for that date. */}
-      <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
-        <OverlapStrip
-          overlap={overlap}
-          heroCardId={heroPick?.cardIndex ?? null}
-          pullCardIds={picks.map((p) => p.cardIndex)}
-          mode={overlapMode}
-          onModeChange={setOverlapMode}
-          tealSelectedIds={tealSelectedIds}
-          layout="grid12"
-          onDayClick={(date) => setDayPopover({ open: true, date })}
-          showOlder={showOlder}
-          onShowOlderChange={setShowOlder}
-          onDayHover={(info) => {
-            cancelPopoverDismiss();
-            setActivePopover({
-              kind: "day-cell",
-              key: info.date,
-              anchorX: info.anchorX,
-              anchorY: info.anchorY,
-              targetRect: info.targetRect,
-              date: info.date,
-              signals: info.signals,
-              tooltipText: info.tooltipText,
-            });
-          }}
-          onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
-          asterismBadgeHovered={asterismBadgeHovered}
-        />
-      </div>
+          the day-readings popover for that date.
+          EJ65 — Hidden entirely when calendarState === "none" (0 rows
+          showing). The PageMenu's calendar cycle button advances
+          through none → recent → both → none. */}
+      {calendarState !== "none" && (
+        <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
+          <OverlapStrip
+            overlap={overlap}
+            heroCardId={heroPick?.cardIndex ?? null}
+            pullCardIds={picks.map((p) => p.cardIndex)}
+            mode={overlapMode}
+            onModeChange={setOverlapMode}
+            tealSelectedIds={tealSelectedIds}
+            layout="grid12"
+            onDayClick={(date) => setDayPopover({ open: true, date })}
+            showOlder={showOlder}
+            onShowOlderChange={setShowOlder}
+            // EJ65 — Hide the inline "Show older" pill since the
+            // calendar visibility is now driven by the PageMenu
+            // cycler in the left fly-out.
+            showOlderToggle={false}
+            onDayHover={(info) => {
+              cancelPopoverDismiss();
+              setActivePopover({
+                kind: "day-cell",
+                key: info.date,
+                anchorX: info.anchorX,
+                anchorY: info.anchorY,
+                targetRect: info.targetRect,
+                date: info.date,
+                signals: info.signals,
+                tooltipText: info.tooltipText,
+              });
+            }}
+            onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
+            asterismBadgeHovered={asterismBadgeHovered}
+          />
+        </div>
+      )}
 
       {/* Phase 20 Fix 13 — THIS PULL → YOUR PRACTICE → question → Get Reading */}
       {picks.length > 0 && (

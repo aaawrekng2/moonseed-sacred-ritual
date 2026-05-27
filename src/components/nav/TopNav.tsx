@@ -2,11 +2,10 @@
  * EJ47 — TopNav.
  *
  * Renders on home, journal, numerology, insights, settings (and their
- * sub-routes). Equal-sized icons (no cascade), home uses a Home icon
- * (no longer a moon), and the bar auto-hides on scroll down /
- * reappears on any scroll up — matching the Material Design "scroll-
- * aware app bar" pattern used by Reddit, Twitter/X, Google search,
- * Medium, etc.
+ * sub-routes). Equal-sized icons, home uses a Home icon (no longer a
+ * moon), and the bar auto-hides on scroll down / reappears on any
+ * scroll up — matching the Material Design "scroll-aware app bar"
+ * pattern used by Reddit, Twitter/X, Google search, Medium, etc.
  *
  * The bar is render-mounted only by TopNavGate on the listed routes;
  * BottomNavGate suppresses the BottomNav on the same routes so we
@@ -16,16 +15,13 @@
  * Default state: 28px tall, icons only, no labels. Page content sits
  * at this height (TopNavGate spacer = 28px). Expanded state: 56px
  * tall with labels. Triggers: hover (desktop), click (mobile/tablet).
- * Auto-collapses 3s after expand. Timer resets on icon tap so the
- * seeker can hide multiple sections without the bar shrinking out
- * from under them. The expanded bar OVERLAYS content beneath (the
- * spacer doesn't grow), so the page never reflows.
+ * Auto-collapses 3s after expand. The expanded bar OVERLAYS content
+ * beneath (the spacer doesn't grow), so the page never reflows.
  *
- * Left-side rail (only visible when expanded): page-specific
- * "hide section" toggles. On home: crescent moon icon toggles the
- * moon carousel. Dim when off, bright when on. Bidirectionally
- * synced with Settings > Preferences > Show moon phase carousel
- * via the existing useMoonPrefs + emitMoonPrefsChanged channel.
+ * EJ65 — Pure navigation. Left rail and right spacer removed entirely.
+ * All page-specific toggles (moon carousel hide, calendar cycler, view
+ * swap) moved into the new left fly-out PageMenu. TopNav is now just
+ * the 5 destination icons, centered.
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -33,11 +29,6 @@ import { Home, BookOpen, Settings, Hash, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDevHideMenu } from "@/components/dev/DevOverlay";
-import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
-import { getCurrentMoonPhase } from "@/lib/moon";
-import { emitMoonPrefsChanged, useMoonPrefs } from "@/lib/use-moon-prefs";
-import { updateUserPreferences } from "@/lib/user-preferences-write";
-import { useAuth } from "@/lib/auth";
 
 type Tab = {
   to: "/" | "/journal" | "/settings" | "/numerology" | "/insights";
@@ -46,9 +37,7 @@ type Tab = {
 };
 
 // Equal-weight 5-tab order. Same destinations as BottomNav, but Home
-// uses the Home icon (not the Moon) and no tab is marked primary —
-// all icons render at the same 20px size with 11px labels (the
-// "current smallest" values from BottomNav per the EJ47 spec).
+// uses the Home icon (not the Moon).
 const TABS: readonly Tab[] = [
   { to: "/journal", label: "Journal", Icon: BookOpen },
   { to: "/numerology", label: "Numerology", Icon: Hash },
@@ -58,43 +47,30 @@ const TABS: readonly Tab[] = [
 ] as const;
 
 // Minimum vertical scroll delta (in px) before we'll change visible
-// state. Prevents the bar from jittering when the seeker's finger
-// makes tiny corrective scrolls. Matches Material's default behavior.
+// state. Prevents jitter on tiny corrective scrolls.
 const SCROLL_THRESHOLD = 8;
 
 // EJ64 — Auto-collapse delay after expand. 3 seconds is the industry
 // midpoint for tap-to-expand auto-collapsing menus (Twitter, Stripe,
-// Linear). Timer resets on icon tap so the seeker can toggle multiple
-// section-hide icons without the bar collapsing.
+// Linear). Timer resets on icon tap so the seeker can act without
+// the bar collapsing mid-interaction.
 const AUTO_COLLAPSE_MS = 3000;
 
 // EJ64 — Heights. Default = compact (icons only). Expanded = full
 // (icons + labels). Page content sits at the compact height via
-// TopNavGate's spacer; the expanded bar overlays content beneath
-// (no reflow).
+// TopNavGate's spacer; the expanded bar overlays content beneath.
 const COMPACT_HEIGHT = 28;
 const EXPANDED_HEIGHT = 56;
 
 export function TopNav() {
   const location = useLocation();
-  const { user } = useAuth();
-  // EJ49 — Admin dev toggle: when "Hide menu" is on, suppress the
-  // TopNav UI entirely. The TopNavGate spacer stays in document flow
-  // upstream of us, so page content does NOT shift up — there's just
-  // an empty band at the top of the viewport. Lets admins inspect
-  // what would otherwise be hidden behind the fixed nav.
   const hideMenu = useDevHideMenu();
   const [visible, setVisible] = useState(true);
-  // EJ64 — Expansion state. False = compact (28px, icons only),
-  // true = expanded (56px, labels visible, section-hide icons visible).
   const [expanded, setExpanded] = useState(false);
   const collapseTimerRef = useRef<number | null>(null);
   const lastYRef = useRef<number>(0);
   const lastDirRef = useRef<"up" | "down" | null>(null);
 
-  // EJ64 — Auto-collapse timer. Cleared on hover-out (desktop), on
-  // expand (so it starts fresh), and on icon tap (so the seeker can
-  // act on the expanded bar without it collapsing mid-interaction).
   const startCollapseTimer = () => {
     if (collapseTimerRef.current !== null) {
       window.clearTimeout(collapseTimerRef.current);
@@ -112,10 +88,6 @@ export function TopNav() {
     }
   };
 
-  // EJ64 — Expand on hover (desktop). The mouse-leave handler starts
-  // the auto-collapse timer rather than collapsing immediately, which
-  // gives the seeker a 3s grace period to move their cursor back if
-  // they overshoot the bar.
   const handleMouseEnter = () => {
     clearCollapseTimer();
     setExpanded(true);
@@ -123,31 +95,22 @@ export function TopNav() {
   const handleMouseLeave = () => {
     startCollapseTimer();
   };
-
-  // EJ64 — Expand on click (mobile/tablet primary trigger; also
-  // works on desktop for keyboard/touch users). Once expanded the
-  // auto-collapse timer takes over.
   const handleClick = () => {
     if (!expanded) {
       setExpanded(true);
       startCollapseTimer();
     } else {
-      // Tap on the bar surface (not an icon) — reset the timer so
-      // the seeker doesn't lose the expanded state mid-decision.
       startCollapseTimer();
     }
   };
-
-  // EJ64 — Reset auto-collapse timer when the seeker taps any icon
-  // in the expanded bar. Lets them toggle multiple section-hide
-  // icons in succession without the bar shrinking out.
+  // EJ64 — Reset auto-collapse timer when the seeker taps any nav
+  // icon. Lets them dwell on the expanded bar without it shrinking.
   const handleIconInteraction = () => {
     if (expanded) startCollapseTimer();
   };
 
   useEffect(() => {
     return () => {
-      // Cleanup any pending timer on unmount.
       if (collapseTimerRef.current !== null) {
         window.clearTimeout(collapseTimerRef.current);
       }
@@ -160,8 +123,7 @@ export function TopNav() {
     const onScroll = () => {
       const y = window.scrollY || 0;
       const dy = y - lastYRef.current;
-      if (Math.abs(dy) < SCROLL_THRESHOLD) return; // jitter guard
-      // Always show when near the top of the page.
+      if (Math.abs(dy) < SCROLL_THRESHOLD) return;
       if (y < 24) {
         setVisible(true);
         lastYRef.current = y;
@@ -181,9 +143,6 @@ export function TopNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Reset visible state on route change so the seeker never lands on
-  // a new page with the bar hidden. Also collapse the bar so each
-  // page starts in its compact default.
   useEffect(() => {
     setVisible(true);
     setExpanded(false);
@@ -192,13 +151,8 @@ export function TopNav() {
     lastDirRef.current = "up";
   }, [location.pathname]);
 
-  // EJ49 — dev "Hide menu" toggle takes precedence over all other
-  // visibility logic. The spacer in TopNavGate is unconditional and
-  // stays mounted, so suppressing only the <nav> element here doesn't
-  // shift any page layout.
   if (hideMenu) return null;
 
-  const isHome = location.pathname === "/";
   const currentHeight = expanded ? EXPANDED_HEIGHT : COMPACT_HEIGHT;
 
   return (
@@ -214,20 +168,10 @@ export function TopNav() {
         borderBottomColor: "var(--border-default)",
         paddingTop: "env(safe-area-inset-top, 0px)",
         transform: visible ? "translateY(0)" : "translateY(-110%)",
-        // EJ64 — Two transitions: vertical hide/show + height grow/shrink.
-        // Both use the same easing curve so they feel coherent when both
-        // fire (e.g. scroll back to top while expanded).
-        transition:
-          "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
         willChange: "transform",
       }}
     >
-      {/* EJ64 — Inner container with the growable height. Wrapping
-          the ul inside a height-animated div lets the bar grow
-          downward over content (since the <nav> is fixed at top:0
-          and the TopNavGate spacer below stays at compact height).
-          The ul itself flexes to fill whatever height the container
-          currently has. */}
       <div
         style={{
           height: currentHeight,
@@ -235,165 +179,56 @@ export function TopNav() {
           overflow: "hidden",
         }}
       >
-        <div
-          className="mx-auto flex h-full items-center px-4"
-          style={{ maxWidth: 720, gap: 12 }}
+        {/* EJ65 — Pure centered nav. Removed the 80px left rail and
+            80px right spacer that were squeezing the icons on narrow
+            mobile viewports. The 5 icons now use the full available
+            width and stay visually centered. */}
+        <ul
+          className="mx-auto flex h-full items-center justify-center px-4"
+          style={{ maxWidth: 720, gap: 24 }}
         >
-          {/* EJ64 — Left rail for page-specific section-hide icons.
-              Only visible when expanded; otherwise renders an empty
-              flex item to keep the center-tabs centered via flex
-              alignment. Width is set on the wrapper so the spacing
-              is stable as icons appear/disappear. */}
-          <div
-            aria-hidden={!expanded}
-            style={{
-              minWidth: 80,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              opacity: expanded ? 1 : 0,
-              pointerEvents: expanded ? "auto" : "none",
-              transition: "opacity 160ms ease-out",
-            }}
-          >
-            {isHome && (
-              <MoonCarouselToggle
-                userId={user?.id ?? null}
-                onInteract={handleIconInteraction}
-              />
-            )}
-          </div>
-
-          {/* EJ64 — Center tabs. flex-1 so they take remaining space
-              and stay centered between the left rail and the right
-              spacer. */}
-          <ul
-            className="flex flex-1 items-center justify-center"
-            style={{ gap: 24 }}
-          >
-            {TABS.map(({ to, label, Icon }) => {
-              const path = location.pathname;
-              const hasSubRoutes = to !== "/" && to !== "/journal";
-              const active = hasSubRoutes ? path === to || path.startsWith(`${to}/`) : path === to;
-              const tabAlpha = active ? "var(--ro-plus-10)" : "var(--ro-plus-0)";
-              return (
-                <li key={to}>
-                  <Link
-                    to={to}
-                    aria-label={`${label}${active ? " (current page)" : ""}`}
-                    onClick={handleIconInteraction}
+          {TABS.map(({ to, label, Icon }) => {
+            const path = location.pathname;
+            const hasSubRoutes = to !== "/" && to !== "/journal";
+            const active = hasSubRoutes ? path === to || path.startsWith(`${to}/`) : path === to;
+            const tabAlpha = active ? "var(--ro-plus-10)" : "var(--ro-plus-0)";
+            return (
+              <li key={to}>
+                <Link
+                  to={to}
+                  aria-label={`${label}${active ? " (current page)" : ""}`}
+                  onClick={handleIconInteraction}
+                  style={{
+                    opacity: tabAlpha,
+                    color: active ? "var(--gold)" : undefined,
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 transition-all hover:opacity-100",
+                    "outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    active ? "text-gold" : "text-foreground",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon size={18} strokeWidth={1.6} aria-hidden="true" />
+                  <span
+                    className="clarity-label font-display tracking-wide text-[11px]"
                     style={{
-                      opacity: tabAlpha,
-                      color: active ? "var(--gold)" : undefined,
+                      maxHeight: expanded ? 16 : 0,
+                      opacity: expanded ? 1 : 0,
+                      overflow: "hidden",
+                      transition:
+                        "max-height 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 160ms ease-out",
                     }}
-                    className={cn(
-                      "flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 transition-all hover:opacity-100",
-                      "outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                      active ? "text-gold" : "text-foreground",
-                    )}
-                    aria-current={active ? "page" : undefined}
                   >
-                    <Icon size={18} strokeWidth={1.6} aria-hidden="true" />
-                    {/* EJ64 — Labels render only in expanded state.
-                        Using a height-collapse animation pattern keeps
-                        the icons vertically centered in both states. */}
-                    <span
-                      className="clarity-label font-display tracking-wide text-[11px]"
-                      style={{
-                        maxHeight: expanded ? 16 : 0,
-                        opacity: expanded ? 1 : 0,
-                        overflow: "hidden",
-                        transition:
-                          "max-height 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 160ms ease-out",
-                      }}
-                    >
-                      {label}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* EJ64 — Right spacer matches the left rail's width so
-              the center tabs render visually centered. */}
-          <div
-            aria-hidden
-            style={{
-              minWidth: 80,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-            }}
-          />
-        </div>
+                    {label}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </nav>
-  );
-}
-
-/**
- * EJ64 — Crescent moon icon that toggles the home page's moon
- * carousel. Bidirectionally synced with Settings > Preferences >
- * Show moon phase carousel via the existing useMoonPrefs hook
- * (which subscribes to the moonPrefsChanged event channel) and
- * emitMoonPrefsChanged (which broadcasts changes to all subscribers
- * including the Settings page). When the carousel is on, the icon
- * renders at full opacity with today's actual moon phase. When off,
- * it dims to 40% opacity.
- */
-function MoonCarouselToggle({
-  userId,
-  onInteract,
-}: {
-  userId: string | null;
-  onInteract: () => void;
-}) {
-  const moonPrefs = useMoonPrefs();
-  // Compute today's moon phase once on mount so the icon renders the
-  // current crescent/gibbous/full geometry. Doesn't need to re-tick
-  // — phase changes slowly enough that page-level refresh covers it.
-  const phaseInfo = getCurrentMoonPhase(new Date());
-
-  const toggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onInteract();
-    const next = !moonPrefs.moon_show_carousel;
-    emitMoonPrefsChanged({ moon_show_carousel: next });
-    if (userId) {
-      void updateUserPreferences(userId, { moon_show_carousel: next });
-    }
-  };
-
-  const on = moonPrefs.moon_show_carousel;
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={on ? "Hide moon carousel" : "Show moon carousel"}
-      title={on ? "Hide moon carousel" : "Show moon carousel"}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 32,
-        height: 32,
-        borderRadius: 999,
-        background: "transparent",
-        border: "none",
-        cursor: "pointer",
-        padding: 0,
-        opacity: on ? 1 : 0.4,
-        transition: "opacity 160ms ease-out",
-      }}
-    >
-      <MoonPhaseIcon
-        phase={phaseInfo.phase}
-        size={20}
-        illumination={phaseInfo.illumination}
-      />
-    </button>
   );
 }
 
@@ -402,7 +237,6 @@ export const TOP_NAV_ROUTES = ["/", "/journal", "/numerology", "/insights", "/se
 
 /** True when the current pathname is one of the TopNav routes. */
 export function isTopNavRoute(pathname: string): boolean {
-  // Home is exact-match only ("/" alone, not "/something").
   if (pathname === "/") return true;
   for (const route of TOP_NAV_ROUTES) {
     if (route === "/") continue;

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Undo2, Redo2, X, MessageCircle, HelpCircle } from "lucide-react";
+import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard } from "lucide-react";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -127,6 +129,30 @@ export function Tabletop({
   // slot. Defaults to ON (annotated). Mirrored on the SpreadLayout
   // screen so the choice carries through the entire draw flow.
   const { showLabels, setShowLabels } = useShowLabels();
+
+  // EJ65 — Left fly-out page menu state. Tabletop's only config item
+  // is the VIEW SWAP back to Manual Entry (constellation surface).
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  const pageMenuSections: PageMenuSection[] = [];
+  if (onSwitchToManual) {
+    pageMenuSections.push({
+      id: "view-swap",
+      title: "View",
+      items: [
+        {
+          id: "manual-entry",
+          label: "Manual Entry",
+          description: "Type or paste card names",
+          Icon: Keyboard,
+          mode: "navigate",
+          onClick: () => {
+            setPageMenuOpen(false);
+            onSwitchToManual();
+          },
+        },
+      ],
+    });
+  }
 
   // Three-level UI density for the draw screen, controlled by the eye
   // icon in the top-bar.
@@ -969,6 +995,19 @@ export function Tabletop({
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      {/* EJ65 — Left fly-out page menu trigger + panel. Only shown
+          when the parent provided onSwitchToManual (so the VIEW SWAP
+          action has somewhere to go). */}
+      {onSwitchToManual && pageMenuSections.length > 0 && (
+        <>
+          <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+          <PageMenu
+            open={pageMenuOpen}
+            onClose={() => setPageMenuOpen(false)}
+            sections={pageMenuSections}
+          />
+        </>
+      )}
       {/* Q39b Fix 5 — visible X close button (FloatingMenu X removed in Q33). */}
       <button
         type="button"
@@ -1034,9 +1073,9 @@ export function Tabletop({
         }}
       >
         <div style={{ pointerEvents: "auto", paddingLeft: 16 }}>
-          {onSwitchToManual && (
-            <EntryModeToggle ref={entryToggleRef} current="table" onToggle={onSwitchToManual} />
-          )}
+          {/* EJ65 — EntryModeToggle removed from inline overlay. Manual
+              Entry view swap now lives in the left fly-out PageMenu
+              (mounted by Tabletop's PageMenu block below). */}
         </div>
         {onOpenQuestion && (
           <div style={{ pointerEvents: "auto", paddingLeft: 12 }}>
