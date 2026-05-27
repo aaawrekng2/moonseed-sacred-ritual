@@ -2035,6 +2035,11 @@ function OverlapStrip({
    *  heatmap to solid trace color, completely overriding the heatmap
    *  so the seeker sees the asterism's days at 100% visibility. */
   asterismBadgeHovered?: boolean;
+  /** EJ65 — accepted for API symmetry with <OverlapPills/>. OverlapStrip
+   *  in controlled mode does not render the legacy inline Show-older pill,
+   *  so this prop is currently a no-op here; kept so ConstellationPage can
+   *  pass the same flag through without a type error. */
+  showOlderToggle?: boolean;
 }) {
   // EJ35 — resolver for oracle card_ids in day-cell tooltips that
   // surface matched-card lists.
