@@ -1582,7 +1582,13 @@ export function Tabletop({
         // the gold dot pulses through the auto-transition pause. The
         // whisper element is always mounted so toggling the eyeball
         // (Clarity) density only changes opacity, never layout height.
-        const centerWhisper = ready ? transitionCue : drawWord;
+        // EJ67 — drawWord suppressed entirely (set to null below) so the
+        // "Draw: <position>" + description text no longer appears under
+        // the scatter. The seeker asked for that text removed to give
+        // the scatter more vertical breathing room. transitionCue
+        // (the gold pulse dot during the ready-pause) is kept since
+        // it's the only feedback that the reading is starting.
+        const centerWhisper = ready ? transitionCue : null;
         const mobileSlotCounter = null;
 
         const controlsRow = (
