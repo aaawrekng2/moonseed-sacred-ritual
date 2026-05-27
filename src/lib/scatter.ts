@@ -205,33 +205,64 @@ function intersectsAny(
   return false;
 }
 
-function rectOverlapArea(
-  ax: number,
-  ay: number,
-  aw: number,
-  ah: number,
-  bx: number,
-  by: number,
-  bw: number,
-  bh: number,
+function visibleRatio(
+  card: ScatterCard,
+  higher: ScatterCard[],
+  cw: number,
+  ch: number,
+  maxRotation: number,
 ): number {
-  const ow = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx));
-  const oh = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
-  return ow * oh;
-}
-
-function visibleRatio(card: ScatterCard, higher: ScatterCard[], cw: number, ch: number): number {
-  const area = cw * ch;
-  if (area <= 0) return 1;
-  // Approximate covered area as the sum of pairwise overlaps with higher-z
-  // cards, capped at the card's own area. This overcounts when higher cards
-  // overlap each other but is plenty for a "≥30% visible" heuristic.
+  // EJ66 — Rasterized visibility. Previously this function summed
+  // pairwise axis-aligned overlaps as if higher cards didn't overlap
+  // each other, with a comment that "overcounts when higher cards
+  // overlap but is plenty for a 30% heuristic." At the new 90%
+  // target that overcount rejected genuinely-good positions, so
+  // cards stayed stuck in their original failing spots.
+  //
+  // The new approach rasterizes the card into a small grid (24x36 =
+  // 864 cells) and marks each cell covered by ANY higher card. The
+  // visibility ratio is uncovered / total, which is exact within
+  // grid resolution and correctly handles overlapping coverers.
+  //
+  // Higher cards are tested using their ROTATED axis-aligned bbox
+  // (the worst-case envelope of the rotated rect) so a tilted card
+  // doesn't get falsely reported as "not covering" the card below.
+  const GRID_X = 24;
+  const GRID_Y = 36;
+  // Rotation-aware bbox for higher cards. theta = maxRotation.
+  const theta = (maxRotation * Math.PI) / 180;
+  const cosT = Math.abs(Math.cos(theta));
+  const sinT = Math.abs(Math.sin(theta));
+  const bboxW = cw * cosT + ch * sinT;
+  const bboxH = cw * sinT + ch * cosT;
+  const slackX = (bboxW - cw) / 2;
+  const slackY = (bboxH - ch) / 2;
+  // Precompute higher cards' expanded bboxes (center ± half-bbox).
+  const higherBoxes = higher.map((o) => ({
+    left: o.x - slackX,
+    top: o.y - slackY,
+    right: o.x + cw + slackX,
+    bottom: o.y + ch + slackY,
+  }));
   let covered = 0;
-  for (const o of higher) {
-    covered += rectOverlapArea(card.x, card.y, cw, ch, o.x, o.y, cw, ch);
-    if (covered >= area) break;
+  const cellW = cw / GRID_X;
+  const cellH = ch / GRID_Y;
+  for (let gy = 0; gy < GRID_Y; gy++) {
+    const py = card.y + (gy + 0.5) * cellH;
+    for (let gx = 0; gx < GRID_X; gx++) {
+      const px = card.x + (gx + 0.5) * cellW;
+      // Cell covered if ANY higher card's expanded bbox contains it.
+      for (let i = 0; i < higherBoxes.length; i++) {
+        const b = higherBoxes[i];
+        if (px >= b.left && px <= b.right && py >= b.top && py <= b.bottom) {
+          covered++;
+          break;
+        }
+      }
+    }
   }
-  return Math.max(0, 1 - Math.min(area, covered) / area);
+  const total = GRID_X * GRID_Y;
+  return (total - covered) / total;
 }
 
 function enforceMinVisibility(
@@ -240,21 +271,45 @@ function enforceMinVisibility(
   minVisible: number,
   rng: () => number,
 ) {
-  // Sort references by z so we can quickly pull "higher" cards (greater z).
+  // EJ66 — More attempts (100 vs 16) because the search space gets
+  // dramatically tighter at 90% than at 30%. Also: track the BEST
+  // candidate found across all attempts so cards never end up worse
+  // off than they started, even if no position meets the threshold.
+  // The original implementation kept the failing position when no
+  // attempt cleared the bar, leaving the seeker with cards 30%
+  // visible despite asking for 90%.
+  //
+  // Strategy: random-direction nudges from the card's current
+  // position (Cori's "move it a random direction that's still in
+  // the visible area"), with the search radius growing with each
+  // attempt so we explore locally first then sweep wider.
   const byZ = [...cards].sort((a, b) => a.z - b.z);
   for (let i = 0; i < byZ.length; i++) {
     const c = byZ[i];
     const higher = byZ.slice(i + 1);
-    if (visibleRatio(c, higher, p.cardWidth, p.cardHeight) >= minVisible) continue;
-    // Try up to 16 random repositions to find a spot meeting the threshold.
-    for (let attempt = 0; attempt < 16; attempt++) {
+    const initialVis = visibleRatio(c, higher, p.cardWidth, p.cardHeight, p.maxRotation);
+    if (initialVis >= minVisible) continue;
+    // Track the best (position, visibility) found across attempts.
+    let bestX = c.x;
+    let bestY = c.y;
+    let bestVis = initialVis;
+    const ATTEMPTS = 100;
+    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+      // Random-direction nudge from the original position. Radius
+      // grows from 0.5x card width on early attempts to 2.0x card
+      // width on later ones, so we explore locally first.
+      const radiusFactor = 0.5 + (1.5 * attempt) / ATTEMPTS;
+      const radius = p.cardWidth * radiusFactor;
+      const angle = rng() * Math.PI * 2;
+      const dx = Math.cos(angle) * radius * rng();
+      const dy = Math.sin(angle) * radius * rng();
       const nx = clamp(
-        rng() * (p.width - p.cardWidth),
+        c.x + dx,
         0,
         Math.max(0, p.width - p.cardWidth),
       );
       const ny = clamp(
-        rng() * (p.height - p.cardHeight),
+        c.y + dy,
         0,
         Math.max(0, p.height - p.cardHeight),
       );
@@ -265,12 +320,20 @@ function enforceMinVisibility(
         continue;
       }
       const candidate = { ...c, x: nx, y: ny };
-      if (visibleRatio(candidate, higher, p.cardWidth, p.cardHeight) >= minVisible) {
-        c.x = nx;
-        c.y = ny;
-        break;
+      const v = visibleRatio(candidate, higher, p.cardWidth, p.cardHeight, p.maxRotation);
+      if (v > bestVis) {
+        bestVis = v;
+        bestX = nx;
+        bestY = ny;
+        if (v >= minVisible) break; // Met the target — stop searching.
       }
     }
+    // Commit the best position found. If we hit minVisible, this is
+    // the first qualifying candidate; otherwise it's the highest-
+    // visibility candidate from all 100 attempts — guaranteed to be
+    // no worse than the starting position.
+    c.x = bestX;
+    c.y = bestY;
   }
 }
 
