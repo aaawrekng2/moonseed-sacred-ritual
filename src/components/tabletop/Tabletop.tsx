@@ -5,6 +5,7 @@ import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { TabletopCloseButton } from "@/components/tabletop/TabletopCloseButton";
 import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -130,8 +131,11 @@ export function Tabletop({
   // screen so the choice carries through the entire draw flow.
   const { showLabels, setShowLabels } = useShowLabels();
 
-  // EJ65 — Left fly-out page menu state. Tabletop's only config item
-  // is the VIEW SWAP back to Manual Entry (constellation surface).
+  // EJ65 — Left fly-out page menu state. Tabletop's config items:
+  //   VIEW SWAP → Manual Entry
+  //   ADD A QUESTION → opens the question composer (was a top-right
+  //     icon in EJ67; moved into the fly-out in EJ68 to keep the
+  //     top chrome clean)
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
   const pageMenuSections: PageMenuSection[] = [];
   if (onSwitchToManual) {
@@ -148,6 +152,25 @@ export function Tabletop({
           onClick: () => {
             setPageMenuOpen(false);
             onSwitchToManual();
+          },
+        },
+      ],
+    });
+  }
+  if (onOpenQuestion) {
+    pageMenuSections.push({
+      id: "actions",
+      title: "Actions",
+      items: [
+        {
+          id: "add-question",
+          label: question && question.trim().length > 0 ? "Edit question" : "Add a question",
+          description: "Anchor this reading to a question",
+          Icon: MessageCircle,
+          mode: "navigate",
+          onClick: () => {
+            setPageMenuOpen(false);
+            onOpenQuestion();
           },
         },
       ],
@@ -994,11 +1017,21 @@ export function Tabletop({
   }, [ready, required]);
 
   return (
-    <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
-      {/* EJ65 — Left fly-out page menu trigger + panel. Only shown
-          when the parent provided onSwitchToManual (so the VIEW SWAP
-          action has somewhere to go). */}
-      {onSwitchToManual && pageMenuSections.length > 0 && (
+    <div
+      className="fixed inset-x-0 bottom-0 z-30 flex w-full flex-col overflow-hidden bg-cosmos"
+      style={{
+        // EJ68 — Don't cover the TopNav band. Top edge starts at the
+        // CSS variable --topbar-pad (set by the root layout as
+        // env(safe-area-inset-top, 0px) + TopNav height). z-30 keeps
+        // the tabletop below z-bottom-nav (40) so the nav can render
+        // above it without z-index gymnastics.
+        top: "var(--topbar-pad)",
+      }}
+    >
+      {/* EJ65 — Left fly-out page menu trigger + panel.
+          EJ68 — Mount if ANY page-menu items exist (view-swap OR
+          add-question), not just if onSwitchToManual is wired. */}
+      {pageMenuSections.length > 0 && (
         <>
           <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
           <PageMenu
@@ -1008,28 +1041,15 @@ export function Tabletop({
           />
         </>
       )}
-      {/* Q39b Fix 5 — visible X close button (FloatingMenu X removed in Q33). */}
-      <button
-        type="button"
-        onClick={handleExit}
-        aria-label="Close draw table"
-        data-no-peek=""
-        style={{
-          position: "absolute",
-          top: "calc(env(safe-area-inset-top, 0px) + 10px)",
-          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
-          zIndex: 60,
-          padding: 8,
-          color: "var(--color-foreground)",
-          opacity: 0.7,
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          touchAction: "manipulation",
-        }}
-      >
-        <X size={18} strokeWidth={1.5} />
-      </button>
+      {/* EJ68 — X close button at top-right, mirroring the PageMenu
+          hamburger at top-left. Both sit on the same row as the
+          TopNav band (which is rendered by TopNavGate). */}
+      <TabletopCloseButton onClick={handleExit} />
+      {/* EJ68 — Visible X close button moved into the TopNav row.
+          The legacy fixed-position X (was top-right of the tabletop)
+          is gone — its handler `handleExit` is now wired to the
+          TabletopTopActions overlay rendered as a sibling of the
+          TopNav band. */}
       {/* Q95 #7 — single-line question preview directly below the X button,
           right-aligned, with a right-edge fade mask. */}
       {question && question.trim().length > 0 && (
@@ -1057,65 +1077,69 @@ export function Tabletop({
           {question.trim()}
         </div>
       )}
-      {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
-          (centered) on the same row. */}
+      {/* EJ68 — Top action row: Undo · count stepper · Redo.
+          Sits just below the TopNav band, full-width centered.
+          The count stepper is now ALWAYS visible (was custom-only)
+          so the seeker can confirm how many cards the spread holds.
+          For fixed spreads (Past/Present/Future = 3) the chevrons
+          are disabled-transparent (min=max). For custom spreads
+          the seeker can change the count with min=1, max=10.
+          Undo and Redo flank the stepper, dimming to 30% opacity
+          when their stack is empty (the existing `disabled:opacity-30`
+          behavior). */}
       <div
         style={{
-          position: "absolute",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          left: 0,
-          right: 0,
-          zIndex: 50,
+          position: "relative",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          pointerEvents: "none",
+          justifyContent: "center",
+          gap: 12,
+          paddingTop: 4,
+          paddingBottom: 4,
+          flexShrink: 0,
+          zIndex: 5,
         }}
       >
-        <div style={{ pointerEvents: "auto", paddingLeft: 16 }}>
-          {/* EJ65 — EntryModeToggle removed from inline overlay. Manual
-              Entry view swap now lives in the left fly-out PageMenu
-              (mounted by Tabletop's PageMenu block below). */}
-        </div>
-        {onOpenQuestion && (
-          <div style={{ pointerEvents: "auto", paddingLeft: 12 }}>
-            <button
-              type="button"
-              onClick={onOpenQuestion}
-              aria-label="Add question"
-              data-no-peek=""
-              style={{
-                background: "none",
-                border: "none",
-                padding: 8,
-                color: "var(--accent, var(--gold))",
-                opacity: 0.7,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                touchAction: "manipulation",
-              }}
-            >
-              <MessageCircle size={18} strokeWidth={1.5} />
-            </button>
-          </div>
-        )}
-        <div
-          style={{
-            pointerEvents: "auto",
-            flex: 1,
-            display: "flex",
-            justifyContent: "center",
-          }}
+        <button
+          type="button"
+          onClick={undo}
+          disabled={undoStack.length === 0}
+          aria-label="Undo last drag"
+          style={{ opacity: undoStack.length === 0 ? 0.3 : restingAlpha }}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
         >
-          {spread === "custom" && customCount && onCustomCountChange && (
+          <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+        </button>
+        {(() => {
+          // EJ68 — Count display. For custom spreads, the stepper is
+          // fully interactive (min=1, max=10). For fixed spreads, we
+          // clamp min===max to the spread's count so both chevrons
+          // render as disabled-transparent (opacity 0.3 in the
+          // component) — the count is visible but un-editable.
+          const isCustom = spread === "custom" && onCustomCountChange;
+          const displayCount = isCustom ? (customCount ?? required) : required;
+          return (
             <CustomCountStepper
               ref={stepperRef}
-              count={customCount}
-              onChange={onCustomCountChange}
+              count={displayCount}
+              onChange={(next) => {
+                if (isCustom && onCustomCountChange) onCustomCountChange(next);
+              }}
+              min={isCustom ? 1 : displayCount}
+              max={isCustom ? 10 : displayCount}
             />
-          )}
-        </div>
+          );
+        })()}
+        <button
+          type="button"
+          onClick={redo}
+          disabled={redoStack.length === 0}
+          aria-label="Redo last drag"
+          style={{ opacity: redoStack.length === 0 ? 0.3 : restingAlpha }}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
+        >
+          <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+        </button>
       </div>
       {showEntryHint && onSwitchToManual && (
         <Hint
@@ -1185,49 +1209,10 @@ export function Tabletop({
           old left-side opacity slider has been removed — opacity is
           configured in Settings → Themes. */}
 
-      {/* Unified top-bar cluster: ScrollText (Oracle) → Wand (sanctuary) →
-          Eye (Clarity) → user initial → X. Equal 12px gaps, 44px tap
-          targets, X always rightmost. The Undo/Redo buttons sit just to
-          the LEFT of the cluster as a separate group (they're transient
-          and only appear when the user has done something to undo). */}
-      {(undoStack.length > 0 || redoStack.length > 0) && (
-        <div
-          style={{
-            position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-            // Sit to the left of TopRightControls. The cluster is roughly
-            // 5×44px + 4×12px gap ≈ 268px; offset past it so we never
-            // overlap. On smaller viewports the cluster wraps naturally.
-            right: "calc(env(safe-area-inset-right, 0px) + 240px)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            zIndex: 60,
-            pointerEvents: "auto",
-          }}
-        >
-          <button
-            type="button"
-            onClick={undo}
-            disabled={undoStack.length === 0}
-            aria-label="Undo last drag"
-            style={{ opacity: restingAlpha }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={redo}
-            disabled={redoStack.length === 0}
-            aria-label="Redo last drag"
-            style={{ opacity: restingAlpha }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        </div>
-      )}
+      {/* EJ68 — Undo / Redo no longer rendered as a fixed-position
+          cluster at top-right. They now live in the top action row
+          above (flanking the count stepper) so all tabletop chrome
+          sits on one consistent row below the TopNav band. */}
 
       {/* Tabletop scatter area */}
       <div
