@@ -18,8 +18,17 @@ export const TABLETOP_CONFIG = {
    */
   // On mobile, the floating ··· menu is much smaller than the old top bar
   // so cards can start higher. Desktop keeps the original reserve.
+  // EJ67 — Mobile reserve trimmed from 96 → 56 because the previous
+  // floating ··· top cluster has been replaced with a single 36px
+  // PageMenuTrigger hamburger upper-left and a 28px TopNav band. The
+  // 96px reserve was sized for the legacy top bar; with the new chrome
+  // it left ~40px of dead space above the scatter that the seeker
+  // reported as wasted real estate. 56px clears the new UI cleanly
+  // and gives the scatter more vertical room, which combines with
+  // the 20% smaller mobile cards to make 90% per-card visibility
+  // geometrically reachable.
   TOP_RESERVE:
-    typeof window !== "undefined" && window.innerWidth < 768 ? 96 : 72,
+    typeof window !== "undefined" && window.innerWidth < 768 ? 56 : 72,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
@@ -47,9 +56,18 @@ export function scatterPadding(viewportW?: number): number {
 }
 
 export function responsiveCardWidth(viewportW: number): number {
-  // Mobile uses a tuned static value — kept as-is to avoid regressing
-  // mobile layouts that already work well at 38px.
-  if (viewportW < 768) return 38;
+  // EJ67 — Mobile reduced from 38 → 30 (20% smaller). With 38px wide
+  // (60.8 tall at 1.6 aspect), cards were TALLER than the scatter
+  // grid's cell height (~52.7 on a 360×580 usable viewport with
+  // 8 cols × 11 rows), so every card in rows 2-11 was forced to
+  // overlap the row above by ~8px. That guaranteed structural
+  // overlap and made the 90% visibility target geometrically
+  // unreachable on mobile. At 30 wide × 48 tall, cards fit inside
+  // cells with breathing room (~5px each side) so 90% visibility
+  // becomes achievable. The adaptiveHitInset helper expands the
+  // tap target to ~44px (Apple HIG minimum) automatically so
+  // tappability is unchanged.
+  if (viewportW < 768) return 30;
 
   // DF-2 — Desktop uses a density-based formula. Targets ~70% deck-area
   // density: cards fill 70% of available scatter area, leaving 30%
