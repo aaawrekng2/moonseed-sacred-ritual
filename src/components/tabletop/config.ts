@@ -56,18 +56,12 @@ export function scatterPadding(viewportW?: number): number {
 }
 
 export function responsiveCardWidth(viewportW: number): number {
-  // EJ67 — Mobile reduced from 38 → 30 (20% smaller). With 38px wide
-  // (60.8 tall at 1.6 aspect), cards were TALLER than the scatter
-  // grid's cell height (~52.7 on a 360×580 usable viewport with
-  // 8 cols × 11 rows), so every card in rows 2-11 was forced to
-  // overlap the row above by ~8px. That guaranteed structural
-  // overlap and made the 90% visibility target geometrically
-  // unreachable on mobile. At 30 wide × 48 tall, cards fit inside
-  // cells with breathing room (~5px each side) so 90% visibility
-  // becomes achievable. The adaptiveHitInset helper expands the
-  // tap target to ~44px (Apple HIG minimum) automatically so
-  // tappability is unchanged.
-  if (viewportW < 768) return 30;
+  // EJ68 — Mobile cards bumped 30 → 33 (+10%). After EJ67's 20%
+  // reduction, the seeker found mobile cards too small and asked
+  // for them slightly larger. 33 wide × 52.8 tall still fits in
+  // the ~45 × 56 mobile cell with the EJ67 TOP_RESERVE=56 trim,
+  // so 90% visibility remains geometrically reachable.
+  if (viewportW < 768) return 33;
 
   // DF-2 — Desktop uses a density-based formula. Targets ~70% deck-area
   // density: cards fill 70% of available scatter area, leaving 30%

@@ -67,6 +67,21 @@ export function TopNav() {
   const hideMenu = useDevHideMenu();
   const [visible, setVisible] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  // EJ68 — Track mobile breakpoint so we can tighten icon spacing.
+  // The 24px desktop gap was crowding on narrow phones, especially
+  // after EJ68 adds /draw to TopNav routes where there's less
+  // horizontal room than on Home/Journal/etc. On mobile we drop
+  // to 12px so all five icons sit comfortably between the
+  // hamburger (far left) and X close (far right on /draw).
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    setIsMobile(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const collapseTimerRef = useRef<number | null>(null);
   const lastYRef = useRef<number>(0);
   const lastDirRef = useRef<"up" | "down" | null>(null);
@@ -185,7 +200,7 @@ export function TopNav() {
             width and stay visually centered. */}
         <ul
           className="mx-auto flex h-full items-center justify-center px-4"
-          style={{ maxWidth: 720, gap: 24 }}
+          style={{ maxWidth: 720, gap: isMobile ? 12 : 24 }}
         >
           {TABS.map(({ to, label, Icon }) => {
             const path = location.pathname;
@@ -232,8 +247,20 @@ export function TopNav() {
   );
 }
 
-/** Routes (including sub-routes) where TopNav is rendered. */
-export const TOP_NAV_ROUTES = ["/", "/journal", "/numerology", "/insights", "/settings"] as const;
+/** Routes (including sub-routes) where TopNav is rendered.
+ *  EJ68 — /draw added. Tabletop now shares the same TopNav as Home
+ *  so the seeker has a consistent navigation surface across pages,
+ *  and the draw page's count stepper / undo / redo row can sit
+ *  directly under the nav band instead of inside its own bespoke
+ *  top chrome. */
+export const TOP_NAV_ROUTES = [
+  "/",
+  "/journal",
+  "/numerology",
+  "/insights",
+  "/settings",
+  "/draw",
+] as const;
 
 /** True when the current pathname is one of the TopNav routes. */
 export function isTopNavRoute(pathname: string): boolean {
