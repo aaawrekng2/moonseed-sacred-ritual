@@ -54,7 +54,10 @@ const SCROLL_THRESHOLD = 8;
 // midpoint for tap-to-expand auto-collapsing menus (Twitter, Stripe,
 // Linear). Timer resets on icon tap so the seeker can act without
 // the bar collapsing mid-interaction.
-const AUTO_COLLAPSE_MS = 3000;
+// EJ69 — Tightened from 3000ms to 2000ms. Cori wants less hang-time
+// after seeker stops interacting; 2s is still industry-acceptable and
+// matches Stripe's collapse timing.
+const AUTO_COLLAPSE_MS = 2000;
 
 // EJ64 — Heights. Default = compact (icons only). Expanded = full
 // (icons + labels). Page content sits at the compact height via
@@ -200,7 +203,7 @@ export function TopNav() {
             width and stay visually centered. */}
         <ul
           className="mx-auto flex h-full items-center justify-center px-4"
-          style={{ maxWidth: 720, gap: isMobile ? 12 : 24 }}
+          style={{ maxWidth: 720, gap: isMobile ? 8 : 24 }}
         >
           {TABS.map(({ to, label, Icon }) => {
             const path = location.pathname;

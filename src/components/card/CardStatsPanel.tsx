@@ -38,6 +38,25 @@ export type CardStatsPanelProps = {
   data: CardPopoverData | null;
   /** Resolve a cardId to its display name (for the companions pills). */
   resolveCardName: (id: number) => string;
+  /**
+   * EJ69 — Optional upright meaning section. When provided, rendered
+   * inline between the 12-month frequency and companions. Matches the
+   * constellation popover composition exactly (keywords + body in
+   * italic serif). Pass null/undefined to hide.
+   */
+  uprightMeaning?: { keywords: string[]; body: string } | null;
+  /**
+   * EJ69 — Optional reversed meaning section. Same treatment as upright,
+   * rendered immediately below it. Pass null/undefined to hide.
+   */
+  reversedMeaning?: { keywords: string[]; body: string } | null;
+  /**
+   * EJ69 — Optional first seen / last seen labels. When provided,
+   * rendered as a two-column tile row above the longest-gap/avg-spacing
+   * row. Matches the popover screenshot. Pass null/undefined to hide.
+   */
+  firstSeen?: string | null;
+  lastSeen?: string | null;
 };
 
 const sectionLabel: CSSProperties = {
@@ -93,6 +112,10 @@ export function CardStatsPanel({
   tags,
   data,
   resolveCardName,
+  uprightMeaning,
+  reversedMeaning,
+  firstSeen,
+  lastSeen,
 }: CardStatsPanelProps) {
   const reversedPct = data?.reversedPct ?? null;
   const topMoonPhase = data?.topMoonPhase ?? null;
@@ -295,6 +318,87 @@ export function CardStatsPanel({
         </div>
       )}
 
+      {/* EJ69 — Upright meaning section. Mirrors the constellation popover
+          screenshot layout: small-caps gold label, keywords on first line,
+          italic body below. Inline rendering — no "Show meaning" collapse. */}
+      {uprightMeaning && (uprightMeaning.keywords.length > 0 || uprightMeaning.body) && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            borderTop:
+              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+            paddingTop: 10,
+          }}
+        >
+          <div style={sectionLabel}>Upright meaning</div>
+          {uprightMeaning.keywords.length > 0 && (
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                opacity: 0.95,
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {uprightMeaning.keywords.join(", ")}.
+            </div>
+          )}
+          {uprightMeaning.body && (
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+                lineHeight: 1.45,
+              }}
+            >
+              {uprightMeaning.body}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* EJ69 — Reversed meaning section. Same treatment as upright. */}
+      {reversedMeaning && (reversedMeaning.keywords.length > 0 || reversedMeaning.body) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={sectionLabel}>Reversed meaning</div>
+          {reversedMeaning.keywords.length > 0 && (
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                opacity: 0.95,
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {reversedMeaning.keywords.join(", ")}.
+            </div>
+          )}
+          {reversedMeaning.body && (
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+                lineHeight: 1.45,
+              }}
+            >
+              {reversedMeaning.body}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Companions */}
       {companionsTop3.length > 0 && (
         <div
@@ -327,6 +431,51 @@ export function CardStatsPanel({
                 <span style={{ opacity: 0.55, fontStyle: "normal" }}>×{c.count}</span>
               </span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* EJ69 — First seen / Last seen tiles. Matches the popover
+          screenshot. Rendered above the longest-gap / avg-spacing row.
+          Both required to render the row. */}
+      {firstSeen && lastSeen && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+            borderTop:
+              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 15%, transparent)",
+            paddingTop: 10,
+            fontSize: 11,
+            color: "var(--color-foreground)",
+          }}
+        >
+          <div>
+            <div style={sectionLabel}>First seen</div>
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+              }}
+            >
+              {firstSeen}
+            </div>
+          </div>
+          <div>
+            <div style={sectionLabel}>Last seen</div>
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+              }}
+            >
+              {lastSeen}
+            </div>
           </div>
         </div>
       )}

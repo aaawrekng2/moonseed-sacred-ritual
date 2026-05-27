@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
+import { SpreadPicker } from "./SpreadPicker";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useLockOrientation } from "@/lib/use-lock-orientation";
@@ -56,6 +57,7 @@ export function Tabletop({
   onQuestionChange,
   onSwitchToManual,
   onCustomCountChange,
+  onSpreadChange,
   onOpenQuestion,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
@@ -1608,6 +1610,19 @@ export function Tabletop({
                   keeping slotted cards anchored to their slots. */}
               {centerWhisper ?? mobileSlotCounter}
               {slotRail}
+              {/* EJ69 — Spread picker below the slot rail. Lets the
+                  seeker change spread type mid-table. Hidden once the
+                  reveal phase has started (ready === true) so it never
+                  fires mid-reading. Hidden when no onSpreadChange
+                  callback is provided. */}
+              {onSpreadChange && !ready && (
+                <SpreadPicker
+                  current={spread}
+                  hasPicks={selectedCount > 0}
+                  customCount={customCount}
+                  onChange={onSpreadChange}
+                />
+              )}
             </div>
           </div>
         );

@@ -15,6 +15,10 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
+import { TopNav } from "@/components/nav/TopNav";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   SmartCardInput,
@@ -23,7 +27,8 @@ import {
 } from "@/components/tabletop/SmartCardInput";
 import { useActiveDeck, useActiveDeckCardName } from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
-import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
+// EJ69 — EntryModeToggle removed from mobile Manual Entry surface. The
+// Draw action lives in the PageMenu left fly-out now.
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { useAuth } from "@/lib/auth";
@@ -110,23 +115,20 @@ export function ManualEntryBuilder({
   const required = spread === "custom" ? Math.max(1, Math.min(10, customCount ?? 3)) : meta.count;
   const labels = meta.positions ?? [];
 
-  // Q20 Fix 3 — two staggered first-mount hints (toggle + stepper).
+  // Q20 Fix 3 — first-mount hint for the custom-count stepper. The
+  // EJ69 cleanup removed the entry-toggle hint (toggle moved into the
+  // PageMenu fly-out; old anchored hint no longer applies).
   const { user: authUser, loading: authLoading } = useAuth();
-  const entryToggleRef = useRef<HTMLButtonElement | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
-  const [showEntryHint, setShowEntryHint] = useState(false);
   const [showCountHint, setShowCountHint] = useState(false);
+  // EJ69 — Page menu fly-out state. Holds the Draw action (and any
+  // future per-page toggles for the manual entry surface).
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
   useEffect(() => {
     if (authLoading) return;
     let cancelled = false;
     const timers: number[] = [];
     void (async () => {
-      if (onSwitchToTable) {
-        const dismissedB = await isHintHardDismissed("entry_mode_toggle", authUser?.id ?? null);
-        if (!cancelled && !dismissedB) {
-          timers.push(window.setTimeout(() => setShowEntryHint(true), 400));
-        }
-      }
       if (spread === "custom" && onCustomCountChange) {
         const dismissedA = await isHintHardDismissed("custom_count_stepper", authUser?.id ?? null);
         if (!cancelled && !dismissedA) {
@@ -284,6 +286,31 @@ export function ManualEntryBuilder({
     );
   };
 
+  // EJ69 — Build PageMenu sections for mobile manual entry. Only the
+  // Draw action lives here (replaces the inline EntryModeToggle).
+  // Pages without applicable actions render the menu trigger anyway so
+  // the seeker has a consistent surface; sections array can be empty.
+  const pageMenuSections: PageMenuSection[] = [];
+  if (onSwitchToTable) {
+    pageMenuSections.push({
+      id: "view",
+      title: "View",
+      items: [
+        {
+          id: "draw",
+          label: "Card Draw Table",
+          description: "Switch to the 78-card scatter",
+          Icon: LayoutGrid,
+          mode: "navigate",
+          onClick: () => {
+            setPageMenuOpen(false);
+            onSwitchToTable();
+          },
+        },
+      ],
+    });
+  }
+
   return (
     <FullScreenSheet open onClose={onCancel} entry="fade" showCloseButton={false}>
       <div
@@ -302,45 +329,78 @@ export function ManualEntryBuilder({
           marginRight: "auto",
         }}
       >
+        {/* EJ69 — TopNav band at the very top of the manual entry portal.
+            FullScreenSheet renders at z-modal=100 which covers the global
+            TopNav (z-40), so we render our own copy inside the portal
+            to keep the seeker's navigation consistent. */}
+        <TopNav />
+
+        {/* EJ69 — PageMenu fly-out (left) + trigger button. Replaces the
+            inline EntryModeToggle. Trigger sits below the TopNav band,
+            upper-left. */}
+        {pageMenuSections.length > 0 && (
+          <>
+            <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+            <PageMenu
+              open={pageMenuOpen}
+              onClose={() => setPageMenuOpen(false)}
+              sections={pageMenuSections}
+            />
+          </>
+        )}
+
+        {/* EJ69 — X close, upper-right. Mirrors the PageMenuTrigger's
+            position so they bracket the same horizontal line. */}
         <button
           type="button"
           onClick={onCancel}
           aria-label="Close manual entry"
           style={{
-            position: "absolute",
-            top: "calc(env(safe-area-inset-top, 0px) + 10px)",
-            right: 12,
-            zIndex: 10,
-            padding: 8,
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-            background: "transparent",
-            border: "none",
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 8px)",
+            right: 8,
+            zIndex: "var(--z-popover)" as unknown as number,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            background:
+              "color-mix(in oklch, var(--surface-elevated) 80%, transparent)",
+            border: "1px solid var(--border-subtle)",
             cursor: "pointer",
+            color: "var(--color-foreground)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             touchAction: "manipulation",
           }}
         >
           <X size={18} strokeWidth={1.5} />
         </button>
         <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
-          {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
-          (centered) on the same row. */}
+          {/* EJ69 — In-flow spacer matching TopNav height so content
+              starts BELOW the TopNav band (not under it). */}
+          <div style={{ height: "var(--topbar-pad)" }} aria-hidden />
+
+          {/* EJ69 — In-flow action row directly under TopNav.
+              Custom-count stepper centered. Spread label shown for
+              fixed spreads. The seeker's left hamburger + right X both
+              float above this row at fixed positions; this row's content
+              only fills the central area between them. */}
           <div
             className="relative w-full border-b border-border/40"
             style={{
               minHeight: 48,
-              paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
+              paddingTop: 4,
               paddingBottom: 8,
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: "center",
+              paddingLeft: 56,
+              paddingRight: 56,
             }}
           >
-            <div style={{ paddingLeft: 16 }}>
-              {onSwitchToTable && (
-                <EntryModeToggle ref={entryToggleRef} current="manual" onToggle={onSwitchToTable} />
-              )}
-            </div>
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
               {spread === "custom" && onCustomCountChange ? (
                 <CustomCountStepper
@@ -364,16 +424,10 @@ export function ManualEntryBuilder({
               )}
             </div>
           </div>
-          {showEntryHint && onSwitchToTable && (
-            <Hint
-              hintId="entry_mode_toggle"
-              text={'Want to physically draw? Tap "Table" to draw from the 78-card scatter.'}
-              anchorRef={entryToggleRef}
-              position="bottom"
-              pointerAlign="start"
-              onDismiss={() => setShowEntryHint(false)}
-            />
-          )}
+          {/* EJ69 — Entry-toggle hint removed. The Draw action now lives
+              in the PageMenu fly-out, so the old hint anchored to the
+              inline toggle has no target. Seeker discovers Draw via the
+              hamburger trigger. */}
           {showCountHint && spread === "custom" && onCustomCountChange && (
             <Hint
               hintId="custom_count_stepper"
