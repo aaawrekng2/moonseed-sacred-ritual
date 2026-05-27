@@ -142,7 +142,7 @@
      44px tap targets with a 6px top inset, leaving a comfortable
      ~12px breathing margin. Every screen reserves this space at the
      top of its content area so chrome never overlaps body content. */
-  --topbar-height: 56px;
+  --topbar-height: 28px;
   --topbar-pad: calc(env(safe-area-inset-top, 0px) + var(--topbar-height));
 
   /* Global heading scale — written by applyHeadingFontSize(). The body
