@@ -71,7 +71,7 @@ import {
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
-import { LayoutGrid, Calendar as CalendarIcon } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
@@ -3981,35 +3981,20 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         </div>
       </div>
 
-      {/* Phase 23 Fix 3 — filter row below H1.
-          EJ11 — top padding removed (4px → 0) to close gap between
-          H1 header and constellation. */}
-      <div style={{ padding: "0 24px 0" }}>
-        <GlobalFilterBar
-          filters={globalFilters}
-          onChange={setGlobalFilters}
-          sections={["tags", "spreadTypes", "depth", "reversed"]}
-          userTags={userTags}
-          drawerOpen={globalDrawerOpen}
-          onDrawerOpenChange={setGlobalDrawerOpen}
-          timeRange={{
-            value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
-            options: TIMEFRAME_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            })),
-            onChange: (v) => setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
-          }}
-        />
-      </div>
-
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
       {/* EJ25 — two-column grid. Constellation moved to RIGHT column.
           Slot row + chips + question + notes + save sit in LEFT column
           for more natural reading flow. Filter icon and time range
-          selector above stay where they are. */}
+          selector above stay where they are.
+          EJ66 — Filter bar moved INTO the left column (was above the
+          grid). With filter bar above-the-grid, the right-column
+          constellation web sat below it, pushing the hero card down
+          ~50px from the Manual Entry header line. Now that the
+          filter bar is a row inside the left column, the right
+          column's hero card top sits just below the header line as
+          intended. */}
       <div
         style={{
           display: "grid",
@@ -4020,7 +4005,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       >
         {/* EJ25 — LEFT column (was RIGHT pre-EJ25): slot row + chips +
             question + notes + save. Filter icon + time range selector
-            above stay in their original page-top position. */}
+            above stay in their original page-top position.
+            EJ66 — Filter bar now lives at the TOP of this column
+            (moved out of the above-the-grid slot). */}
         <div
           style={{
             display: "flex",
@@ -4030,6 +4017,28 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             height: "100%",
           }}
         >
+          {/* EJ66 — Filter bar lives at the top of the LEFT column
+              (moved from above-the-grid). Keeps the right-column
+              constellation aligned with the top of the grid, just
+              below the Manual Entry header line, while still
+              surfacing filter controls in the main reading-flow
+              column. */}
+          <GlobalFilterBar
+            filters={globalFilters}
+            onChange={setGlobalFilters}
+            sections={["tags", "spreadTypes", "depth", "reversed"]}
+            userTags={userTags}
+            drawerOpen={globalDrawerOpen}
+            onDrawerOpenChange={setGlobalDrawerOpen}
+            timeRange={{
+              value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+              options: TIMEFRAME_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              })),
+              onChange: (v) => setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
+            }}
+          />
           {/* EJ21 — right-side data card removed entirely. The "1
               Year of Data on..." header and the ChipGrid below it
               (LAST SEEN, TIME PATTERN, FREQUENCY, MOON PHASE,
