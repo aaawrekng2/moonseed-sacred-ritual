@@ -16,19 +16,15 @@ export const TABLETOP_CONFIG = {
    * (44px tap targets + safe-area). Used both as `padding-top` on the
    * container and as a deduction from the usable scatter height.
    */
-  // On mobile, the floating ··· menu is much smaller than the old top bar
-  // so cards can start higher. Desktop keeps the original reserve.
-  // EJ67 — Mobile reserve trimmed from 96 → 56 because the previous
-  // floating ··· top cluster has been replaced with a single 36px
-  // PageMenuTrigger hamburger upper-left and a 28px TopNav band. The
-  // 96px reserve was sized for the legacy top bar; with the new chrome
-  // it left ~40px of dead space above the scatter that the seeker
-  // reported as wasted real estate. 56px clears the new UI cleanly
-  // and gives the scatter more vertical room, which combines with
-  // the 20% smaller mobile cards to make 90% per-card visibility
-  // geometrically reachable.
-  TOP_RESERVE:
-    typeof window !== "undefined" && window.innerWidth < 768 ? 56 : 72,
+  // EJ69 — Dropped to 8px (mobile + desktop). After EJ68 unified the
+  // Tabletop top chrome into the in-flow action row sitting BELOW the
+  // TopNav band, nothing fixed-positioned overlays the scatter area
+  // anymore. The action row pushes scatter down naturally; TOP_RESERVE
+  // only needs to provide a small breathing buffer (8px). The previous
+  // 56/72 values double-counted chrome that's now in document flow.
+  // This recovers ~48px mobile / ~64px desktop of usable scatter height,
+  // making 90% visibility easier and letting cards spawn higher.
+  TOP_RESERVE: 8,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without

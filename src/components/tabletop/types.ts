@@ -51,6 +51,15 @@ export type TabletopProps = {
    * stepper that lets the seeker change the cardinality mid-table.
    */
   onCustomCountChange?: (next: number) => void;
+  /**
+   * EJ69 — Spread picker mid-table. When provided, Tabletop renders
+   * a dropdown beneath the slot rail letting the seeker change spread
+   * type without leaving the table. The parent navigates to the new
+   * spread (preserving picks where positions overlap). null is a
+   * valid selection — clears position labels only, keeps the slot
+   * count as-is.
+   */
+  onSpreadChange?: (next: SpreadMode | "none") => void;
 };
 
 export type CardState = ScatterCard & {

@@ -19,6 +19,7 @@ import {
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import {
   getCardPopoverData,
+  getCardDrawCounts,
   type CardPopoverData,
 } from "@/lib/quicklog.functions";
 import { CardStatsPanel } from "@/components/card/CardStatsPanel";
@@ -31,10 +32,11 @@ import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
 } from "@/lib/filters.types";
-import { useScrollCollapse } from "@/lib/use-scroll-collapse";
+// EJ69 — Removed: useScrollCollapse, no longer needed (slim sticky header
+// has no large-to-compact title collapse).
 import type { MoonPhaseName } from "@/lib/moon";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
-import { CardImage } from "@/components/card/CardImage";
+// EJ69 — Removed CardImage import (only AdaptiveCardImage is rendered).
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
@@ -44,6 +46,7 @@ import { ReadingRow } from "@/components/ui/reading-row";
 import { EmptyNote } from "@/components/ui/empty-note";
 import { getCardMeaning } from "@/lib/tarot-meanings";
 import { useTokenNotice } from "@/components/ui/TokenNotice";
+import { formatDateShort } from "@/lib/dates";
 
 export const Route = createFileRoute("/insights/card/$cardId")({
   component: CardTraceRoute,
@@ -148,12 +151,22 @@ export function CardTraceView({
   const navigate = useNavigate();
   const fn = useServerFn(getStalkerCardDetail);
   const popoverFn = useServerFn(getCardPopoverData);
+  const drawCountsFn = useServerFn(getCardDrawCounts);
   const [data, setData] = useState<Detail | null>(null);
   // EJ60 — Popover rich-data (12-month sparkline, moon phase, time of day,
   // day of week, companions, longest gap, avg spacing). Same shape and
   // server function used by the constellation hover popover, so the same
   // data appears in both surfaces. Rendered via <CardStatsPanel/>.
   const [popoverData, setPopoverData] = useState<CardPopoverData | null>(null);
+  // EJ69 — Rank within the seeker's deck universe for the filter window.
+  // Same data the constellation popover uses to render its "#N Rank of M"
+  // tile. Fetched separately because the popover's drawCounts comes from
+  // ConstellationPage's local state, which Card Trace standalone doesn't
+  // have access to.
+  const [cardRank, setCardRank] = useState<{ rank: number | null; universeSize: number }>({
+    rank: null,
+    universeSize: 0,
+  });
   const resolveImage = useActiveDeckImage();
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -194,30 +207,9 @@ export function CardTraceView({
       cancelled = true;
     };
   }, [user?.id]);
-
-  // Q74 — reversal stat visibility (track_reversals OR allow_reversed_cards).
-  const [showReversalStat, setShowReversalStat] = useState(false);
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    void (async () => {
-      const { data: prefs } = await supabase
-        .from("user_preferences")
-        .select("track_reversals, allow_reversed_cards")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      const row = prefs as
-        | { track_reversals?: boolean | null; allow_reversed_cards?: boolean | null }
-        | null;
-      setShowReversalStat(
-        Boolean(row?.track_reversals) || Boolean(row?.allow_reversed_cards),
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
+  // EJ69 — Removed Q74 reversal-stat fetch. CardStatsPanel handles
+  // the Reversed tile via popoverData.reversedPct directly; the same
+  // pattern the constellation popover uses (no per-user gating).
 
   const heroRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -313,6 +305,57 @@ export function CardTraceView({
     effectiveTz,
   ]);
 
+  // EJ69 — Fetch rank + rank universe size for this card. Same server
+  // function the constellation page uses to compute the popover's
+  // "#N Rank of M" tile. Refetches whenever filters change so rank
+  // stays consistent with the filter-window stats.
+  useEffect(() => {
+    if (!user?.id || !Number.isFinite(cid)) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const dc = await drawCountsFn({
+          data: {
+            cardIds: [cid],
+            filters: {
+              timeRange: trendWin,
+              tagIds: gFilters.tags,
+              spreadTypes: gFilters.spreadTypes,
+              moonPhases: gFilters.moonPhases as MoonPhaseName[],
+              deepOnly: gFilters.deepOnly,
+              reversedOnly: gFilters.reversedOnly,
+            },
+          },
+          headers,
+        });
+        if (!cancelled) {
+          setCardRank({
+            rank: dc.perCardRank?.[cid] ?? null,
+            universeSize: dc.rankUniverseSize ?? 0,
+          });
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[card-trace] draw-counts fetch failed", e);
+        if (!cancelled) setCardRank({ rank: null, universeSize: 0 });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    user?.id,
+    cid,
+    drawCountsFn,
+    trendWin,
+    gFilters.tags,
+    gFilters.spreadTypes,
+    gFilters.moonPhases,
+    gFilters.deepOnly,
+    gFilters.reversedOnly,
+  ]);
+
   // EJ64 — `close` now calls the onClose prop instead of hardcoding
   // a navigate to /insights. The route wrapper passes a navigate
   // callback; modal callers pass a dismiss callback that preserves
@@ -322,19 +365,36 @@ export function CardTraceView({
   const cardName = data?.cardName ?? getCardName(cid);
   const meaning = getCardMeaning(cid);
   const appearances = data?.appearances ?? [];
-  const count = data?.totalCount ?? 0;
-  const reversedCount = data?.reversedCount ?? 0;
+  // EJ69 — Popover-style count: derive from popoverData.monthCounts so
+  // Card Trace gating matches the constellation popover surface exactly.
+  // The previous `data.totalCount` gate hid the rich panel for cards with
+  // sparse history; popover always renders its stat tiles (with 0s if
+  // empty) so Card Trace should too.
+  const countFromMonthsRich = popoverData?.monthCounts?.reduce(
+    (acc, n) => acc + n,
+    0,
+  );
+  const count =
+    typeof countFromMonthsRich === "number"
+      ? countFromMonthsRich
+      : (data?.totalCount ?? 0);
+  const totalCount = data?.totalCount ?? 0;
+  // EJ69 — reversedCount removed; CardStatsPanel reads reversedPct from
+  // popoverData directly.
 
-  // Q75 — sticky compact title collapse on scroll.
+  // EJ69 — scrollRef retained for the <main> overflow container; the
+  // large-to-compact title fade was removed in EJ69 because the slim
+  // sticky header always shows the name.
   const scrollRef = useRef<HTMLElement | null>(null);
-  const collapseProgress = useScrollCollapse(scrollRef, 80);
 
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
       style={{ background: "var(--background)" }}
     >
-      {/* Q75 — sticky glass header with compact-on-scroll card name. */}
+      {/* EJ69 — Slim sticky header. Card name always visible (no
+          fade-on-scroll, no large scroll-away duplicate below). Back
+          arrow left, X close right. Filter bar follows. */}
       <div
         className="page-header-glass sticky top-0"
         style={{ zIndex: "var(--z-sticky-header)" }}
@@ -348,11 +408,9 @@ export function CardTraceView({
             style={{
               fontSize: "var(--text-heading-sm)",
               color: "var(--color-foreground)",
-              opacity: 0.9 * collapseProgress,
-              transition: "opacity 150ms ease-out",
+              opacity: 0.95,
               margin: 0,
               lineHeight: 1,
-              pointerEvents: collapseProgress > 0.5 ? "auto" : "none",
             }}
           >
             {cardName}
@@ -382,127 +440,75 @@ export function CardTraceView({
         />
       </div>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
-        {/* Q75 — large non-sticky title that scrolls away. */}
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-6">
+        {/* EJ69 — Large card image at top. Centered. Uses min(85vw, 250px)
+            on mobile, ~320px on desktop. The seeker explicitly asked for
+            a large image; this replaces the prior duplicate title +
+            image block with just the image. */}
         <div
-          className="mx-auto mb-4 text-center"
-          style={{ maxWidth: 1280, lineHeight: 1.15 }}
+          ref={heroRef}
+          className="mx-auto"
+          style={{ width: "min(85vw, 260px)" }}
         >
-          <div
-            style={{
-              fontSize: "var(--text-caption)",
-              opacity: 0.55,
-              fontStyle: "italic",
-              fontFamily: "var(--font-serif)",
-            }}
-          >
-            Card Trace
-          </div>
-          <h1
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-lg)",
-              color: "var(--color-foreground)",
-              opacity: 0.9,
-              margin: 0,
-            }}
-          >
-            {cardName}
-          </h1>
+          <AdaptiveCardImage src={url} alt={cardName} />
         </div>
-        {/* Q75 — wide constrained content area. */}
-        <div className="mx-auto" style={{ maxWidth: 1280 }}>
-        <div className="mx-auto flex max-w-md flex-col items-center gap-5">
-          {/* 3a — Hero */}
-          <div
-            ref={heroRef}
-            style={{ width: "min(85vw, 250px)" }}
-            className="md:!w-[300px]"
-          >
-            <AdaptiveCardImage src={url} alt={cardName} />
-          </div>
-          <div style={{ textAlign: "center" }}>
-            {meaning && (
-              <div
-                style={{
-                  fontSize: "var(--text-caption)",
-                  color: "var(--foreground-muted)",
-                  opacity: 0.85,
-                }}
-              >
-                {majorOrSuitLabel(cid)} · {meaning.element}
-              </div>
-            )}
-          </div>
 
-          {/* 3b — Meaning */}
-          {meaning && <MeaningSection meaning={meaning} />}
+        {/* EJ69 — Rich stats panel directly below the hero. Composition
+            mirrors the constellation popover exactly: name + tags +
+            tiles + moon/time/day rows + frequency bars + meaning
+            (inline, no collapse) + companions + first/last seen +
+            longest gap / avg spacing. Single source of truth. */}
+        <div className="mx-auto mt-6 px-2" style={{ maxWidth: 480 }}>
+          <CardStatsPanel
+            cardName={cardName}
+            count={count}
+            rank={cardRank.rank}
+            universeSize={cardRank.universeSize || null}
+            data={popoverData}
+            resolveCardName={(id) => getCardName(id)}
+            roman={cid <= 21 ? ROMAN_NUMERALS[cid] : null}
+            tags={buildCardTags(cid, meaning)}
+            uprightMeaning={
+              meaning
+                ? {
+                    keywords: meaning.uprightKeywords ?? [],
+                    body: meaning.uprightMeaning ?? "",
+                  }
+                : null
+            }
+            reversedMeaning={
+              meaning
+                ? {
+                    keywords: meaning.reversedKeywords ?? [],
+                    body: meaning.reversedMeaning ?? "",
+                  }
+                : null
+            }
+            firstSeen={data?.firstSeen ? formatDateShort(data.firstSeen) : null}
+            lastSeen={data?.lastSeen ? formatDateShort(data.lastSeen) : null}
+          />
+        </div>
 
-          {/* 3c — Stats strip */}
+        {/* EJ69 — Calendar, readings list, AI reflection sit BELOW the
+            popover-composition panel. These are the deep-dive sections
+            (filterable list, AI reflection, full calendar) — kept as
+            additive context for power-seekers. Empty state shown when
+            no appearances yet. */}
+        <div className="mx-auto mt-8" style={{ maxWidth: 960 }}>
           {data && count > 0 && (
-            <StatsStrip
-              count={count}
-              reversedCount={reversedCount}
-              showReversalStat={showReversalStat}
-            />
+            <div className="my-6">
+              <ExpandableCalendar appearances={appearances} />
+            </div>
           )}
-
-          {/* 3f — Metadata row */}
-          {meaning && <MetadataRow meaning={meaning} />}
         </div>
 
-        {/* EJ60 — Rich card stats panel. Same data the constellation
-            hover popover renders (12-month frequency bars, moon phase,
-            time of day, day of week, companions, longest gap, avg
-            spacing). Inserted between the constrained card hero/meaning
-            column and the wider co-occurrence strip below. */}
-        {data && count > 0 && (
-          <div className="mx-auto my-6 px-4" style={{ maxWidth: 480 }}>
-            <CardStatsPanel
-              cardName={cardName}
-              count={count}
-              data={popoverData}
-              resolveCardName={(id) => getCardName(id)}
-              roman={cid <= 21 ? ROMAN_NUMERALS[cid] : null}
-              tags={buildCardTags(cid, meaning)}
-            />
-          </div>
-        )}
-
-        {/* 3e — Co-occurrence — Q74: span the wider content area. */}
-        {data && data.totalCount >= 3 && data.coOccurrences.length > 0 && (
-          <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
-            <CoOccurrenceStrip
-              entries={data.coOccurrences}
-              onPick={(targetId) =>
-                navigate({
-                  to: "/insights/card/$cardId",
-                  params: { cardId: String(targetId) },
-                })
-              }
-            />
-          </div>
-        )}
-
-        {/* 3g — Calendar — wider container */}
-        {data && count > 0 && (
-          <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
-            <ExpandableCalendar appearances={appearances} />
-          </div>
-        )}
-
-        {/* 3h + 3i — Readings list and AI reflection */}
-        <div className="mx-auto flex max-w-md flex-col gap-4">
-          {data && data.totalCount === 0 && (
-            <EmptyNote text="This card hasn't appeared in your spreads yet." />
+        <div className="mx-auto mt-2 flex max-w-md flex-col gap-4">
+          {data && totalCount === 0 && (
+            <EmptyNote text="This card hasn't appeared in your spreads yet — its trace starts here." />
           )}
 
           {data && count > 0 && (
-            <ReadingsList
-              appearances={appearances}
-              onOpen={setOpenReadingId}
-            />
+            <ReadingsList appearances={appearances} onOpen={setOpenReadingId} />
           )}
 
           {data && (
@@ -513,7 +519,6 @@ export function CardTraceView({
               appearances={appearances}
             />
           )}
-        </div>
         </div>
       </main>
 
@@ -527,283 +532,10 @@ export function CardTraceView({
   );
 }
 
-function majorOrSuitLabel(cid: number): string {
-  if (cid <= 21) return "Major Arcana";
-  if (cid <= 35) return "Wands";
-  if (cid <= 49) return "Cups";
-  if (cid <= 63) return "Swords";
-  return "Pentacles";
-}
+// EJ69 — Dead helpers removed: majorOrSuitLabel, MeaningSection,
+// MeaningHeading, StatsStrip, CoOccurrenceStrip, MetadataRow.
+// All their content is now folded into CardStatsPanel.
 
-/* ============================================================
- * 3b — Meaning chips + collapsible accordion
- * ============================================================ */
-function MeaningSection({
-  meaning,
-}: {
-  meaning: NonNullable<ReturnType<typeof getCardMeaning>>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="flex w-full flex-col items-center gap-3">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        style={{
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          color: "var(--gold)",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-        }}
-        aria-expanded={expanded}
-      >
-        {expanded ? "Hide meaning" : "Show meaning"}
-        <ChevronDown
-          size={14}
-          style={{
-            transform: expanded ? "rotate(180deg)" : "none",
-            transition: "transform 200ms",
-          }}
-        />
-      </button>
-      {expanded && (
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 480,
-            display: "grid",
-            gap: 12,
-            background: "var(--surface-card)",
-            padding: 14,
-            borderRadius: 12,
-          }}
-        >
-          <div>
-            <MeaningHeading>Upright</MeaningHeading>
-            <p style={meaningPara}>{meaning.uprightKeywords.join(", ")}.</p>
-            <p style={{ ...meaningPara, marginTop: 8 }}>{meaning.uprightMeaning}</p>
-          </div>
-          <div
-            style={{
-              borderTop:
-                "1px solid color-mix(in oklab, var(--color-foreground) 8%, transparent)",
-            }}
-          />
-          <div>
-            <MeaningHeading>Reversed</MeaningHeading>
-            <p style={meaningPara}>{meaning.reversedKeywords.join(", ")}.</p>
-            <p style={{ ...meaningPara, marginTop: 8 }}>{meaning.reversedMeaning}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MeaningHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "var(--text-caption)",
-        textTransform: "uppercase",
-        letterSpacing: "0.15em",
-        color: "var(--gold)",
-        opacity: 0.8,
-        marginBottom: 6,
-        textAlign: "center",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-const meaningPara: React.CSSProperties = {
-  fontFamily: "var(--font-serif)",
-  fontStyle: "italic",
-  fontSize: "var(--text-body)",
-  lineHeight: 1.6,
-  margin: 0,
-  textAlign: "center",
-};
-
-/* ============================================================
- * 3c — Stats strip
- * ============================================================ */
-function StatsStrip({
-  count,
-  reversedCount,
-  showReversalStat,
-}: {
-  count: number;
-  reversedCount: number;
-  showReversalStat: boolean;
-}) {
-  const reversalRate =
-    count === 0 ? 0 : Math.round((reversedCount / count) * 100);
-  if (count === 0) return null;
-  const showReversal = showReversalStat && reversalRate > 0;
-  return (
-    <div
-      className="w-full flex flex-col items-center"
-      style={{ padding: "16px 8px", gap: 4 }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "3rem",
-          color: "var(--gold)",
-          lineHeight: 1,
-        }}
-      >
-        {count}
-      </div>
-      <div
-        style={{
-          fontSize: "var(--text-caption)",
-          opacity: 0.7,
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-        }}
-      >
-        appearances
-      </div>
-      {showReversal && (
-        <div
-          style={{
-            marginTop: 4,
-            fontSize: "var(--text-caption)",
-            opacity: 0.6,
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            color: "var(--foreground-muted)",
-          }}
-        >
-          {reversalRate}% reversed
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================
- * 3e — Co-occurrence
- * ============================================================ */
-function CoOccurrenceStrip({
-  entries,
-  onPick,
-}: {
-  entries: Array<{ cardId: number; count: number }>;
-  onPick: (cardId: number) => void;
-}) {
-  // Q75 — on desktop, center the strip when ≤6 cards fit; otherwise
-  // fall back to horizontal scroll. Mobile always scrolls.
-  const fewEnough = entries.length <= 6;
-  return (
-    <div className="w-full">
-      <h2
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body)",
-          margin: "0 0 8px",
-          textAlign: "center",
-        }}
-      >
-        Often appears with
-      </h2>
-      <div
-        className={
-          fewEnough
-            ? "flex gap-3 overflow-x-auto md:justify-center md:overflow-visible"
-            : "flex gap-3 overflow-x-auto"
-        }
-        style={{ paddingBottom: 6 }}
-      >
-        {entries.map((e) => (
-          <button
-            key={e.cardId}
-            type="button"
-            onClick={() => onPick(e.cardId)}
-            style={{
-              flex: "0 0 auto",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              textAlign: "center",
-            }}
-            aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
-          >
-            {/* Q75 — larger thumbnails: 110px tall mobile (≈68px wide),
-                160px tall desktop (≈100px wide). */}
-            <div className="md:hidden">
-              <CardImage cardId={e.cardId} size="custom" widthPx={68} />
-            </div>
-            <div className="hidden md:block">
-              <CardImage cardId={e.cardId} size="custom" widthPx={100} />
-            </div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: "var(--text-caption)",
-                fontStyle: "italic",
-                color: "var(--foreground-muted)",
-                fontFamily: "var(--font-serif)",
-              }}
-            >
-              ×{e.count}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
- * 3f — Metadata row
- * ============================================================ */
-function MetadataRow({
-  meaning,
-}: {
-  meaning: NonNullable<ReturnType<typeof getCardMeaning>>;
-}) {
-  const items: string[] = [];
-  items.push(`${meaning.element}`);
-  if (meaning.zodiac) items.push(meaning.zodiac);
-  if (meaning.planet) items.push(meaning.planet);
-  if (meaning.numerology !== null) items.push(`№ ${meaning.numerology}`);
-  const leansLabel =
-    meaning.yesNo === "yes"
-      ? "Leans Yes"
-      : meaning.yesNo === "no"
-        ? "Leans No"
-        : "Leans Neutral";
-  items.push(leansLabel);
-  return (
-    <div
-      style={{
-        fontSize: "var(--text-caption)",
-        color: "var(--foreground-muted)",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        textAlign: "center",
-      }}
-    >
-      {items.join(" · ")}
-    </div>
-  );
-}
 
 /* ============================================================
  * 3g — Expandable calendar

@@ -24,6 +24,7 @@ import {
 } from "@/lib/use-spread-entry-modes";
 import { clearTabletopSession } from "@/components/tabletop/config";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
+import { useShowLabels } from "@/lib/use-show-labels";
 
 type Search = { spread?: string; question?: string; n?: number; entry?: EntryMode };
 
@@ -315,6 +316,34 @@ function DrawPage() {
     setCustomCount(next);
   };
 
+  // EJ69 — Spread picker handler. Called by the new SpreadPicker
+  // dropdown on the Tabletop. "none" hides position labels without
+  // changing the slot count (one-line label preference flip).
+  // A named spread navigates to /draw with the new spread, preserving
+  // the seeker's question and entry surface.
+  const { setShowLabels } = useShowLabels();
+  const handleSpreadChange = (next: SpreadMode | "none") => {
+    if (next === "none") {
+      // Keep slot count; just hide labels. Picks remain in place.
+      setShowLabels(false);
+      return;
+    }
+    // Any named spread restores label visibility.
+    setShowLabels(true);
+    if (next === spread) return;
+    // Clear the previous spread's session so its picks don't leak
+    // into the new spread's slot layout.
+    clearTabletopSession(spread);
+    navigate({
+      to: "/draw",
+      search: {
+        spread: next,
+        entry: "table" as EntryMode,
+        ...(question ? { question } : {}),
+      },
+    });
+  };
+
   return (
     <div className="relative h-[100dvh] w-full">
       {showProcessingBanner && phase === "select" && (
@@ -409,6 +438,7 @@ function DrawPage() {
           question={question}
           onQuestionChange={setQuestion}
           onSwitchToManual={switchToManual}
+          onSpreadChange={handleSpreadChange}
           onOpenQuestion={() => setQuestionOpen(true)}
           onCustomCountChange={spread === "custom" ? handleCustomCountChange : undefined}
           onComplete={(p, mode, meta) => {
