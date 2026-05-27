@@ -22,6 +22,10 @@ import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { supabase } from "@/lib/supabase";
 import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
+import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { Moon } from "lucide-react";
 import {
   useAutoRememberQuestion,
   useRememberScope,
@@ -174,6 +178,37 @@ function Index() {
   const moon = useMoonPrefs();
   const showMoonCarousel =
     moon.loaded && moon.moon_features_enabled && moon.moon_show_carousel;
+
+  // EJ65 — Page menu (left fly-out) state. Home's only config item is
+  // the Moon carousel hide/show toggle. Bidirectionally synced with
+  // Settings > Preferences > Show moon phase carousel via the
+  // emitMoonPrefsChanged channel (FloatingMenu and Settings also
+  // subscribe), so any of these surfaces flipping the toggle
+  // propagates instantly to the others.
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  const pageMenuSections: PageMenuSection[] = [
+    {
+      id: "hide-show",
+      title: "Hide / Show",
+      items: [
+        {
+          id: "moon-carousel",
+          label: "Moon carousel",
+          description: showMoonCarousel ? "Visible" : "Hidden",
+          Icon: Moon,
+          mode: "toggle",
+          on: showMoonCarousel,
+          onClick: () => {
+            const next = !moon.moon_show_carousel;
+            emitMoonPrefsChanged({ moon_show_carousel: next });
+            if (user?.id) {
+              void updateUserPreferences(user.id, { moon_show_carousel: next });
+            }
+          },
+        },
+      ],
+    },
+  ];
   // CV — mobile-aware sizing for the gateway card. Uses the same
   // matchMedia pattern as MoonCarousel so the layout updates live on
   // resize/rotation rather than freezing at the mount value.
@@ -416,6 +451,14 @@ function Index() {
   // moon strip instead of floating in mid-page whitespace.
   return (
     <>
+    {/* EJ65 — Left fly-out page menu trigger + panel. Home's only
+        config is the moon carousel hide toggle. */}
+    <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+    <PageMenu
+      open={pageMenuOpen}
+      onClose={() => setPageMenuOpen(false)}
+      sections={pageMenuSections}
+    />
     <main
       className="relative grid bg-cosmos overflow-y-auto"
       style={{
