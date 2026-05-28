@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard } from "lucide-react";
+import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown } from "lucide-react";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
@@ -9,8 +9,12 @@ import { TabletopCloseButton } from "@/components/tabletop/TabletopCloseButton";
 import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
-import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
-import { SpreadPicker } from "./SpreadPicker";
+import { SPREAD_META, spreadUsesSlots, getSpreadCount, type SpreadMode } from "@/lib/spreads";
+// EJ72 — SpreadPicker is defined INLINE below (was ./SpreadPicker). The
+// separate module produced a render-time TDZ ("Cannot access … before
+// initialization") in Lovable's production chunk split. Collapsing it
+// into this module removes the separate component binding the bundler
+// was mis-ordering.
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useLockOrientation } from "@/lib/use-lock-orientation";
@@ -47,6 +51,288 @@ import {
   slotGap,
 } from "./config";
 import type { TabletopProps, CardState, TabletopSession, DragAction } from "./types";
+
+// EJ72 — Inline SpreadPicker (formerly src/components/tabletop/SpreadPicker.tsx).
+// Chevron-only trigger beneath the slot rail; lists every spread; shrink
+// with picks placed asks to confirm via a self-contained inline panel
+// (no shadcn AlertDialog dependency). Defined in this module so it shares
+// Tabletop's chunk init exactly.
+type SpreadPickerSelection = SpreadMode | "none";
+const SPREAD_PICKER_OPTIONS: { value: SpreadPickerSelection; label: string }[] = [
+  { value: "none", label: "No spread" },
+  { value: "single", label: "Single" },
+  { value: "three", label: "Three Card" },
+  { value: "celtic", label: "Celtic Cross" },
+  { value: "yes_no", label: "Yes / No" },
+  { value: "horseshoe", label: "Horseshoe" },
+  { value: "relationship", label: "Relationship" },
+  { value: "year_ahead", label: "Year Ahead" },
+  { value: "cross_of_decision", label: "Cross of Decision" },
+  { value: "custom", label: "Custom" },
+];
+
+function SpreadPicker({
+  current,
+  hasPicks,
+  customCount,
+  onChange,
+}: {
+  current: SpreadMode;
+  hasPicks: boolean;
+  customCount?: number;
+  onChange: (next: SpreadPickerSelection) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<SpreadPickerSelection | null>(null);
+
+  const currentCount =
+    current === "custom" ? (customCount ?? 3) : getSpreadCount(current);
+
+  const handlePick = (next: SpreadPickerSelection) => {
+    setOpen(false);
+    if (next === current) return;
+    if (next === "none") {
+      onChange(next);
+      return;
+    }
+    const nextCount =
+      next === "custom" ? currentCount : getSpreadCount(next as SpreadMode);
+    const shrinking = nextCount < currentCount;
+    if (hasPicks && shrinking) {
+      setPending(next);
+      return;
+    }
+    onChange(next);
+  };
+
+  const confirmPick = () => {
+    if (pending) onChange(pending);
+    setPending(null);
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 6,
+          marginBottom: 4,
+        }}
+      >
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-label="Choose spread"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              padding: 0,
+              background: "transparent",
+              border: "none",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.7,
+              cursor: "pointer",
+              touchAction: "manipulation",
+            }}
+          >
+            <ChevronDown size={18} aria-hidden />
+          </button>
+          {open && (
+            <>
+              <button
+                type="button"
+                aria-label="Close spread picker"
+                onClick={() => setOpen(false)}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "default",
+                  zIndex: 49,
+                }}
+              />
+              <ul
+                role="listbox"
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 4px)",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  minWidth: 190,
+                  zIndex: 50,
+                  background: "var(--surface-elevated)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: 8,
+                  boxShadow: "0 12px 28px rgba(0,0,0,0.45)",
+                  padding: 4,
+                  listStyle: "none",
+                  margin: 0,
+                  maxHeight: 320,
+                  overflowY: "auto",
+                }}
+              >
+                {SPREAD_PICKER_OPTIONS.map((opt) => {
+                  const isActive = opt.value === current;
+                  const sub =
+                    opt.value === "none" || opt.value === "custom"
+                      ? null
+                      : `${getSpreadCount(opt.value as SpreadMode)} ${
+                          getSpreadCount(opt.value as SpreadMode) === 1
+                            ? "card"
+                            : "cards"
+                        }`;
+                  return (
+                    <li key={opt.value}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={isActive}
+                        onClick={() => handlePick(opt.value)}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          padding: "8px 12px",
+                          background: isActive
+                            ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
+                            : "transparent",
+                          border: "none",
+                          borderRadius: 6,
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: isActive ? "italic" : "normal",
+                          fontSize: "var(--text-body-sm)",
+                          color: "var(--color-foreground)",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          touchAction: "manipulation",
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        {sub && (
+                          <span style={{ opacity: 0.5, fontSize: 11 }}>{sub}</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+
+      {pending !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Change spread confirmation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.55)",
+            padding: 24,
+          }}
+          onClick={() => setPending(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 360,
+              width: "100%",
+              background: "var(--surface-card)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 14,
+              padding: "20px 20px 16px",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-sm)",
+                color: "var(--color-foreground)",
+                marginBottom: 8,
+              }}
+            >
+              Change spread?
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.8,
+                lineHeight: 1.4,
+              }}
+            >
+              Switching to a smaller spread will discard cards beyond the new
+              slot count. This can&rsquo;t be undone.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 18,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setPending(null)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 9999,
+                  border: "1px solid var(--border-subtle)",
+                  background: "transparent",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                onClick={confirmPick}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 9999,
+                  border: "none",
+                  background: "var(--accent, var(--gold))",
+                  color: "var(--color-background, #1a1a1a)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Change spread
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export function Tabletop({
   spread,
