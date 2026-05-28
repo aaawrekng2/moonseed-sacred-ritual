@@ -458,6 +458,7 @@ function Index() {
       open={pageMenuOpen}
       onClose={() => setPageMenuOpen(false)}
       sections={pageMenuSections}
+      title="Home"
     />
     <main
       className="relative grid bg-cosmos overflow-y-auto"

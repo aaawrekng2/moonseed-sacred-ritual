@@ -71,7 +71,7 @@ import {
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
@@ -950,49 +950,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
   const calendarCycleLabel =
     calendarState === "none" ? "Hidden" : calendarState === "recent" ? "1 row" : "2 rows";
-  const pageMenuSections: PageMenuSection[] = [
-    {
-      id: "view-swap",
-      title: "View",
-      items: [
-        {
-          id: "draw-table",
-          label: "Card Draw Table",
-          description: "Pick from all 78 cards",
-          Icon: LayoutGrid,
-          mode: "navigate",
-          onClick: () => {
-            setPageMenuOpen(false);
-            if (onSwitchToTable) {
-              requestNavigate(onSwitchToTable);
-            } else {
-              requestNavigate(() =>
-                navigate({ to: "/draw", search: { entry: "table" } }),
-              );
-            }
-          },
-        },
-      ],
-    },
-    {
-      id: "hide-show",
-      title: "Hide / Show",
-      items: [
-        {
-          id: "calendars",
-          label: "Calendars",
-          description: "Cycle through hidden, 1 row, 2 rows",
-          Icon: CalendarIcon,
-          mode: "cycle",
-          cycleLabel: calendarCycleLabel,
-          onClick: () => {
-            cycleCalendar();
-            // Keep the menu open so the seeker can keep cycling.
-          },
-        },
-      ],
-    },
-  ];
+  // EJ70 — pageMenuSections is built AFTER handleClearAll (below) so the
+  // Actions → "Clear all picks" item can reference it without hitting the
+  // temporal dead zone. See the const just below handleClearAll.
   // EJ25 — true while seeker hovers the asterism (teal) badge. When true,
   // every calendar day-cell that has the trace stroke (all asterism
   // cards co-occurred) swaps its fill from gold heatmap to solid trace
@@ -1283,18 +1243,15 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       const openPopover = () => {
         setActivePopover((prev) => {
           if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
-            // Update anchor for same-card mousemoves so the popover
-            // collision logic gets a fresh rect, but keep the same
-            // state shape so React bails out cleanly when nothing
-            // material has changed.
-            if (
-              prev.anchorX === clientX &&
-              prev.anchorY === clientY &&
-              prev.targetRect === (targetRect ?? null)
-            ) {
-              return prev;
-            }
-            return { ...prev, anchorX: clientX, anchorY: clientY, targetRect: targetRect ?? null };
+            // EJ70 — Once the popover is open for THIS card, do NOT chase
+            // the cursor. Updating anchorX/anchorY on every same-card
+            // mousemove reset RichPopover's locked position (its
+            // [anchorX, anchorY] effect), which flipped the popover
+            // between above/below the card — the "flicker from top to
+            // bottom" the seeker reported. Keeping the original anchor
+            // holds the popover steady; the only thing that re-anchors it
+            // now is moving to a DIFFERENT card (a new key).
+            return prev;
           }
           // EJ18 — trigger the lazy popover data fetch when a
           // card-meaning popover opens for the first time per
@@ -1442,7 +1399,12 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         if (key && prev.key !== key) return prev;
         return null;
       });
-    }, 220);
+    }, 400); // EJ70 — 220 → 400ms. The popover dismissed before the
+    // cursor could travel from the card to the popover, so the seeker
+    // couldn't click it (the ⓘ icon, links). 400ms gives comfortable
+    // travel time; the popover's own onMouseEnter cancels the dismiss
+    // once reached. Industry hover-intent delays sit in the 300–500ms
+    // band (Radix, Floating UI).
   };
   const closeActivePopover = (kind?: ActivePopoverKind, key?: string) => {
     cancelPopoverDismiss();
@@ -2317,6 +2279,74 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     setSaveStatus("idle");
     setSaveError(null);
   };
+
+  // EJ70 — Built here (after handleClearAll) so the Actions section can
+  // reference it. View swap + calendar cycler as before; "Clear all
+  // picks" appears only when picks are placed.
+  const pageMenuSections: PageMenuSection[] = [
+    {
+      id: "view-swap",
+      title: "View",
+      items: [
+        {
+          id: "draw-table",
+          label: "Card Draw Table",
+          description: "Pick from all 78 cards",
+          Icon: LayoutGrid,
+          mode: "navigate",
+          onClick: () => {
+            setPageMenuOpen(false);
+            if (onSwitchToTable) {
+              requestNavigate(onSwitchToTable);
+            } else {
+              requestNavigate(() =>
+                navigate({ to: "/draw", search: { entry: "table" } }),
+              );
+            }
+          },
+        },
+      ],
+    },
+    {
+      id: "hide-show",
+      title: "Hide / Show",
+      items: [
+        {
+          id: "calendars",
+          label: "Calendars",
+          description: "Cycle through hidden, 1 row, 2 rows",
+          Icon: CalendarIcon,
+          mode: "cycle",
+          cycleLabel: calendarCycleLabel,
+          onClick: () => {
+            cycleCalendar();
+            // Keep the menu open so the seeker can keep cycling.
+          },
+        },
+      ],
+    },
+    ...(picks.length > 0
+      ? [
+          {
+            id: "actions",
+            title: "Actions",
+            items: [
+              {
+                id: "clear-all",
+                label: "Clear all picks",
+                description: "Empty the slots and reset this reading",
+                Icon: Trash2,
+                mode: "navigate" as const,
+                onClick: () => {
+                  setPageMenuOpen(false);
+                  handleClearAll();
+                },
+              },
+            ],
+          },
+        ]
+      : []),
+  ];
 
   const handleRemoveSlot = (slotIdx: number) => {
     setPicks((prev) => prev.filter((_, i) => i !== slotIdx));
@@ -3878,6 +3908,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         open={pageMenuOpen}
         onClose={() => setPageMenuOpen(false)}
         sections={pageMenuSections}
+        title="Manual Entry"
       />
       {/* Header row — DU: subtitle inline with H1 on the same row.
           EJ11 — H1 reduced 26 → 18 and row vertical padding tightened
@@ -3902,61 +3933,14 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             flexWrap: "wrap",
           }}
         >
-          {/* EJ65 — EntryModeToggle removed from inline header. View
-              swap to Card Draw Table now lives in the left fly-out
-              panel (PageMenu), so all page controls share one home. */}
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: 18,
-              fontWeight: 400,
-              color: "var(--color-foreground)",
-              lineHeight: 1.1,
-            }}
-          >
-            Manual Entry
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 10,
-              letterSpacing: "0.3em",
-              fontFamily: "var(--font-serif)",
-              color: "var(--color-foreground-muted, var(--color-foreground))",
-              textTransform: "uppercase",
-              opacity: 0.75,
-            }}
-          >
-            pick up to 10 cards — the focused card becomes hero
-          </p>
+          {/* EJ70 — "Manual Entry" h1 + "pick up to 10 cards…" subtitle
+              removed. The page name now lives at the top of the left
+              fly-out (PageMenu) instead of taking header space. */}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* EJ65 — Classic Manual Entry link removed (legacy QuickLog
-              surface deleted). Manual Entry is now the only manual
-              surface and the Draw view-swap lives in the left fly-out
-              panel. */}
-          {picks.length > 0 && (
-            <button
-              type="button"
-              onClick={handleClearAll}
-              title="Clear all picks"
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 11,
-                color: "var(--color-foreground-muted, var(--color-foreground))",
-                background: "transparent",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: 9999,
-                padding: "4px 10px",
-                cursor: "pointer",
-              }}
-            >
-              Clear all
-            </button>
-          )}
+          {/* EJ70 — "Clear all" picks button moved into the PageMenu
+              left fly-out (Actions → Clear all picks). Only the
+              back-to-home button remains in the header. */}
           <button
             type="button"
             onClick={() => requestNavigate(() => navigate({ to: "/" }))}

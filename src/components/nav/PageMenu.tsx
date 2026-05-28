@@ -53,9 +53,15 @@ export type PageMenuProps = {
   open: boolean;
   onClose: () => void;
   sections: PageMenuSection[];
+  /**
+   * EJ70 — Name of the current page, shown at the very top of the
+   * fly-out above the Close button (e.g. "Manual Entry"). Optional;
+   * when omitted only the Close button shows.
+   */
+  title?: string;
 };
 
-export function PageMenu({ open, onClose, sections }: PageMenuProps) {
+export function PageMenu({ open, onClose, sections, title }: PageMenuProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   // Close on Escape.
@@ -128,6 +134,22 @@ export function PageMenu({ open, onClose, sections }: PageMenuProps) {
           willChange: "transform",
         }}
       >
+        {/* EJ70 — Current page name at the very top of the fly-out,
+            above the Close button. */}
+        {title && (
+          <div
+            style={{
+              padding: "0 20px 4px",
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "var(--color-foreground)",
+              lineHeight: 1.1,
+            }}
+          >
+            {title}
+          </div>
+        )}
         {/* Close affordance — explicit X / back arrow at top-left of
             the panel content. Tapping the scrim also closes. */}
         <div

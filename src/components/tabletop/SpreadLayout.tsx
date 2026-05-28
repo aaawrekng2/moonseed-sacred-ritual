@@ -471,15 +471,19 @@ function SpreadContent({
     }
     // Q92 #5 — Two stacked grids: cards bottom-aligned to a shared
     // baseline, labels top-aligned in the row below.
+    // EJ70 — Fixed-width columns + justifyContent center so the cards
+    // cluster instead of spreading across the full frame on desktop.
     return (
       <div className="flex flex-col items-center gap-2 w-full max-w-full">
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(${picks.length}, 1fr)`,
+            gridTemplateColumns: `repeat(${picks.length}, ${sizing.w}px)`,
             gap: 16,
             alignItems: "end",
+            justifyContent: "center",
             justifyItems: "center",
+            maxWidth: "100%",
           }}
         >
           {picks.map((pick, i) => (
@@ -501,10 +505,12 @@ function SpreadContent({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(${picks.length}, 1fr)`,
+            gridTemplateColumns: `repeat(${picks.length}, ${sizing.w}px)`,
             gap: 16,
             alignItems: "start",
+            justifyContent: "center",
             justifyItems: "center",
+            maxWidth: "100%",
           }}
         >
           {picks.map((pick, i) => (
@@ -911,16 +917,29 @@ function ThreeRow({
   // card images (oracle decks) do not overflow the cell upward.
   const cardAreaH = Math.round(sizing.w * 2);
   const cols = picks.length;
+  // EJ70 — Constrain the row to a centered content-width cluster instead
+  // of letting `repeat(cols, 1fr)` span the full 1280 frame. On wide
+  // desktops the 1fr columns absorbed all the slack and pushed the cards
+  // to the thirds of the screen with huge gaps. Width = cards + gaps, so
+  // the cards sit together with just the 24px gutter between them, and
+  // mx-auto centers the cluster.
+  const ROW_GAP = 24;
+  const clusterWidth = cols * sizing.w + (cols - 1) * ROW_GAP;
   return (
     <div style={{ width: "100%" }}>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gap: 24,
+          gridTemplateColumns: `repeat(${cols}, ${sizing.w}px)`,
+          gap: ROW_GAP,
           alignItems: "end",
+          justifyContent: "center",
           justifyItems: "center",
           marginBottom: 8,
+          width: clusterWidth,
+          maxWidth: "100%",
+          marginLeft: "auto",
+          marginRight: "auto",
         }}
       >
         {picks.map((pick, i) => (
@@ -951,10 +970,15 @@ function ThreeRow({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gap: 24,
+          gridTemplateColumns: `repeat(${cols}, ${sizing.w}px)`,
+          gap: ROW_GAP,
           alignItems: "start",
+          justifyContent: "center",
           justifyItems: "center",
+          width: clusterWidth,
+          maxWidth: "100%",
+          marginLeft: "auto",
+          marginRight: "auto",
         }}
       >
         {picks.map((pick, i) => (

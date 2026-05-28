@@ -1,20 +1,29 @@
 /**
- * EJ69 — SpreadPicker.
+ * EJ69/EJ70 — SpreadPicker.
  *
- * Dropdown rendered beneath the slot rail on the Tabletop. Lets the
- * seeker change spread types mid-draw without navigating away from
- * the table. Options: None (clears position labels but keeps slot
- * count), 1 card, 3 cards, Celtic Cross, Custom.
+ * Chevron-only trigger rendered beneath the slot rail on the Tabletop.
+ * Matches the Manual Entry SpreadDropdown behavior: no label text on
+ * the trigger (just a chevron), the position names appear UNDER the
+ * slot cards (via the slot rail's own label rendering), and the
+ * dropdown lists every spread option.
  *
- * Confirmation guard: when switching to a spread with fewer slots
- * AND the seeker has any picks placed, fire a confirmation dialog
- * before committing the change. Picks beyond the new slot count
- * would be lost.
+ * Options mirror the Manual Entry SPREADS list: No spread / Single /
+ * Three Card / Celtic Cross / Yes-No / Horseshoe / Relationship /
+ * Year Ahead / Cross of Decision / Custom.
+ *
+ * Behavior (EJ70):
+ *  - Picking a named spread grows/sets the slot count. Picks are
+ *    preserved where positions overlap (parent handles the navigation
+ *    + pick preservation).
+ *  - Growing never loses picks, so no confirm. Shrinking with picks
+ *    placed fires a confirmation dialog first.
+ *  - "No spread" keeps the current slot count and only clears the
+ *    position labels (non-destructive).
  */
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { SpreadMode } from "@/lib/spreads";
-import { SPREAD_META } from "@/lib/spreads";
+import { SPREAD_META, getSpreadCount } from "@/lib/spreads";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,22 +38,29 @@ import {
 export type SpreadPickerSelection = SpreadMode | "none";
 
 export type SpreadPickerProps = {
-  /** Current spread mode. "none" if labels are cleared. */
+  /** Current spread mode. */
   current: SpreadMode;
   /** True when the seeker has placed at least one card; gates the confirm. */
   hasPicks: boolean;
-  /** Custom-count value (for label display only). */
+  /** Custom-count value (for count math when current spread is custom). */
   customCount?: number;
   /** Called when the seeker chooses a new spread. Parent handles navigation. */
   onChange: (next: SpreadPickerSelection) => void;
 };
 
-const OPTIONS: { value: SpreadPickerSelection; label: string; count: number | null }[] = [
-  { value: "none", label: "No spread", count: null },
-  { value: "daily", label: "1 card", count: 1 },
-  { value: "three", label: "3 cards", count: 3 },
-  { value: "celtic", label: "Celtic Cross", count: 10 },
-  { value: "custom", label: "Custom…", count: null },
+// EJ70 — Mirror the Manual Entry SPREADS list order. "none" first,
+// "custom" last; the named spreads in between.
+const OPTIONS: { value: SpreadPickerSelection; label: string }[] = [
+  { value: "none", label: "No spread" },
+  { value: "single", label: "Single" },
+  { value: "three", label: "Three Card" },
+  { value: "celtic", label: "Celtic Cross" },
+  { value: "yes_no", label: "Yes / No" },
+  { value: "horseshoe", label: "Horseshoe" },
+  { value: "relationship", label: "Relationship" },
+  { value: "year_ahead", label: "Year Ahead" },
+  { value: "cross_of_decision", label: "Cross of Decision" },
+  { value: "custom", label: "Custom" },
 ];
 
 export function SpreadPicker({
@@ -56,18 +72,8 @@ export function SpreadPicker({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<SpreadPickerSelection | null>(null);
 
-  const currentLabel = (() => {
-    if (current === "custom") {
-      return customCount ? `Custom · ${customCount} cards` : "Custom";
-    }
-    return SPREAD_META[current]?.label ?? "Spread";
-  })();
-
-  // Count of the currently-displayed spread; "none" treated as
-  // current's count since slot count doesn't change for "none".
-  const currentCount = current === "custom"
-    ? (customCount ?? 3)
-    : (SPREAD_META[current]?.count ?? 1);
+  const currentCount =
+    current === "custom" ? (customCount ?? 3) : getSpreadCount(current);
 
   const handlePick = (next: SpreadPickerSelection) => {
     setOpen(false);
@@ -77,13 +83,8 @@ export function SpreadPicker({
       onChange(next);
       return;
     }
-    // Determine whether this switch shrinks the slot count and would
-    // lose existing picks. Custom is unknown at decision time; assume
-    // no shrink so the parent's count UI handles it.
     const nextCount =
-      next === "custom"
-        ? currentCount
-        : (SPREAD_META[next as SpreadMode]?.count ?? 1);
+      next === "custom" ? currentCount : getSpreadCount(next as SpreadMode);
     const shrinking = nextCount < currentCount;
     if (hasPicks && shrinking) {
       setPending(next);
@@ -108,30 +109,31 @@ export function SpreadPicker({
         }}
       >
         <div style={{ position: "relative" }}>
+          {/* EJ70 — Chevron-only trigger. No label text (matches Manual
+              Entry's SpreadDropdown). The position names render under
+              the slot cards, not here. */}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-haspopup="listbox"
             aria-expanded={open}
+            aria-label="Choose spread"
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              padding: "4px 10px",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              padding: 0,
               background: "transparent",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: 999,
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-caption)",
-              color: "var(--color-foreground)",
-              opacity: 0.75,
+              border: "none",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.7,
               cursor: "pointer",
               touchAction: "manipulation",
             }}
           >
-            {currentLabel}
-            <ChevronDown size={12} aria-hidden />
+            <ChevronDown size={18} aria-hidden />
           </button>
           {open && (
             <>
@@ -156,7 +158,7 @@ export function SpreadPicker({
                   bottom: "calc(100% + 4px)",
                   left: "50%",
                   transform: "translateX(-50%)",
-                  minWidth: 180,
+                  minWidth: 190,
                   zIndex: 50,
                   background: "var(--surface-elevated)",
                   border: "1px solid var(--border-subtle)",
@@ -165,10 +167,22 @@ export function SpreadPicker({
                   padding: 4,
                   listStyle: "none",
                   margin: 0,
+                  maxHeight: 320,
+                  overflowY: "auto",
                 }}
               >
                 {OPTIONS.map((opt) => {
                   const isActive = opt.value === current;
+                  const sub =
+                    opt.value === "none"
+                      ? null
+                      : opt.value === "custom"
+                        ? null
+                        : `${getSpreadCount(opt.value as SpreadMode)} ${
+                            getSpreadCount(opt.value as SpreadMode) === 1
+                              ? "card"
+                              : "cards"
+                          }`;
                   return (
                     <li key={opt.value}>
                       <button
@@ -178,6 +192,10 @@ export function SpreadPicker({
                         onClick={() => handlePick(opt.value)}
                         style={{
                           width: "100%",
+                          display: "flex",
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                          gap: 12,
                           padding: "8px 12px",
                           background: isActive
                             ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
@@ -193,7 +211,10 @@ export function SpreadPicker({
                           touchAction: "manipulation",
                         }}
                       >
-                        {opt.label}
+                        <span>{opt.label}</span>
+                        {sub && (
+                          <span style={{ opacity: 0.5, fontSize: 11 }}>{sub}</span>
+                        )}
                       </button>
                     </li>
                   );

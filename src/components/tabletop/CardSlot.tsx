@@ -191,8 +191,23 @@ export function CardSlot({
     };
   }, [flightPhase, flightMs]);
 
-  // Re-trigger the tap micro-animation on every click by toggling a key.
-  const [tapTick, setTapTick] = useState(0);
+  // EJ70 — Once the post-drop render has painted at the new card.x/card.y
+  // (props updated by the parent's move action), clear justDropped on the
+  // next frame so the normal idle transition resumes for future layout
+  // shifts (e.g. viewport resize, scatter rebuild). Keyed on the coords so
+  // it fires exactly when the new position lands.
+  useEffect(() => {
+    if (!justDropped) return;
+    const raf = window.requestAnimationFrame(() => {
+      const raf2 = window.requestAnimationFrame(() => {
+        setJustDropped(false);
+        wasDraggedRef.current = false;
+      });
+      return () => window.cancelAnimationFrame(raf2);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [justDropped, card.x, card.y]);
+
   // Sacred consecration: play a slow ceremonial animation once each time a
   // card transitions from unselected → selected. Tracked via a tick that
   // re-keys the animation wrapper so React replays it cleanly. Cleared
@@ -270,6 +285,16 @@ export function CardSlot({
   // animation starts at `opacity: 0` and is the source of the visible
   // disappear/reappear flicker on release. We track the most recent drag
   // so we can suppress `settle-in` for one render cycle after dropping.
+  // EJ70 — When a table-to-table drag ends, the card switches from the
+  // `dragging` fixed-position branch back to the absolute idle branch.
+  // For the frame before the parent's `move` action flushes new card.x/
+  // card.y into props, the idle branch paints at the STALE coords; the
+  // `card-idle-transition` class then animates left/top from the stale
+  // spot to the new one — the "jump to the right, then traverse" the
+  // seeker reported. Setting justDropped suppresses the idle transition
+  // for that render so the card simply appears at the drop point. Cleared
+  // after one rAF once the new coords have settled.
+  const [justDropped, setJustDropped] = useState(false);
   const wasDraggedRef = useRef(false);
   const dragStateRef = useRef<{
     pointerId: number;
@@ -460,6 +485,10 @@ export function CardSlot({
       // — the card is already on screen at the drop position, animating
       // it back in from opacity:0 reads as a flicker.
       wasDraggedRef.current = true;
+      // EJ70 — Also suppress the left/top idle transition for the render
+      // cycle right after the drop, so the card appears AT the release
+      // point instead of teleporting to stale coords and animating over.
+      setJustDropped(true);
     }
     dragStateRef.current = null;
     draggingRef.current = false;
@@ -532,7 +561,7 @@ export function CardSlot({
         (dragging && dragPos)
           ? "fixed outline-none focus:outline-none focus-visible:outline-none"
           : "absolute outline-none focus:outline-none focus-visible:outline-none",
-        flying || flightPhase === "returning" || dragging
+        flying || flightPhase === "returning" || dragging || justDropped
           ? null
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.

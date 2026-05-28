@@ -22,6 +22,49 @@ import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { Clock, Calendar as CalendarIcon } from "lucide-react";
 import type { CardPopoverData } from "@/lib/quicklog.functions";
 
+/**
+ * EJ70 — Explain a header tag on hover. Covers arcana type, suit,
+ * element, zodiac sign, and roman numeral. Falls back to a generic
+ * label when a tag isn't recognized so every tag is still hoverable.
+ */
+function describeTag(raw: string): string {
+  const t = raw.trim().toUpperCase();
+  const ELEMENTS: Record<string, string> = {
+    FIRE: "Element: Fire — drive, passion, will (Wands).",
+    WATER: "Element: Water — emotion, intuition, relationship (Cups).",
+    AIR: "Element: Air — thought, communication, conflict (Swords).",
+    EARTH: "Element: Earth — body, work, material world (Pentacles).",
+  };
+  const ZODIAC: Record<string, string> = {
+    ARIES: "Zodiac: Aries — the card's astrological association.",
+    TAURUS: "Zodiac: Taurus — the card's astrological association.",
+    GEMINI: "Zodiac: Gemini — the card's astrological association.",
+    CANCER: "Zodiac: Cancer — the card's astrological association.",
+    LEO: "Zodiac: Leo — the card's astrological association.",
+    VIRGO: "Zodiac: Virgo — the card's astrological association.",
+    LIBRA: "Zodiac: Libra — the card's astrological association.",
+    SCORPIO: "Zodiac: Scorpio — the card's astrological association.",
+    SAGITTARIUS: "Zodiac: Sagittarius — the card's astrological association.",
+    CAPRICORN: "Zodiac: Capricorn — the card's astrological association.",
+    AQUARIUS: "Zodiac: Aquarius — the card's astrological association.",
+    PISCES: "Zodiac: Pisces — the card's astrological association.",
+  };
+  const SUITS: Record<string, string> = {
+    WANDS: "Suit: Wands — fire, action, creativity.",
+    CUPS: "Suit: Cups — water, emotion, relationship.",
+    SWORDS: "Suit: Swords — air, thought, conflict.",
+    PENTACLES: "Suit: Pentacles — earth, work, material world.",
+  };
+  if (t === "MAJOR") return "Major Arcana — one of the 22 cards marking life's larger turning points.";
+  if (t === "MINOR") return "Minor Arcana — the 56 cards covering day-to-day matters.";
+  if (ELEMENTS[t]) return ELEMENTS[t];
+  if (ZODIAC[t]) return ZODIAC[t];
+  if (SUITS[t]) return SUITS[t];
+  // Roman numeral (e.g. XV) — Major Arcana card number.
+  if (/^[IVXLCDM]+$/.test(t)) return `Card number ${t} in the Major Arcana sequence.`;
+  return raw;
+}
+
 export type CardStatsPanelProps = {
   cardName: string;
   /** Total times this card has been drawn in the filtered universe. */
@@ -199,7 +242,18 @@ export function CardStatsPanel({
               opacity: 0.75,
             }}
           >
-            {tags.join(" · ")}
+            {/* EJ70 — Each tag is an individually-hoverable span with a
+                title explaining what it means (arcana type, zodiac,
+                element, roman numeral, suit). cursor:help signals the
+                affordance. " · " separators sit between. */}
+            {tags.map((t, i) => (
+              <span key={`${t}-${i}`}>
+                <span title={describeTag(t)} style={{ cursor: "help" }}>
+                  {t}
+                </span>
+                {i < tags.length - 1 ? " · " : ""}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -299,10 +353,22 @@ export function CardStatsPanel({
           >
             {monthCounts.map((n, i) => {
               const h = n > 0 ? Math.max(4, Math.round((n / maxMonth) * 36)) : 2;
+              // EJ70 — Per-bar hover tip: month label + draw count. The
+              // array runs oldest → newest, ending on the current month,
+              // so index 11 is this month and index i is (11 - i) months
+              // ago. cursor:help signals the bar is hoverable.
+              const monthsAgo = 11 - i;
+              const d = new Date();
+              d.setMonth(d.getMonth() - monthsAgo);
+              const monthLabel = d.toLocaleDateString(undefined, {
+                month: "short",
+                year: "numeric",
+              });
+              const drawWord = n === 1 ? "draw" : "draws";
               return (
                 <div
                   key={i}
-                  aria-hidden
+                  title={`${monthLabel} · ${n} ${drawWord}`}
                   style={{
                     height: h,
                     background:
@@ -310,6 +376,7 @@ export function CardStatsPanel({
                         ? "color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)"
                         : "color-mix(in oklab, var(--color-foreground) 10%, transparent)",
                     borderRadius: 2,
+                    cursor: "help",
                   }}
                 />
               );

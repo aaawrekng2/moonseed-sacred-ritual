@@ -1040,6 +1040,7 @@ export function Tabletop({
             open={pageMenuOpen}
             onClose={() => setPageMenuOpen(false)}
             sections={pageMenuSections}
+            title="Card Draw Table"
           />
         </>
       )}

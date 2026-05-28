@@ -222,7 +222,21 @@ export function getSpread(key: SpreadKey): SpreadDefinition {
 
 /** localStorage key for the seeker's chosen spread on /constellation. */
 export const SPREAD_STORAGE_KEY = "tarotseed:constellation-spread";
-export type SpreadMode = "daily" | "single" | "three" | "celtic" | "yes_no" | "custom";
+// EJ70 — Extended to mirror the Manual Entry SPREADS list so the
+// Tabletop spread picker can offer the same options. The four new
+// spreads (horseshoe, relationship, year_ahead, cross_of_decision)
+// were previously available only on the Manual Entry constellation.
+export type SpreadMode =
+  | "daily"
+  | "single"
+  | "three"
+  | "celtic"
+  | "yes_no"
+  | "horseshoe"
+  | "relationship"
+  | "year_ahead"
+  | "cross_of_decision"
+  | "custom";
 
 export const SPREAD_META: Record<
   SpreadMode,
@@ -286,6 +300,42 @@ export const SPREAD_META: Record<
     ],
   },
   yes_no: { label: "Yes / No", count: 1, description: "A single guiding card" },
+  horseshoe: {
+    label: "Horseshoe",
+    count: 7,
+    description: "A broader life-situation reading in seven beats.",
+    positions: [
+      "Past",
+      "Present",
+      "Hidden Influences",
+      "Obstacles",
+      "External Influences",
+      "Advice",
+      "Outcome",
+    ],
+    positionsShort: ["Past", "Now", "Hid", "Obs", "Ext", "Adv", "Out"],
+  },
+  relationship: {
+    label: "Relationship",
+    count: 5,
+    description: "You, them, the bond, the challenge, the outcome.",
+    positions: ["You", "Your Partner", "The Connection", "The Challenge", "The Outcome"],
+    positionsShort: ["You", "Them", "Bond", "Chal", "End"],
+  },
+  year_ahead: {
+    label: "Year Ahead",
+    count: 12,
+    description: "One card per month for the year.",
+    positions: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    positionsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  },
+  cross_of_decision: {
+    label: "Cross of Decision",
+    count: 5,
+    description: "A five-card spread for choosing between two paths.",
+    positions: ["The Situation", "Path A", "Path B", "Hidden Influence", "Likely Outcome"],
+    positionsShort: ["Now", "A", "B", "Hid", "End"],
+  },
   // 9-6-O — Custom: count is a placeholder; the runtime count comes
   // from the URL search param ?n= (1-10).
   custom: { label: "Custom", count: 1, description: "Pick how many cards." },
@@ -302,7 +352,15 @@ export function getSpreadCount(mode: SpreadMode): number {
  */
 export function spreadUsesSlots(mode: SpreadMode, count?: number): boolean {
   if (mode === "custom") return (count ?? 1) >= 2;
-  return mode === "three" || mode === "celtic";
+  // EJ70 — Every multi-card named spread uses the slot rail.
+  return (
+    mode === "three" ||
+    mode === "celtic" ||
+    mode === "horseshoe" ||
+    mode === "relationship" ||
+    mode === "year_ahead" ||
+    mode === "cross_of_decision"
+  );
 }
 
 export function isValidSpreadMode(v: string | undefined | null): v is SpreadMode {
@@ -312,6 +370,10 @@ export function isValidSpreadMode(v: string | undefined | null): v is SpreadMode
     v === "three" ||
     v === "celtic" ||
     v === "yes_no" ||
+    v === "horseshoe" ||
+    v === "relationship" ||
+    v === "year_ahead" ||
+    v === "cross_of_decision" ||
     v === "custom"
   );
 }

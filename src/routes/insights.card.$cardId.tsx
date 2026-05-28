@@ -37,6 +37,7 @@ import {
 import type { MoonPhaseName } from "@/lib/moon";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 // EJ69 — Removed CardImage import (only AdaptiveCardImage is rendered).
+import { TagCloud } from "@/components/card/TagCloud";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
@@ -93,6 +94,7 @@ type Detail = {
   lastSeen: string | null;
   appearances: Appearance[];
   coOccurrences: Array<{ cardId: number; count: number }>;
+  tagCloud?: Array<{ tag: string; count: number }>;
   availableSpreadTypes?: string[];
   availableMoonPhases?: string[];
 };
@@ -389,8 +391,17 @@ export function CardTraceView({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: "var(--background)" }}
+      className="fixed inset-0 flex flex-col"
+      style={{
+        background: "var(--background)",
+        // EJ70 — z above the Tabletop close button (z-50). When Card
+        // Trace opens over the flip table, the Tabletop's own X button
+        // (top-right, z-50) was showing through alongside Card Trace's
+        // own X — two X's at the same corner. Card Trace's opaque
+        // full-screen background at z-modal (100) covers it; only Card
+        // Trace's X remains.
+        zIndex: "var(--z-modal)" as unknown as number,
+      }}
     >
       {/* EJ69 — Slim sticky header. Card name always visible (no
           fade-on-scroll, no large scroll-away duplicate below). Back
@@ -487,6 +498,14 @@ export function CardTraceView({
             firstSeen={data?.firstSeen ? formatDateShort(data.firstSeen) : null}
             lastSeen={data?.lastSeen ? formatDateShort(data.lastSeen) : null}
           />
+          {/* EJ70 — All-time tag word cloud, scoped to this card,
+              independent of the filter bar. Sized by frequency.
+              Sits below the companions section inside the same column. */}
+          {data?.tagCloud && data.tagCloud.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <TagCloud entries={data.tagCloud} />
+            </div>
+          )}
         </div>
 
         {/* EJ69 — Calendar, readings list, AI reflection sit BELOW the

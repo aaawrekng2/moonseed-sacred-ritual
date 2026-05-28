@@ -7,7 +7,7 @@ import { RotatePrompt } from "@/components/tabletop/RotatePrompt";
 import { useViewport } from "@/lib/use-viewport";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { ReadingScreen } from "@/components/reading/ReadingScreen";
-import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
+import { isValidSpreadMode, getSpreadCount, type SpreadMode } from "@/lib/spreads";
 import { useStreak } from "@/lib/use-streak";
 import { QuestionPanel } from "@/components/draw/QuestionPanel";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +22,12 @@ import {
   resolveCountFromMap,
   type EntryMode,
 } from "@/lib/use-spread-entry-modes";
-import { clearTabletopSession } from "@/components/tabletop/config";
+import {
+  clearTabletopSession,
+  readTabletopSession,
+  writeTabletopSession,
+} from "@/components/tabletop/config";
+import type { TabletopSession } from "@/components/tabletop/types";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { useShowLabels } from "@/lib/use-show-labels";
 
@@ -316,11 +321,14 @@ function DrawPage() {
     setCustomCount(next);
   };
 
-  // EJ69 — Spread picker handler. Called by the new SpreadPicker
+  // EJ69/EJ70 — Spread picker handler. Called by the SpreadPicker
   // dropdown on the Tabletop. "none" hides position labels without
-  // changing the slot count (one-line label preference flip).
-  // A named spread navigates to /draw with the new spread, preserving
-  // the seeker's question and entry surface.
+  // changing the slot count. A named spread navigates to /draw with the
+  // new spread. EJ70: picks are PRESERVED across the switch — the current
+  // spread's session is carried into the new spread's key, with selections
+  // beyond the new slot count trimmed back to the scatter (so growing
+  // keeps everything, shrinking drops only the overflow after the
+  // SpreadPicker's confirm dialog).
   const { setShowLabels } = useShowLabels();
   const handleSpreadChange = (next: SpreadMode | "none") => {
     if (next === "none") {
@@ -331,9 +339,27 @@ function DrawPage() {
     // Any named spread restores label visibility.
     setShowLabels(true);
     if (next === spread) return;
-    // Clear the previous spread's session so its picks don't leak
-    // into the new spread's slot layout.
-    clearTabletopSession(spread);
+    // Carry the current spread's session into the new spread so picks
+    // survive the navigation. Trim selections that exceed the new slot
+    // count back into the scatter (selectionOrder cleared).
+    const prevSession = readTabletopSession(spread);
+    if (prevSession) {
+      const nextCount =
+        next === "custom" ? customCount : getSpreadCount(next);
+      const carried: TabletopSession = {
+        cards: prevSession.cards.map((c) =>
+          c.selectionOrder !== null && c.selectionOrder > nextCount
+            ? { ...c, selectionOrder: null }
+            : c,
+        ),
+        // Undo/redo history doesn't map cleanly across spread shapes;
+        // start fresh so an undo can't restore a slot that no longer
+        // exists.
+        undoStack: [],
+        redoStack: [],
+      };
+      writeTabletopSession(next, carried);
+    }
     navigate({
       to: "/draw",
       search: {
