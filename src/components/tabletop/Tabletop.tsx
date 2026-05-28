@@ -650,10 +650,15 @@ export function Tabletop({
       padding: TABLETOP_CONFIG.SCATTER_PADDING,
       seed,
       exclusionZones,
-      // Q77 #5b — target 90% visibility per card. enforceMinVisibility
-      // degrades gracefully when the threshold is geometrically
-      // unreachable for 78 cards in a small viewport.
-      minVisibleRatio: 0.9,
+      // EJ75 — Target 50% visibility per card (was 0.9). The 90%
+      // threshold meant the relocation pass aggressively shoved any
+      // overlapping card outward to clear the bar, which on
+      // desktop/tablet ended up pushing overflow into the side margins
+      // (the "shape" Cori reported). At 50% cards may overlap up to
+      // half each — the natural casual-table look — and the relocation
+      // pass only fires when something is more than half-covered, so
+      // no edge-pushing pileups.
+      minVisibleRatio: 0.5,
       topOffset: TABLETOP_CONFIG.TOP_RESERVE,
     });
   }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);

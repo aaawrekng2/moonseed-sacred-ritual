@@ -117,7 +117,18 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
     const j = Math.floor(rng() * (i + 1));
     [cellOrder[i], cellOrder[j]] = [cellOrder[j], cellOrder[i]];
   }
-  const chosen = cellOrder.slice(0, pick).sort((a, b) => a - b);
+  // EJ75 — Removed the ascending `.sort((a, b) => a - b)` that used to
+  // run here. On desktop/tablet the grid has more cells than cards
+  // (90 cells for 78 cards). Sorting cell indices ascending meant the
+  // chosen subset filled rows top-down: the last ~12 unused cells
+  // always clustered at the bottom, packing cards into the top of the
+  // table. Combined with the visibility-relocation pass that nudges
+  // overlapping cards toward open space, this produced the
+  // top-heavy-with-side-columns shape Cori reported — worst on tablet,
+  // invisible on mobile (whose tall narrow grid spread cards evenly
+  // regardless). Without the sort, the picked cells stay in their
+  // shuffled order, distributing cards across the full grid evenly.
+  const chosen = cellOrder.slice(0, pick);
 
   const cards: ScatterCard[] = [];
   for (let i = 0; i < pick; i++) {
