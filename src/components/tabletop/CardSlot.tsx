@@ -191,23 +191,6 @@ export function CardSlot({
     };
   }, [flightPhase, flightMs]);
 
-  // EJ70 — Once the post-drop render has painted at the new card.x/card.y
-  // (props updated by the parent's move action), clear justDropped on the
-  // next frame so the normal idle transition resumes for future layout
-  // shifts (e.g. viewport resize, scatter rebuild). Keyed on the coords so
-  // it fires exactly when the new position lands.
-  useEffect(() => {
-    if (!justDropped) return;
-    const raf = window.requestAnimationFrame(() => {
-      const raf2 = window.requestAnimationFrame(() => {
-        setJustDropped(false);
-        wasDraggedRef.current = false;
-      });
-      return () => window.cancelAnimationFrame(raf2);
-    });
-    return () => window.cancelAnimationFrame(raf);
-  }, [justDropped, card.x, card.y]);
-
   // Sacred consecration: play a slow ceremonial animation once each time a
   // card transitions from unselected → selected. Tracked via a tick that
   // re-keys the animation wrapper so React replays it cleanly. Cleared
@@ -296,6 +279,24 @@ export function CardSlot({
   // after one rAF once the new coords have settled.
   const [justDropped, setJustDropped] = useState(false);
   const wasDraggedRef = useRef(false);
+  // EJ72 — Clear justDropped on the next frame once the post-drop render
+  // has painted at the new card.x/card.y, so the normal idle transition
+  // resumes for future layout shifts. MUST stay below the useState above
+  // — in EJ70 this effect sat ~100 lines higher than the declaration,
+  // which the production bundler compiled into a temporal-dead-zone
+  // access ("Cannot access 'justDropped' before initialization") that
+  // crashed /draw.
+  useEffect(() => {
+    if (!justDropped) return;
+    const raf = window.requestAnimationFrame(() => {
+      const raf2 = window.requestAnimationFrame(() => {
+        setJustDropped(false);
+        wasDraggedRef.current = false;
+      });
+      return () => window.cancelAnimationFrame(raf2);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [justDropped, card.x, card.y]);
   const dragStateRef = useRef<{
     pointerId: number;
     startClientX: number;
