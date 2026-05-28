@@ -191,6 +191,9 @@ export function CardSlot({
     };
   }, [flightPhase, flightMs]);
 
+  // Re-trigger the tap micro-animation on every click by toggling a key.
+  const [tapTick, setTapTick] = useState(0);
+
   // Sacred consecration: play a slow ceremonial animation once each time a
   // card transitions from unselected → selected. Tracked via a tick that
   // re-keys the animation wrapper so React replays it cleanly. Cleared
