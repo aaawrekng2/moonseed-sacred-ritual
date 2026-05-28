@@ -70,15 +70,17 @@ export function useShowLabels(): {
     listeners.forEach((l) => l(v));
   };
 
-  // DL-2 — Position labels are hidden on every device. The bottom-bar
-  // whisper still names the focused position so seekers don't lose the
-  // context. The setter and toggle remain so settings UI continues to
-  // function without runtime errors, but the returned `showLabels` is
-  // always false.
-  void showLabels;
-  void isMobile;
+  // EK01 — Previous comment "DL-2 — Position labels are hidden on every
+  // device" forced showLabels to `false` regardless of stored
+  // preference, so the slot rail's labels (Past/Present/Future for
+  // three-card, Yes/No, etc.) never appeared under cards no matter what
+  // spread was selected. Restored: return the actual stored preference.
+  // Mobile-suppression is preserved via the isMobile-aware return so
+  // narrow phones still get the bottom-bar whisper instead of cluttered
+  // under-card labels. Desktop and tablet show labels per the seeker's
+  // stored preference (defaults to ON).
   return {
-    showLabels: false,
+    showLabels: isMobile ? false : showLabels,
     setShowLabels,
     toggleShowLabels: () => setShowLabels(!current),
   };

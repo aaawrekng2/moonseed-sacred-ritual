@@ -149,7 +149,31 @@ export function CardSlot({
     }
     if (flightPhase === "idle") {
       const r = btnRef.current?.getBoundingClientRect() ?? null;
-      setLaunchRect(r);
+      // EK01 — getBoundingClientRect returns the ROTATED bounding box.
+      // When we reuse `r.left`/`r.top` as the launch frame's fixed-position
+      // coords and re-apply `transform: rotate(...)`, the card visually
+      // shifts because rotation pivots around the card's center but the
+      // un-rotated rect's top-left is INSIDE the bounding box, not at
+      // its corner. Result: card jumps far right (and down) before the
+      // flight transition starts. Fix: store an UN-rotated rect by
+      // shrinking each side by the rotation slack — bbox is symmetric
+      // around the un-rotated rect's center, so `slackX/Y = (bboxDim -
+      // cardDim) / 2` gives the offset to add back.
+      let adjusted = r;
+      if (r) {
+        const angle = (Math.abs(card.rotation) * Math.PI) / 180;
+        const cosA = Math.abs(Math.cos(angle));
+        const sinA = Math.abs(Math.sin(angle));
+        const bboxW = cardW * cosA + cardH * sinA;
+        const bboxH = cardW * sinA + cardH * cosA;
+        const slackX = (bboxW - cardW) / 2;
+        const slackY = (bboxH - cardH) / 2;
+        // Reconstruct a DOMRect-like with un-rotated card dimensions
+        // anchored at the un-rotated top-left, which is where the
+        // un-rotated rectangle would be if the rotation were removed.
+        adjusted = new DOMRect(r.left + slackX, r.top + slackY, cardW, cardH);
+      }
+      setLaunchRect(adjusted);
       // Capture the card's actual current visual rotation so the launch
       // frame paints at the same orientation, preventing a visible jump.
       launchRotationRef.current = card.rotation;

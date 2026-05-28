@@ -84,6 +84,40 @@ function SpreadPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<SpreadPickerSelection | null>(null);
+  // EK01 — The dropdown listbox was rendering BEHIND adjacent UI on the
+  // draw table (scatter cards, the slot rail) because `position:
+  // absolute` is trapped inside the first ancestor stacking context.
+  // Several parents up the tree apply transforms / filters / fixed
+  // positioning, any of which creates a context that caps the
+  // dropdown's z-index regardless of how high we set it. Fix: render
+  // the listbox with `position: fixed` and anchor it relative to the
+  // trigger's getBoundingClientRect, so it escapes every ancestor
+  // context and sits on the viewport's top stacking layer. The scrim
+  // and the listbox both jump to --z-modal-nested (200) which sits
+  // above bottom nav (40), modals (100), and page content.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
+  // Recompute the anchor whenever the dropdown opens, on scroll, and on
+  // window resize, so the dropdown always sits flush against the chevron.
+  useEffect(() => {
+    if (!open) return;
+    const updateAnchor = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setAnchor({
+        left: r.left + r.width / 2,
+        top: r.top, // dropdown opens UPWARD, so its bottom edge = trigger top - 4
+        width: r.width,
+      });
+    };
+    updateAnchor();
+    window.addEventListener("scroll", updateAnchor, true);
+    window.addEventListener("resize", updateAnchor);
+    return () => {
+      window.removeEventListener("scroll", updateAnchor, true);
+      window.removeEventListener("resize", updateAnchor);
+    };
+  }, [open]);
 
   const currentCount =
     current === "custom" ? (customCount ?? 3) : getSpreadCount(current);
@@ -122,6 +156,7 @@ function SpreadPicker({
       >
         <div style={{ position: "relative" }}>
           <button
+            ref={triggerRef}
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-haspopup="listbox"
@@ -144,7 +179,7 @@ function SpreadPicker({
           >
             <ChevronDown size={18} aria-hidden />
           </button>
-          {open && (
+          {open && anchor && (
             <>
               <button
                 type="button"
@@ -156,18 +191,26 @@ function SpreadPicker({
                   background: "transparent",
                   border: "none",
                   cursor: "default",
-                  zIndex: 49,
+                  // EK01 — was 49, bumped above modal-nested (200) so the
+                  // scrim can absorb taps even if some other absolute
+                  // overlay sits between the dropdown and the page.
+                  zIndex: 9998,
                 }}
               />
               <ul
                 role="listbox"
                 style={{
-                  position: "absolute",
-                  bottom: "calc(100% + 4px)",
-                  left: "50%",
-                  transform: "translateX(-50%)",
+                  // EK01 — fixed positioning anchored to the trigger via
+                  // getBoundingClientRect. Escapes every ancestor stacking
+                  // context. Bottom edge sits 4px above trigger top;
+                  // translateX(-50%) re-centers under the chevron because
+                  // we anchor by left + width/2.
+                  position: "fixed",
+                  left: anchor.left,
+                  top: anchor.top - 4,
+                  transform: "translate(-50%, -100%)",
                   minWidth: 190,
-                  zIndex: 50,
+                  zIndex: 9999,
                   background: "var(--surface-elevated)",
                   border: "1px solid var(--border-subtle)",
                   borderRadius: 8,

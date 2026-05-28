@@ -59,30 +59,40 @@ function makeRng(seed: number) {
 export function buildScatter(p: ScatterParams): ScatterCard[] {
   const rng = makeRng(p.seed);
 
-  // Adaptive grid: portrait phones get tall grids; desktop wide grids.
-  let cols: number;
-  let rows: number;
-  if (p.width < 768) {
-    cols = 8;
-    rows = 11;
-  } else if (p.width < 1024) {
-    cols = 9;
-    rows = 10;
-  } else {
-    cols = 10;
-    rows = 9;
-  }
-  const totalCells = cols * rows;
-  const pick = Math.min(p.count, totalCells);
-
   // Rotated bounding box of the card at maxRotation (worst case).
   // A rotated rect of (w,h) at angle θ has bbox
   //   bw = |w·cosθ| + |h·sinθ|, bh = |w·sinθ| + |h·cosθ|
+  // EK01 — Moved above the rows/cols block so effCardH below can use
+  // cosT/sinT to size cells for the rotated card silhouette.
   const theta = (p.maxRotation * Math.PI) / 180;
   const cosT = Math.abs(Math.cos(theta));
   const sinT = Math.abs(Math.sin(theta));
   const bboxW = p.cardWidth * cosT + p.cardHeight * sinT;
   const bboxH = p.cardWidth * sinT + p.cardHeight * cosT;
+
+  // EK01 — Grid dimensions derived from CARD GEOMETRY vs viewport,
+  // not hardcoded width buckets. The previous bucket scheme (8×11 mobile
+  // / 9×10 tablet / 10×9 desktop) didn't account for actual card height:
+  // on tablet (e.g. 800×600 viewport with cards forced to 60×96px by the
+  // density formula's floor), 10 rows produced 60px-tall cells holding
+  // 96px-tall cards. Every card overflowed its cell, the visibility-
+  // relocation pass ran overtime, and cards clumped along the edges
+  // ("the shape" Cori reported). Mobile escaped because its tall narrow
+  // grid happened to produce taller cells; desktop escaped because its
+  // density formula gave smaller cards relative to height.
+  //
+  // New approach: rows = floor(usableH / effCardH) so every cell is at
+  // least one rotated-card-height tall, then cols = ceil(count / rows)
+  // so there's always enough cells for the deck. Self-corrects on every
+  // viewport (mobile portrait, mobile landscape, tablet portrait/
+  // landscape, desktop, ultra-wide) without per-breakpoint tuning.
+  const effCardH = p.cardHeight * cosT + p.cardWidth * sinT;
+  const provisionalUsableH = Math.max(1, p.height - p.padding * 2);
+  let rows = Math.max(1, Math.floor(provisionalUsableH / Math.max(1, effCardH)));
+  rows = Math.min(rows, p.count); // never more rows than cards
+  const cols = Math.max(1, Math.ceil(p.count / rows));
+  const totalCells = cols * rows;
+  const pick = Math.min(p.count, totalCells);
 
   // Extra horizontal/vertical slack from rotation (half on each side, since we
   // position by the un-rotated top-left but the visual extends symmetrically
