@@ -345,6 +345,7 @@ export function ManualEntryBuilder({
               open={pageMenuOpen}
               onClose={() => setPageMenuOpen(false)}
               sections={pageMenuSections}
+              title="Manual Entry"
             />
           </>
         )}

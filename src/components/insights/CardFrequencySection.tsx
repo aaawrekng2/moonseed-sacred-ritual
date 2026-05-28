@@ -365,10 +365,10 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
 
 function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
   const items: Array<{ id: Mode; label: string }> = [
-    // Q60 Fix 5 — Grid first, then Bar, then Deck.
+    // EJ70 — Order changed to Grid, Deck, Bar (was Grid, Bar, Deck).
     { id: "grid", label: "Grid" },
-    { id: "bar", label: "Bar" },
     { id: "deck", label: "Deck" },
+    { id: "bar", label: "Bar" },
   ];
   return (
     <div className="flex gap-1 rounded-full p-0.5" style={{ background: "var(--surface-card)" }}>
@@ -489,13 +489,20 @@ function GridView({ entries, cardScale = 100 }: { entries: Array<{ cardId: numbe
  * lays out whatever entries it receives. Sort order is preserved.
  */
 function DeckGrid({ entries, cardScale = 100 }: { entries: Array<{ cardId: number; count: number }>; cardScale?: number }) {
-  const minPx = Math.round(56 * cardScale / 100);
+  // EJ70 — Match GridView's responsive card size (120px wide / 60px
+  // narrow) instead of the old flat 56px, so deck-view cards render at
+  // grid-view size. The slider (cardScale) still scales on top.
+  const wide = typeof window !== "undefined" && window.innerWidth >= 640;
+  const minPx = wide
+    ? Math.round(120 * cardScale / 100)
+    : Math.round(60 * cardScale / 100);
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(auto-fill, minmax(${minPx}px, 1fr))`,
-        gap: 4,
+        gap: 8,
+        alignItems: "end",
       }}
     >
       {entries.map((e, index) => (

@@ -827,7 +827,11 @@ export function CardImage({
   // (at z-auto in the wrapper line) renders ON TOP of the ring
   // and the ring shows only as the 2px border around the IMG.
   const selectionRing =
-    selected ? (
+    // EJ70 — Only show the selection ring once the image has loaded.
+    // Cori reported the pink ring highlighting an empty/loading slot
+    // before the card face appeared. Gating on status "loaded" means
+    // the ring and the card face arrive together.
+    selected && state.status === "loaded" ? (
       <span
         aria-hidden
         style={{

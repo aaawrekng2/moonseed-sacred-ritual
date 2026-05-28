@@ -200,10 +200,18 @@ export function TopNav() {
         {/* EJ65 — Pure centered nav. Removed the 80px left rail and
             80px right spacer that were squeezing the icons on narrow
             mobile viewports. The 5 icons now use the full available
-            width and stay visually centered. */}
+            width and stay visually centered.
+            EJ70 — `width: fit-content` collapses the <ul> to exactly
+            the icons + gaps, then mx-auto centers that tight cluster.
+            Without fit-content the <ul> spanned the full frame width
+            and the icons drifted apart regardless of `gap` (the gap
+            was respected but there was nothing pulling the cluster
+            together). Mobile gap dropped to 4px so the 5 icons read
+            as one cluster while each stays a distinct ~34px tap
+            target. */}
         <ul
-          className="mx-auto flex h-full items-center justify-center px-4"
-          style={{ maxWidth: 720, gap: isMobile ? 8 : 24 }}
+          className="mx-auto flex h-full items-center justify-center"
+          style={{ width: "fit-content", maxWidth: 720, gap: isMobile ? 4 : 24 }}
         >
           {TABS.map(({ to, label, Icon }) => {
             const path = location.pathname;

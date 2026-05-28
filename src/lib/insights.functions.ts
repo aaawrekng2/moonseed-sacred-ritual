@@ -618,6 +618,38 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       .map(([cardId, count]) => ({ cardId, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 6);
+    // EJ70 — All-time tag word cloud for this card. Independent of the
+    // page time-range filter: we fetch the seeker's full unfiltered
+    // history (days=null) and count tags across every reading that
+    // contains this card. Returned sorted by frequency, descending.
+    const allTimeFilters = {
+      ...filters,
+      tagIds: [],
+      spreadTypes: [],
+      moonPhases: [],
+      deepOnly: false,
+      reversedOnly: false,
+      deckIds: [],
+    };
+    const allTimeRows = await fetchFilteredReadings(
+      supabase,
+      userId,
+      allTimeFilters,
+      null,
+    );
+    const tagCloudCounts = new Map<string, number>();
+    for (const r of allTimeRows) {
+      const cards = r.card_ids ?? [];
+      if (!cards.includes(data.cardId)) continue;
+      (r.tags ?? []).forEach((t) => {
+        if (!t) return;
+        tagCloudCounts.set(t, (tagCloudCounts.get(t) ?? 0) + 1);
+      });
+    }
+    const tagCloud = Array.from(tagCloudCounts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 30);
     return {
       cardId: data.cardId,
       cardName: getCardName(data.cardId),
@@ -627,6 +659,7 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       lastSeen: appearances.length ? appearances[0].date : null,
       appearances,
       coOccurrences,
+      tagCloud,
       availableSpreadTypes: Array.from(availSpreadsAll).sort(),
       availableMoonPhases: Array.from(availMoonsAll).sort(),
       availableTags: Array.from(availTagsAll).sort(),
