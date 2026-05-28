@@ -19,7 +19,7 @@ import {
 } from "@/lib/card-search";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath } from "@/lib/tarot";
-import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/ManualEntryBuilder";
+import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/manual-entry-constants";
 
 export type SmartPick = {
   cardIndex: number;

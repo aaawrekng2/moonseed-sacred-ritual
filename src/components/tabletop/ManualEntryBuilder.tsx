@@ -57,7 +57,12 @@ const CELTIC_POSITION_LABELS = [
 // SmartCardInput, ManualSpreadSlots (three/custom/celtic), the celtic
 // vertical list, and the question/Done block all consume this so
 // the dropdown can never render wider than the row beneath it.
-export const MANUAL_ENTRY_CONTENT_MAX = 640;
+// EJ70 — MANUAL_ENTRY_CONTENT_MAX now lives in its own leaf module to
+// break the ManualEntryBuilder ↔ SpreadLayout / SmartCardInput import
+// cycle (was a const-init TDZ). Re-exported here so existing importers
+// that reference it from this file keep working.
+export { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/manual-entry-constants";
+import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/manual-entry-constants";
 
 export type ManualPick = {
   id: number;
