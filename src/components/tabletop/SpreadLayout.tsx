@@ -24,7 +24,7 @@ import { CardZoomModal } from "./CardZoomModal";
 import { CardTraceView } from "@/routes/insights.card.$cardId";
 import { useRegisterCloseHandler, useRegisterCopyText } from "@/lib/floating-menu-context";
 import { nextYesNoSaying } from "@/lib/yes-no-sayings";
-import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/ManualEntryBuilder";
+import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/manual-entry-constants";
 
 type Pick = { id: number; cardIndex: number; isReversed?: boolean; deckId?: string | null };
 
