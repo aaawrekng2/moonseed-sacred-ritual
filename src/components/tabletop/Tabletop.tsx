@@ -818,14 +818,17 @@ export function Tabletop({
     return () => {
       cancelled = true;
     };
-    // We deliberately only depend on the SHAPE of the scatter (length +
-    // first card coords) — not the array reference — so resize-triggered
-    // rebuilds of initialScatter don't endlessly regenerate the proof.
-    // Resetting status from "ready" → "idle" would happen elsewhere if
-    // we ever want to force a refresh, but for now one snapshot per
-    // session is correct (the deck mapping is fixed by seed).
+    // EK04 — Depend on the scatter being ready, not just `seed`. The
+    // previous `[seed]`-only deps meant the effect ran once at mount
+    // when `size` was null and `initialScatter` was empty, hit the
+    // early-return, and never re-fired when those became populated
+    // (because seed never changed). Net result: snapshot was never
+    // generated, popup never appeared, manual copy returned
+    // "couldn't copy" with no blob. The new deps fire the effect
+    // again when scatter geometry materializes. The `snapshotStatus
+    // !== "idle"` guard inside still prevents repeat generations.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed]);
+  }, [seed, size?.w, size?.h, initialScatter.length]);
 
   // Wire copyRef now that snapshotBlob is in scope. The callback below
   // is what the PageMenu button and the popup [Copy] button actually
