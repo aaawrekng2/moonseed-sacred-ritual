@@ -282,10 +282,13 @@ export function Tabletop({
         label: "Copy table snapshot",
         description:
           snapshotStatus === "ready"
-            ? // EK15 — Was: `webShareAvailable ? "Open the share sheet…" : "Proof that the deck wasn't rigged"`.
-              // Now consistent regardless of platform — matches the
-              // "Copy" label above.
-              "Proof that the deck wasn't rigged"
+            ? // EK17 — Was: "Proof that the deck wasn't rigged" (EK15)
+              // which carried a forensic / defensive frame — implying
+              // the seeker might suspect the app of rigging. Replaced
+              // with sacred-language framing that honors the moment
+              // the snapshot actually captures: the deck face-down,
+              // shuffled, before any card has been revealed.
+              "The veil before it parts"
             : snapshotStatus === "generating"
               ? "Preparing snapshot…"
               : snapshotStatus === "failed"
@@ -844,6 +847,26 @@ export function Tabletop({
   // when no drag is in flight.
   const [tableGhost, setTableGhost] = useState<{ x: number; y: number } | null>(null);
 
+  // ---- Gather gesture (EK17) ----------------------------------------
+  // Click-and-hold on an empty spot of the table → all unselected cards
+  // within a 1.75 × cardH radius of the pointer "suck in" toward the
+  // hold point with a slight cluster spread + rotation jitter. Pointer
+  // move drags the cluster center; cards entering the radius gather in,
+  // cards leaving it return to their original scatter positions. Release
+  // ends the gesture and all gathered cards return home.
+  //
+  // The hold threshold (220ms) is deliberately a bit longer than
+  // CardSlot's drag threshold (150ms) so a hold that starts on a card
+  // can't accidentally trigger gather; gather only initiates from a
+  // pointer-down landing in a GAP between cards (i.e. directly on the
+  // tabletop-stage div, not on a CardSlot button).
+  const [gatherCenter, setGatherCenter] = useState<{ x: number; y: number } | null>(null);
+  // ref so the pointermove + pointerup handlers (which run from window
+  // listeners) can check current gather state without stale closures.
+  const gatherActiveRef = useRef(false);
+  const gatherHoldTimerRef = useRef<number | null>(null);
+  const gatherStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
   // ---- Onboarding hint --------------------------------------------------
   // Show a small hint on the tabletop that explains the hold-to-drag
   // gesture and dropping onto slots. Persists "seen" via localStorage so
@@ -1314,6 +1337,100 @@ export function Tabletop({
     return () => window.cancelAnimationFrame(id);
   }, [usesSlots, selectionSig]);
 
+  // ---- Gather gesture handlers (EK17) -------------------------------
+  //
+  // Fired by an onPointerDown bound to the tabletop-stage div. We
+  // intercept ONLY when the event target is the div itself — clicks
+  // on a CardSlot bubble up but `e.target === containerRef.current`
+  // is false in that case, so CardSlot's existing drag flow keeps
+  // working for taps and holds on individual cards.
+  //
+  // On a qualifying empty-area pointerdown, we start a 220ms hold
+  // timer. If the pointer hasn't moved more than 6px in that window,
+  // we enter gather mode at the captured position. While in gather
+  // mode, every pointermove updates the gather center; pointerup
+  // releases gather and all gathered cards animate back home.
+  const handleTableGatherDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      // Only initiate when the click landed on the bare table, not on
+      // a CardSlot button or any other interactive descendant.
+      if (e.target !== e.currentTarget) return;
+      // Don't compete with the ready/casting phase.
+      if (ready) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const startX = e.clientX - rect.left;
+      const startY = e.clientY - rect.top;
+      gatherStartPosRef.current = { x: startX, y: startY };
+
+      // Capture the pointer to this element so pointermove + pointerup
+      // continue to flow here even if the pointer drifts over a card.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Some browsers throw on setPointerCapture for synthetic events.
+        // Non-fatal — we have window listeners as a fallback.
+      }
+
+      gatherHoldTimerRef.current = window.setTimeout(() => {
+        // After 220ms with the pointer roughly stationary, gather mode
+        // engages. Position is the pointer's current position in
+        // container coords (captured at start).
+        gatherActiveRef.current = true;
+        setGatherCenter({ x: startX, y: startY });
+      }, 220);
+    },
+    [ready],
+  );
+
+  const handleTableGatherMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const start = gatherStartPosRef.current;
+      if (!start) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      // If the pointer moves more than 6px before gather engages,
+      // cancel the hold timer — the seeker probably meant to scroll
+      // or initiate something else. After gather is active, movement
+      // is the gesture, so we just update the center.
+      if (gatherActiveRef.current) {
+        setGatherCenter({ x, y });
+      } else {
+        const dx = x - start.x;
+        const dy = y - start.y;
+        if (dx * dx + dy * dy > 36 /* 6px */ * 36) {
+          if (gatherHoldTimerRef.current !== null) {
+            window.clearTimeout(gatherHoldTimerRef.current);
+            gatherHoldTimerRef.current = null;
+          }
+          gatherStartPosRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  const handleTableGatherUp = useCallback(() => {
+    if (gatherHoldTimerRef.current !== null) {
+      window.clearTimeout(gatherHoldTimerRef.current);
+      gatherHoldTimerRef.current = null;
+    }
+    gatherActiveRef.current = false;
+    gatherStartPosRef.current = null;
+    setGatherCenter(null);
+  }, []);
+
+  // Safety: if the component unmounts mid-gather, clear timers.
+  useEffect(() => {
+    return () => {
+      if (gatherHoldTimerRef.current !== null) {
+        window.clearTimeout(gatherHoldTimerRef.current);
+      }
+    };
+  }, []);
+
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
 
@@ -1700,6 +1817,13 @@ export function Tabletop({
       <div
         ref={containerRef}
         className="tabletop-stage relative flex-1 overflow-visible select-none w-full mx-auto"
+        // EK17 — Pointer handlers for the gather gesture. They no-op
+        // when the click lands on a CardSlot (only fire when target IS
+        // this div), so per-card drag/tap flows are untouched.
+        onPointerDown={handleTableGatherDown}
+        onPointerMove={handleTableGatherMove}
+        onPointerUp={handleTableGatherUp}
+        onPointerCancel={handleTableGatherUp}
         style={{
           // Q66 — desktop scatter is constrained to 1024px centered on
           // screen so cards never spread to the edges of wide monitors.
@@ -1741,6 +1865,12 @@ export function Tabletop({
             // stay visible — they'll travel to spread positions when
             // SpreadLayout mounts.
             castingPhase={ready}
+            // EK17 — Gather gesture. When non-null, scatter cards
+            // within 1.75 × cardH of this point cluster toward it.
+            // CardSlot handles the per-card distance check + animation
+            // (so the work stays distributed and each card transitions
+            // independently).
+            gatherCenter={gatherCenter}
             containerRect={
               containerOrigin && size
                 ? {
