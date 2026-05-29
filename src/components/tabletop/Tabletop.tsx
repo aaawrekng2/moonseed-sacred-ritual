@@ -166,6 +166,12 @@ export function Tabletop({
   const { askDrawProof, setAskDrawProof } = useAskDrawProof();
   const [snapshotBlob, setSnapshotBlob] = useState<Blob | null>(null);
   const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "generating" | "ready" | "failed">("idle");
+  // EK12 — Diagnostic state: when snapshot generation fails (either
+  // generateTableSnapshot returns null OR throws OR the watchdog
+  // trips), this holds the human-readable reason. The menu description
+  // surfaces it inline so we can see WHAT failed instead of a generic
+  // "Snapshot unavailable on this device" hiding the actual cause.
+  const [snapshotErrorMessage, setSnapshotErrorMessage] = useState<string | null>(null);
   // EK10 — SSR-safe Web Share availability detection.
   //
   // EK09 used `useMemo` to check `navigator.share` at render time. That
@@ -290,7 +296,11 @@ export function Tabletop({
             : snapshotStatus === "generating"
               ? "Preparing snapshot…"
               : snapshotStatus === "failed"
-                ? "Snapshot unavailable on this device"
+                ? // EK12 — Surface the captured reason inline so we
+                  // can see WHAT failed instead of a generic message.
+                  // Falls back to the generic copy if no message was
+                  // captured (shouldn't happen but defensive).
+                  snapshotErrorMessage ?? "Snapshot unavailable on this device"
                 : "Snapshot will be ready in a moment",
         Icon: Camera,
         mode: "navigate",
@@ -536,33 +546,82 @@ export function Tabletop({
     if (snapshotStatus !== "idle") return;
     let cancelled = false;
     setSnapshotStatus("generating");
-    (async () => {
-      const blob = await generateTableSnapshot({
-        scatter: initialScatter,
-        deckMapping,
-        containerWidth: size.w,
-        containerHeight: Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE),
-        cardWidth: cardW,
-        cardHeight: cardH,
-        topOffset: TABLETOP_CONFIG.TOP_RESERVE,
-      });
+    setSnapshotErrorMessage(null);
+
+    // EK12 — 20-second watchdog. Independent of generateTableSnapshot's
+    // internal timeouts (EK08 10s image-load + EK09 5s toBlob = 15s
+    // internal worst-case). If status is STILL "generating" at 20s,
+    // force it to "failed" with a diagnostic message. Covers cases
+    // where the internal timeouts somehow don't fire (e.g. setTimeout
+    // throttled in background tab, dev-server delay, an exception
+    // thrown by sync canvas code AFTER the timeouts cleared and
+    // became an unhandled promise rejection that the IIFE didn't
+    // catch).
+    const watchdog = window.setTimeout(() => {
       if (cancelled) return;
-      if (blob) {
-        setSnapshotBlob(blob);
-        setSnapshotStatus("ready");
-        // First-load popup, gated on the persisted preference. We
-        // wait for the snapshot to actually be ready before opening
-        // the popup so [Copy] is a one-tap action (no spinner).
-        if (askDrawProof && !proofPopupShownRef.current && !ready) {
-          proofPopupShownRef.current = true;
-          setProofPopupOpen(true);
+      setSnapshotStatus((current) => {
+        if (current === "generating") {
+          setSnapshotErrorMessage(
+            "Generation watchdog tripped at 20s — internal timeouts didn't fire",
+          );
+          return "failed";
         }
-      } else {
+        return current;
+      });
+    }, 20000);
+
+    (async () => {
+      try {
+        const blob = await generateTableSnapshot({
+          scatter: initialScatter,
+          deckMapping,
+          containerWidth: size.w,
+          containerHeight: Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE),
+          cardWidth: cardW,
+          cardHeight: cardH,
+          topOffset: TABLETOP_CONFIG.TOP_RESERVE,
+        });
+        if (cancelled) return;
+        if (blob) {
+          setSnapshotBlob(blob);
+          setSnapshotStatus("ready");
+          // First-load popup, gated on the persisted preference. We
+          // wait for the snapshot to actually be ready before opening
+          // the popup so [Copy] is a one-tap action (no spinner).
+          if (askDrawProof && !proofPopupShownRef.current && !ready) {
+            proofPopupShownRef.current = true;
+            setProofPopupOpen(true);
+          }
+        } else {
+          // EK12 — generateTableSnapshot returned null. Either toBlob
+          // returned null (tainted canvas or encoding failure) or its
+          // own internal timeout tripped without recovery. Distinguish
+          // from "watchdog" so we can tell which boundary was hit.
+          setSnapshotErrorMessage("generateTableSnapshot returned null (canvas/toBlob step failed)");
+          setSnapshotStatus("failed");
+        }
+      } catch (err) {
+        // EK12 — Catches any synchronous throw inside
+        // generateTableSnapshot (e.g. an unexpected exception during
+        // the canvas drawing loop). Without this try/catch, throws
+        // became unhandled promise rejections — status stayed at
+        // "generating" forever, hiding the real cause.
+        if (cancelled) return;
+        const message =
+          err !== null && typeof err === "object" && "message" in err
+            ? String((err as { message?: unknown }).message)
+            : String(err);
+        setSnapshotErrorMessage(`Exception during generation: ${message}`);
         setSnapshotStatus("failed");
+      } finally {
+        if (!cancelled) {
+          window.clearTimeout(watchdog);
+        }
       }
     })();
     return () => {
       cancelled = true;
+      window.clearTimeout(watchdog);
     };
     // EK04 — Depend on the scatter being ready, not just `seed`. The
     // previous `[seed]`-only deps meant the effect ran once at mount
