@@ -817,8 +817,11 @@ export function CardSlot({
               // reads as a single visual group on top of the rest of
               // the scatter.
               zIndex: 800 + card.z,
+              // EK18 — Ease-in-out (Material standard cubic-bezier),
+              // longer duration so the inward motion ramps in and
+              // decelerates instead of snapping. Was 240ms ease-out.
               transition:
-                "left 240ms cubic-bezier(0.22,1,0.36,1), top 240ms cubic-bezier(0.22,1,0.36,1), transform 240ms cubic-bezier(0.22,1,0.36,1)",
+                "left 380ms cubic-bezier(0.4, 0, 0.2, 1), top 380ms cubic-bezier(0.4, 0, 0.2, 1), transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
               ["--card-hit-inset" as string]: `${hitInset}px`,
               ["--card-rotation" as string]: `${card.rotation + rotJitter}deg`,
             };
@@ -831,8 +834,14 @@ export function CardSlot({
             // Remove the settle-in animation; if it's still running
             // (rare), `none` cancels it.
             animation: "none",
+            // EK18 — Ease-in-out + longer duration for the return.
+            // Was 280ms ease-out. Matches the inward 380ms feel with
+            // a slightly longer outward ramp so the cards settle
+            // back gently. Tabletop's release watchdog (420ms after
+            // pointerup) preserves this transition long enough to
+            // finish before gatherCenter goes null.
             transition:
-              "left 280ms cubic-bezier(0.22,1,0.36,1), top 280ms cubic-bezier(0.22,1,0.36,1), transform 280ms cubic-bezier(0.22,1,0.36,1)",
+              "left 420ms cubic-bezier(0.4, 0, 0.2, 1), top 420ms cubic-bezier(0.4, 0, 0.2, 1), transform 420ms cubic-bezier(0.4, 0, 0.2, 1)",
           };
         }
         return baseStyle;
