@@ -771,8 +771,21 @@ export function CardSlot({
         {/* FA-4 — CardImage owns the face/back rendering and the flip
             animation. CardSlot keeps the surrounding state machines
             (drag, flight, consecration) untouched. */}
-        {/* Q95 #8 — breathing glow on face-down cards waiting to be flipped. */}
-        <div className={card.revealed ? "absolute inset-0" : "absolute inset-0 animate-breathe-glow"}>
+        {/* EK02 — Breathing glow only on cards PLACED IN A SLOT (selected)
+            and not yet revealed. Previously every face-down card on the
+            draw table had this class, which became visible accent halos
+            after EK01 upgraded the keyframes from opacity-only to a real
+            drop-shadow halo. Scatter face-down cards now stay quiet;
+            slotted cards still pulse gently while waiting for Reveal. */}
+        <div
+          className={
+            card.revealed
+              ? "absolute inset-0"
+              : isSelected
+                ? "absolute inset-0 animate-breathe-glow"
+                : "absolute inset-0"
+          }
+        >
           <CardImage
             cardId={faceIndex}
             variant="face"

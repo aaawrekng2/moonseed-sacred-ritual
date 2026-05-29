@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown } from "lucide-react";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
@@ -146,133 +147,130 @@ function SpreadPicker({
 
   return (
     <>
-      <div
+      {/* EK02 — Bare chevron trigger (no centering wrapper). Caller is
+          responsible for placement — the chevron now sits inline with
+          the slot label row inside the slot rail, immediately before
+          the first label. */}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Choose spread"
         style={{
-          display: "flex",
+          display: "inline-flex",
+          alignItems: "center",
           justifyContent: "center",
-          marginTop: 6,
-          marginBottom: 4,
+          width: 22,
+          height: 22,
+          padding: 0,
+          background: "transparent",
+          border: "none",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.7,
+          cursor: "pointer",
+          touchAction: "manipulation",
         }}
       >
-        <div style={{ position: "relative" }}>
-          <button
-            ref={triggerRef}
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            aria-label="Choose spread"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 28,
-              height: 28,
-              padding: 0,
-              background: "transparent",
-              border: "none",
-              color: "var(--accent, var(--gold))",
-              opacity: 0.7,
-              cursor: "pointer",
-              touchAction: "manipulation",
-            }}
-          >
-            <ChevronDown size={18} aria-hidden />
-          </button>
-          {open && anchor && (
-            <>
-              <button
-                type="button"
-                aria-label="Close spread picker"
-                onClick={() => setOpen(false)}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "default",
-                  // EK01 — was 49, bumped above modal-nested (200) so the
-                  // scrim can absorb taps even if some other absolute
-                  // overlay sits between the dropdown and the page.
-                  zIndex: 9998,
-                }}
-              />
-              <ul
-                role="listbox"
-                style={{
-                  // EK01 — fixed positioning anchored to the trigger via
-                  // getBoundingClientRect. Escapes every ancestor stacking
-                  // context. Bottom edge sits 4px above trigger top;
-                  // translateX(-50%) re-centers under the chevron because
-                  // we anchor by left + width/2.
-                  position: "fixed",
-                  left: anchor.left,
-                  top: anchor.top - 4,
-                  transform: "translate(-50%, -100%)",
-                  minWidth: 190,
-                  zIndex: 9999,
-                  background: "var(--surface-elevated)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: 8,
-                  boxShadow: "0 12px 28px rgba(0,0,0,0.45)",
-                  padding: 4,
-                  listStyle: "none",
-                  margin: 0,
-                  maxHeight: 320,
-                  overflowY: "auto",
-                }}
-              >
-                {SPREAD_PICKER_OPTIONS.map((opt) => {
-                  const isActive = opt.value === current;
-                  const sub =
-                    opt.value === "none" || opt.value === "custom"
-                      ? null
-                      : `${getSpreadCount(opt.value as SpreadMode)} ${
-                          getSpreadCount(opt.value as SpreadMode) === 1
-                            ? "card"
-                            : "cards"
-                        }`;
-                  return (
-                    <li key={opt.value}>
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={isActive}
-                        onClick={() => handlePick(opt.value)}
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "baseline",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          padding: "8px 12px",
-                          background: isActive
-                            ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
-                            : "transparent",
-                          border: "none",
-                          borderRadius: 6,
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: isActive ? "italic" : "normal",
-                          fontSize: "var(--text-body-sm)",
-                          color: "var(--color-foreground)",
-                          textAlign: "left",
-                          cursor: "pointer",
-                          touchAction: "manipulation",
-                        }}
-                      >
-                        <span>{opt.label}</span>
-                        {sub && (
-                          <span style={{ opacity: 0.5, fontSize: 11 }}>{sub}</span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-        </div>
-      </div>
+        <ChevronDown size={16} aria-hidden />
+      </button>
+      {/* EK02 — Dropdown is portaled to document.body so it escapes
+          every ancestor stacking context AND every transformed ancestor
+          (the controlsRow uses `transform: translateY(...)`, which made
+          `position: fixed` on descendants anchor to the transformed box
+          instead of the viewport — that was the EK01 dropdown-doesn't-
+          open bug: it WAS rendering, just off-screen). Portal + fixed
+          positioning with viewport coords from getBoundingClientRect()
+          places it correctly under every layout. */}
+      {open &&
+        anchor &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              aria-label="Close spread picker"
+              onClick={() => setOpen(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "transparent",
+                border: "none",
+                cursor: "default",
+                zIndex: 9998,
+              }}
+            />
+            <ul
+              role="listbox"
+              style={{
+                position: "fixed",
+                left: anchor.left,
+                top: anchor.top - 4,
+                transform: "translate(-50%, -100%)",
+                minWidth: 190,
+                zIndex: 9999,
+                background: "var(--surface-elevated)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: 8,
+                boxShadow: "0 12px 28px rgba(0,0,0,0.45)",
+                padding: 4,
+                listStyle: "none",
+                margin: 0,
+                maxHeight: 320,
+                overflowY: "auto",
+              }}
+            >
+              {SPREAD_PICKER_OPTIONS.map((opt) => {
+                const isActive = opt.value === current;
+                const sub =
+                  opt.value === "none" || opt.value === "custom"
+                    ? null
+                    : `${getSpreadCount(opt.value as SpreadMode)} ${
+                        getSpreadCount(opt.value as SpreadMode) === 1
+                          ? "card"
+                          : "cards"
+                      }`;
+                return (
+                  <li key={opt.value}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onClick={() => handlePick(opt.value)}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "baseline",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "8px 12px",
+                        background: isActive
+                          ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
+                          : "transparent",
+                        border: "none",
+                        borderRadius: 6,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: isActive ? "italic" : "normal",
+                        fontSize: "var(--text-body-sm)",
+                        color: "var(--color-foreground)",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        touchAction: "manipulation",
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      {sub && (
+                        <span style={{ opacity: 0.5, fontSize: 11 }}>{sub}</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>,
+          document.body,
+        )}
 
       {pending !== null && (
         <div
@@ -1562,12 +1560,16 @@ export function Tabletop({
           // stay inside the constrained box.
           maxWidth: 1024,
           // Reserve a vertical strip for the upper-right icon cluster
-          // (44px tap targets + safe-area) so cards never spawn or get
-          // dragged behind it. Same reserve on mobile and desktop —
-          // a too-small reserve made cards on phones sit under the
-          // close button. The matching deduction from the usable scatter
+          // (44px tap targets) so cards never spawn or get dragged
+          // behind it. The matching deduction from the usable scatter
           // height happens in `buildScatter` and the drag clamps below.
-          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${TABLETOP_CONFIG.TOP_RESERVE}px)`,
+          // EK02 — Removed the duplicate `env(safe-area-inset-top)` from
+          // the padding-top calc. The TopNav above already consumes the
+          // safe-area inset; adding it again here pushed the scatter
+          // ~44px further down on devices with a notch, leaving an
+          // obvious empty band between the "3 cards" header and the
+          // first scatter card on mobile.
+          paddingTop: TABLETOP_CONFIG.TOP_RESERVE,
         }}
       >
         {cards.map((c, idx) => (
@@ -1690,6 +1692,32 @@ export function Tabletop({
               role="list"
               aria-label={`${meta.label} slots`}
             >
+              {/* EK02 — Spread picker chevron column. Sits at the start
+                  of the slot rail, vertically aligned with the LABEL row
+                  (not the cards): empty spacer of slotH up top so it
+                  occupies a card's worth of vertical space without
+                  drawing anything, then the chevron itself in the
+                  position the labels occupy. Mounted as a normal
+                  listitem so the existing flex gap spacing between
+                  columns matches. Hidden when ready (reveal phase) or
+                  when no onSpreadChange handler is provided, mirroring
+                  the previous SpreadPicker visibility gate. */}
+              {onSpreadChange && !ready && (
+                <div
+                  role="listitem"
+                  className="flex flex-col items-center gap-1 shrink-0"
+                  style={{ overflow: "visible" }}
+                  aria-label="Spread picker"
+                >
+                  <div style={{ width: slotW, height: slotH }} aria-hidden />
+                  <SpreadPicker
+                    current={spread}
+                    hasPicks={selectedCount > 0}
+                    customCount={customCount}
+                    onChange={onSpreadChange}
+                  />
+                </div>
+              )}
               {Array.from({ length: required }).map((_, i) => {
                 const filled = cards.some((c) => c.selectionOrder === i + 1);
                 const isNext = !filled && i === selectedCount;
@@ -1945,19 +1973,10 @@ export function Tabletop({
                   keeping slotted cards anchored to their slots. */}
               {centerWhisper ?? mobileSlotCounter}
               {slotRail}
-              {/* EJ69 — Spread picker below the slot rail. Lets the
-                  seeker change spread type mid-table. Hidden once the
-                  reveal phase has started (ready === true) so it never
-                  fires mid-reading. Hidden when no onSpreadChange
-                  callback is provided. */}
-              {onSpreadChange && !ready && (
-                <SpreadPicker
-                  current={spread}
-                  hasPicks={selectedCount > 0}
-                  customCount={customCount}
-                  onChange={onSpreadChange}
-                />
-              )}
+              {/* EK02 — SpreadPicker no longer mounted here. It now
+                  sits inline with the slot label row inside the slot
+                  rail itself (see slotRail above, leading chevron
+                  column). */}
             </div>
           </div>
         );
