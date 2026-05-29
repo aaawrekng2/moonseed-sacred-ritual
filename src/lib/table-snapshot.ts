@@ -55,6 +55,23 @@ export type SnapshotParams = {
    * coordinate space the seeker is looking at.
    */
   topOffset: number;
+  /**
+   * EK14 — Optional per-card image URLs (length 78). Caller passes the
+   * seeker's active-deck-resolved URLs here so the snapshot uses the
+   * custom-deck art they see on the live table, not the built-in
+   * Rider-Waite paths.
+   *
+   * If omitted, falls back to `/cards/card-NN.jpg` for each id — the
+   * pre-EK14 behavior for callers that don't have access to active
+   * deck resolution.
+   *
+   * Caller is expected to fill each slot with the URL to use for THAT
+   * tarot card id (0..77). Resolution + custom-vs-built-in fallback
+   * happens in the caller (see useAnyDeckImage in active-deck.tsx);
+   * by the time URLs arrive here, the caller has already picked a
+   * winner per card.
+   */
+  cardImageUrls?: (string | null)[];
 };
 
 /**
@@ -112,11 +129,29 @@ function loadOneCardImage(url: string, timeoutMs = 3000): Promise<HTMLImageEleme
   });
 }
 
-function loadAllCardImages(): Promise<(HTMLImageElement | null)[]> {
+function loadAllCardImages(
+  // EK14 — Caller passes a URL per tarot card id. Slots may be null to
+  // skip (placeholder will be drawn). If the caller passes nothing
+  // (undefined argument), default to `/cards/card-NN.jpg` per id —
+  // pre-EK14 behavior, useful for any future callers that don't have
+  // active-deck context.
+  urls?: (string | null)[],
+): Promise<(HTMLImageElement | null)[]> {
   const promises: Promise<HTMLImageElement | null>[] = [];
   for (let i = 0; i < 78; i++) {
-    const id = String(i).padStart(2, "0");
-    promises.push(loadOneCardImage(`/cards/card-${id}.jpg`, 3000));
+    let url: string | null;
+    if (urls && i < urls.length) {
+      url = urls[i] ?? null;
+    } else {
+      const id = String(i).padStart(2, "0");
+      url = `/cards/card-${id}.jpg`;
+    }
+    if (url === null) {
+      // No URL → placeholder. Resolve to null immediately.
+      promises.push(Promise.resolve(null));
+      continue;
+    }
+    promises.push(loadOneCardImage(url, 3000));
   }
   return Promise.all(promises);
 }
@@ -139,7 +174,7 @@ export async function generateTableSnapshot(
   // 78 simultaneous fetches all queuing behind a stuck connection
   // pool) could leave the snapshot status pinned at "generating"
   // forever.
-  const imagesPromise = loadAllCardImages();
+  const imagesPromise = loadAllCardImages(params.cardImageUrls);
   const overallTimeout = new Promise<(HTMLImageElement | null)[]>((resolve) => {
     window.setTimeout(() => {
       // On timeout, give the canvas an array of 78 nulls so the

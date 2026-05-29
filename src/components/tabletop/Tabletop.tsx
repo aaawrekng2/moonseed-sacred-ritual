@@ -19,6 +19,18 @@ import { SPREAD_META, spreadUsesSlots, getSpreadCount, type SpreadMode } from "@
 // callsite that needs an async-friendly wrapper, but Tabletop calls
 // the API directly to keep Safari's user-activation token intact.
 import { generateTableSnapshot } from "@/lib/table-snapshot";
+// EK14 — Active-deck image resolver. Returns the URL to use for a
+// given tarot card id (0..77), preferring the active custom deck and
+// falling back across the seeker's other custom decks before landing
+// on the built-in Rider-Waite default. This is the same resolver
+// CardImage uses everywhere else in the app, so the snapshot now
+// reflects exactly what the seeker sees on the live table.
+//
+// `useActiveDeck` returns a `loading` flag we read to gate snapshot
+// generation — snapshot waits until the active deck's signed URLs
+// have been fetched, otherwise the snapshot would race the deck-load
+// and capture the default Rider-Waite as fallback.
+import { useActiveDeck, useAnyDeckImage } from "@/lib/active-deck";
 import { useAskDrawProof } from "@/lib/use-ask-draw-proof";
 // EK05 — SpreadPicker was inlined for EJ72 to avoid a Lovable
 // production-chunk TDZ from a module-init cycle. EK05 reinstates the
@@ -530,6 +542,20 @@ export function Tabletop({
   // Map slot index -> tarot card id (shuffled at session start).
   const deckMapping = useMemo(() => shuffleDeck(TABLETOP_CONFIG.DECK_SIZE, seed), [seed]);
 
+  // EK14 — Active-deck image resolver. `useAnyDeckImage` returns:
+  //   - The active deck's signed URL if the card is in it.
+  //   - Any other custom deck's URL the seeker owns (multi-deck fallback).
+  //   - The built-in default `/cards/card-NN.jpg` for tarot ids 0-77
+  //     when no custom deck has it.
+  //   - null for oracle ids 1000+ (won't apply here — deck is 0-77).
+  //
+  // Wait for `activeDeckLoading === false` before kicking off the
+  // snapshot, otherwise the resolver races against the deck-load and
+  // returns built-in defaults for every card — exactly the bug Cori
+  // hit on EK13 with a custom deck active.
+  const resolveCardUrl = useAnyDeckImage();
+  const { loading: activeDeckLoading } = useActiveDeck();
+
   // EK03 — Draw-proof snapshot. As soon as the initial scatter is
   // built, kick off generation of a PNG showing every card face-up at
   // its scatter position. Held in memory; the seeker can choose to
@@ -567,12 +593,31 @@ export function Tabletop({
 
     if (!size) return;
     if (initialScatter.length === 0) return;
+    // EK14 — Wait for the active deck's image map to finish loading
+    // before kicking off generation. Otherwise the resolver returns
+    // /cards/card-NN.jpg defaults for every card and the snapshot
+    // shows built-in Rider-Waite art when the seeker has a custom
+    // deck active. This is a benign gate: once activeDeck loading
+    // settles, the effect re-fires (deps don't include
+    // activeDeckLoading directly, but the effect commit happens on
+    // every render so the early-return is re-evaluated). The
+    // generationStartedRef guard below still ensures the IIFE runs
+    // at most once.
+    if (activeDeckLoading) return;
     // EK13 — Hard guard: once a generation has started, never start
     // another. Replaces EK12's `snapshotStatus !== "idle"` guard,
     // which was vulnerable to the status being reset by other code
     // paths between renders.
     if (generationStartedRef.current) return;
     generationStartedRef.current = true;
+
+    // EK14 — Resolve URLs at the moment generation kicks off. Each
+    // entry is either the active-deck signed URL (or fallback) for
+    // that tarot id, or null in pathological cases.
+    const cardImageUrls: (string | null)[] = [];
+    for (let i = 0; i < 78; i++) {
+      cardImageUrls.push(resolveCardUrl(i, "display"));
+    }
 
     setSnapshotStatus("generating");
     setSnapshotErrorMessage(null);
@@ -611,6 +656,13 @@ export function Tabletop({
           cardWidth: cardW,
           cardHeight: cardH,
           topOffset: TABLETOP_CONFIG.TOP_RESERVE,
+          // EK14 — Active-deck-resolved URLs (built above before status
+          // flip). If the active deck is the built-in Rider-Waite,
+          // these come back as `/cards/card-NN.jpg` per id which
+          // matches the pre-EK14 default. For a custom deck, these
+          // are the signed Supabase URLs the live table is already
+          // displaying.
+          cardImageUrls,
         });
         if (blob) {
           setSnapshotBlob(blob);
@@ -641,7 +693,7 @@ export function Tabletop({
     // from starting a second IIFE. The watchdog runs independently
     // and is no longer cleared by anything.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, size?.w, size?.h, initialScatter.length]);
+  }, [seed, size?.w, size?.h, initialScatter.length, activeDeckLoading]);
 
   // EK07 — Wire copyRef.current to the SYNCHRONOUS clipboard-write
   // implementation. The forward-ref above expects this exact shape:
