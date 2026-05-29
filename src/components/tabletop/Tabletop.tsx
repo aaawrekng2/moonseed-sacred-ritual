@@ -166,6 +166,21 @@ export function Tabletop({
   const { askDrawProof, setAskDrawProof } = useAskDrawProof();
   const [snapshotBlob, setSnapshotBlob] = useState<Blob | null>(null);
   const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "generating" | "ready" | "failed">("idle");
+  // EK09 — Detect Web Share availability ONCE on mount so the menu
+  // label can read "Share table snapshot" vs "Copy table snapshot"
+  // depending on platform. The actual file-canShare check requires
+  // a File object (which we don't have until snapshotBlob exists),
+  // so we use a cheaper proxy: navigator.share + navigator.canShare
+  // both being functions. iOS Safari 15+ and Android Chrome 89+ ship
+  // these; desktop Chrome/Edge/Firefox typically do not (yet).
+  // Cheap, runs once, no false positives in practice.
+  const webShareAvailable = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    return (
+      typeof navigator.share === "function" &&
+      typeof navigator.canShare === "function"
+    );
+  }, []);
   const [proofPopupOpen, setProofPopupOpen] = useState(false);
   const proofPopupShownRef = useRef(false);
   const [copyFeedback, setCopyFeedback] = useState<
@@ -246,10 +261,19 @@ export function Tabletop({
     items: [
       {
         id: "copy-snapshot",
-        label: "Copy table snapshot",
+        // EK09 — Label flips Share/Copy based on platform Web Share
+        // availability. Both routes are wired through the same
+        // copySnapshotNow() call — copyRef.current internally
+        // auto-detects which API to use. The label exists just to
+        // set expectations: on mobile the seeker will see the iOS/
+        // Android share sheet open; on desktop the snapshot goes
+        // straight to the clipboard for pasting.
+        label: webShareAvailable ? "Share table snapshot" : "Copy table snapshot",
         description:
           snapshotStatus === "ready"
-            ? "Proof that the deck wasn't rigged"
+            ? webShareAvailable
+              ? "Open the share sheet to save or send"
+              : "Proof that the deck wasn't rigged"
             : snapshotStatus === "generating"
               ? "Preparing snapshot…"
               : snapshotStatus === "failed"
@@ -567,39 +591,116 @@ export function Tabletop({
       window.setTimeout(() => setCopyFeedback(null), 2200);
       return "no_snapshot";
     }
-    if (
-      typeof navigator === "undefined" ||
-      !navigator.clipboard ||
-      typeof window === "undefined" ||
-      typeof window.ClipboardItem === "undefined"
-    ) {
-      setCopyFeedback("blocked");
-      window.setTimeout(() => setCopyFeedback(null), 2200);
-      return "no_snapshot";
-    }
+    // EK09 — Auto-detect path: Web Share API on mobile (where it works
+    // reliably), clipboard on desktop (where it works and is more
+    // ergonomic than the OS share sheet).
+    //
+    // Why both: image-clipboard via `navigator.clipboard.write()` is
+    // documented as flaky on iOS Safari even when called correctly
+    // (Apple developer-forum threads, multiple Stack Overflow reports).
+    // Web Share API with `files: [file]` is the canonical mobile
+    // pattern — opens the native OS share sheet so the seeker can
+    // save to Photos, send via Messages, mail it, etc. iOS Safari 15+
+    // and Android Chrome both support it; navigator.canShare is the
+    // feature-detection method per W3C and web.dev guidance.
+    //
+    // Detection chain:
+    //   1. Build a File from the blob (Web Share wants File objects).
+    //   2. If navigator.canShare({ files: [file] }) returns true, use
+    //      navigator.share. Most reliable on mobile.
+    //   3. Else, fall back to navigator.clipboard.write with the
+    //      synchronous-gesture pattern (Safari user-activation fix
+    //      from EK07).
+    //   4. Else, surface "blocked" toast.
+    //
+    // Both paths are initiated SYNCHRONOUSLY in the same tick as the
+    // user gesture (no `await` between the click and the API call),
+    // so iOS Safari's user-activation token survives intact.
+    const fileName = `tarot-seed-draw-${Date.now()}.png`;
+    let file: File | null = null;
     try {
-      const item = new window.ClipboardItem({
-        // Safari pattern: pass a Promise to ClipboardItem, even when
-        // the blob is already in memory. The browser awaits this
-        // promise itself inside its gesture-preserving context.
-        "image/png": Promise.resolve(snapshotBlob),
+      file = new File([snapshotBlob], fileName, {
+        type: snapshotBlob.type || "image/png",
       });
-      navigator.clipboard.write([item]).then(
-        () => {
-          setCopyFeedback("copied");
-          window.setTimeout(() => setCopyFeedback(null), 2200);
-        },
-        () => {
-          setCopyFeedback("blocked");
-          window.setTimeout(() => setCopyFeedback(null), 2200);
-        },
-      );
-      return "writing";
     } catch {
-      setCopyFeedback("blocked");
-      window.setTimeout(() => setCopyFeedback(null), 2200);
-      return "no_snapshot";
+      file = null;
     }
+
+    // Path 1 — Web Share API (preferred on mobile).
+    if (
+      file !== null &&
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      typeof navigator.share === "function" &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        // Per Apple developer-forum reports, an empty title is more
+        // compatible with iOS Safari's share sheet — some target apps
+        // (WhatsApp, Instagram, Facebook) drop the file when a title
+        // is present and treat it as a text-only share. Empty string
+        // is safer than omitting the field entirely.
+        navigator.share({ files: [file], title: "" }).then(
+          () => {
+            setCopyFeedback("copied");
+            window.setTimeout(() => setCopyFeedback(null), 2200);
+          },
+          (err: unknown) => {
+            // AbortError = the seeker dismissed the share sheet. Not
+            // a failure — silently clear.
+            const isAbort =
+              err !== null &&
+              typeof err === "object" &&
+              "name" in err &&
+              (err as { name?: string }).name === "AbortError";
+            if (isAbort) {
+              setCopyFeedback(null);
+            } else {
+              setCopyFeedback("blocked");
+              window.setTimeout(() => setCopyFeedback(null), 2200);
+            }
+          },
+        );
+        return "writing";
+      } catch {
+        // Fall through to clipboard path below if share() throws
+        // synchronously (rare, but defensive).
+      }
+    }
+
+    // Path 2 — Clipboard fallback (preferred on desktop).
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard &&
+      typeof window !== "undefined" &&
+      typeof window.ClipboardItem !== "undefined"
+    ) {
+      try {
+        const item = new window.ClipboardItem({
+          "image/png": Promise.resolve(snapshotBlob),
+        });
+        navigator.clipboard.write([item]).then(
+          () => {
+            setCopyFeedback("copied");
+            window.setTimeout(() => setCopyFeedback(null), 2200);
+          },
+          () => {
+            setCopyFeedback("blocked");
+            window.setTimeout(() => setCopyFeedback(null), 2200);
+          },
+        );
+        return "writing";
+      } catch {
+        setCopyFeedback("blocked");
+        window.setTimeout(() => setCopyFeedback(null), 2200);
+        return "no_snapshot";
+      }
+    }
+
+    // Path 3 — Neither Share nor Clipboard available.
+    setCopyFeedback("blocked");
+    window.setTimeout(() => setCopyFeedback(null), 2200);
+    return "no_snapshot";
   };
 
   // Hydrate cards + undo/redo from the cross-route session store on
@@ -1948,22 +2049,24 @@ export function Tabletop({
                 opacity: 0.85,
               }}
             >
-              A snapshot of the table is ready. Copying it to your
-              clipboard before you pick lets you verify later that the
-              cards were always where they are.
+              A snapshot of the table is ready. {webShareAvailable
+                ? "Save or send it before you pick"
+                : "Copy it to your clipboard before you pick"}{" "}
+              so you can verify later that the cards were always where
+              they are.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
                 type="button"
                 onClick={() => {
-                  // EK07 — Synchronous call. No `async`, no `await`
+                  // EK07/EK09 — Synchronous call. No `async`, no `await`
                   // before this point. The click → copySnapshotNow()
                   // call chain stays inside Safari's user-activation
-                  // window, and `navigator.clipboard.write([...])`
-                  // (inside copyRef.current) fires in the same tick.
-                  // Popup closes AFTER the write is initiated, so the
-                  // close itself doesn't consume the gesture before
-                  // the write.
+                  // window, and the right delivery API (Web Share OR
+                  // clipboard.write, auto-detected inside copyRef.current)
+                  // fires in the same tick. Popup closes AFTER the call
+                  // is initiated, so the close itself doesn't consume
+                  // the gesture before the API call.
                   copySnapshotNow();
                   setProofPopupOpen(false);
                 }}
@@ -1981,7 +2084,7 @@ export function Tabletop({
                   touchAction: "manipulation",
                 }}
               >
-                Copy
+                {webShareAvailable ? "Share" : "Copy"}
               </button>
               <button
                 type="button"
@@ -2062,10 +2165,14 @@ export function Tabletop({
           }}
         >
           {copyFeedback === "copied"
-            ? "Snapshot copied to clipboard"
+            ? webShareAvailable
+              ? "Snapshot shared"
+              : "Snapshot copied to clipboard"
             : copyFeedback === "no_snapshot"
               ? "Snapshot not ready yet — wait a moment, then try again"
-              : "Clipboard blocked — try the menu button (or your browser blocked the request)"}
+              : webShareAvailable
+                ? "Share blocked — your browser refused the request"
+                : "Clipboard blocked — your browser refused the request"}
         </div>
       )}
       {/* EJ47 — Inline `?` for Celtic Cross. Was previously surfaced
