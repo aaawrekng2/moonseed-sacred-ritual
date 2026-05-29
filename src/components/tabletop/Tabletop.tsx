@@ -1334,6 +1334,19 @@ export function Tabletop({
 
   // ---- Gather gesture handlers (EK17) -------------------------------
   //
+  // EK18 — Block relocated to AFTER `ready` is declared (line ~1442
+  // below). Previously placed above ready's declaration, which created
+  // a temporal-dead-zone error: the useCallback dependency array
+  // `[ready]` evaluated before the `const ready = …` line, throwing
+  // "Cannot access 'ce' before initialization" at module load and
+  // rendering the entire /draw route as an error boundary fallback.
+
+
+  const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+  const ready = selectedCount === required;
+
+  // ---- Gather gesture handlers (EK17, relocated EK18) ---------------
+  //
   // Fired by an onPointerDown bound to the tabletop-stage div. We
   // intercept ONLY when the event target is the div itself — clicks
   // on a CardSlot bubble up but `e.target === containerRef.current`
@@ -1345,6 +1358,10 @@ export function Tabletop({
   // we enter gather mode at the captured position. While in gather
   // mode, every pointermove updates the gather center; pointerup
   // releases gather and all gathered cards animate back home.
+  //
+  // EK18 — Block relocated to here (after `ready`'s declaration above)
+  // so the useCallback dep array `[ready]` can read it without hitting
+  // a temporal-dead-zone error.
   const handleTableGatherDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       // Only initiate when the click landed on the bare table, not on
@@ -1437,9 +1454,6 @@ export function Tabletop({
       }
     };
   }, []);
-
-  const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
-  const ready = selectedCount === required;
 
   const toggleSelect = (id: number) => {
     let recordedAction: DragAction | null = null;
