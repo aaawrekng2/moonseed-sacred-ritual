@@ -26,6 +26,12 @@ export function CardSlot({
   isCoarsePointer,
   containerRect,
   containerElRef,
+  // EK16 — Shared-element transition support. When true AND the card
+  // has no selectionOrder (i.e. it's a scatter card, not in a slot),
+  // CardSlot fades to opacity 0 over 600ms. Slotted cards retain full
+  // opacity and continue to be visible — they're the cards that will
+  // "travel" up to the spread positions when SpreadLayout mounts.
+  castingPhase = false,
 }: {
   card: CardState;
   cardW: number;
@@ -87,6 +93,15 @@ export function CardSlot({
    * "card flies to upper-left" bug.
    */
   containerElRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * EK16 — Casting-handoff fade. When true AND the card is unslotted
+   * (selectionOrder === null), this CardSlot fades to opacity 0 over
+   * 600ms. Used by Tabletop right after the seeker fills the final
+   * slot, to dissolve the table scatter while the slotted cards
+   * remain visible — they then visually travel to their spread
+   * positions when SpreadLayout mounts.
+   */
+  castingPhase?: boolean;
 }) {
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
@@ -599,7 +614,20 @@ export function CardSlot({
         "select-none [-webkit-user-drag:none] [user-drag:none]",
         isSelected ? "z-30" : null,
       )}
-      style={
+      style={(() => {
+        // EK16 — Wrap the existing ternary style chain in an IIFE so we
+        // can mix in a fade-out opacity at the end without duplicating
+        // the opacity into every branch.
+        //
+        // Fade rule: when the seeker has filled the last slot
+        // (`castingPhase` true) AND this card is still on the scatter
+        // (no selectionOrder), drop to opacity 0 over 600ms. Slotted
+        // cards keep opacity 1 — they'll travel to spread positions
+        // when SpreadLayout mounts. Other branches (dragging, flying,
+        // returning, etc.) shouldn't be in flight when castingPhase
+        // fires (the rail is disabled at ready), so this merge is
+        // safe to apply uniformly.
+        const baseStyle: React.CSSProperties =
         dragging && dragPos
           ? {
               // Card is being dragged — follow the pointer with a slight
@@ -709,8 +737,23 @@ export function CardSlot({
               // touch target scales with the rendered card size.
               ["--card-hit-inset" as string]: `${hitInset}px`,
               ["--card-rotation" as string]: `${card.rotation}deg`,
-            }
-      }
+            };
+        // EK16 — Apply the casting fade. Scatter cards (no selectionOrder)
+        // fade to 0; slotted cards stay at full opacity. The 600ms
+        // transition is shorter than Tabletop's 1500ms handoff delay
+        // so the fade completes well before SpreadLayout mounts.
+        if (castingPhase && !isSelected) {
+          return {
+            ...baseStyle,
+            opacity: 0,
+            transition: baseStyle.transition
+              ? `${baseStyle.transition}, opacity 600ms ease-out`
+              : "opacity 600ms ease-out",
+            pointerEvents: "none" as const,
+          };
+        }
+        return baseStyle;
+      })()}
     >
       {/* Invisible expanded hit area for easier tapping on mobile. */}
       <span aria-hidden="true" className="card-hit" />
