@@ -24,6 +24,12 @@
  */
 
 import type { ScatterCard } from "@/lib/scatter";
+// EK08 — Card-name lookup so the placeholder rendering for failed
+// image loads shows readable card names (e.g. "The Star") instead of
+// just an id number (e.g. "#17"). Better UX when the snapshot is
+// degraded due to timeouts. tarot.ts is a pure leaf module — no
+// transitive deps that would pull in heavy chunks.
+import { getCardName } from "@/lib/tarot";
 
 export type SnapshotParams = {
   /** Scatter cards with (x, y, rotation) in the local container coord space. */
@@ -53,65 +59,64 @@ export type SnapshotParams = {
 
 /**
  * Pre-load all 78 default card images. Returns a Promise that resolves
- * once every image is decoded (or fails). Failed images become null in
- * the array; the snapshot draws a placeholder rectangle for those slots
- * rather than failing the whole snapshot.
+ * once every image is decoded, fails, OR hits the per-image timeout.
+ * Failed/timed-out images become null in the array; the snapshot draws
+ * a placeholder rectangle with the card name for those slots rather
+ * than failing the whole snapshot.
  *
- * EK06 — Two-step fetch-then-Image load to bypass a service-worker
- * opaque-response bug:
+ * EK08 — Reverted from EK06's fetch-then-blob approach back to plain
+ * `<img>` + `crossOrigin="anonymous"`, plus per-image timeouts. The
+ * fetch-then-blob path was added in EK06 to bypass a perceived
+ * service-worker tainting issue, but the real EK04 problem turned out
+ * to be Safari's user-activation lifecycle (fixed in EK07), not canvas
+ * tainting. The fetch path then introduced its own failure mode:
+ * `Promise.all` waits for ALL 78 promises, and on mobile any single
+ * hung fetch (or image decode that never fires onload) stalls the
+ * whole pipeline indefinitely. That's why EK07's diagnostic toast
+ * showed "snapshot not ready yet" — the status was stuck at
+ * "generating" forever.
  *
- *   The app's service worker intercepts every same-origin GET. When an
- *   <img> element loads `/cards/card-NN.jpg` WITHOUT a `crossOrigin`
- *   attribute, the underlying request is `mode: "no-cors"`. The SW's
- *   `fetch(req)` then returns an OPAQUE response (`res.type === "opaque"`)
- *   to the browser. The image displays fine, but when drawn onto a
- *   canvas it TAINTS the canvas — `canvas.toBlob()` then returns null
- *   ("Tainted canvases may not be exported"). That was the EK05
- *   "couldn't copy" bug.
+ * The simpler approach below:
  *
- *   Setting `crossOrigin = "anonymous"` doesn't help either: the SW
- *   then needs to return CORS headers (Access-Control-Allow-Origin)
- *   which the dev/prod server doesn't set for /public assets.
- *
- *   The fix here: bypass `<img>`-loaded resource semantics entirely.
- *   We `fetch()` each card image as a normal same-origin request
- *   (which IS readable as bytes, regardless of SW caching mode), then
- *   create a `blob:` URL from the bytes and load THAT into an Image.
- *   `blob:` URLs are always same-origin to the page that created them,
- *   so the canvas can read pixels and toBlob() works.
+ *   - Plain `new Image()` + `crossOrigin = "anonymous"` + `img.src = url`.
+ *     Lovable's production server returns CORS headers for /public
+ *     assets, so the canvas can read pixels without taint.
+ *   - **3-second per-image timeout.** If a single image's onload/
+ *     onerror never fires (hung fetch, blocked decoder, etc.), the
+ *     promise resolves to `null` after 3s. The snapshot draws a
+ *     dark placeholder with the card name in that position. Loss is
+ *     bounded — one stuck image can't stall the whole render.
+ *   - The outer caller (generateTableSnapshot) applies a 10-second
+ *     overall timeout in case the entire chain of timeouts somehow
+ *     compounds beyond expectation.
  */
+function loadOneCardImage(url: string, timeoutMs = 3000): Promise<HTMLImageElement | null> {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    let settled = false;
+    const settle = (value: HTMLImageElement | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => settle(img);
+    img.onerror = () => settle(null);
+    img.src = url;
+    if (img.complete && img.naturalWidth > 0) {
+      // Already cached + decoded; resolve immediately.
+      settle(img);
+      return;
+    }
+    window.setTimeout(() => settle(null), timeoutMs);
+  });
+}
+
 function loadAllCardImages(): Promise<(HTMLImageElement | null)[]> {
   const promises: Promise<HTMLImageElement | null>[] = [];
   for (let i = 0; i < 78; i++) {
     const id = String(i).padStart(2, "0");
-    const url = `/cards/card-${id}.jpg`;
-    promises.push(
-      (async () => {
-        try {
-          const res = await fetch(url, {
-            credentials: "same-origin",
-            cache: "default",
-          });
-          if (!res.ok) return null;
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const img = new Image();
-          img.src = blobUrl;
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject(new Error("decode failed"));
-          });
-          // We intentionally DON'T revokeObjectURL immediately — the
-          // canvas drawImage happens after this returns, and revoking
-          // the URL while the Image is still being drawn from has
-          // produced empty draws on some browsers. Caller is short-
-          // lived (one snapshot per session) so the leak is bounded.
-          return img;
-        } catch {
-          return null;
-        }
-      })(),
-    );
+    promises.push(loadOneCardImage(`/cards/card-${id}.jpg`, 3000));
   }
   return Promise.all(promises);
 }
@@ -126,7 +131,25 @@ export async function generateTableSnapshot(
   params: SnapshotParams,
 ): Promise<Blob | null> {
   if (typeof document === "undefined") return null;
-  const images = await loadAllCardImages();
+  // EK08 — 10-second overall timeout on image loading. The per-image
+  // timeout inside loadAllCardImages (3s each) usually keeps total
+  // load time well under 10s, but this outer guard ensures the snapshot
+  // ALWAYS resolves to a value (blob or null) — never hangs at the
+  // image-loading step. Without it, an unexpected mass-stall (e.g.
+  // 78 simultaneous fetches all queuing behind a stuck connection
+  // pool) could leave the snapshot status pinned at "generating"
+  // forever.
+  const imagesPromise = loadAllCardImages();
+  const overallTimeout = new Promise<(HTMLImageElement | null)[]>((resolve) => {
+    window.setTimeout(() => {
+      // On timeout, give the canvas an array of 78 nulls so the
+      // snapshot still draws (entirely placeholders, but readable
+      // with card name text). Better to ship a degraded snapshot
+      // than to hang.
+      resolve(new Array(78).fill(null));
+    }, 10000);
+  });
+  const images = await Promise.race([imagesPromise, overallTimeout]);
   const canvas = document.createElement("canvas");
   // Use device-pixel-ratio scaling so the snapshot reads sharp when the
   // seeker pastes it into a Retina-aware app, but cap at 2 so large
@@ -190,18 +213,34 @@ export async function generateTableSnapshot(
       ctx.lineWidth = 1;
       ctx.stroke();
     } else {
-      // Placeholder for any image that failed to load — dark slate
-      // rectangle with card id text so the proof is still readable.
+      // EK08 — Placeholder for any image that failed to load or timed
+      // out. Dark slate rectangle with the CARD NAME (e.g. "The Star")
+      // rendered in two lines, with id number tucked below. This keeps
+      // the snapshot useful as a draw-proof artifact even when some
+      // images couldn't load: the seeker can still verify "The Star
+      // was at this position" without needing to see the art.
       ctx.fillStyle = "#2a1f33";
       ctx.fillRect(left, top, params.cardWidth, params.cardHeight);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
       ctx.lineWidth = 1;
       ctx.strokeRect(left, top, params.cardWidth, params.cardHeight);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-      ctx.font = `${Math.round(params.cardWidth * 0.18)}px sans-serif`;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+      const cardName = getCardName(cardId);
+      // Naive two-line wrap on " of " — covers minors like
+      // "Three of Wands" → "Three of" / "Wands". Majors stay one line.
+      const splitPoint = cardName.lastIndexOf(" of ");
+      const fontSize = Math.round(params.cardWidth * 0.13);
+      ctx.font = `italic ${fontSize}px serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`#${cardId}`, 0, 0);
+      if (splitPoint > 0) {
+        const line1 = cardName.slice(0, splitPoint + 3); // include " of"
+        const line2 = cardName.slice(splitPoint + 4);
+        ctx.fillText(line1, 0, -fontSize * 0.65);
+        ctx.fillText(line2, 0, fontSize * 0.65);
+      } else {
+        ctx.fillText(cardName, 0, 0);
+      }
     }
     ctx.restore();
   }
