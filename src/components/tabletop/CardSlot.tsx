@@ -32,6 +32,12 @@ export function CardSlot({
   // opacity and continue to be visible — they're the cards that will
   // "travel" up to the spread positions when SpreadLayout mounts.
   castingPhase = false,
+  // EK17 — Gather gesture. When non-null AND the card is unslotted,
+  // CardSlot checks if its center is within 1.75 × cardH of this
+  // point. If yes, the card animates toward the point with a small
+  // per-card cluster offset + rotation jitter. If no (or null), the
+  // card sits at its home scatter position.
+  gatherCenter = null,
 }: {
   card: CardState;
   cardW: number;
@@ -102,6 +108,17 @@ export function CardSlot({
    * positions when SpreadLayout mounts.
    */
   castingPhase?: boolean;
+  /**
+   * EK17 — Gather-gesture center, container-relative coords. When
+   * non-null AND the card is unslotted, CardSlot computes its own
+   * distance from this point. If the distance is under
+   * 1.75 × cardH, the card animates toward the center with a slight
+   * deterministic per-card cluster offset and rotation jitter. When
+   * the prop returns to null (release) or the card leaves the radius
+   * (pointer moves away), the card returns to its home scatter
+   * coords. CSS transition handles the actual motion.
+   */
+  gatherCenter?: { x: number; y: number } | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
@@ -750,6 +767,72 @@ export function CardSlot({
               ? `${baseStyle.transition}, opacity 600ms ease-out`
               : "opacity 600ms ease-out",
             pointerEvents: "none" as const,
+          };
+        }
+        // EK17 — Gather override. Apply only to idle scatter cards (no
+        // dragging / no flying / no selection) when gatherCenter is
+        // non-null AND this card's center is within 1.75 × cardH of it.
+        //
+        // Cards in the radius animate to a clustered position near the
+        // gather center with a small deterministic per-card offset and
+        // rotation jitter. Cards outside the radius (or when
+        // gatherCenter is null) sit at their home scatter coords —
+        // the baseStyle's idle branch already returns those, so we
+        // just exit early in that case.
+        if (
+          gatherCenter &&
+          !isSelected &&
+          !dragging &&
+          !flying &&
+          flightPhase !== "returning"
+        ) {
+          const cardCenterX = card.x + cardW / 2;
+          const cardCenterY = card.y + cardH / 2;
+          const dx = gatherCenter.x - cardCenterX;
+          const dy = gatherCenter.y - cardCenterY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const radius = cardH * 1.75;
+          if (dist < radius) {
+            // Deterministic per-card cluster offset and rotation jitter.
+            // Uses card.id as a seed so the same card always lands in the
+            // same relative position within the cluster — no jitter on
+            // re-render. Offset is in a small radius (0.25 × cardH) so
+            // cards stack tightly but remain distinguishable.
+            const seed = card.id;
+            const clusterRadius = cardH * 0.25;
+            const angle = ((seed * 137.508) % 360) * (Math.PI / 180);
+            const radial = ((seed * 31) % 100) / 100; // 0..1
+            const offX = Math.cos(angle) * clusterRadius * radial;
+            const offY = Math.sin(angle) * clusterRadius * radial;
+            const rotJitter = (((seed * 47) % 31) - 15); // -15..+15
+            const targetX = gatherCenter.x - cardW / 2 + offX;
+            const targetY = gatherCenter.y - cardH / 2 + offY;
+            return {
+              left: targetX,
+              top: targetY,
+              width: cardW,
+              height: cardH,
+              transform: `rotate(${card.rotation + rotJitter}deg)`,
+              // Lift gathered cards above non-gathered so the cluster
+              // reads as a single visual group on top of the rest of
+              // the scatter.
+              zIndex: 800 + card.z,
+              transition:
+                "left 240ms cubic-bezier(0.22,1,0.36,1), top 240ms cubic-bezier(0.22,1,0.36,1), transform 240ms cubic-bezier(0.22,1,0.36,1)",
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+              ["--card-rotation" as string]: `${card.rotation + rotJitter}deg`,
+            };
+          }
+          // Card is outside radius — fall through to baseStyle, but
+          // override its transition so the return-to-home is smooth
+          // instead of snapping back via the settle-in animation.
+          return {
+            ...baseStyle,
+            // Remove the settle-in animation; if it's still running
+            // (rare), `none` cancels it.
+            animation: "none",
+            transition:
+              "left 280ms cubic-bezier(0.22,1,0.36,1), top 280ms cubic-bezier(0.22,1,0.36,1), transform 280ms cubic-bezier(0.22,1,0.36,1)",
           };
         }
         return baseStyle;
