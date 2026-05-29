@@ -1,0 +1,207 @@
+/**
+ * EK03 — Table snapshot generator.
+ *
+ * Generates a PNG image showing the draw table with all 78 cards face-up
+ * at their scatter positions. Used as a transparency / trust mechanism:
+ * the seeker can copy this image to clipboard BEFORE they pick any
+ * cards, then verify after the reading that the cards they picked were
+ * always at those positions (proving the deck wasn't rearranged in
+ * response to their choices).
+ *
+ * Implementation: direct canvas drawing using the default card art
+ * from `/cards/card-NN.jpg`. We use default art (not the seeker's
+ * active custom deck) for two reasons:
+ *
+ *   1. The proof is about CARD IDENTITY, not visual appearance. A
+ *      seeker can read "The Tower" on the snapshot and verify the
+ *      card they later pick from that position is The Tower —
+ *      regardless of which deck art they're viewing in the app.
+ *
+ *   2. Custom deck images live on Supabase storage and require signed
+ *      URLs + CORS configuration to draw onto a canvas (canvas taint
+ *      otherwise). Default images live in /public and are always
+ *      same-origin, so they draw without complication.
+ */
+
+import type { ScatterCard } from "@/lib/scatter";
+
+export type SnapshotParams = {
+  /** Scatter cards with (x, y, rotation) in the local container coord space. */
+  scatter: ScatterCard[];
+  /**
+   * Mapping from ScatterCard.id (0..77) to the tarot card id (0..77) that
+   * lives at that scatter position. The Tabletop builds this once per
+   * session via shuffleDeck(seed) — that fixed mapping is what proves
+   * the deck wasn't reshuffled mid-pick.
+   */
+  deckMapping: number[];
+  /** Container width in CSS px (same `size.w` passed to buildScatter). */
+  containerWidth: number;
+  /** Container height in CSS px (same usable scatter height). */
+  containerHeight: number;
+  /** Card width in CSS px (same `cardW` Tabletop computes). */
+  cardWidth: number;
+  /** Card height in CSS px (same `cardH` Tabletop computes). */
+  cardHeight: number;
+  /**
+   * Vertical offset applied to every card.y by buildScatter via
+   * `topOffset`. We add it back here so the snapshot matches the
+   * coordinate space the seeker is looking at.
+   */
+  topOffset: number;
+};
+
+/**
+ * Pre-load all 78 default card images. Returns a Promise that resolves
+ * once every image is decoded (or fails). Failed images become null in
+ * the array; the snapshot draws a placeholder rectangle for those slots
+ * rather than failing the whole snapshot.
+ */
+function loadAllCardImages(): Promise<(HTMLImageElement | null)[]> {
+  const promises: Promise<HTMLImageElement | null>[] = [];
+  for (let i = 0; i < 78; i++) {
+    const id = String(i).padStart(2, "0");
+    const img = new Image();
+    // Same-origin /cards/ images don't need crossOrigin, but setting it
+    // anonymously is harmless and future-proofs against a CDN move.
+    img.crossOrigin = "anonymous";
+    img.src = `/cards/card-${id}.jpg`;
+    promises.push(
+      new Promise<HTMLImageElement | null>((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve(img);
+          return;
+        }
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+      }),
+    );
+  }
+  return Promise.all(promises);
+}
+
+/**
+ * Generate a PNG blob of the table with every card face-up at its
+ * scatter position. Returns null if image loading or canvas encoding
+ * fails so the caller can show a graceful "snapshot unavailable"
+ * message instead of an exception.
+ */
+export async function generateTableSnapshot(
+  params: SnapshotParams,
+): Promise<Blob | null> {
+  if (typeof document === "undefined") return null;
+  const images = await loadAllCardImages();
+  const canvas = document.createElement("canvas");
+  // Use device-pixel-ratio scaling so the snapshot reads sharp when the
+  // seeker pastes it into a Retina-aware app, but cap at 2 so large
+  // tables don't produce 30MB PNGs.
+  const dpr = Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+  canvas.width = Math.round(params.containerWidth * dpr);
+  canvas.height = Math.round((params.containerHeight + params.topOffset) * dpr);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.scale(dpr, dpr);
+
+  // Cosmos background — same dark gradient feel as the live table so
+  // the pasted image reads as "the table you were looking at" rather
+  // than a clinical card grid.
+  const bg = ctx.createLinearGradient(0, 0, params.containerWidth, params.containerHeight);
+  bg.addColorStop(0, "#1a0d1f");
+  bg.addColorStop(1, "#0f0a18");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, params.containerWidth, params.containerHeight + params.topOffset);
+
+  // Draw each card at its scatter position + rotation.
+  for (const card of params.scatter) {
+    const cardId = params.deckMapping[card.id];
+    const img = images[cardId];
+    // Card center in container coords. scatter.y already has had
+    // topOffset added by buildScatter, so we use card.y directly.
+    const cx = card.x + params.cardWidth / 2;
+    const cy = card.y + params.cardHeight / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate((card.rotation * Math.PI) / 180);
+    const left = -params.cardWidth / 2;
+    const top = -params.cardHeight / 2;
+    if (img) {
+      // Round corners ~6% of card width — matches the typical card
+      // corner radius across decks.
+      const r = Math.round(params.cardWidth * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(left + r, top);
+      ctx.lineTo(left + params.cardWidth - r, top);
+      ctx.quadraticCurveTo(left + params.cardWidth, top, left + params.cardWidth, top + r);
+      ctx.lineTo(left + params.cardWidth, top + params.cardHeight - r);
+      ctx.quadraticCurveTo(
+        left + params.cardWidth,
+        top + params.cardHeight,
+        left + params.cardWidth - r,
+        top + params.cardHeight,
+      );
+      ctx.lineTo(left + r, top + params.cardHeight);
+      ctx.quadraticCurveTo(left, top + params.cardHeight, left, top + params.cardHeight - r);
+      ctx.lineTo(left, top + r);
+      ctx.quadraticCurveTo(left, top, left + r, top);
+      ctx.closePath();
+      ctx.save();
+      ctx.clip();
+      ctx.drawImage(img, left, top, params.cardWidth, params.cardHeight);
+      ctx.restore();
+      // Subtle border so cards read as distinct rectangles when they
+      // overlap.
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      // Placeholder for any image that failed to load — dark slate
+      // rectangle with card id text so the proof is still readable.
+      ctx.fillStyle = "#2a1f33";
+      ctx.fillRect(left, top, params.cardWidth, params.cardHeight);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(left, top, params.cardWidth, params.cardHeight);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+      ctx.font = `${Math.round(params.cardWidth * 0.18)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`#${cardId}`, 0, 0);
+    }
+    ctx.restore();
+  }
+
+  // Watermark in the corner so a pasted snapshot is identifiable as a
+  // Tarot Seed draw proof.
+  ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.font = `italic 11px serif`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(
+    "Tarot Seed — draw proof",
+    params.containerWidth - 8,
+    params.containerHeight + params.topOffset - 8,
+  );
+
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/png");
+  });
+}
+
+/**
+ * Write a Blob to the system clipboard as an image/png ClipboardItem.
+ * Returns true on success, false on failure (no clipboard API, no
+ * permissions, no user gesture, etc.). The caller decides how to
+ * surface the failure — typically a short toast or no-op.
+ */
+export async function copyBlobToClipboard(blob: Blob): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.clipboard || !window.ClipboardItem) {
+    return false;
+  }
+  try {
+    const item = new ClipboardItem({ [blob.type]: blob });
+    await navigator.clipboard.write([item]);
+    return true;
+  } catch {
+    return false;
+  }
+}
