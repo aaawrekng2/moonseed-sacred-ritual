@@ -107,7 +107,13 @@ export type SnapshotParams = {
  *     overall timeout in case the entire chain of timeouts somehow
  *     compounds beyond expectation.
  */
-function loadOneCardImage(url: string, timeoutMs = 3000): Promise<HTMLImageElement | null> {
+// EK15 — Bumped default per-image timeout 3s → 6s. Cori's snapshot
+// at EK14 showed only 8 of 78 cards loaded in time; the other 70
+// timed out at 3s. Supabase signed URLs need more breathing room
+// than local /cards/card-NN.jpg paths (which serve in <50ms each).
+// 6s is conservative — sm variants are 10-30 KB so even slow
+// connections should complete inside this window.
+function loadOneCardImage(url: string, timeoutMs = 6000): Promise<HTMLImageElement | null> {
   return new Promise<HTMLImageElement | null>((resolve) => {
     let settled = false;
     const settle = (value: HTMLImageElement | null) => {
@@ -151,7 +157,8 @@ function loadAllCardImages(
       promises.push(Promise.resolve(null));
       continue;
     }
-    promises.push(loadOneCardImage(url, 3000));
+    // EK15 — Pass 6s explicitly to match the new default. Was 3s.
+    promises.push(loadOneCardImage(url, 6000));
   }
   return Promise.all(promises);
 }
@@ -182,7 +189,12 @@ export async function generateTableSnapshot(
       // with card name text). Better to ship a degraded snapshot
       // than to hang.
       resolve(new Array(78).fill(null));
-    }, 10000);
+      // EK15 — Bumped 10s → 25s. With 78 Supabase signed URLs going
+      // through Chrome's 6-slot per-origin queue, the original 10s
+      // budget was eaten before more than 8 cards finished. 25s
+      // gives a realistic worst case for 78 sm-variant fetches
+      // (~10-30 KB each).
+    }, 25000);
   });
   const images = await Promise.race([imagesPromise, overallTimeout]);
   const canvas = document.createElement("canvas");
