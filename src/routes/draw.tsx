@@ -345,7 +345,7 @@ function DrawPage() {
     const prevSession = readTabletopSession(spread);
     if (prevSession) {
       const nextCount =
-        next === "custom" ? customCount : getSpreadCount(next);
+        (next === "custom" ? customCount : getSpreadCount(next)) ?? 0;
       const carried: TabletopSession = {
         cards: prevSession.cards.map((c) =>
           c.selectionOrder !== null && c.selectionOrder > nextCount
