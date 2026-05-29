@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
@@ -53,6 +53,20 @@ type Props = {
   deckId?: string | null;
   /** 9-6-O — Custom spread cardinality (1-10). */
   customCount?: number;
+  /**
+   * EK16 — Shared-element transition. When provided, indexed by pick
+   * order, these are the viewport rects each card occupied IN ITS SLOT
+   * at the moment of handoff from Tabletop. SpreadLayout uses them as
+   * the START position of its entry animation: after first paint,
+   * each card is transformed back to its slot rect, then over ~700ms
+   * the transform unwinds to identity — so the card visually slides
+   * from the slot position up to its spread position.
+   *
+   * When omitted (manual entry, or any other code path that can't
+   * measure slots), SpreadLayout falls back to the pre-EK16
+   * cast-card-emerge animation (small fade-up from center).
+   */
+  fromSlotRects?: { x: number; y: number; width: number; height: number }[] | null;
 };
 
 /**
@@ -69,6 +83,7 @@ export function SpreadLayout({
   entryMode,
   deckId,
   customCount,
+  fromSlotRects,
 }: Props) {
   const meta = SPREAD_META[spread];
   // BX — Tabletop / draw stays portrait-only.
@@ -232,6 +247,8 @@ export function SpreadLayout({
           onZoom={(cardIndex, reversed, pickDeckId) =>
             setZoomedCard({ cardIndex, reversed, pickDeckId })
           }
+          // EK16 — Slot-origin rects for the shared-element transition.
+          fromSlotRects={fromSlotRects ?? null}
         />
       </div>
 
@@ -305,6 +322,7 @@ function SpreadContent({
   onTap,
   showLabels,
   onZoom,
+  fromSlotRects,
 }: {
   spread: SpreadMode;
   picks: Pick[];
@@ -316,6 +334,10 @@ function SpreadContent({
   onTap: (i: number) => void;
   showLabels: boolean;
   onZoom: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
+  // EK16 — Per-pick slot origin rects. Threaded down to CardFace so
+  // each card knows where it came from in the slot rail and animates
+  // FROM that position to its final spread position.
+  fromSlotRects?: { x: number; y: number; width: number; height: number }[] | null;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
@@ -339,6 +361,7 @@ function SpreadContent({
         showLabels={showLabels}
         isRevealPhase={isRevealPhase}
         onZoom={onZoom}
+        fromSlotRects={fromSlotRects}
       />
     );
   }
@@ -356,6 +379,7 @@ function SpreadContent({
         showLabels={showLabels}
         isRevealPhase={isRevealPhase}
         onZoom={onZoom}
+        fromSlotRects={fromSlotRects}
       />
     );
   }
@@ -419,6 +443,7 @@ function SpreadContent({
                       emergeDelayMs={i * 80}
                       isRevealPhase={isRevealPhase}
                       onZoom={onZoom}
+                      fromSlotRect={fromSlotRects?.[i] ?? null}
                     />
                   </div>
                 );
@@ -499,6 +524,7 @@ function SpreadContent({
               emergeDelayMs={i * 80}
               isRevealPhase={isRevealPhase}
               onZoom={onZoom}
+              fromSlotRect={fromSlotRects?.[i] ?? null}
             />
           ))}
         </div>
@@ -545,6 +571,8 @@ function SpreadContent({
       isRevealPhase={isRevealPhase}
       onZoom={onZoom}
       spread={spread}
+      // EK16 — Slot-origin rect (single-card spreads have one slot).
+      fromSlotRect={fromSlotRects?.[0] ?? null}
     />
   );
 }
@@ -587,6 +615,7 @@ function CardFace({
   emergeDelayMs,
   isRevealPhase,
   onZoom,
+  fromSlotRect,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -599,6 +628,16 @@ function CardFace({
   emergeDelayMs?: number;
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
+  /**
+   * EK16 — Viewport rect this card occupied IN ITS SLOT at the moment
+   * the seeker filled the final slot. When present, CardFace plays a
+   * shared-element transition: on mount, transform the card back to
+   * the slot rect; then in the next frame unwind the transform to
+   * identity over ~700ms so the card visibly slides from the slot
+   * position to its spread position. When absent, the existing
+   * cast-card-emerge animation runs (small fade-up from center).
+   */
+  fromSlotRect?: { x: number; y: number; width: number; height: number } | null;
 }) {
   const interactive = !revealed && !!onTap;
   const cardImg = useActiveDeckImage();
@@ -610,6 +649,48 @@ function CardFace({
   // CM Group 2 — focus dim during the reveal phase only. Next-to-flip
   // stays full opacity, already-flipped fade to 0.8, others to 0.6.
   const cardOpacity = !isRevealPhase ? 1 : isNext ? 1 : revealed ? 0.8 : 0.6;
+
+  // EK16 — Shared-element transition. The outer FLIP wrapper captures
+  // its post-paint viewport rect, computes the delta to where the card
+  // sat IN ITS SLOT at handoff, applies that as an inverse transform
+  // synchronously (before paint commits), then unwinds it over 700ms.
+  // Net visual: card lives at slot position on first frame, then
+  // smoothly slides to the spread position.
+  //
+  // When `fromSlotRect` is absent, this whole effect is skipped and the
+  // existing cast-card-emerge animation (small fade-up) plays via the
+  // sibling div below.
+  const flipRef = useRef<HTMLDivElement | null>(null);
+  const flipPlayedRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!fromSlotRect) return;
+    if (flipPlayedRef.current) return;
+    const el = flipRef.current;
+    if (!el) return;
+    const dest = el.getBoundingClientRect();
+    // Compute delta in screen px. The transform translates the card
+    // FROM its final spread position BACK to the slot position. After
+    // the transition removes the transform, the card is at the spread
+    // position.
+    const deltaX = fromSlotRect.x - dest.left;
+    const deltaY = fromSlotRect.y - dest.top;
+    // Apply the inverse transform immediately (no transition).
+    el.style.transition = "none";
+    el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    // Force layout so the browser registers the starting transform
+    // before we kick off the transition. Reading offsetWidth is a
+    // classic synchronous-layout trick to commit the style.
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    el.offsetWidth;
+    // Next frame: enable the transition and unwind to identity.
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.style.transition = "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)";
+      el.style.transform = "translate(0, 0)";
+    });
+    flipPlayedRef.current = true;
+  }, [fromSlotRect]);
+
   return (
     <div
       style={{
@@ -619,12 +700,29 @@ function CardFace({
       }}
     >
       <div
-        className="cast-card-emerge"
-        style={{
-          // Custom prop consumed by the cast-card-emerge keyframes.
-          ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
-          display: "inline-block",
-        }}
+        ref={flipRef}
+        // EK16 — Use the cast-card-emerge class ONLY when there's no
+        // fromSlotRect (i.e. the existing fade-up animation). When
+        // we have a slot rect, the shared-element transition drives
+        // motion entirely via inline styles set in the layout effect
+        // above, and we don't want the emerge keyframes fighting it.
+        className={fromSlotRect ? undefined : "cast-card-emerge"}
+        style={
+          fromSlotRect
+            ? {
+                // Inline transform/transition is set by the layout
+                // effect above; default to identity for SSR + first
+                // paint. willChange hint keeps the GPU layer warm
+                // for the upcoming animation.
+                display: "inline-block",
+                willChange: "transform",
+              }
+            : {
+                // Pre-EK16 fallback path: small fade-up from center.
+                ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
+                display: "inline-block",
+              }
+        }
       >
         <div
           className="relative"
@@ -800,6 +898,7 @@ function SingleCard({
   isRevealPhase,
   onZoom,
   spread,
+  fromSlotRect,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -811,6 +910,8 @@ function SingleCard({
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
   spread?: SpreadMode;
+  // EK16 — Slot-origin rect for the shared-element transition.
+  fromSlotRect?: { x: number; y: number; width: number; height: number } | null;
 }) {
   // DD-1 — under-card name labels also hide on mobile (matches the
   // position-label suppression at the parent level). The bottom-bar
@@ -850,6 +951,7 @@ function SingleCard({
         emergeDelayMs={0}
         isRevealPhase={isRevealPhase}
         onZoom={onZoom}
+        fromSlotRect={fromSlotRect ?? null}
       />
       {showLabels && revealed && (
         <CardNameLabel
@@ -898,6 +1000,7 @@ function ThreeRow({
   showLabels,
   isRevealPhase,
   onZoom,
+  fromSlotRects,
 }: {
   picks: Pick[];
   labels: string[];
@@ -910,6 +1013,8 @@ function ThreeRow({
   showLabels: boolean;
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
+  // EK16 — Slot origin rects per pick index.
+  fromSlotRects?: { x: number; y: number; width: number; height: number }[] | null;
 }) {
   // Q47 — two-row pattern: cards bottom-anchored to a shared floor,
   // labels in a separate top-aligned row below.
@@ -963,6 +1068,7 @@ function ThreeRow({
               emergeDelayMs={i * 90}
               isRevealPhase={isRevealPhase}
               onZoom={onZoom}
+              fromSlotRect={fromSlotRects?.[i] ?? null}
             />
           </div>
         ))}
@@ -1031,6 +1137,7 @@ function CelticCross({
   showLabels: _showLabels,
   isRevealPhase,
   onZoom,
+  fromSlotRects,
 }: {
   picks: Pick[];
   labels: string[];
@@ -1043,6 +1150,8 @@ function CelticCross({
   showLabels: boolean;
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
+  // EK16 — Slot origin rects per pick index.
+  fromSlotRects?: { x: number; y: number; width: number; height: number }[] | null;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
@@ -1078,6 +1187,7 @@ function CelticCross({
           emergeDelayMs={cell.slotIndex * 70}
           isRevealPhase={isRevealPhase}
           onZoom={onZoom}
+          fromSlotRect={fromSlotRects?.[cell.slotIndex] ?? null}
         />
       </div>
     ) : null;
@@ -1119,6 +1229,7 @@ function CelticCross({
                   emergeDelayMs={0}
                   isRevealPhase={isRevealPhase}
                   onZoom={onZoom}
+                  fromSlotRect={fromSlotRects?.[0] ?? null}
                 />
               </div>
               {obstacle.pick ? (
@@ -1138,6 +1249,7 @@ function CelticCross({
                     emergeDelayMs={70}
                     isRevealPhase={isRevealPhase}
                     onZoom={onZoom}
+                    fromSlotRect={fromSlotRects?.[1] ?? null}
                   />
                 </div>
               ) : null}
@@ -1166,6 +1278,7 @@ function CelticCross({
                 emergeDelayMs={cell.slotIndex * 70}
                 isRevealPhase={isRevealPhase}
                 onZoom={onZoom}
+                fromSlotRect={fromSlotRects?.[cell.slotIndex] ?? null}
               />
             </div>
           ) : null,
