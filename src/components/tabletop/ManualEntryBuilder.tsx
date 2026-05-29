@@ -30,6 +30,11 @@ import { CardImage } from "@/components/card/CardImage";
 // EJ69 — EntryModeToggle removed from mobile Manual Entry surface. The
 // Draw action lives in the PageMenu left fly-out now.
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
+// EK05 — Shared spread picker (chevron + portaled dropdown), same
+// component the draw table uses. Adds spread switching to manual
+// entry mobile.
+import { SpreadPicker } from "@/components/tabletop/SpreadPicker";
+import type { SpreadPickerSelection } from "@/components/tabletop/SpreadPicker";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { useAuth } from "@/lib/auth";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
@@ -95,6 +100,11 @@ type Props = {
   onSwitchToTable?: () => void;
   /** Q19 — Custom-count stepper hook (custom spread only). */
   onCustomCountChange?: (next: number) => void;
+  /** EK05 — Spread-switch hook. Provides the inline SpreadPicker
+   *  chevron in the action row so the seeker can change spread type
+   *  without leaving manual entry. Omitted from callers that don't
+   *  support spread switching at this surface. */
+  onSpreadChange?: (next: SpreadPickerSelection) => void;
 };
 
 export function ManualEntryBuilder({
@@ -108,6 +118,7 @@ export function ManualEntryBuilder({
   onPicksChange,
   onSwitchToTable,
   onCustomCountChange,
+  onSpreadChange,
 }: Props) {
   // Q30 Fix B5 — register the X close handler with the FloatingMenu so the
   // pop-down's X icon dismisses manual entry mode.
@@ -407,27 +418,39 @@ export function ManualEntryBuilder({
               paddingRight: 56,
             }}
           >
-            <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-              {spread === "custom" && onCustomCountChange ? (
-                <CustomCountStepper
-                  ref={stepperRef}
-                  count={required}
-                  onChange={onCustomCountChange}
+            <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
+              {/* EK05 — Spread picker chevron, immediately to the left
+                  of the count display. Matches the EK02 placement on
+                  the draw table (inline with the slot labels) so the
+                  surface feels consistent across the two entry modes.
+                  Only renders when an onSpreadChange handler is
+                  provided. */}
+              {onSpreadChange && (
+                <SpreadPicker
+                  current={spread}
+                  hasPicks={picks.some((p) => p !== null)}
+                  customCount={customCount}
+                  onChange={onSpreadChange}
                 />
-              ) : (
-                <div
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption, 0.75rem)",
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    opacity: 0.55,
-                  }}
-                >
-                  {meta.label}
-                </div>
               )}
+              {/* EK05 — Show the count for every spread, not just custom.
+                  Fixed spreads (three, celtic, yes_no, etc.) render the
+                  stepper with min === max so both chevrons are dimmed/
+                  disabled — the count number is visible but un-editable.
+                  This matches the draw table behavior and replaces the
+                  prior `meta.label` text that displayed nothing about
+                  the cardinality. */}
+              <CustomCountStepper
+                ref={stepperRef}
+                count={required}
+                onChange={(next) => {
+                  if (spread === "custom" && onCustomCountChange) {
+                    onCustomCountChange(next);
+                  }
+                }}
+                min={spread === "custom" && onCustomCountChange ? 1 : required}
+                max={spread === "custom" && onCustomCountChange ? 10 : required}
+              />
             </div>
           </div>
           {/* EJ69 — Entry-toggle hint removed. The Draw action now lives

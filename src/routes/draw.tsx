@@ -345,7 +345,7 @@ function DrawPage() {
     const prevSession = readTabletopSession(spread);
     if (prevSession) {
       const nextCount =
-        next === "custom" ? (customCount ?? 3) : getSpreadCount(next);
+        next === "custom" ? customCount : getSpreadCount(next);
       const carried: TabletopSession = {
         cards: prevSession.cards.map((c) =>
           c.selectionOrder !== null && c.selectionOrder > nextCount
@@ -411,6 +411,10 @@ function DrawPage() {
             onPicksChange: setManualPicksCache,
             onSwitchToTable: switchToTable,
             onCustomCountChange: spread === "custom" ? handleCustomCountChange : undefined,
+            // EK05 — Surface spread switching in manual entry too. Same
+            // handler the Tabletop uses; the inline SpreadPicker chevron
+            // appears alongside the count display.
+            onSpreadChange: handleSpreadChange,
             onCancel: exit,
             onComplete: (manualPicks: ManualPick[], meta?: { createdAt?: string }) => {
               clearTabletopSession(spread);
