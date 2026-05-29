@@ -456,24 +456,19 @@ export function Tabletop({
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
   const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
 
-  // EA-9 — on desktop the active draw zone (position label + slot row)
-  // sits at the bottom-center of the tabletop. Carve it out of the
-  // scatter so cards never occlude it. Mobile keeps the full scatter.
-  const exclusionZones = useMemo(() => {
-    if (!size || size.w < 1024) {
-      return [] as { x: number; y: number; w: number; h: number }[];
-    }
-    const drawZoneHeight = 220;
-    const drawZoneWidth = Math.min(800, size.w * 0.8);
-    return [
-      {
-        x: (size.w - drawZoneWidth) / 2,
-        y: Math.max(0, size.h - drawZoneHeight),
-        w: drawZoneWidth,
-        h: drawZoneHeight,
-      },
-    ];
-  }, [size]);
+  // EK18 — Bottom exclusion zone removed. It was added when the slot
+  // row used to overlay the bottom of the tabletop-stage; the slot
+  // row has since been moved to a sibling element BELOW the stage
+  // (rendered in the controls row, see ~line 2258), so there's no
+  // longer any occlusion to carve out of the scatter. The 220px
+  // reserve was producing a visible empty band on tablet (and on
+  // wide desktops it shoved every card into the upper portion of
+  // the table) — fixing the layout cause cleanly instead of patching
+  // around a dependency that no longer exists.
+  const exclusionZones = useMemo(
+    () => [] as { x: number; y: number; w: number; h: number }[],
+    [],
+  );
 
   // Detect coarse pointer once (and on media-query change) so we can scale
   // the hit area appropriately. Defaults to true on first render so SSR /
@@ -1338,9 +1333,6 @@ export function Tabletop({
   }, [usesSlots, selectionSig]);
 
   // ---- Gather gesture handlers (EK17) -------------------------------
-  const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
-  const ready = selectedCount === required;
-
   //
   // Fired by an onPointerDown bound to the tabletop-stage div. We
   // intercept ONLY when the event target is the div itself — clicks
@@ -1422,7 +1414,19 @@ export function Tabletop({
     }
     gatherActiveRef.current = false;
     gatherStartPosRef.current = null;
-    setGatherCenter(null);
+    // EK18 — Smooth release: instead of immediately setting
+    // gatherCenter to null (which causes every gathered card to
+    // snap back to its home position with no transition), move the
+    // gather center far off-screen for a brief window. Every card is
+    // now outside its 1.75 × cardH radius, so CardSlot's existing
+    // "outside radius" branch runs — applying a transition and
+    // restoring the home position smoothly. After 420ms (matching
+    // the release transition duration), actually clear gatherCenter
+    // so subsequent renders revert to the pre-EK17 baseStyle path.
+    setGatherCenter({ x: -10000, y: -10000 });
+    window.setTimeout(() => {
+      setGatherCenter(null);
+    }, 420);
   }, []);
 
   // Safety: if the component unmounts mid-gather, clear timers.
@@ -1433,6 +1437,9 @@ export function Tabletop({
       }
     };
   }, []);
+
+  const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+  const ready = selectedCount === required;
 
   const toggleSelect = (id: number) => {
     let recordedAction: DragAction | null = null;
@@ -1820,6 +1827,13 @@ export function Tabletop({
         // EK17 — Pointer handlers for the gather gesture. They no-op
         // when the click lands on a CardSlot (only fire when target IS
         // this div), so per-card drag/tap flows are untouched.
+        // EK18 — `touchAction: "none"` required for the gather gesture
+        // to work on mobile. Without it, the browser intercepts the
+        // pointerdown on the bare table as a potential scroll/zoom
+        // gesture and starts swallowing pointermove events before our
+        // handler can fire — gather never engaged on touch devices.
+        // The page is portrait-locked and the stage doesn't scroll, so
+        // suppressing native touch behaviors here costs nothing.
         onPointerDown={handleTableGatherDown}
         onPointerMove={handleTableGatherMove}
         onPointerUp={handleTableGatherUp}
@@ -1841,6 +1855,12 @@ export function Tabletop({
           // obvious empty band between the "3 cards" header and the
           // first scatter card on mobile.
           paddingTop: TABLETOP_CONFIG.TOP_RESERVE,
+          // EK18 — Suppress native touch gestures (scroll, pinch-zoom,
+          // double-tap-zoom) so pointermove events flow uninterrupted
+          // to our gather handler. The page is portrait-locked and
+          // doesn't scroll inside the stage, so nothing useful is
+          // suppressed.
+          touchAction: "none",
         }}
       >
         {cards.map((c, idx) => (
