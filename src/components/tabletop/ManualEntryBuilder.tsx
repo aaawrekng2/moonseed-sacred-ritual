@@ -405,21 +405,18 @@ export function ManualEntryBuilder({
               fixed spreads. The seeker's left hamburger + right X both
               float above this row at fixed positions; this row's content
               only fills the central area between them.
-              EK06 — Made `position: sticky; top: 0` so the stepper +
-              SpreadPicker chevron stay visible when the seeker
-              scrolls down through tall multi-row custom layouts. At
-              custom count 6+ the slot section switches to two rows
-              and the page becomes taller than the viewport; the
-              previous in-flow position scrolled the stepper off-
-              screen at the top. Sticky pins it to the top of the
-              scrollable content. */}
+
+              EK07 — Reverted the EK06 `position: sticky` attempt; sticky
+              inside the flex-col content tree had known failure modes
+              (Designcise + MDN + Mozilla bug #1488080) and the stepper
+              still scrolled away at count 6+. The new approach: keep
+              this row in normal flow at the top, and give the slot
+              section below its OWN `overflow-y-auto`. The slot section
+              scrolls INTERNALLY when its multi-row custom layout
+              exceeds available height, while this row never moves. */}
           <div
             className="relative w-full border-b border-border/40"
             style={{
-              position: "sticky",
-              top: 0,
-              zIndex: 5,
-              background: "var(--background)",
               minHeight: 48,
               paddingTop: 4,
               paddingBottom: 8,
@@ -428,6 +425,9 @@ export function ManualEntryBuilder({
               justifyContent: "center",
               paddingLeft: 56,
               paddingRight: 56,
+              // Don't shrink — the slot section below will absorb any
+              // overflow via its own scroll container.
+              flexShrink: 0,
             }}
           >
             <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
@@ -482,7 +482,29 @@ export function ManualEntryBuilder({
 
           <div
             className={cn("flex flex-1 flex-col items-center justify-start gap-3 px-4 pt-4 pb-4")}
-            style={{ paddingTop: 16 }}
+            style={{
+              paddingTop: 16,
+              // EK07 — Internal scroll for the slot section. Was
+              // previously letting the FullScreenSheet's outer
+              // overflow-y-auto handle ALL scrolling, which meant the
+              // action row (above this div) scrolled off-screen with
+              // everything else when the custom layout's two-row
+              // grid (count >= 6) pushed total content height past
+              // the viewport.
+              //
+              // Now this div is its own scroll boundary:
+              //   - `flex-1` takes the remaining vertical inside the
+              //     content column (after topbar spacer + action row).
+              //   - `min-height: 0` is the textbook fix for "flex-1
+              //     child won't scroll" — without it, flex children
+              //     refuse to shrink below content size, so they grow
+              //     unbounded instead of becoming scrollable.
+              //   - `overflow-y: auto` makes vertical overflow inside
+              //     THIS box scrollable, leaving the action row
+              //     above always pinned at the top in normal flow.
+              minHeight: 0,
+              overflowY: "auto",
+            }}
           >
             {/* CF — Top row: date pill (left) + SmartCardInput (right),
             sharing the 640 content block. Date pill is fixed-width;
