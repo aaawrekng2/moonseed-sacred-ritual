@@ -540,29 +540,60 @@ export function Tabletop({
   // pageMenuSections can read them); this block only wires the
   // generation effect + the actual copy logic into copyRef.
 
+  // EK13 — Generation-started guard. Set the first time the effect
+  // commits a generation attempt. Subsequent re-fires (caused by
+  // viewport resizes, scatter rebuilds with same length, any other
+  // dep churn) will NOT cancel the in-flight generation or start a
+  // new one — they'll just be observed.
+  //
+  // EK12's effect had a fatal flaw: it used a local `cancelled` flag +
+  // returned cleanup that flipped it and cleared the watchdog. If
+  // deps changed every few seconds (likely cause: ResizeObserver or
+  // viewport-related useState updates fired in a loop), each re-fire
+  // ran the cleanup of the PREVIOUS run, cancelling the in-flight
+  // generation, then started a NEW one with a fresh 20-second watchdog
+  // budget. Status never reached "ready" OR "failed" — perpetual
+  // re-mount churn at the effect level. This ref persists across
+  // re-renders and prevents the IIFE from being torn down.
+  const generationStartedRef = useRef(false);
+  // EK13 — Counter for diagnostic surfacing. Incremented every time
+  // the effect's body runs (whether or not it starts a generation).
+  // Surfaced in the menu description on failure so we can see if
+  // re-fires were the underlying issue.
+  const effectRunCountRef = useRef(0);
+
   useEffect(() => {
+    effectRunCountRef.current += 1;
+
     if (!size) return;
     if (initialScatter.length === 0) return;
-    if (snapshotStatus !== "idle") return;
-    let cancelled = false;
+    // EK13 — Hard guard: once a generation has started, never start
+    // another. Replaces EK12's `snapshotStatus !== "idle"` guard,
+    // which was vulnerable to the status being reset by other code
+    // paths between renders.
+    if (generationStartedRef.current) return;
+    generationStartedRef.current = true;
+
     setSnapshotStatus("generating");
     setSnapshotErrorMessage(null);
+    const attemptNumber = effectRunCountRef.current;
 
-    // EK12 — 20-second watchdog. Independent of generateTableSnapshot's
+    // 20-second watchdog. Independent of generateTableSnapshot's
     // internal timeouts (EK08 10s image-load + EK09 5s toBlob = 15s
-    // internal worst-case). If status is STILL "generating" at 20s,
-    // force it to "failed" with a diagnostic message. Covers cases
-    // where the internal timeouts somehow don't fire (e.g. setTimeout
-    // throttled in background tab, dev-server delay, an exception
-    // thrown by sync canvas code AFTER the timeouts cleared and
-    // became an unhandled promise rejection that the IIFE didn't
-    // catch).
-    const watchdog = window.setTimeout(() => {
-      if (cancelled) return;
+    // internal worst-case). If status is STILL "generating" at 20s
+    // from THIS attempt, force it to "failed" with a diagnostic that
+    // includes the attempt number, so we can tell re-mount churn
+    // (high number) from a true single-attempt hang (number 1).
+    //
+    // EK13 — NO LONGER cleared by the effect cleanup. The cleanup
+    // was firing on every dep change, killing the watchdog before
+    // it could trip. Now the watchdog has a guaranteed 20s budget
+    // from when it was scheduled.
+    window.setTimeout(() => {
       setSnapshotStatus((current) => {
         if (current === "generating") {
           setSnapshotErrorMessage(
-            "Generation watchdog tripped at 20s — internal timeouts didn't fire",
+            `Generation watchdog tripped at 20s (attempt #${attemptNumber}, total effect runs ${effectRunCountRef.current}) — internal timeouts didn't fire`,
           );
           return "failed";
         }
@@ -581,57 +612,34 @@ export function Tabletop({
           cardHeight: cardH,
           topOffset: TABLETOP_CONFIG.TOP_RESERVE,
         });
-        if (cancelled) return;
         if (blob) {
           setSnapshotBlob(blob);
           setSnapshotStatus("ready");
-          // First-load popup, gated on the persisted preference. We
-          // wait for the snapshot to actually be ready before opening
-          // the popup so [Copy] is a one-tap action (no spinner).
           if (askDrawProof && !proofPopupShownRef.current && !ready) {
             proofPopupShownRef.current = true;
             setProofPopupOpen(true);
           }
         } else {
-          // EK12 — generateTableSnapshot returned null. Either toBlob
-          // returned null (tainted canvas or encoding failure) or its
-          // own internal timeout tripped without recovery. Distinguish
-          // from "watchdog" so we can tell which boundary was hit.
-          setSnapshotErrorMessage("generateTableSnapshot returned null (canvas/toBlob step failed)");
+          setSnapshotErrorMessage(
+            `generateTableSnapshot returned null (canvas/toBlob step failed) [effect runs: ${effectRunCountRef.current}]`,
+          );
           setSnapshotStatus("failed");
         }
       } catch (err) {
-        // EK12 — Catches any synchronous throw inside
-        // generateTableSnapshot (e.g. an unexpected exception during
-        // the canvas drawing loop). Without this try/catch, throws
-        // became unhandled promise rejections — status stayed at
-        // "generating" forever, hiding the real cause.
-        if (cancelled) return;
         const message =
           err !== null && typeof err === "object" && "message" in err
             ? String((err as { message?: unknown }).message)
             : String(err);
-        setSnapshotErrorMessage(`Exception during generation: ${message}`);
+        setSnapshotErrorMessage(
+          `Exception during generation: ${message} [effect runs: ${effectRunCountRef.current}]`,
+        );
         setSnapshotStatus("failed");
-      } finally {
-        if (!cancelled) {
-          window.clearTimeout(watchdog);
-        }
       }
     })();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(watchdog);
-    };
-    // EK04 — Depend on the scatter being ready, not just `seed`. The
-    // previous `[seed]`-only deps meant the effect ran once at mount
-    // when `size` was null and `initialScatter` was empty, hit the
-    // early-return, and never re-fired when those became populated
-    // (because seed never changed). Net result: snapshot was never
-    // generated, popup never appeared, manual copy returned
-    // "couldn't copy" with no blob. The new deps fire the effect
-    // again when scatter geometry materializes. The `snapshotStatus
-    // !== "idle"` guard inside still prevents repeat generations.
+    // EK13 — No cleanup. The IIFE keeps running regardless of
+    // re-renders. The generationStartedRef guard prevents the body
+    // from starting a second IIFE. The watchdog runs independently
+    // and is no longer cleared by anything.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, size?.w, size?.h, initialScatter.length]);
 
