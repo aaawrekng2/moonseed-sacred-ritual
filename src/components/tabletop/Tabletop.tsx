@@ -13,7 +13,12 @@ import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, getSpreadCount, type SpreadMode } from "@/lib/spreads";
 // EK03 — Draw-proof snapshot infrastructure (see lib/table-snapshot.ts
 // and lib/use-ask-draw-proof.ts for full docs).
-import { generateTableSnapshot, copyBlobToClipboard } from "@/lib/table-snapshot";
+// EK07 — `copyBlobToClipboard` removed from this import; the inline
+// `clipboard.write` in copyRef.current below is what calls the
+// clipboard API now. The lib export still exists for any other
+// callsite that needs an async-friendly wrapper, but Tabletop calls
+// the API directly to keep Safari's user-activation token intact.
+import { generateTableSnapshot } from "@/lib/table-snapshot";
 import { useAskDrawProof } from "@/lib/use-ask-draw-proof";
 // EK05 — SpreadPicker was inlined for EJ72 to avoid a Lovable
 // production-chunk TDZ from a module-init cycle. EK05 reinstates the
@@ -163,13 +168,29 @@ export function Tabletop({
   const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "generating" | "ready" | "failed">("idle");
   const [proofPopupOpen, setProofPopupOpen] = useState(false);
   const proofPopupShownRef = useRef(false);
-  const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
-  // Forward reference for the copy action — declared empty here so the
-  // PageMenu Snapshot section below can wire `onClick: () => copyRef.current?.()`
-  // without forward-declaration issues. The real implementation
-  // assigns to copyRef.current once snapshotBlob is in scope.
-  const copyRef = useRef<(() => Promise<void>) | null>(null);
-  const copySnapshotNow = useCallback(() => copyRef.current?.() ?? Promise.resolve(), []);
+  const [copyFeedback, setCopyFeedback] = useState<
+    "copied" | "no_snapshot" | "blocked" | null
+  >(null);
+  // EK07 — Forward reference for the SYNCHRONOUS copy action. Was an
+  // async function previously, which broke Safari's user-activation
+  // requirement for `navigator.clipboard.write()` — Safari invalidates
+  // the gesture at the first `await`. The new contract: this ref
+  // stores a synchronous function the click handler calls directly
+  // (no `await`), which fires `clipboard.write` in the same tick as
+  // the click and returns a tag the caller can use to react
+  // immediately. The actual implementation is assigned to
+  // copyRef.current further down where snapshotBlob is in scope.
+  const copyRef = useRef<(() => "no_snapshot" | "writing") | null>(null);
+  // Synchronous wrapper used by callers that already have a
+  // synchronous gesture-context to spend (popup [Copy] button, menu
+  // "Copy table snapshot" button). Returns the underlying tag (or
+  // "no_snapshot" if the ref isn't wired yet). Callers spend this
+  // value to set a fast-failure toast and bail; the success path
+  // resolves asynchronously via the .then() inside copyRef.
+  const copySnapshotNow = useCallback(
+    (): "no_snapshot" | "writing" => copyRef.current?.() ?? "no_snapshot",
+    [],
+  );
   const pageMenuSections: PageMenuSection[] = [];
   if (onSwitchToManual) {
     pageMenuSections.push({
@@ -237,8 +258,13 @@ export function Tabletop({
         Icon: Camera,
         mode: "navigate",
         onClick: () => {
+          // EK07 — Same synchronous pattern as the popup button.
+          // copySnapshotNow() fires navigator.clipboard.write() in
+          // the same tick as the click, keeping Safari's user-
+          // activation token valid. Menu close happens AFTER the
+          // write is initiated.
+          copySnapshotNow();
           setPageMenuOpen(false);
-          void copySnapshotNow();
         },
       },
       {
@@ -513,20 +539,67 @@ export function Tabletop({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, size?.w, size?.h, initialScatter.length]);
 
-  // Wire copyRef now that snapshotBlob is in scope. The callback below
-  // is what the PageMenu button and the popup [Copy] button actually
-  // invoke (via copySnapshotNow above). Stored on a ref instead of in
-  // state so re-renders don't churn the callback identity and so
-  // pageMenuSections can be built before the deps are in scope.
-  copyRef.current = async () => {
+  // EK07 — Wire copyRef.current to the SYNCHRONOUS clipboard-write
+  // implementation. The forward-ref above expects this exact shape:
+  // `() => "no_snapshot" | "writing"`. Callers in the JSX (popup
+  // [Copy], menu "Copy table snapshot") invoke `copyRef.current?.()`
+  // (or `copySnapshotNow()`) directly in their onClick — NO `await`,
+  // NO async wrapper — so Safari's user-activation token survives
+  // until the `navigator.clipboard.write([...])` call below.
+  //
+  // The blob is passed wrapped in a `Promise.resolve()` to
+  // `ClipboardItem` because Safari requires the browser itself to
+  // do the awaiting, inside its own gesture-preserving context.
+  // (Documented on web.dev "Unblocking clipboard access" and Apple's
+  // developer forums.)
+  //
+  // Diagnostic toasts:
+  //   - "no_snapshot": blob isn't ready (canvas/blob step failed or
+  //     hasn't completed). The popup or menu was tapped before the
+  //     snapshot finished generating.
+  //   - "blocked":    the clipboard.write call rejected (browser
+  //     blocked, permission denied, etc.). Different from
+  //     "no_snapshot" so we can distinguish the two failure modes.
+  //   - "copied":     write succeeded.
+  copyRef.current = (): "no_snapshot" | "writing" => {
     if (!snapshotBlob) {
-      setCopyFeedback("failed");
+      setCopyFeedback("no_snapshot");
       window.setTimeout(() => setCopyFeedback(null), 2200);
-      return;
+      return "no_snapshot";
     }
-    const ok = await copyBlobToClipboard(snapshotBlob);
-    setCopyFeedback(ok ? "copied" : "failed");
-    window.setTimeout(() => setCopyFeedback(null), 2200);
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.clipboard ||
+      typeof window === "undefined" ||
+      typeof window.ClipboardItem === "undefined"
+    ) {
+      setCopyFeedback("blocked");
+      window.setTimeout(() => setCopyFeedback(null), 2200);
+      return "no_snapshot";
+    }
+    try {
+      const item = new window.ClipboardItem({
+        // Safari pattern: pass a Promise to ClipboardItem, even when
+        // the blob is already in memory. The browser awaits this
+        // promise itself inside its gesture-preserving context.
+        "image/png": Promise.resolve(snapshotBlob),
+      });
+      navigator.clipboard.write([item]).then(
+        () => {
+          setCopyFeedback("copied");
+          window.setTimeout(() => setCopyFeedback(null), 2200);
+        },
+        () => {
+          setCopyFeedback("blocked");
+          window.setTimeout(() => setCopyFeedback(null), 2200);
+        },
+      );
+      return "writing";
+    } catch {
+      setCopyFeedback("blocked");
+      window.setTimeout(() => setCopyFeedback(null), 2200);
+      return "no_snapshot";
+    }
   };
 
   // Hydrate cards + undo/redo from the cross-route session store on
@@ -1882,9 +1955,17 @@ export function Tabletop({
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
                 type="button"
-                onClick={async () => {
+                onClick={() => {
+                  // EK07 — Synchronous call. No `async`, no `await`
+                  // before this point. The click → copySnapshotNow()
+                  // call chain stays inside Safari's user-activation
+                  // window, and `navigator.clipboard.write([...])`
+                  // (inside copyRef.current) fires in the same tick.
+                  // Popup closes AFTER the write is initiated, so the
+                  // close itself doesn't consume the gesture before
+                  // the write.
+                  copySnapshotNow();
                   setProofPopupOpen(false);
-                  await copySnapshotNow();
                 }}
                 style={{
                   padding: "10px 14px",
@@ -1944,10 +2025,15 @@ export function Tabletop({
           </div>
         </div>
       )}
-      {/* EK03 — Inline copy-feedback toast. Renders briefly after a
-          clipboard copy attempt so the seeker knows it worked (or that
-          the browser blocked the write). Auto-dismisses after 2.2s
-          (timer set in copySnapshotNow). */}
+      {/* EK07 — Inline copy-feedback toast with three diagnostic states:
+            - "copied":      success — clipboard.write resolved
+            - "no_snapshot": snapshot blob not ready yet (canvas/blob step
+              failed or hasn't completed). Tells the seeker to wait a
+              second and try again.
+            - "blocked":     clipboard.write rejected (browser blocked,
+              permission denied, missing ClipboardItem support, etc.).
+              Different visible message so we can tell which step is
+              failing if it ever does. */}
       {copyFeedback && (
         <div
           role="status"
@@ -1971,11 +2057,15 @@ export function Tabletop({
             color: "var(--color-foreground)",
             boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
             pointerEvents: "none",
+            maxWidth: "calc(100vw - 32px)",
+            textAlign: "center",
           }}
         >
           {copyFeedback === "copied"
             ? "Snapshot copied to clipboard"
-            : "Couldn't copy — try the menu button"}
+            : copyFeedback === "no_snapshot"
+              ? "Snapshot not ready yet — wait a moment, then try again"
+              : "Clipboard blocked — try the menu button (or your browser blocked the request)"}
         </div>
       )}
       {/* EJ47 — Inline `?` for Celtic Cross. Was previously surfaced
