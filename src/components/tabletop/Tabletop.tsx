@@ -1445,19 +1445,48 @@ export function Tabletop({
   // not to frustrate) then hand off to the spread layout screen with
   // cards still face-down. Picks are ordered by selectionOrder so
   // position 1 maps to spread slot 1, etc.
+  //
+  // EK16 — During the pause, scatter cards fade to 0 (handled by
+  // CardSlot's castingPhase prop wired below). At handoff time we
+  // capture the viewport rect of each slotted card and pass it via
+  // `meta.slotOrigins`. SpreadLayout uses those rects as the START
+  // position of its entry animation so the chosen cards visually
+  // travel from their slot positions to the spread positions —
+  // instead of teleporting in from screen center.
   useEffect(() => {
     if (!ready || required === 0) return;
     const picks = cards
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
     const timer = window.setTimeout(() => {
+      // EK16 — Capture each slotted card's CURRENT viewport rect just
+      // before handoff. We read it from the `slotRects` state which is
+      // already maintained for the slot rail (CardSlot uses the same
+      // rect as its position:fixed anchor). If any slot didn't measure
+      // (e.g. very fast pick race condition), we omit slotOrigins so
+      // SpreadLayout falls back to its pre-EK16 center-emerge animation.
+      const slotOrigins =
+        usesSlots && slotRects.length >= picks.length
+          ? picks.map((p, i) => {
+              const r = slotRects[i];
+              if (!r) return null;
+              return { x: r.left, y: r.top, width: r.width, height: r.height };
+            })
+          : null;
+      const allMeasured = slotOrigins?.every((r) => r !== null) ?? false;
       // Reading complete — the in-flight session is done. Clear the
       // snapshot so navigating back to /draw produces a fresh draw.
       clearTabletopSession(spread);
       onComplete(
         picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         "cast",
-        { entryMode: "digital" },
+        {
+          entryMode: "digital",
+          slotOrigins:
+            allMeasured && slotOrigins
+              ? (slotOrigins as { x: number; y: number; width: number; height: number }[])
+              : undefined,
+        },
       );
     }, 1500);
     return () => window.clearTimeout(timer);
@@ -1706,6 +1735,12 @@ export function Tabletop({
             onDragMove={handleDragMove}
             isCoarsePointer={isCoarsePointer}
             containerElRef={containerRef}
+            // EK16 — Casting handoff fade. When `ready` becomes true
+            // (final slot filled), CardSlot fades scatter cards
+            // (selectionOrder===null) to 0 over 600ms. Slotted cards
+            // stay visible — they'll travel to spread positions when
+            // SpreadLayout mounts.
+            castingPhase={ready}
             containerRect={
               containerOrigin && size
                 ? {

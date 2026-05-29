@@ -121,6 +121,15 @@ function DrawPage() {
   // the placeholder reading. "cast" = render the classic spread layout
   // with cards face-down, let the user reveal them there.
   const [phase, setPhase] = useState<"select" | "cast" | "reading">("select");
+  // EK16 — Slot-origin rects captured by Tabletop at handoff. Threaded
+  // into SpreadLayout so its cards animate FROM the slot positions TO
+  // their final spread positions, instead of teleport-emerging from
+  // screen center. Null for manual entry (no slot phase) or any code
+  // path that doesn't capture them — SpreadLayout falls back to the
+  // pre-EK16 center-emerge animation in that case.
+  const [castOriginRects, setCastOriginRects] = useState<
+    { x: number; y: number; width: number; height: number }[] | null
+  >(null);
 
   // Q24 Fix 2 — register an exit-to-home X in the FloatingMenu while
   // the seeker is in the card-selection phase. Cleared once cards
@@ -345,7 +354,7 @@ function DrawPage() {
     const prevSession = readTabletopSession(spread);
     if (prevSession) {
       const nextCount =
-        (next === "custom" ? customCount : getSpreadCount(next)) ?? 0;
+        next === "custom" ? (customCount ?? 0) : (getSpreadCount(next) ?? 0);
       const carried: TabletopSession = {
         cards: prevSession.cards.map((c) =>
           c.selectionOrder !== null && c.selectionOrder > nextCount
@@ -399,6 +408,11 @@ function DrawPage() {
           entryMode={entryMode}
           deckId={activeDeckId}
           customCount={customCount}
+          // EK16 — Origin rects for the shared-element transition. When
+          // present, SpreadLayout animates each card FROM its slot
+          // position to its spread position instead of using the
+          // center-emerge default.
+          fromSlotRects={castOriginRects}
         />
       ) : entrySurface === "manual" && phase === "select" ? (
         (() => {
@@ -518,6 +532,10 @@ function DrawPage() {
                 })),
               );
               setEntryMode(isManual ? "manual" : "digital");
+              // EK16 — Capture slot rects for shared-element transition.
+              // Manual entry sends meta without slotOrigins → null,
+              // SpreadLayout falls back to its default emerge animation.
+              setCastOriginRects(meta?.slotOrigins ?? null);
               setPhase(mode === "cast" ? "cast" : "reading");
               // Reaching reveal/cast counts as today's practice. Fire-and-forget.
               void recordDraw();
