@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, ClientOnly } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
 import { ManualEntryBuilder, type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
@@ -345,7 +345,7 @@ function DrawPage() {
     const prevSession = readTabletopSession(spread);
     if (prevSession) {
       const nextCount =
-        next === "custom" ? (customCount ?? 3) : getSpreadCount(next);
+        (next === "custom" ? customCount : getSpreadCount(next)) ?? 0;
       const carried: TabletopSession = {
         cards: prevSession.cards.map((c) =>
           c.selectionOrder !== null && c.selectionOrder > nextCount
@@ -461,42 +461,69 @@ function DrawPage() {
           return <ManualEntryBuilder {...sharedProps} />;
         })()
       ) : (
-        <Tabletop
-          spread={spread}
-          onExit={exit}
-          customCount={customCount}
-          question={question}
-          onQuestionChange={setQuestion}
-          onSwitchToManual={switchToManual}
-          onSpreadChange={handleSpreadChange}
-          onOpenQuestion={() => setQuestionOpen(true)}
-          onCustomCountChange={spread === "custom" ? handleCustomCountChange : undefined}
-          onComplete={(p, mode, meta) => {
-            // Phase 9.55 — assign orientation per card based on the
-            // seeker's preference. `generateOrientations` returns
-            // all-false when reversals are disabled, so this is safe to
-            // call unconditionally.
-            // For manually-entered readings the seeker has already
-            // declared each card's orientation (via the picker's
-            // 'Reversed?' toggle), so we honor `pick.isReversed`
-            // verbatim and skip the random generator.
-            const isManual = meta?.entryMode === "manual";
-            const orientations = isManual
-              ? p.map((pp) => pp.isReversed ?? false)
-              : generateOrientations(p.length, allowReversed, reversalChancePct);
-            setPicks(
-              p.map((pick, i) => ({
-                ...pick,
-                isReversed: orientations[i],
-                deckId: pick.deckId ?? null,
-              })),
-            );
-            setEntryMode(isManual ? "manual" : "digital");
-            setPhase(mode === "cast" ? "cast" : "reading");
-            // Reaching reveal/cast counts as today's practice. Fire-and-forget.
-            void recordDraw();
-          }}
-        />
+        <ClientOnly fallback={null}>
+          {/* EK11 — Wrap Tabletop in TanStack Router's ClientOnly to
+              suppress ALL SSR rendering of this subtree. EK09's
+              `webShareAvailable` useMemo was one source of hydration
+              mismatch (fixed in EK10), but the React #418 error persisted
+              after EK10 — meaning Tabletop has at least one OTHER
+              SSR-mismatch source we haven't pinned down (could be in
+              TopNav, FloatingMenu, the scatter geometry, any browser-
+              only state read at render time, etc.). Each round of
+              hydration failure caused React to discard the tree and
+              re-render fresh on the client, which kept tearing down
+              the snapshot effect's lifecycle — the in-flight
+              generation was cancelled by the cleanup on each remount,
+              so the snapshot never completed and the popup never
+              appeared.
+
+              TanStack Start's official guidance for this exact
+              situation is "Wrap unstable UI in <ClientOnly> to avoid
+              SSR and mismatches" (per tanstack.com/start docs,
+              "Hydration Errors" page). The fallback={null} means the
+              server emits empty HTML for this subtree; the client
+              hydrates that as empty too (matching, no mismatch); then
+              the effect-driven hydration check inside ClientOnly flips
+              true and the full Tabletop renders fresh, exactly once,
+              client-side only. The snapshot effect now runs on a
+              stable mount with no churn. */}
+          <Tabletop
+            spread={spread}
+            onExit={exit}
+            customCount={customCount}
+            question={question}
+            onQuestionChange={setQuestion}
+            onSwitchToManual={switchToManual}
+            onSpreadChange={handleSpreadChange}
+            onOpenQuestion={() => setQuestionOpen(true)}
+            onCustomCountChange={spread === "custom" ? handleCustomCountChange : undefined}
+            onComplete={(p, mode, meta) => {
+              // Phase 9.55 — assign orientation per card based on the
+              // seeker's preference. `generateOrientations` returns
+              // all-false when reversals are disabled, so this is safe to
+              // call unconditionally.
+              // For manually-entered readings the seeker has already
+              // declared each card's orientation (via the picker's
+              // 'Reversed?' toggle), so we honor `pick.isReversed`
+              // verbatim and skip the random generator.
+              const isManual = meta?.entryMode === "manual";
+              const orientations = isManual
+                ? p.map((pp) => pp.isReversed ?? false)
+                : generateOrientations(p.length, allowReversed, reversalChancePct);
+              setPicks(
+                p.map((pick, i) => ({
+                  ...pick,
+                  isReversed: orientations[i],
+                  deckId: pick.deckId ?? null,
+                })),
+              );
+              setEntryMode(isManual ? "manual" : "digital");
+              setPhase(mode === "cast" ? "cast" : "reading");
+              // Reaching reveal/cast counts as today's practice. Fire-and-forget.
+              void recordDraw();
+            }}
+          />
+        </ClientOnly>
       )}
 
       {/* Quill / question panel only belongs to the draw table phase.
