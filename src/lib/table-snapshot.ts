@@ -257,8 +257,33 @@ export async function generateTableSnapshot(
     params.containerHeight + params.topOffset - 8,
   );
 
+  // EK09 — Canvas-to-blob with a 5-second timeout. The previous code
+  // just awaited `canvas.toBlob((blob) => resolve(blob), "image/png")`
+  // with no timeout. On iOS Safari, `canvas.toBlob` is documented to
+  // hang (or return null silently) in certain conditions — multiple
+  // GitHub issues and Apple developer-forum threads confirm this. When
+  // that happened in EK08, the snapshot's outer status would stay at
+  // "generating" forever because the await never resolved. Adding a
+  // timeout here ensures generateTableSnapshot ALWAYS resolves to
+  // either a blob or null within ~5s of finishing image loading.
+  //
+  // On null/timeout, the caller (Tabletop.tsx) flips snapshotStatus to
+  // "failed", which surfaces as "Snapshot unavailable on this device"
+  // in the menu — better than a permanent "Preparing snapshot…" hang.
   return new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), "image/png");
+    let settled = false;
+    const settle = (value: Blob | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    try {
+      canvas.toBlob((blob) => settle(blob), "image/png");
+    } catch {
+      settle(null);
+      return;
+    }
+    window.setTimeout(() => settle(null), 5000);
   });
 }
 
