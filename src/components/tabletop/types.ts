@@ -23,7 +23,21 @@ export type TabletopProps = {
       deckId?: string | null;
     }[],
     mode: "reveal" | "cast",
-    meta?: { entryMode?: "digital" | "manual" },
+    meta?: {
+      entryMode?: "digital" | "manual";
+      /**
+       * EK16 — Screen-space rects of each slotted card at the moment of
+       * handoff. Indexed by pick order (slot 0 first). SpreadLayout uses
+       * these as the START position of its entry animation so the chosen
+       * cards visually travel from their slot position up to their spread
+       * position, instead of teleport-emerging from screen center.
+       *
+       * Optional — omitted for manual-entry handoffs (no slots existed)
+       * or any other code path that can't measure the slots. SpreadLayout
+       * falls back to the pre-EK16 center-emerge animation when absent.
+       */
+      slotOrigins?: { x: number; y: number; width: number; height: number }[];
+    },
   ) => void;
   /**
    * 26-05-08-N — Fix 4: question state lifted from the draw route so
