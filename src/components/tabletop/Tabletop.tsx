@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown } from "lucide-react";
+import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown, Camera, BellRing } from "lucide-react";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
@@ -11,6 +11,10 @@ import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, getSpreadCount, type SpreadMode } from "@/lib/spreads";
+// EK03 — Draw-proof snapshot infrastructure (see lib/table-snapshot.ts
+// and lib/use-ask-draw-proof.ts for full docs).
+import { generateTableSnapshot, copyBlobToClipboard } from "@/lib/table-snapshot";
+import { useAskDrawProof } from "@/lib/use-ask-draw-proof";
 // EJ72 — SpreadPicker is defined INLINE below (was ./SpreadPicker). The
 // separate module produced a render-time TDZ ("Cannot access … before
 // initialization") in Lovable's production chunk split. Collapsing it
@@ -466,6 +470,23 @@ export function Tabletop({
   //     icon in EJ67; moved into the fly-out in EJ68 to keep the
   //     top chrome clean)
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  // EK03 — Draw-proof snapshot state. These hooks must be declared
+  // BEFORE pageMenuSections is built (which reads snapshotStatus and
+  // askDrawProof). The effect that populates snapshotBlob and the
+  // copySnapshotNow callback live further down where the deps
+  // (initialScatter, deckMapping, size, cardW, cardH) are in scope.
+  const { askDrawProof, setAskDrawProof } = useAskDrawProof();
+  const [snapshotBlob, setSnapshotBlob] = useState<Blob | null>(null);
+  const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "generating" | "ready" | "failed">("idle");
+  const [proofPopupOpen, setProofPopupOpen] = useState(false);
+  const proofPopupShownRef = useRef(false);
+  const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
+  // Forward reference for the copy action — declared empty here so the
+  // PageMenu Snapshot section below can wire `onClick: () => copyRef.current?.()`
+  // without forward-declaration issues. The real implementation
+  // assigns to copyRef.current once snapshotBlob is in scope.
+  const copyRef = useRef<(() => Promise<void>) | null>(null);
+  const copySnapshotNow = useCallback(() => copyRef.current?.() ?? Promise.resolve(), []);
   const pageMenuSections: PageMenuSection[] = [];
   if (onSwitchToManual) {
     pageMenuSections.push({
@@ -505,6 +526,52 @@ export function Tabletop({
       ],
     });
   }
+
+  // EK03 — Draw-proof snapshot section in the fly-out menu. Two items:
+  // (1) Manual one-tap action to copy the snapshot now (always
+  //     available regardless of toggle).
+  // (2) Toggle controlling whether the on-load popup appears.
+  // Both items use mode "navigate" with a status-bearing description so
+  // the existing PageMenu UI doesn't need a new "toggle" mode to render
+  // them; the description shows the current state (Asks on load /
+  // Doesn't ask on load) and tapping flips it. The manual-copy item's
+  // description shows whether the snapshot is ready or still preparing.
+  pageMenuSections.push({
+    id: "draw-proof",
+    title: "Snapshot",
+    items: [
+      {
+        id: "copy-snapshot",
+        label: "Copy table snapshot",
+        description:
+          snapshotStatus === "ready"
+            ? "Proof that the deck wasn't rigged"
+            : snapshotStatus === "generating"
+              ? "Preparing snapshot…"
+              : snapshotStatus === "failed"
+                ? "Snapshot unavailable on this device"
+                : "Snapshot will be ready in a moment",
+        Icon: Camera,
+        mode: "navigate",
+        onClick: () => {
+          setPageMenuOpen(false);
+          void copySnapshotNow();
+        },
+      },
+      {
+        id: "ask-snapshot-on-load",
+        label: askDrawProof ? "Ask to copy on load: on" : "Ask to copy on load: off",
+        description: askDrawProof
+          ? "Tap to stop asking on new draws"
+          : "Tap to ask on every new draw",
+        Icon: BellRing,
+        mode: "navigate",
+        onClick: () => {
+          setAskDrawProof(!askDrawProof);
+        },
+      },
+    ],
+  });
 
   // Three-level UI density for the draw screen, controlled by the eye
   // icon in the top-bar.
@@ -706,6 +773,75 @@ export function Tabletop({
 
   // Map slot index -> tarot card id (shuffled at session start).
   const deckMapping = useMemo(() => shuffleDeck(TABLETOP_CONFIG.DECK_SIZE, seed), [seed]);
+
+  // EK03 — Draw-proof snapshot. As soon as the initial scatter is
+  // built, kick off generation of a PNG showing every card face-up at
+  // its scatter position. Held in memory; the seeker can choose to
+  // copy it to clipboard via the fly-out menu OR the load-time popup.
+  // The cached blob proves the deck-position mapping was locked the
+  // moment the table appeared — independent of when they decide to
+  // verify. State hooks for this feature are declared higher up (so
+  // pageMenuSections can read them); this block only wires the
+  // generation effect + the actual copy logic into copyRef.
+
+  useEffect(() => {
+    if (!size) return;
+    if (initialScatter.length === 0) return;
+    if (snapshotStatus !== "idle") return;
+    let cancelled = false;
+    setSnapshotStatus("generating");
+    (async () => {
+      const blob = await generateTableSnapshot({
+        scatter: initialScatter,
+        deckMapping,
+        containerWidth: size.w,
+        containerHeight: Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE),
+        cardWidth: cardW,
+        cardHeight: cardH,
+        topOffset: TABLETOP_CONFIG.TOP_RESERVE,
+      });
+      if (cancelled) return;
+      if (blob) {
+        setSnapshotBlob(blob);
+        setSnapshotStatus("ready");
+        // First-load popup, gated on the persisted preference. We
+        // wait for the snapshot to actually be ready before opening
+        // the popup so [Copy] is a one-tap action (no spinner).
+        if (askDrawProof && !proofPopupShownRef.current && !ready) {
+          proofPopupShownRef.current = true;
+          setProofPopupOpen(true);
+        }
+      } else {
+        setSnapshotStatus("failed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // We deliberately only depend on the SHAPE of the scatter (length +
+    // first card coords) — not the array reference — so resize-triggered
+    // rebuilds of initialScatter don't endlessly regenerate the proof.
+    // Resetting status from "ready" → "idle" would happen elsewhere if
+    // we ever want to force a refresh, but for now one snapshot per
+    // session is correct (the deck mapping is fixed by seed).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
+
+  // Wire copyRef now that snapshotBlob is in scope. The callback below
+  // is what the PageMenu button and the popup [Copy] button actually
+  // invoke (via copySnapshotNow above). Stored on a ref instead of in
+  // state so re-renders don't churn the callback identity and so
+  // pageMenuSections can be built before the deps are in scope.
+  copyRef.current = async () => {
+    if (!snapshotBlob) {
+      setCopyFeedback("failed");
+      window.setTimeout(() => setCopyFeedback(null), 2200);
+      return;
+    }
+    const ok = await copyBlobToClipboard(snapshotBlob);
+    setCopyFeedback(ok ? "copied" : "failed");
+    window.setTimeout(() => setCopyFeedback(null), 2200);
+  };
 
   // Hydrate cards + undo/redo from the cross-route session store on
   // first mount. If the user navigated away from /draw and came back,
@@ -1995,6 +2131,167 @@ export function Tabletop({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* EK03 — Draw-proof popup. Opens once on table mount when the
+          ask-on-load preference is ON and the snapshot blob is ready.
+          Self-contained inline panel (NOT shadcn AlertDialog) to keep
+          the dialog tree shallow — past sessions had crash issues with
+          AlertDialog nested inside Tabletop on certain mounts. Three
+          choices: [Copy] writes to clipboard and closes; [Skip] just
+          closes (popup will appear again next draw); [Don't ask again]
+          flips the preference OFF permanently. */}
+      {proofPopupOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="draw-proof-popup-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9990,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            background: "rgba(0, 0, 0, 0.55)",
+            backdropFilter: "blur(2px)",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 360,
+              width: "100%",
+              background: "var(--surface-elevated)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 12,
+              padding: 18,
+              boxShadow: "0 18px 48px rgba(0, 0, 0, 0.55)",
+              fontFamily: "var(--font-serif)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            <h2
+              id="draw-proof-popup-title"
+              style={{
+                margin: 0,
+                fontSize: "var(--text-heading-sm)",
+                fontStyle: "italic",
+                color: "var(--accent, var(--gold))",
+              }}
+            >
+              Copy draw proof?
+            </h2>
+            <p
+              style={{
+                marginTop: 8,
+                marginBottom: 14,
+                fontSize: "var(--text-body-sm)",
+                lineHeight: 1.45,
+                opacity: 0.85,
+              }}
+            >
+              A snapshot of the table is ready. Copying it to your
+              clipboard before you pick lets you verify later that the
+              cards were always where they are.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  setProofPopupOpen(false);
+                  await copySnapshotNow();
+                }}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--accent, var(--gold))",
+                  background:
+                    "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  cursor: "pointer",
+                  touchAction: "manipulation",
+                }}
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={() => setProofPopupOpen(false)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-subtle)",
+                  background: "transparent",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-body-sm)",
+                  cursor: "pointer",
+                  touchAction: "manipulation",
+                }}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAskDrawProof(false);
+                  setProofPopupOpen(false);
+                }}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--color-foreground)",
+                  opacity: 0.55,
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-body-sm)",
+                  cursor: "pointer",
+                  touchAction: "manipulation",
+                }}
+              >
+                Don't ask again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* EK03 — Inline copy-feedback toast. Renders briefly after a
+          clipboard copy attempt so the seeker knows it worked (or that
+          the browser blocked the write). Auto-dismisses after 2.2s
+          (timer set in copySnapshotNow). */}
+      {copyFeedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+            transform: "translateX(-50%)",
+            zIndex: 9991,
+            padding: "10px 16px",
+            background:
+              copyFeedback === "copied"
+                ? "color-mix(in oklab, var(--accent, var(--gold)) 18%, var(--surface-elevated))"
+                : "var(--surface-elevated)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 999,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+            pointerEvents: "none",
+          }}
+        >
+          {copyFeedback === "copied"
+            ? "Snapshot copied to clipboard"
+            : "Couldn't copy — try the menu button"}
+        </div>
+      )}
       {/* EJ47 — Inline `?` for Celtic Cross. Was previously surfaced
           only through the FloatingMenu pop-down, which has been
           removed. Now anchored to the top-right of the tabletop so
