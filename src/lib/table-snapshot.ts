@@ -189,19 +189,41 @@ export async function generateTableSnapshot(
 
 /**
  * Write a Blob to the system clipboard as an image/png ClipboardItem.
- * Returns true on success, false on failure (no clipboard API, no
- * permissions, no user gesture, etc.). The caller decides how to
- * surface the failure — typically a short toast or no-op.
+ *
+ * EK04 — Rewritten to fire `navigator.clipboard.write()` synchronously
+ * with a Promise inside ClipboardItem. The previous version had a
+ * `const item = new ClipboardItem(...); await navigator.clipboard.write([item])`
+ * sequence; multiple await hops between the originating user gesture
+ * (button click) and the actual write() call meant browsers — Safari
+ * especially — saw the write as unprompted and silently rejected.
+ *
+ * Pattern explained: ClipboardItem accepts a Promise<Blob> as its
+ * value. The browser starts the clipboard transaction synchronously
+ * with the gesture token live, then awaits the blob promise. So we
+ * call write() SYNCHRONOUSLY in the click handler, and the data
+ * resolves whenever the blob promise settles — without ever losing
+ * the gesture.
+ *
+ * Returns a Promise<boolean> that resolves true on success, false on
+ * any failure (missing API, missing permission, gesture lost, etc.).
+ * Callers can use the result for toast feedback; the function itself
+ * MUST be invoked synchronously from a user gesture handler.
  */
-export async function copyBlobToClipboard(blob: Blob): Promise<boolean> {
+export function copyBlobToClipboard(blob: Blob): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.clipboard || !window.ClipboardItem) {
-    return false;
+    return Promise.resolve(false);
   }
   try {
-    const item = new ClipboardItem({ [blob.type]: blob });
-    await navigator.clipboard.write([item]);
-    return true;
+    // The Promise.resolve wraps the already-resolved blob in a Promise
+    // so the ClipboardItem honors the "lazy blob" contract. Some
+    // browsers (older Safari) require the value to be a Promise even
+    // when it's already resolved.
+    const item = new ClipboardItem({ [blob.type]: Promise.resolve(blob) });
+    return navigator.clipboard
+      .write([item])
+      .then(() => true)
+      .catch(() => false);
   } catch {
-    return false;
+    return Promise.resolve(false);
   }
 }

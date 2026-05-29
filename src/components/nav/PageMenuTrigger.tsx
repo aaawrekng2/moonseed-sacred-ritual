@@ -23,7 +23,15 @@ export function PageMenuTrigger({ onClick }: { onClick: () => void }) {
         position: "fixed",
         top: "calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 8px)",
         left: 8,
-        zIndex: "var(--z-popover)" as unknown as number,
+        // EK04 — Bumped from --z-popover (50) to --z-modal-nested (200)
+        // so the hamburger sits above the TopNav (z-bottom-nav, 40) and
+        // any TopNav expansion / sticky-header overlays. Per Cori: the
+        // trigger should always be visible above the top menu when it
+        // expands. Stays below custom-high z layers (SpreadPicker
+        // dropdown at 9999, draw-proof popup at 9990) so those still
+        // visually claim attention when open — but above all normal
+        // page chrome.
+        zIndex: "var(--z-modal-nested)" as unknown as number,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
