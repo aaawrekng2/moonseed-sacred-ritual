@@ -108,7 +108,15 @@ export function PageMenu({ open, onClose, sections, title }: PageMenuProps) {
         onClick={onClose}
         className="modal-scrim fixed inset-0"
         style={{
-          zIndex: "var(--z-drawer)" as unknown as number,
+          // EK06 — z bumped from --z-drawer (60) to a literal 600 so
+          // the PageMenu drawer sits ABOVE FullScreenSheet (at --z-modal
+          // 100). ManualEntryBuilder renders inside a FullScreenSheet,
+          // so the previous z-60 made the drawer render BEHIND the
+          // sheet and become invisible — the hamburger trigger fired
+          // correctly and state updated, but the drawer was hidden, so
+          // it looked like "tapping does nothing." Bumped both the
+          // scrim and the panel.
+          zIndex: 600,
           opacity: open ? 1 : 0,
           pointerEvents: open ? "auto" : "none",
           transition: "opacity 200ms ease-out",
@@ -122,7 +130,8 @@ export function PageMenu({ open, onClose, sections, title }: PageMenuProps) {
         aria-label="Page menu"
         className="fixed left-0 top-0 flex flex-col overflow-y-auto border-r shadow-2xl"
         style={{
-          zIndex: "var(--z-drawer)" as unknown as number,
+          // EK06 — Matches the scrim bump above. Same rationale.
+          zIndex: 601,
           height: "100dvh",
           width: "min(320px, 100vw)",
           paddingTop: "calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 16px)",

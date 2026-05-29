@@ -404,10 +404,22 @@ export function ManualEntryBuilder({
               Custom-count stepper centered. Spread label shown for
               fixed spreads. The seeker's left hamburger + right X both
               float above this row at fixed positions; this row's content
-              only fills the central area between them. */}
+              only fills the central area between them.
+              EK06 — Made `position: sticky; top: 0` so the stepper +
+              SpreadPicker chevron stay visible when the seeker
+              scrolls down through tall multi-row custom layouts. At
+              custom count 6+ the slot section switches to two rows
+              and the page becomes taller than the viewport; the
+              previous in-flow position scrolled the stepper off-
+              screen at the top. Sticky pins it to the top of the
+              scrollable content. */}
           <div
             className="relative w-full border-b border-border/40"
             style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 5,
+              background: "var(--background)",
               minHeight: 48,
               paddingTop: 4,
               paddingBottom: 8,
