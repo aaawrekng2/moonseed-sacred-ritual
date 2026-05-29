@@ -56,34 +56,61 @@ export type SnapshotParams = {
  * once every image is decoded (or fails). Failed images become null in
  * the array; the snapshot draws a placeholder rectangle for those slots
  * rather than failing the whole snapshot.
+ *
+ * EK06 — Two-step fetch-then-Image load to bypass a service-worker
+ * opaque-response bug:
+ *
+ *   The app's service worker intercepts every same-origin GET. When an
+ *   <img> element loads `/cards/card-NN.jpg` WITHOUT a `crossOrigin`
+ *   attribute, the underlying request is `mode: "no-cors"`. The SW's
+ *   `fetch(req)` then returns an OPAQUE response (`res.type === "opaque"`)
+ *   to the browser. The image displays fine, but when drawn onto a
+ *   canvas it TAINTS the canvas — `canvas.toBlob()` then returns null
+ *   ("Tainted canvases may not be exported"). That was the EK05
+ *   "couldn't copy" bug.
+ *
+ *   Setting `crossOrigin = "anonymous"` doesn't help either: the SW
+ *   then needs to return CORS headers (Access-Control-Allow-Origin)
+ *   which the dev/prod server doesn't set for /public assets.
+ *
+ *   The fix here: bypass `<img>`-loaded resource semantics entirely.
+ *   We `fetch()` each card image as a normal same-origin request
+ *   (which IS readable as bytes, regardless of SW caching mode), then
+ *   create a `blob:` URL from the bytes and load THAT into an Image.
+ *   `blob:` URLs are always same-origin to the page that created them,
+ *   so the canvas can read pixels and toBlob() works.
  */
 function loadAllCardImages(): Promise<(HTMLImageElement | null)[]> {
   const promises: Promise<HTMLImageElement | null>[] = [];
   for (let i = 0; i < 78; i++) {
     const id = String(i).padStart(2, "0");
-    const img = new Image();
-    // EK05 — Removed `img.crossOrigin = "anonymous"`. The cards live at
-    // /cards/card-NN.jpg, same-origin with the app bundle, so they
-    // don't need CORS. Worse, setting crossOrigin="anonymous" without
-    // matching Access-Control-Allow-Origin response headers on the
-    // server caused the canvas to be marked "tainted" when these
-    // images were drawn — canvas.toBlob() then returned null, the
-    // snapshot status flipped to "failed", the popup never opened,
-    // and the manual menu button returned "couldn't copy". Removing
-    // the attribute keeps the load as a normal same-origin image
-    // request that the canvas can export freely. (If we ever move
-    // /cards/* to a CDN, restore crossOrigin and ensure the CDN sends
-    // Access-Control-Allow-Origin: * — until then, omit.)
-    img.src = `/cards/card-${id}.jpg`;
+    const url = `/cards/card-${id}.jpg`;
     promises.push(
-      new Promise<HTMLImageElement | null>((resolve) => {
-        if (img.complete && img.naturalWidth > 0) {
-          resolve(img);
-          return;
+      (async () => {
+        try {
+          const res = await fetch(url, {
+            credentials: "same-origin",
+            cache: "default",
+          });
+          if (!res.ok) return null;
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const img = new Image();
+          img.src = blobUrl;
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error("decode failed"));
+          });
+          // We intentionally DON'T revokeObjectURL immediately — the
+          // canvas drawImage happens after this returns, and revoking
+          // the URL while the Image is still being drawn from has
+          // produced empty draws on some browsers. Caller is short-
+          // lived (one snapshot per session) so the leak is bounded.
+          return img;
+        } catch {
+          return null;
         }
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-      }),
+      })(),
     );
   }
   return Promise.all(promises);
