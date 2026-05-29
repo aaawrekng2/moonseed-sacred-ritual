@@ -166,20 +166,33 @@ export function Tabletop({
   const { askDrawProof, setAskDrawProof } = useAskDrawProof();
   const [snapshotBlob, setSnapshotBlob] = useState<Blob | null>(null);
   const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "generating" | "ready" | "failed">("idle");
-  // EK09 — Detect Web Share availability ONCE on mount so the menu
-  // label can read "Share table snapshot" vs "Copy table snapshot"
-  // depending on platform. The actual file-canShare check requires
-  // a File object (which we don't have until snapshotBlob exists),
-  // so we use a cheaper proxy: navigator.share + navigator.canShare
-  // both being functions. iOS Safari 15+ and Android Chrome 89+ ship
-  // these; desktop Chrome/Edge/Firefox typically do not (yet).
-  // Cheap, runs once, no false positives in practice.
-  const webShareAvailable = useMemo(() => {
-    if (typeof navigator === "undefined") return false;
-    return (
+  // EK10 — SSR-safe Web Share availability detection.
+  //
+  // EK09 used `useMemo` to check `navigator.share` at render time. That
+  // diverged between SSR (where `navigator` is undefined → returns
+  // false) and client hydration (where it's defined → returns true).
+  // The mismatch caused React error #418 ("Hydration failed because
+  // the server rendered HTML didn't match the client") because the
+  // menu label, popup body, popup button label, and description text
+  // ALL read this value. When hydration fails, React throws away the
+  // whole tree and re-renders client-side from scratch, which broke
+  // the snapshot effect's lifecycle — that's why EK09 still showed
+  // "snapshot not ready yet" forever.
+  //
+  // Pattern: server and initial client render BOTH start with `false`
+  // (matching, no mismatch). Then the useEffect fires after hydration
+  // completes and flips the state to the real value. The subsequent
+  // re-render swaps labels/copy to the Share variant. No mismatch.
+  // Standard SSR-safe feature-detection pattern.
+  const [webShareAvailable, setWebShareAvailable] = useState(false);
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (
       typeof navigator.share === "function" &&
       typeof navigator.canShare === "function"
-    );
+    ) {
+      setWebShareAvailable(true);
+    }
   }, []);
   const [proofPopupOpen, setProofPopupOpen] = useState(false);
   const proofPopupShownRef = useRef(false);
