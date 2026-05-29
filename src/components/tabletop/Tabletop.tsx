@@ -184,34 +184,12 @@ export function Tabletop({
   // surfaces it inline so we can see WHAT failed instead of a generic
   // "Snapshot unavailable on this device" hiding the actual cause.
   const [snapshotErrorMessage, setSnapshotErrorMessage] = useState<string | null>(null);
-  // EK10 — SSR-safe Web Share availability detection.
-  //
-  // EK09 used `useMemo` to check `navigator.share` at render time. That
-  // diverged between SSR (where `navigator` is undefined → returns
-  // false) and client hydration (where it's defined → returns true).
-  // The mismatch caused React error #418 ("Hydration failed because
-  // the server rendered HTML didn't match the client") because the
-  // menu label, popup body, popup button label, and description text
-  // ALL read this value. When hydration fails, React throws away the
-  // whole tree and re-renders client-side from scratch, which broke
-  // the snapshot effect's lifecycle — that's why EK09 still showed
-  // "snapshot not ready yet" forever.
-  //
-  // Pattern: server and initial client render BOTH start with `false`
-  // (matching, no mismatch). Then the useEffect fires after hydration
-  // completes and flips the state to the real value. The subsequent
-  // re-render swaps labels/copy to the Share variant. No mismatch.
-  // Standard SSR-safe feature-detection pattern.
-  const [webShareAvailable, setWebShareAvailable] = useState(false);
-  useEffect(() => {
-    if (typeof navigator === "undefined") return;
-    if (
-      typeof navigator.share === "function" &&
-      typeof navigator.canShare === "function"
-    ) {
-      setWebShareAvailable(true);
-    }
-  }, []);
+  // EK15 — `webShareAvailable` state removed. All UI text is now
+  // unconditional ("Copy"); the copy handler at the JSX-write site
+  // (line ~777 below) reads `navigator.share` directly when deciding
+  // whether to route through Web Share API or clipboard, so the
+  // state was no longer load-bearing. Keeping the state would have
+  // been dead code triggering eslint.
   const [proofPopupOpen, setProofPopupOpen] = useState(false);
   const proofPopupShownRef = useRef(false);
   const [copyFeedback, setCopyFeedback] = useState<
@@ -295,16 +273,19 @@ export function Tabletop({
         // EK09 — Label flips Share/Copy based on platform Web Share
         // availability. Both routes are wired through the same
         // copySnapshotNow() call — copyRef.current internally
-        // auto-detects which API to use. The label exists just to
-        // set expectations: on mobile the seeker will see the iOS/
-        // Android share sheet open; on desktop the snapshot goes
-        // straight to the clipboard for pasting.
-        label: webShareAvailable ? "Share table snapshot" : "Copy table snapshot",
+        // EK15 — Always "Copy table snapshot" regardless of whether
+        // the underlying handler will route through Web Share API
+        // (mobile) or clipboard (desktop). Per Cori — label should
+        // be consistent everywhere, since the seeker's mental
+        // model is "Copy" and the share sheet on mobile is just a
+        // mechanism. Was: `webShareAvailable ? "Share..." : "Copy..."`.
+        label: "Copy table snapshot",
         description:
           snapshotStatus === "ready"
-            ? webShareAvailable
-              ? "Open the share sheet to save or send"
-              : "Proof that the deck wasn't rigged"
+            ? // EK15 — Was: `webShareAvailable ? "Open the share sheet…" : "Proof that the deck wasn't rigged"`.
+              // Now consistent regardless of platform — matches the
+              // "Copy" label above.
+              "Proof that the deck wasn't rigged"
             : snapshotStatus === "generating"
               ? "Preparing snapshot…"
               : snapshotStatus === "failed"
@@ -611,12 +592,18 @@ export function Tabletop({
     if (generationStartedRef.current) return;
     generationStartedRef.current = true;
 
-    // EK14 — Resolve URLs at the moment generation kicks off. Each
-    // entry is either the active-deck signed URL (or fallback) for
-    // that tarot id, or null in pathological cases.
+    // EK14/EK15 — Resolve URLs at the moment generation kicks off.
+    // EK15: request the "sm" variant (typically 10-30 KB each via
+    // Supabase Storage). The "display" variant from EK14 was the
+    // full-resolution upload (300-500 KB each); 78 of those in
+    // parallel against Supabase, queued through Chrome's 6-slot
+    // per-origin connection limit, blew past the 3s per-image
+    // timeout for 70 of 78 cards. Snapshot cards render at ~60-70px
+    // wide, so "sm" (~200-400px wide) is comfortably oversized for
+    // the use and FAR cheaper to fetch.
     const cardImageUrls: (string | null)[] = [];
     for (let i = 0; i < 78; i++) {
-      cardImageUrls.push(resolveCardUrl(i, "display"));
+      cardImageUrls.push(resolveCardUrl(i, "sm"));
     }
 
     setSnapshotStatus("generating");
@@ -632,19 +619,22 @@ export function Tabletop({
     //
     // EK13 — NO LONGER cleared by the effect cleanup. The cleanup
     // was firing on every dep change, killing the watchdog before
-    // it could trip. Now the watchdog has a guaranteed 20s budget
+    // it could trip. Now the watchdog has a guaranteed 35s budget
     // from when it was scheduled.
+    //
+    // EK15 — Bumped 20s → 35s to stay safely outside the new
+    // table-snapshot internal worst case (25s overall + 5s toBlob).
     window.setTimeout(() => {
       setSnapshotStatus((current) => {
         if (current === "generating") {
           setSnapshotErrorMessage(
-            `Generation watchdog tripped at 20s (attempt #${attemptNumber}, total effect runs ${effectRunCountRef.current}) — internal timeouts didn't fire`,
+            `Generation watchdog tripped at 35s (attempt #${attemptNumber}, total effect runs ${effectRunCountRef.current}) — internal timeouts didn't fire`,
           );
           return "failed";
         }
         return current;
       });
-    }, 20000);
+    }, 35000);
 
     (async () => {
       try {
@@ -2181,11 +2171,14 @@ export function Tabletop({
                 opacity: 0.85,
               }}
             >
-              A snapshot of the table is ready. {webShareAvailable
-                ? "Save or send it before you pick"
-                : "Copy it to your clipboard before you pick"}{" "}
-              so you can verify later that the cards were always where
-              they are.
+              {/* EK15 — Always reads "Copy it to your clipboard" so
+                  it matches the button label below. Was a conditional
+                  on webShareAvailable. Underlying handler still uses
+                  Web Share when available; the share sheet on mobile
+                  IS effectively how the seeker copies + saves there. */}
+              A snapshot of the table is ready. Copy it to your clipboard
+              before you pick so you can verify later that the cards
+              were always where they are.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
@@ -2216,7 +2209,13 @@ export function Tabletop({
                   touchAction: "manipulation",
                 }}
               >
-                {webShareAvailable ? "Share" : "Copy"}
+                {/* EK15 — Always "Copy" regardless of platform.
+                    Was: `webShareAvailable ? "Share" : "Copy"`. The
+                    underlying handler still routes through Web Share
+                    API on mobile when available — the iOS/Android
+                    share sheet opens — but the button label users
+                    see is the consistent "Copy" they recognize. */}
+                Copy
               </button>
               <button
                 type="button"
@@ -2296,15 +2295,16 @@ export function Tabletop({
             textAlign: "center",
           }}
         >
+          {/* EK15 — Toast feedback unified to "Copy" language even
+              when the underlying mechanism was Web Share. Was a
+              conditional on webShareAvailable returning "Snapshot
+              shared" / "Share blocked". Matches the Copy label on
+              the button + menu row. */}
           {copyFeedback === "copied"
-            ? webShareAvailable
-              ? "Snapshot shared"
-              : "Snapshot copied to clipboard"
+            ? "Snapshot copied to clipboard"
             : copyFeedback === "no_snapshot"
               ? "Snapshot not ready yet — wait a moment, then try again"
-              : webShareAvailable
-                ? "Share blocked — your browser refused the request"
-                : "Clipboard blocked — your browser refused the request"}
+              : "Clipboard blocked — your browser refused the request"}
         </div>
       )}
       {/* EJ47 — Inline `?` for Celtic Cross. Was previously surfaced
