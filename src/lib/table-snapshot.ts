@@ -62,9 +62,18 @@ function loadAllCardImages(): Promise<(HTMLImageElement | null)[]> {
   for (let i = 0; i < 78; i++) {
     const id = String(i).padStart(2, "0");
     const img = new Image();
-    // Same-origin /cards/ images don't need crossOrigin, but setting it
-    // anonymously is harmless and future-proofs against a CDN move.
-    img.crossOrigin = "anonymous";
+    // EK05 — Removed `img.crossOrigin = "anonymous"`. The cards live at
+    // /cards/card-NN.jpg, same-origin with the app bundle, so they
+    // don't need CORS. Worse, setting crossOrigin="anonymous" without
+    // matching Access-Control-Allow-Origin response headers on the
+    // server caused the canvas to be marked "tainted" when these
+    // images were drawn — canvas.toBlob() then returned null, the
+    // snapshot status flipped to "failed", the popup never opened,
+    // and the manual menu button returned "couldn't copy". Removing
+    // the attribute keeps the load as a normal same-origin image
+    // request that the canvas can export freely. (If we ever move
+    // /cards/* to a CDN, restore crossOrigin and ensure the CDN sends
+    // Access-Control-Allow-Origin: * — until then, omit.)
     img.src = `/cards/card-${id}.jpg`;
     promises.push(
       new Promise<HTMLImageElement | null>((resolve) => {
