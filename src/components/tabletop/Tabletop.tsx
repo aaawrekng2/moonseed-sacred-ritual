@@ -1338,6 +1338,9 @@ export function Tabletop({
   }, [usesSlots, selectionSig]);
 
   // ---- Gather gesture handlers (EK17) -------------------------------
+  const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+  const ready = selectedCount === required;
+
   //
   // Fired by an onPointerDown bound to the tabletop-stage div. We
   // intercept ONLY when the event target is the div itself — clicks
@@ -1430,9 +1433,6 @@ export function Tabletop({
       }
     };
   }, []);
-
-  const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
-  const ready = selectedCount === required;
 
   const toggleSelect = (id: number) => {
     let recordedAction: DragAction | null = null;
