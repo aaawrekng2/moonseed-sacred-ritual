@@ -1479,6 +1479,138 @@ export function Tabletop({
     { x: number; y: number; rotation: number }
   > | null>(null);
 
+  // EK25 — Reproduce buildScatter's grid geometry so we can place
+  // exiting cards in genuine buildScatter-quality cells. Same formula
+  // as scatter.ts → buildScatter: rotated bbox → effCardH → rows/cols.
+  // Returns null when size isn't measured yet.
+  const gridParams = useMemo(() => {
+    if (!size) return null;
+    const theta = (maxRotation * Math.PI) / 180;
+    const cosT = Math.abs(Math.cos(theta));
+    const sinT = Math.abs(Math.sin(theta));
+    const bboxW = cardW * cosT + cardH * sinT;
+    const bboxH = cardW * sinT + cardH * cosT;
+    const effCardH = cardH * cosT + cardW * sinT;
+    const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
+    const provisionalUsableH = Math.max(
+      1,
+      usableH - TABLETOP_CONFIG.SCATTER_PADDING * 2,
+    );
+    let rows = Math.max(1, Math.floor(provisionalUsableH / Math.max(1, effCardH)));
+    rows = Math.min(rows, TABLETOP_CONFIG.DECK_SIZE);
+    const cols = Math.max(1, Math.ceil(TABLETOP_CONFIG.DECK_SIZE / rows));
+    const rotSlackX = (bboxW - cardW) / 2;
+    const rotSlackY = (bboxH - cardH) / 2;
+    const padX = TABLETOP_CONFIG.SCATTER_PADDING + rotSlackX;
+    const padY = TABLETOP_CONFIG.SCATTER_PADDING + rotSlackY;
+    const safePadX = Math.min(padX, Math.max(0, (size.w - cardW) / 2));
+    const safePadY = Math.min(padY, Math.max(0, (usableH - cardH) / 2));
+    const cellsUsableW = Math.max(1, size.w - safePadX * 2);
+    const cellsUsableH = Math.max(1, usableH - safePadY * 2);
+    const cellW = cellsUsableW / cols;
+    const cellH_grid = cellsUsableH / rows;
+    return {
+      rows,
+      cols,
+      cellW,
+      cellH: cellH_grid,
+      safePadX,
+      safePadY,
+      topOffset: TABLETOP_CONFIG.TOP_RESERVE,
+    };
+  }, [size, cardW, cardH, maxRotation]);
+
+  // EK25 — Pick the BEST free grid cell to place an exiting card in,
+  // and compute its position with buildScatter-style jitter and
+  // rotation. "Free" = no other (non-exiting, non-cluster) card has
+  // its center in that cell, and the cell's center is OUTSIDE the
+  // current gather radius (so the card doesn't immediately re-enter
+  // the cluster). "Best" = closest to `aroundX/Y` so motion stays
+  // local.
+  //
+  // Returns null if no free cell exists — caller falls back to
+  // jittering the card's own home (rare edge case).
+  const placeCardInFreeCell = useCallback(
+    (
+      ownerId: number,
+      aroundX: number,
+      aroundY: number,
+      occupiedCells: Set<number>,
+      gatherC: { x: number; y: number } | null,
+    ): { x: number; y: number; rotation: number; cellIndex: number } | null => {
+      if (!gridParams || !size) return null;
+      const { rows, cols, cellW, cellH: cellH_grid, safePadX, safePadY, topOffset } = gridParams;
+      const radius = cardH * 1.75;
+      const r2 = radius * radius;
+      // Score each candidate cell by distance from aroundX/Y.
+      let bestIdx = -1;
+      let bestDist2 = Infinity;
+      for (let cell = 0; cell < rows * cols; cell++) {
+        if (occupiedCells.has(cell)) continue;
+        const col = cell % cols;
+        const row = Math.floor(cell / cols);
+        const cellCenterX = safePadX + col * cellW + cellW / 2;
+        const cellCenterY = safePadY + row * cellH_grid + cellH_grid / 2 + topOffset;
+        // Exclude cells inside the gather radius — placing there
+        // would let the card immediately re-enter the cluster on the
+        // next frame.
+        if (gatherC) {
+          const dgx = cellCenterX - gatherC.x;
+          const dgy = cellCenterY - gatherC.y;
+          if (dgx * dgx + dgy * dgy < r2) continue;
+        }
+        const dx = cellCenterX - aroundX;
+        const dy = cellCenterY - aroundY;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestDist2) {
+          bestDist2 = d2;
+          bestIdx = cell;
+        }
+      }
+      if (bestIdx < 0) return null;
+      const col = bestIdx % cols;
+      const row = Math.floor(bestIdx / cols);
+      const baseX = safePadX + col * cellW + (cellW - cardW) / 2;
+      const baseY = safePadY + row * cellH_grid + (cellH_grid - cardH) / 2 + topOffset;
+      const jitterX = cellW * 0.45;
+      const jitterY = cellH_grid * 0.45;
+      const dx = (Math.random() - 0.5) * jitterX;
+      const dy = (Math.random() - 0.5) * jitterY;
+      let rot = Math.random() * (maxRotation * 2) - maxRotation;
+      if (Math.abs(rot) < 1) rot = rot >= 0 ? 1 : -1;
+      const minX = TABLETOP_CONFIG.SCATTER_PADDING;
+      const maxX = Math.max(minX, size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING);
+      const minY = TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING;
+      const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
+      const maxY = Math.max(
+        minY,
+        TABLETOP_CONFIG.TOP_RESERVE + usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+      );
+      const x = Math.max(minX, Math.min(maxX, baseX + dx));
+      const y = Math.max(minY, Math.min(maxY, baseY + dy));
+      void ownerId; // reserved for future per-card seed determinism
+      return { x, y, rotation: rot, cellIndex: bestIdx };
+    },
+    [gridParams, size, cardW, cardH, maxRotation],
+  );
+
+  // EK25 — Compute the cell index a given position falls into. Used
+  // by the gather effect to determine which cells are currently
+  // "occupied" (so newly-placed cards don't double-up).
+  const cellIndexForPosition = useCallback(
+    (cardX: number, cardY: number): number | null => {
+      if (!gridParams) return null;
+      const { rows, cols, cellW, cellH: cellH_grid, safePadX, safePadY, topOffset } = gridParams;
+      const centerX = cardX + cardW / 2;
+      const centerY = cardY + cardH / 2;
+      const col = Math.floor((centerX - safePadX) / cellW);
+      const row = Math.floor((centerY - topOffset - safePadY) / cellH_grid);
+      if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
+      return row * cols + col;
+    },
+    [gridParams, cardW, cardH],
+  );
+
   const handleTableGatherUp = useCallback(() => {
     if (gatherHoldTimerRef.current !== null) {
       window.clearTimeout(gatherHoldTimerRef.current);
@@ -1486,113 +1618,92 @@ export function Tabletop({
     }
     gatherActiveRef.current = false;
     gatherStartPosRef.current = null;
-    // EK23 — Permutation on release. Build an array of {id, origin}
-    // entries from the gathered cards' ORIGINAL positions, then
-    // shuffle the origins to produce a derangement (no card lands
-    // at its OWN origin — every card has moved). Add small position
-    // jitter (~14px) and rotation jitter (±5deg) so the new spots
-    // aren't pixel-identical to the previous occupants — they look
-    // "lived in" rather than mechanical swaps.
-    const gathered = gatheredOriginsRef.current;
-    if (gathered.size >= 2) {
-      const ids = Array.from(gathered.keys());
-      const origins = ids.map((id) => gathered.get(id)!);
-      // Derangement via shifted cycle: card[i] takes origin[(i+1) % n].
-      // Simple, deterministic, guarantees no fixed points for n >= 2.
-      // For a more random permutation we could Fisher-Yates with
-      // rejection sampling, but a single cycle still moves every
-      // card and is computationally trivial.
-      // Then layer a Fisher-Yates over those shifted indices for
-      // extra randomness (still derangement-safe because we never
-      // produce identity).
-      const shiftedIdx = ids.map((_, i) => (i + 1) % ids.length);
-      // Fisher-Yates shuffle of the shifted indices.
-      for (let i = shiftedIdx.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shiftedIdx[i], shiftedIdx[j]] = [shiftedIdx[j], shiftedIdx[i]];
+    // EK25 — On release, each card STILL in the cluster needs a new
+    // home (cards that exited mid-gesture were already placed in a
+    // free cell, see the transition tracker below). For each still-
+    // clustered card, run the same grid-placement routine: pick the
+    // nearest free cell to its current cluster position (= the final
+    // gatherCenter), apply jitter + rotation, schedule the commit
+    // via releaseTargets so the transition is jump-free.
+    const stillClustered = currentlyClusteredRef.current;
+    const lastCenter = gatherCenter;
+    if (stillClustered.size > 0 && lastCenter && gridParams) {
+      // Build the set of currently-occupied cells (cards whose
+      // current x/y center lies in a cell). Exclude cards that are
+      // about to be placed (the still-clustered set) so their
+      // soon-to-be-released spots are available.
+      const occupied = new Set<number>();
+      for (const c of cards) {
+        if (stillClustered.has(c.id)) continue;
+        if (c.selectionOrder !== null) continue;
+        const idx = cellIndexForPosition(c.x, c.y);
+        if (idx !== null) occupied.add(idx);
       }
-      // After Fisher-Yates we may have re-introduced fixed points
-      // (where shiftedIdx[i] === i). Fix any in a single pass by
-      // swapping with the next index. n >= 2 guarantees this works.
-      for (let i = 0; i < shiftedIdx.length; i++) {
-        if (shiftedIdx[i] === i) {
-          const swap = (i + 1) % shiftedIdx.length;
-          [shiftedIdx[i], shiftedIdx[swap]] = [shiftedIdx[swap], shiftedIdx[i]];
+      // Also mark cells assigned by earlier release-targets in this
+      // pending batch so we don't double-place into the same cell.
+      const newTargets = new Map<number, { x: number; y: number; rotation: number }>();
+      for (const id of stillClustered) {
+        const placed = placeCardInFreeCell(id, lastCenter.x, lastCenter.y, occupied, null);
+        if (placed) {
+          newTargets.set(id, { x: placed.x, y: placed.y, rotation: placed.rotation });
+          occupied.add(placed.cellIndex);
         }
       }
-      const POS_JITTER = 14;
-      const ROT_JITTER = 5;
-      const assignments = new Map<number, { x: number; y: number; rotation: number }>();
-      for (let i = 0; i < ids.length; i++) {
-        const targetOrigin = origins[shiftedIdx[i]];
-        const jx = (Math.random() * 2 - 1) * POS_JITTER;
-        const jy = (Math.random() * 2 - 1) * POS_JITTER;
-        const jr = (Math.random() * 2 - 1) * ROT_JITTER;
-        assignments.set(ids[i], {
-          x: targetOrigin.x + jx,
-          y: targetOrigin.y + jy,
-          rotation: targetOrigin.rotation + jr,
-        });
-      }
-      // EK24 — Publish the assignments as releaseTargets so CardSlot
-      // can use them as the TRANSFORM end-point while keeping its
-      // `left`/`top` pinned at the original card.x/y. The actual
-      // card.x/y commit happens after the 900ms transition completes
-      // (see the setTimeout below). This is the key to the
-      // jump-free release: by deferring the card.x/y change,
-      // `left`/`top` don't snap and the transform interpolates from
-      // the cluster delta to the target delta smoothly.
-      setReleaseTargets(assignments);
-      // Schedule the commit. After the transition finishes, write
-      // the new positions to card.x/y AND clear releaseTargets in
-      // one render — left/top change to NEW, transform resets to
-      // identity, visual position stays the same because they were
-      // already showing the target via the transform.
+      // Merge with any in-flight releaseTargets so a re-release while
+      // the previous one is still animating doesn't clobber targets.
+      setReleaseTargets((prev) => {
+        const merged = new Map(prev ?? []);
+        for (const [id, t] of newTargets) merged.set(id, t);
+        return merged;
+      });
+      // After the transition window, commit the new positions to
+      // cards.x/y and remove the committed entries from releaseTargets.
       window.setTimeout(() => {
         setCards((prev) =>
           prev.map((c) => {
-            const next = assignments.get(c.id);
+            const next = newTargets.get(c.id);
             if (!next) return c;
             if (c.selectionOrder !== null) return c;
             return { ...c, ...next };
           }),
         );
-        setReleaseTargets(null);
+        setReleaseTargets((prev) => {
+          if (!prev) return null;
+          const merged = new Map(prev);
+          for (const id of newTargets.keys()) merged.delete(id);
+          return merged.size > 0 ? merged : null;
+        });
       }, 900);
-    } else if (gathered.size === 1) {
-      // Edge case: only 1 card was ever in the cluster — can't
-      // permute, no other origin to swap with. Leave it at home;
-      // user gets at least the visible gather/release motion.
     }
     gatheredOriginsRef.current = new Map();
     currentlyClusteredRef.current = new Set();
-    // EK18 — Smooth release: keep gatherCenter alive at off-screen
-    // coords briefly so CardSlot's "outside radius" branch runs the
-    // transition that carries each card to its new home. Bumped to
-    // 900ms in EK23 to match the longer release-transition duration
-    // CardSlot now uses.
+    // EK18 — Keep gather-center alive at off-screen coords briefly so
+    // CardSlot's "outside radius" branch runs the smooth release
+    // transition. After 900ms, clear gatherCenter — by then all
+    // committed cards have settled at their new spots.
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
     }, 900);
-  }, []);
+  }, [gatherCenter, gridParams, cards, cellIndexForPosition, placeCardInFreeCell]);
 
-  // EK23 — Accumulate-only tracking. Each frame, compute which cards
-  // are inside the radius now. For ids that JUST entered, capture
-  // their ORIGINAL position into `gatheredOriginsRef` (so we have a
-  // pool of pre-gather positions to permute over on release). The
-  // `currentlyClusteredRef` set is still maintained for the within-
-  // cluster offset computation in CardSlot, but exits no longer
-  // trigger position changes — cards stay in the cluster visually
-  // even if the user's finger drifts away, then all get permuted on
-  // release.
+  // EK25 — On-the-fly cluster transition tracking. Every time
+  // `gatherCenter` changes (pointermove updates it as the seeker
+  // drags), we compute the NEW set of in-radius card ids and compare
+  // to the ref's previous set:
+  //   - Cards in new but not prev = JUST ENTERED. Record their origin
+  //     so the release fallback could use it; no other action.
+  //   - Cards in prev but not new = JUST EXITED. Place each in the
+  //     nearest free grid cell outside the radius, with jitter and
+  //     rotation matching buildScatter's quality. Once placed, the
+  //     card sits there permanently unless the cluster comes back.
   useEffect(() => {
     if (!gatherCenter) {
       currentlyClusteredRef.current = new Set();
       return;
     }
     if (gatherCenter.x < -1000 || gatherCenter.y < -1000) return;
-    if (!cards.length) return;
+    if (!cards.length || !gridParams) return;
     const radius = cardH * 1.75;
     const r2 = radius * radius;
     const newSet = new Set<number>();
@@ -1602,10 +1713,8 @@ export function Tabletop({
       const dy = gatherCenter.y - (c.y + cardH / 2);
       if (dx * dx + dy * dy < r2) newSet.add(c.id);
     }
-    // Snapshot the origin of every card the first time it enters
-    // the cluster this session. Don't overwrite if already captured —
-    // a card that drifts in and out (because the finger moves) keeps
-    // its TRUE original position, not its mid-session position.
+    // Snapshot the origin of every card the first time it enters the
+    // cluster this session.
     for (const id of newSet) {
       if (gatheredOriginsRef.current.has(id)) continue;
       const card = cards.find((c) => c.id === id);
@@ -1616,21 +1725,73 @@ export function Tabletop({
         rotation: card.rotation,
       });
     }
+    // Find ids in prev but not newSet — JUST EXITED.
+    const prev = currentlyClusteredRef.current;
+    const exited: number[] = [];
+    for (const id of prev) {
+      if (!newSet.has(id)) exited.push(id);
+    }
+    if (exited.length > 0) {
+      // Build the set of currently-occupied cells (non-clustered,
+      // non-exiting, non-slotted cards' current positions).
+      const occupied = new Set<number>();
+      for (const c of cards) {
+        if (newSet.has(c.id)) continue; // still in cluster
+        if (exited.includes(c.id)) continue; // about to be placed
+        if (c.selectionOrder !== null) continue;
+        const idx = cellIndexForPosition(c.x, c.y);
+        if (idx !== null) occupied.add(idx);
+      }
+      // Also mark cells assigned by previously-in-flight release
+      // targets so we don't double-place.
+      if (releaseTargets) {
+        for (const t of releaseTargets.values()) {
+          const idx = cellIndexForPosition(t.x, t.y);
+          if (idx !== null) occupied.add(idx);
+        }
+      }
+      const newTargets = new Map<number, { x: number; y: number; rotation: number }>();
+      for (const id of exited) {
+        const placed = placeCardInFreeCell(id, gatherCenter.x, gatherCenter.y, occupied, gatherCenter);
+        if (placed) {
+          newTargets.set(id, { x: placed.x, y: placed.y, rotation: placed.rotation });
+          occupied.add(placed.cellIndex);
+        }
+      }
+      setReleaseTargets((p) => {
+        const merged = new Map(p ?? []);
+        for (const [id, t] of newTargets) merged.set(id, t);
+        return merged;
+      });
+      // After 900ms, commit each exited card's new position and
+      // remove it from releaseTargets so subsequent renders no longer
+      // override.
+      const idsToCommit = Array.from(newTargets.keys());
+      window.setTimeout(() => {
+        setCards((prevCards) =>
+          prevCards.map((c) => {
+            const next = newTargets.get(c.id);
+            if (!next) return c;
+            if (c.selectionOrder !== null) return c;
+            return { ...c, ...next };
+          }),
+        );
+        setReleaseTargets((p) => {
+          if (!p) return null;
+          const merged = new Map(p);
+          for (const id of idsToCommit) merged.delete(id);
+          return merged.size > 0 ? merged : null;
+        });
+      }, 900);
+    }
     currentlyClusteredRef.current = newSet;
-  }, [gatherCenter, cards, cardW, cardH]);
+  }, [gatherCenter, cards, cardW, cardH, gridParams, cellIndexForPosition, placeCardInFreeCell, releaseTargets]);
 
   // EK23 — Drive the within-cluster drift epoch. While gather is
   // active (gatherCenter present and not off-screen), increment
-  // every ~300ms. CardSlot reads this prop and uses it to derive a
+  // every ~200ms. CardSlot reads this prop and uses it to derive a
   // fresh per-card offset within the cluster, giving the visible
   // "stirring" motion.
-  //
-  // EK24 — Tick faster (200ms) so successive transitions overlap
-  // heavily, blurring the per-card "jump-from-A-to-B" feel into
-  // a continuous flow. Combined with CardSlot's longer 600ms
-  // transition (also EK24) and per-card phase offsets in the seed
-  // hash, the cluster looks like a smooth simmering soup rather
-  // than synchronized step-wise hops.
   useEffect(() => {
     if (!gatherCenter) return;
     if (gatherCenter.x < -1000 || gatherCenter.y < -1000) return;
