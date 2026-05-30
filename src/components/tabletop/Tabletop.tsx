@@ -1518,6 +1518,26 @@ export function Tabletop({
     { x: number; y: number; rotation: number }
   > | null>(null);
 
+  // EK29 — One-render transition-suppression set. When the deferred
+  // commit fires, both `card.x/y` AND the transform end-point change
+  // in a single render: card.x/y snaps to NEW, transform declared
+  // value flips from `translate3d(target-OLD, ...)` to identity
+  // (because releaseTarget was removed). The CSS transition on
+  // transform interpolates that DECLARED change over 800ms, but the
+  // visual at t=0 is `NEW + (target-OLD) = NEW + (NEW-OLD)` — an
+  // offset by (NEW-OLD) from where the card just landed. The card
+  // visibly teleports by that delta, then slides back over 800ms.
+  //
+  // Fix: at the commit render, add the card id to this set.
+  // CardSlot reads the prop and renders `transition: "none"` for
+  // those ids, so the browser snaps transform to identity without
+  // animation. Visual stays at NEW because `NEW + 0 === NEW`. A
+  // double-rAF clears the set after the browser has painted,
+  // restoring normal transitions for subsequent re-clustering.
+  const [suppressTransitionFor, setSuppressTransitionFor] = useState<Set<number>>(
+    new Set(),
+  );
+
   // EK25 — Reproduce buildScatter's grid geometry so we can place
   // exiting cards in genuine buildScatter-quality cells. Same formula
   // as scatter.ts → buildScatter: rotated bbox → effCardH → rows/cols.
@@ -1718,6 +1738,20 @@ export function Tabletop({
       // After the transition window, commit the new positions to
       // cards.x/y and remove the committed entries from releaseTargets.
       window.setTimeout(() => {
+        // EK29 — Suppress transform transition for the committed ids
+        // FOR ONE RENDER, batched into the same React update as the
+        // setCards + setReleaseTargets calls. CardSlot reads
+        // `suppressTransitionFor` and renders `transition: "none"`,
+        // so transform snaps to identity instantly instead of
+        // interpolating through `(NEW - OLD)` and visibly
+        // teleporting the card. After two rAFs the browser has
+        // painted and we clear the set, restoring normal motion.
+        const committedIds = Array.from(newTargets.keys());
+        setSuppressTransitionFor((prev) => {
+          const merged = new Set(prev);
+          for (const id of committedIds) merged.add(id);
+          return merged;
+        });
         setCards((prev) =>
           prev.map((c) => {
             const next = newTargets.get(c.id);
@@ -1736,6 +1770,20 @@ export function Tabletop({
         // effect to regenerate so the next Copy reflects the
         // post-shuffle state of the table.
         setSnapshotRegenTrigger((t) => t + 1);
+        // EK29 — Restore transitions after the browser has painted
+        // the commit. Double-rAF guarantees one full paint pass at
+        // the suppressed state, then the next paint runs with
+        // transitions re-enabled for future re-clustering.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setSuppressTransitionFor((prev) => {
+              if (prev.size === 0) return prev;
+              const merged = new Set(prev);
+              for (const id of committedIds) merged.delete(id);
+              return merged;
+            });
+          });
+        });
       }, 1100);
     }
     gatheredOriginsRef.current = new Map();
@@ -1849,6 +1897,14 @@ export function Tabletop({
       // override.
       const idsToCommit = Array.from(newTargets.keys());
       window.setTimeout(() => {
+        // EK29 — Suppress transform transition for the committed
+        // ids for one render. See the long-form comment near the
+        // suppressTransitionFor state declaration.
+        setSuppressTransitionFor((prev) => {
+          const merged = new Set(prev);
+          for (const id of idsToCommit) merged.add(id);
+          return merged;
+        });
         setCards((prevCards) =>
           prevCards.map((c) => {
             const next = newTargets.get(c.id);
@@ -1866,6 +1922,17 @@ export function Tabletop({
         // EK26 — Card positions have changed; refresh the snapshot
         // so a later Copy gives the post-shuffle table.
         setSnapshotRegenTrigger((t) => t + 1);
+        // EK29 — Clear suppression after the browser paints.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setSuppressTransitionFor((prev) => {
+              if (prev.size === 0) return prev;
+              const merged = new Set(prev);
+              for (const id of idsToCommit) merged.delete(id);
+              return merged;
+            });
+          });
+        });
       }, 1100);
     }
     currentlyClusteredRef.current = newSet;
@@ -2392,6 +2459,10 @@ export function Tabletop({
             // card animates smoothly from cluster to new spot
             // without a jump.
             releaseTarget={releaseTargets?.get(c.id) ?? null}
+            // EK29 — When this id is in the suppress set, CardSlot
+            // renders `transition: none` so the commit-render
+            // transform change doesn't visibly teleport-and-slide.
+            suppressTransition={suppressTransitionFor.has(c.id)}
             // EK27 — Play-area bounds: clamps in-cluster visual so
             // the cluster doesn't push cards outside the table.
             playBounds={playBounds}

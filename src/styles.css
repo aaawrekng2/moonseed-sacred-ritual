@@ -618,18 +618,18 @@ code, pre, kbd {
 /* Subtle "haptic-like" tap feedback — quick scale dip + release.
    Applied to the inner card surface so it composes with the parent's
    rotation/translate transform without fighting it.
-   EK28 — Reduced spring overshoot: the 70% scale was 1.04 (4% pop
-   past resting size) and the bezier had y2 = 1.56 (strong overshoot
-   curve). Combined, the card landed in its slot with a noticeable
-   bounce that read as too theatrical. Toned to 1.02 + bezier
-   y2 = 1.15: still a subtle "settle" feel, no longer a spring. */
+   EK29 — Spring overshoot stripped entirely. Was 100→95→102→100 with
+   a spring bezier (y2 = 1.15), which still read as too bouncy on
+   slot landing. New keyframes are a clean dip-and-return: the card
+   shrinks slightly at 50%, then returns to resting size. No past-
+   resting pop, no spring component in the easing. Material-standard
+   ease-out (cubic-bezier(0.22, 1, 0.36, 1)) gives a gentle settle. */
 @keyframes card-tap {
   0%   { transform: scale(1); }
-  35%  { transform: scale(0.95); }
-  70%  { transform: scale(1.02); }
+  50%  { transform: scale(0.96); }
   100% { transform: scale(1); }
 }
-.animate-card-tap { animation: card-tap 220ms cubic-bezier(0.34, 1.15, 0.64, 1); }
+.animate-card-tap { animation: card-tap 220ms cubic-bezier(0.22, 1, 0.36, 1); }
 
 /* Stir: a brief, gentle shimmer + tilt swept across the tabletop after the
    user invokes "Stir". Pure visual flourish — does not affect layout. */
