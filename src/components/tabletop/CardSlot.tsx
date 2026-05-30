@@ -3,6 +3,7 @@ import { getCardName } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import type { CardBackId } from "@/lib/card-backs";
 import { useActiveDeckImage, variantUrlFor } from "@/lib/active-deck";
+import { useDevFaces } from "@/components/dev/DevOverlay";
 import { cn } from "@/lib/utils";
 import { TABLETOP_CONFIG } from "./config";
 import type { CardState } from "./types";
@@ -166,6 +167,11 @@ export function CardSlot({
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
   const resolveDeckImage = useActiveDeckImage();
+  // EK28 — Dev "Show faces" toggle. When on, the face-down branch
+  // of <CardImage> is forced to render its face instead, so the
+  // seeker can visually verify which card sits at each position
+  // (used to confirm the gather shuffle actually mixes the deck).
+  const devFacesOn = useDevFaces();
   // When the card landed in the slot via a physical drag-drop we skip
   // the FLIP-style flight animation entirely — the user just placed it
   // there, animating it from the scatter coords (where it would re-mount
@@ -1080,7 +1086,10 @@ export function CardSlot({
           <CardImage
             cardId={faceIndex}
             variant="face"
-            flipped={card.revealed}
+            // EK28 — When the dev "Show faces" toggle is on, every
+            // card renders face-up regardless of card.revealed so
+            // the seeker can verify shuffle behavior visually.
+            flipped={card.revealed || devFacesOn}
             cardBackId={cardBack}
             size="custom"
             widthPx={cardW}

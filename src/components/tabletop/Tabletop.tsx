@@ -1885,6 +1885,43 @@ export function Tabletop({
     return () => window.clearInterval(intv);
   }, [gatherCenter]);
 
+  // EK28 — Rotate stacking order within the cluster on each drift
+  // tick. Cori's intuition: the cluster drift naturally moves in
+  // visible "rounds" (each 200ms tick → 600ms transition → settle),
+  // and using each round as a deck-shuffle cycle marker makes the
+  // mixing READ as actual shuffling. Each tick, take the cluster
+  // member with the highest z (visually on top of the cluster pile)
+  // and reassign it to the lowest z value held by another cluster
+  // member; everyone else shifts up by one rank within the cluster's
+  // own set of z values. The SET of z values within the cluster
+  // stays unchanged — only the assignment rotates — so exiting
+  // cards always carry a valid (originally-existing) z value, and
+  // there's no z-drift accumulating over many ticks.
+  useEffect(() => {
+    if (clusterDriftEpoch === 0) return;
+    if (currentlyClusteredRef.current.size < 2) return;
+    const clusteredSet = currentlyClusteredRef.current;
+    setCards((prev) => {
+      const inCluster = prev.filter((c) => clusteredSet.has(c.id) && c.selectionOrder === null);
+      if (inCluster.length < 2) return prev;
+      // Sort by current z ascending; sortedByZ[K-1] is the top.
+      const sortedByZ = [...inCluster].sort((a, b) => a.z - b.z);
+      const zValues = sortedByZ.map((c) => c.z);
+      // Rotate: sortedByZ[K-1] (top) gets zValues[0] (bottom);
+      // sortedByZ[i] for i < K-1 gets zValues[i + 1] (one rank up).
+      const newZ = new Map<number, number>();
+      for (let i = 0; i < sortedByZ.length; i++) {
+        const nextRank = i === sortedByZ.length - 1 ? 0 : i + 1;
+        newZ.set(sortedByZ[i].id, zValues[nextRank]);
+      }
+      return prev.map((c) => {
+        const z = newZ.get(c.id);
+        if (z === undefined) return c;
+        return { ...c, z };
+      });
+    });
+  }, [clusterDriftEpoch]);
+
   // Safety: if the component unmounts mid-gather, clear timers.
   useEffect(() => {
     return () => {
