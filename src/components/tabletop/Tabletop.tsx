@@ -1437,53 +1437,26 @@ export function Tabletop({
     [],
   );
 
-  // Helper — assign a new random scatter position to a card. Position
-  // is chosen in an annulus around `aroundX/Y` (the center the card
-  // is currently leaving) at radius 1.75..2.6 × cardH. The INNER
-  // bound matches the gather radius itself, so the new position is
-  // guaranteed to land OUTSIDE the cluster — otherwise the card
-  // would re-enter on the next frame and the transition tracker
-  // would shuffle it again, producing a feedback loop. The OUTER
-  // bound keeps the new spot LOCAL to the cluster (no teleport
-  // across the table). Result is clamped to the usable scatter area.
-  //
-  // EK22 — Used both by the mid-gesture exit handler (cards trailing
-  // out of the moving cluster) and the pointerup handler (still-
-  // clustered cards at release).
-  const placeCardNearGather = useCallback(
-    (
-      c: CardState,
-      aroundX: number,
-      aroundY: number,
-    ): { x: number; y: number; rotation: number } => {
-      if (!size) return { x: c.x, y: c.y, rotation: c.rotation };
-      const minR = cardH * 1.75;
-      const maxR = cardH * 2.6;
-      const angle = Math.random() * Math.PI * 2;
-      const r = minR + Math.random() * (maxR - minR);
-      const dx = Math.cos(angle) * r;
-      const dy = Math.sin(angle) * r;
-      // Target position is the gather center plus radial offset,
-      // then expressed as the card's TOP-LEFT (subtract cardW/2 and
-      // cardH/2 since gather coords describe the cluster CENTER).
-      let nx = aroundX + dx - cardW / 2;
-      let ny = aroundY + dy - cardH / 2;
-      const minX = TABLETOP_CONFIG.SCATTER_PADDING;
-      const maxX = Math.max(minX, size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING);
-      const minY = TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING;
-      const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
-      const maxY = Math.max(
-        minY,
-        TABLETOP_CONFIG.TOP_RESERVE + usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
-      );
-      if (nx < minX) nx = minX;
-      if (nx > maxX) nx = maxX;
-      if (ny < minY) ny = minY;
-      if (ny > maxY) ny = maxY;
-      const nrot = (Math.random() * 2 - 1) * maxRotation;
-      return { x: nx, y: ny, rotation: nrot };
-    },
-    [size, cardW, cardH, maxRotation],
+  // EK23 — Within-cluster drift epoch. While gather is active, this
+  // counter increments every ~300ms, prompting CardSlot to recompute
+  // each in-cluster card's per-card cluster offset from a new pseudo-
+  // random seed (combining card.id with the epoch). CSS transitions
+  // smoothly interpolate between offsets, so cards visibly stir
+  // around inside the cluster — the user can SEE the deck shuffling.
+  const [clusterDriftEpoch, setClusterDriftEpoch] = useState(0);
+
+  // EK23 — Permutation-based release. While gather is active, every
+  // card that has entered the radius is added to `gatheredIdsRef`
+  // along with its ORIGINAL position (the position it had BEFORE
+  // joining the cluster). On release, those original positions form
+  // a "pool" — each gathered card is assigned to ANOTHER gathered
+  // card's original spot, with small jitter, so no card returns home
+  // but the SET of occupied positions stays buildScatter-quality
+  // (because those positions WERE buildScatter-generated). Cards
+  // visibly travel from cluster to new spot with a per-card stagger
+  // for organic feel.
+  const gatheredOriginsRef = useRef<Map<number, { x: number; y: number; rotation: number }>>(
+    new Map(),
   );
 
   const handleTableGatherUp = useCallback(() => {
@@ -1493,49 +1466,89 @@ export function Tabletop({
     }
     gatherActiveRef.current = false;
     gatherStartPosRef.current = null;
-    // EK22 — On release, treat every card STILL in the cluster as
-    // having just exited: assign it a new random position in the
-    // annulus around the final gather center. Cards that left the
-    // cluster mid-gesture were already given new positions by the
-    // transition-tracking effect below, so they aren't touched here.
-    // No more "grand reshuffle of the entire board" — only the cards
-    // physically holding hands with the finger at the moment of
-    // release get new spots.
-    const stillClustered = currentlyClusteredRef.current;
-    const lastCenter = gatherCenter;
-    if (stillClustered.size > 0 && lastCenter && size) {
+    // EK23 — Permutation on release. Build an array of {id, origin}
+    // entries from the gathered cards' ORIGINAL positions, then
+    // shuffle the origins to produce a derangement (no card lands
+    // at its OWN origin — every card has moved). Add small position
+    // jitter (~14px) and rotation jitter (±5deg) so the new spots
+    // aren't pixel-identical to the previous occupants — they look
+    // "lived in" rather than mechanical swaps.
+    const gathered = gatheredOriginsRef.current;
+    if (gathered.size >= 2) {
+      const ids = Array.from(gathered.keys());
+      const origins = ids.map((id) => gathered.get(id)!);
+      // Derangement via shifted cycle: card[i] takes origin[(i+1) % n].
+      // Simple, deterministic, guarantees no fixed points for n >= 2.
+      // For a more random permutation we could Fisher-Yates with
+      // rejection sampling, but a single cycle still moves every
+      // card and is computationally trivial.
+      // Then layer a Fisher-Yates over those shifted indices for
+      // extra randomness (still derangement-safe because we never
+      // produce identity).
+      const shiftedIdx = ids.map((_, i) => (i + 1) % ids.length);
+      // Fisher-Yates shuffle of the shifted indices.
+      for (let i = shiftedIdx.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shiftedIdx[i], shiftedIdx[j]] = [shiftedIdx[j], shiftedIdx[i]];
+      }
+      // After Fisher-Yates we may have re-introduced fixed points
+      // (where shiftedIdx[i] === i). Fix any in a single pass by
+      // swapping with the next index. n >= 2 guarantees this works.
+      for (let i = 0; i < shiftedIdx.length; i++) {
+        if (shiftedIdx[i] === i) {
+          const swap = (i + 1) % shiftedIdx.length;
+          [shiftedIdx[i], shiftedIdx[swap]] = [shiftedIdx[swap], shiftedIdx[i]];
+        }
+      }
+      const POS_JITTER = 14;
+      const ROT_JITTER = 5;
+      const assignments = new Map<number, { x: number; y: number; rotation: number }>();
+      for (let i = 0; i < ids.length; i++) {
+        const targetOrigin = origins[shiftedIdx[i]];
+        const jx = (Math.random() * 2 - 1) * POS_JITTER;
+        const jy = (Math.random() * 2 - 1) * POS_JITTER;
+        const jr = (Math.random() * 2 - 1) * ROT_JITTER;
+        assignments.set(ids[i], {
+          x: targetOrigin.x + jx,
+          y: targetOrigin.y + jy,
+          rotation: targetOrigin.rotation + jr,
+        });
+      }
       setCards((prev) =>
         prev.map((c) => {
-          if (!stillClustered.has(c.id)) return c;
+          const next = assignments.get(c.id);
+          if (!next) return c;
           if (c.selectionOrder !== null) return c;
-          return { ...c, ...placeCardNearGather(c, lastCenter.x, lastCenter.y) };
+          return { ...c, ...next };
         }),
       );
+    } else if (gathered.size === 1) {
+      // Edge case: only 1 card was ever in the cluster — can't
+      // permute, no other origin to swap with. Leave it at home;
+      // user gets at least the visible gather/release motion.
     }
+    gatheredOriginsRef.current = new Map();
     currentlyClusteredRef.current = new Set();
     // EK18 — Smooth release: keep gatherCenter alive at off-screen
-    // coords for 420ms so CardSlot's "outside radius" branch runs
-    // the transition that carries each card to its new home.
+    // coords briefly so CardSlot's "outside radius" branch runs the
+    // transition that carries each card to its new home. Bumped to
+    // 900ms in EK23 to match the longer release-transition duration
+    // CardSlot now uses.
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
-    }, 420);
-  }, [gatherCenter, size, placeCardNearGather]);
+    }, 900);
+  }, []);
 
-  // EK22 — On-the-fly cluster transition tracking. Every time
-  // `gatherCenter` changes (pointermove updates it as the seeker
-  // drags), we compute the NEW set of in-radius card ids and compare
-  // to the ref's PREVIOUS set:
-  //   - Cards in new but not prev = JUST ENTERED (no action; CardSlot
-  //     will animate them inward).
-  //   - Cards in prev but not new = JUST EXITED (give them a new
-  //     random position near where they exited).
-  // The ref is updated to the new set so the next frame compares
-  // against this one.
-  //
-  // Off-screen sentinel (-10000, -10000) means we're in the release
-  // window — handleTableGatherUp already handled the still-clustered
-  // set; skip this effect.
+  // EK23 — Accumulate-only tracking. Each frame, compute which cards
+  // are inside the radius now. For ids that JUST entered, capture
+  // their ORIGINAL position into `gatheredOriginsRef` (so we have a
+  // pool of pre-gather positions to permute over on release). The
+  // `currentlyClusteredRef` set is still maintained for the within-
+  // cluster offset computation in CardSlot, but exits no longer
+  // trigger position changes — cards stay in the cluster visually
+  // even if the user's finger drifts away, then all get permuted on
+  // release.
   useEffect(() => {
     if (!gatherCenter) {
       currentlyClusteredRef.current = new Set();
@@ -1546,31 +1559,42 @@ export function Tabletop({
     const radius = cardH * 1.75;
     const r2 = radius * radius;
     const newSet = new Set<number>();
-    const prev = currentlyClusteredRef.current;
     for (const c of cards) {
       if (c.selectionOrder !== null) continue;
       const dx = gatherCenter.x - (c.x + cardW / 2);
       const dy = gatherCenter.y - (c.y + cardH / 2);
       if (dx * dx + dy * dy < r2) newSet.add(c.id);
     }
-    // Find ids in prev but not newSet — those JUST EXITED.
-    const exited: number[] = [];
-    for (const id of prev) {
-      if (!newSet.has(id)) exited.push(id);
-    }
-    if (exited.length > 0) {
-      const exitedIds = new Set(exited);
-      const center = gatherCenter;
-      setCards((prevCards) =>
-        prevCards.map((c) => {
-          if (!exitedIds.has(c.id)) return c;
-          if (c.selectionOrder !== null) return c;
-          return { ...c, ...placeCardNearGather(c, center.x, center.y) };
-        }),
-      );
+    // Snapshot the origin of every card the first time it enters
+    // the cluster this session. Don't overwrite if already captured —
+    // a card that drifts in and out (because the finger moves) keeps
+    // its TRUE original position, not its mid-session position.
+    for (const id of newSet) {
+      if (gatheredOriginsRef.current.has(id)) continue;
+      const card = cards.find((c) => c.id === id);
+      if (!card) continue;
+      gatheredOriginsRef.current.set(id, {
+        x: card.x,
+        y: card.y,
+        rotation: card.rotation,
+      });
     }
     currentlyClusteredRef.current = newSet;
-  }, [gatherCenter, cards, cardW, cardH, placeCardNearGather]);
+  }, [gatherCenter, cards, cardW, cardH]);
+
+  // EK23 — Drive the within-cluster drift epoch. While gather is
+  // active (gatherCenter present and not off-screen), increment
+  // every ~300ms. CardSlot reads this prop and uses it to derive a
+  // fresh per-card offset within the cluster, giving the visible
+  // "stirring" motion.
+  useEffect(() => {
+    if (!gatherCenter) return;
+    if (gatherCenter.x < -1000 || gatherCenter.y < -1000) return;
+    const intv = window.setInterval(() => {
+      setClusterDriftEpoch((e) => e + 1);
+    }, 300);
+    return () => window.clearInterval(intv);
+  }, [gatherCenter]);
 
   // Safety: if the component unmounts mid-gather, clear timers.
   useEffect(() => {
@@ -2031,6 +2055,11 @@ export function Tabletop({
             // (so the work stays distributed and each card transitions
             // independently).
             gatherCenter={gatherCenter}
+            // EK23 — Within-cluster drift epoch. Bumps every ~300ms
+            // while gather is active. CardSlot combines it with
+            // card.id to compute a fresh per-card cluster offset so
+            // clustered cards visibly stir around each other.
+            clusterDriftEpoch={clusterDriftEpoch}
             containerRect={
               containerOrigin && size
                 ? {

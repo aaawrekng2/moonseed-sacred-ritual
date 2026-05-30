@@ -38,6 +38,11 @@ export function CardSlot({
   // per-card cluster offset + rotation jitter. If no (or null), the
   // card sits at its home scatter position.
   gatherCenter = null,
+  // EK23 — Within-cluster drift epoch. Combined with card.id to
+  // derive a fresh per-card cluster offset that changes over time,
+  // so clustered cards visibly stir around each other rather than
+  // sitting perfectly still.
+  clusterDriftEpoch = 0,
 }: {
   card: CardState;
   cardW: number;
@@ -119,6 +124,14 @@ export function CardSlot({
    * coords. CSS transition handles the actual motion.
    */
   gatherCenter?: { x: number; y: number } | null;
+  /**
+   * EK23 — Drift counter that ticks every ~300ms while gather is
+   * active. Combined with card.id to deterministically derive a
+   * fresh per-card cluster offset on each tick, so cards inside the
+   * cluster visibly drift around each other (the visual "shuffle"
+   * feedback the seeker sees while holding).
+   */
+  clusterDriftEpoch?: number;
 }) {
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
@@ -846,25 +859,26 @@ export function CardSlot({
           const dist = Math.sqrt(dx * dx + dy * dy);
           const radius = cardH * 1.75;
           if (dist < radius) {
-            // Deterministic per-card cluster offset and rotation jitter.
-            // Uses card.id as a seed so the same card always lands in the
-            // same relative position within the cluster — no jitter on
-            // re-render. Offset is in a small radius (0.25 × cardH) so
-            // cards stack tightly but remain distinguishable.
-            const seed = card.id;
-            const clusterRadius = cardH * 0.25;
+            // EK23 — Per-card cluster offset that DRIFTS over time.
+            // The seed combines card.id with clusterDriftEpoch (a
+            // counter that ticks every ~300ms while gather is active
+            // in Tabletop). Each tick produces a fresh offset; CSS
+            // transitions smoothly interpolate from the old offset to
+            // the new one, so clustered cards visibly stir around
+            // each other as the user holds.
+            //
+            // Cluster radius is larger here (0.6 × cardH) than the
+            // pre-EK23 0.25 × cardH so the drift is VISIBLE — too
+            // small a cluster radius makes the motion invisible.
+            const seed = card.id * 2654435761 + clusterDriftEpoch * 1597463007;
+            const clusterRadius = cardH * 0.6;
             const angle = ((seed * 137.508) % 360) * (Math.PI / 180);
-            const radial = ((seed * 31) % 100) / 100; // 0..1
+            const radial = ((Math.abs(seed) * 31) % 100) / 100; // 0..1
             const offX = Math.cos(angle) * clusterRadius * radial;
             const offY = Math.sin(angle) * clusterRadius * radial;
-            const rotJitter = (((seed * 47) % 31) - 15); // -15..+15
-            // EK20 — Motion is now via GPU-accelerated transform
-            // translate3d, NOT via left/top. Animating left/top forces
-            // a layout recompute every frame, and at 78 cards with
-            // overlap the browser became CPU-bound and dropped frames
-            // (visible as stutter / stop-start as cards "hit" each
-            // other). left/top stay pinned at the card's home scatter
-            // coords; the visual offset is purely a transform.
+            const rotJitter = ((Math.abs(seed) * 47) % 31) - 15; // -15..+15
+            // EK20 — Motion is GPU-accelerated transform translate3d,
+            // NOT left/top. Layout stays put.
             const targetX = gatherCenter.x - cardW / 2 + offX;
             const targetY = gatherCenter.y - cardH / 2 + offY;
             const deltaX = targetX - card.x;
@@ -881,10 +895,12 @@ export function CardSlot({
               // reads as a single visual group on top of the rest of
               // the scatter.
               zIndex: 800 + card.z,
-              // Only transition `transform` — left/top don't change so
-              // animating them is wasted work. Same 380ms ease-in-out
-              // ramp Cori felt was right.
-              transition: "transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
+              // EK23 — Slightly longer cluster transition (450ms) so
+              // the drift between epochs looks like fluid stirring,
+              // not a snap to each new offset. Initial pull-in still
+              // feels brisk because the FIRST transition runs from
+              // home → cluster which is a longer visual distance.
+              transition: "transform 450ms cubic-bezier(0.4, 0, 0.2, 1)",
               willChange: "transform",
               ["--card-hit-inset" as string]: `${hitInset}px`,
               ["--card-rotation" as string]: `${card.rotation + rotJitter}deg`,
@@ -893,7 +909,16 @@ export function CardSlot({
           // Card is outside radius — keep `left`/`top` at home, return
           // transform to identity (translate3d(0,0,0) + the card's
           // natural rotation). CSS transitions the transform smoothly
-          // back to home. No settle-in replay because we keep `animation: "none"`.
+          // back to home. No settle-in replay because we keep
+          // `animation: "none"`.
+          //
+          // EK23 — Longer transition (800ms) with a per-card stagger
+          // (card.id-derived 0..220ms delay) so the release feels
+          // organic — cards unwind in waves rather than all at once.
+          // Tabletop's release watchdog (900ms after pointerup)
+          // preserves this transition long enough to finish before
+          // gatherCenter goes null.
+          const releaseDelay = (card.id * 37) % 220; // 0..219ms
           return {
             ...baseStyle,
             left: card.x,
@@ -903,7 +928,7 @@ export function CardSlot({
             // pipeline (no jank when transitioning between the two
             // states mid-gather).
             transform: `translate3d(0, 0, 0) rotate(${card.rotation}deg)`,
-            transition: "transform 420ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: `transform 800ms cubic-bezier(0.4, 0, 0.2, 1) ${releaseDelay}ms`,
             willChange: "transform",
             animation: "none",
           };
