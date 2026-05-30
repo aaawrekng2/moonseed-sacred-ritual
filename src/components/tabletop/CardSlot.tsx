@@ -407,11 +407,29 @@ export function CardSlot({
       // rotation-independent: getBoundingClientRect() would return the
       // rotated bounding box, which gives wrong offset math when the
       // dragged card renders at rotate(0deg).
-      const freshRectAtStart = containerElRef.current?.getBoundingClientRect();
-      const cLeftAtStart = freshRectAtStart?.left ?? containerRect?.left ?? 0;
-      const cTopAtStart = freshRectAtStart?.top ?? containerRect?.top ?? 0;
-      const logicalCardLeft = cLeftAtStart + card.x;
-      const logicalCardTop = cTopAtStart + card.y;
+      //
+      // EK21 — For a SLOTTED card (selectionOrder !== null, slotRect
+      // present), the card is currently rendered AT slotRect via
+      // position:fixed, NOT at card.x / card.y (which remain the card's
+      // original scatter coords). Using the scatter coords here made
+      // the pointerOffset wrong by the distance between the slot and
+      // the scatter spot — visible as the card jumping by half the
+      // screen height when the seeker tried to drag it back to the
+      // table. Use the slot's viewport rect when slotted, the
+      // container-relative scatter coords otherwise.
+      const isSlottedNow = card.selectionOrder !== null && slotRect !== null;
+      let logicalCardLeft: number;
+      let logicalCardTop: number;
+      if (isSlottedNow && slotRect) {
+        logicalCardLeft = slotRect.left;
+        logicalCardTop = slotRect.top;
+      } else {
+        const freshRectAtStart = containerElRef.current?.getBoundingClientRect();
+        const cLeftAtStart = freshRectAtStart?.left ?? containerRect?.left ?? 0;
+        const cTopAtStart = freshRectAtStart?.top ?? containerRect?.top ?? 0;
+        logicalCardLeft = cLeftAtStart + card.x;
+        logicalCardTop = cTopAtStart + card.y;
+      }
       const activeClientX = s.currentClientX;
       const activeClientY = s.currentClientY;
       s.pointerOffsetX = activeClientX - logicalCardLeft;
@@ -441,7 +459,7 @@ export function CardSlot({
         activeClientY - s.pointerOffsetY,
       );
     }
-  }, [onDragMove, containerRect, containerElRef]);
+  }, [onDragMove, containerRect, containerElRef, card, slotRect]);
 
   // Touch / coarse pointer activates drag faster (80ms) so a quick
   // press-and-move doesn't get treated as a tap. Mouse keeps 150ms.

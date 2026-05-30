@@ -865,6 +865,13 @@ export function Tabletop({
   const gatherActiveRef = useRef(false);
   const gatherHoldTimerRef = useRef<number | null>(null);
   const gatherStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  // EK21 — Set of card IDs that were inside the 1.75 × cardH radius
+  // at any point during the current gather session. On pointerup,
+  // every card in this set is assigned a new random scatter position,
+  // so the gesture actually SHUFFLES the deck instead of bringing
+  // cards back to their original spots. Cleared on release once the
+  // shuffle has been dispatched.
+  const gatheredIdsRef = useRef<Set<number>>(new Set());
 
   // ---- Onboarding hint --------------------------------------------------
   // Show a small hint on the tabletop that explains the hold-to-drag
@@ -1444,11 +1451,76 @@ export function Tabletop({
     // restoring the home position smoothly. After 420ms (matching
     // the release transition duration), actually clear gatherCenter
     // so subsequent renders revert to the pre-EK17 baseStyle path.
+    //
+    // EK21 — The release also SHUFFLES every card that touched the
+    // gather radius during this session. New random scatter positions
+    // are written into the cards state, and CardSlot's outside-radius
+    // transform-based transition carries them visually to the new
+    // homes over 420ms. Cards that never entered the radius keep
+    // their existing positions. Cards in slots are excluded.
+    if (gatheredIdsRef.current.size > 0 && size) {
+      const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
+      const minX = TABLETOP_CONFIG.SCATTER_PADDING;
+      const maxX = Math.max(minX, size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING);
+      const minY = TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING;
+      const maxY = Math.max(
+        minY,
+        TABLETOP_CONFIG.TOP_RESERVE + usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+      );
+      const touched = gatheredIdsRef.current;
+      setCards((prev) =>
+        prev.map((c) => {
+          if (!touched.has(c.id)) return c;
+          // Don't shuffle a card that's currently in a slot — its
+          // position is anchored to slotRect, and rewriting card.x/y
+          // would only affect a future return-to-scatter, not the
+          // current visual.
+          if (c.selectionOrder !== null) return c;
+          // Uniform random within the usable scatter area. We don't
+          // try to avoid collisions — the gather metaphor is "shuffle
+          // and scatter again", so slight overlap is fine and even
+          // expected after a mix. The full buildScatter collision
+          // pass is intentionally skipped here for simplicity and
+          // perceived randomness.
+          const nx = minX + Math.random() * (maxX - minX);
+          const ny = minY + Math.random() * (maxY - minY);
+          const nrot = (Math.random() * 2 - 1) * maxRotation;
+          return { ...c, x: nx, y: ny, rotation: nrot };
+        }),
+      );
+      gatheredIdsRef.current = new Set();
+    }
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
     }, 420);
-  }, []);
+  }, [size, cardW, maxRotation]);
+
+  // EK21 — While gather is active, sweep all unselected cards and
+  // record which ones are inside the 1.75 × cardH radius. The set
+  // accumulates: even cards that drift in and out across the gesture
+  // remain "touched". On pointerup, handleTableGatherUp uses the
+  // accumulated set to decide which cards get new random positions.
+  useEffect(() => {
+    if (!gatherCenter || !gatherActiveRef.current || !cards.length) return;
+    // Off-screen sentinel means we're in the release transition —
+    // don't record IDs there.
+    if (gatherCenter.x < -1000 || gatherCenter.y < -1000) return;
+    const radius = cardH * 1.75;
+    const r2 = radius * radius;
+    let next: Set<number> | null = null;
+    for (const c of cards) {
+      if (c.selectionOrder !== null) continue;
+      if (gatheredIdsRef.current.has(c.id)) continue;
+      const dx = gatherCenter.x - (c.x + cardW / 2);
+      const dy = gatherCenter.y - (c.y + cardH / 2);
+      if (dx * dx + dy * dy < r2) {
+        if (!next) next = new Set(gatheredIdsRef.current);
+        next.add(c.id);
+      }
+    }
+    if (next) gatheredIdsRef.current = next;
+  }, [gatherCenter, cards, cardW, cardH]);
 
   // Safety: if the component unmounts mid-gather, clear timers.
   useEffect(() => {
