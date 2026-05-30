@@ -52,6 +52,10 @@ export function CardSlot({
   // Tabletop commits target → card.x/y in a single render and
   // clears this prop, so the visual position stays put.
   releaseTarget = null,
+  // EK27 — Play-area bounds in container-relative coords. Used to
+  // clamp the in-cluster visual position so a cluster held near an
+  // edge doesn't push cards outside the usable scatter rectangle.
+  playBounds = null,
 }: {
   card: CardState;
   cardW: number;
@@ -149,6 +153,15 @@ export function CardSlot({
    * sets this back to null.
    */
   releaseTarget?: { x: number; y: number; rotation: number } | null;
+  /**
+   * EK27 — Play-area bounds (minX/maxX/minY/maxY in container-
+   * relative px). The in-cluster visual position is clamped to
+   * this rect so the cluster, when held near an edge, doesn't push
+   * cards outside the table area. When null, no clamping is
+   * applied (preserves existing call sites that haven't passed
+   * the prop yet).
+   */
+  playBounds?: { minX: number; maxX: number; minY: number; maxY: number } | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
@@ -902,8 +915,19 @@ export function CardSlot({
             const rotJitter = ((Math.abs(seed) * 47) % 31) - 15; // -15..+15
             // EK20 — Motion is GPU-accelerated transform translate3d,
             // NOT left/top. Layout stays put.
-            const targetX = gatherCenter.x - cardW / 2 + offX;
-            const targetY = gatherCenter.y - cardH / 2 + offY;
+            let targetX = gatherCenter.x - cardW / 2 + offX;
+            let targetY = gatherCenter.y - cardH / 2 + offY;
+            // EK27 — Clamp the in-cluster visual position so a
+            // cluster held near an edge doesn't push the card
+            // outside the usable scatter rectangle. Without this,
+            // a card visually appears outside the play area while
+            // held, then "pops in" to its placed cell on release.
+            if (playBounds) {
+              if (targetX < playBounds.minX) targetX = playBounds.minX;
+              else if (targetX > playBounds.maxX) targetX = playBounds.maxX;
+              if (targetY < playBounds.minY) targetY = playBounds.minY;
+              else if (targetY > playBounds.maxY) targetY = playBounds.maxY;
+            }
             const deltaX = targetX - card.x;
             const deltaY = targetY - card.y;
             return {
