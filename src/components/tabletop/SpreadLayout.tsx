@@ -685,7 +685,18 @@ function CardFace({
     // Next frame: enable the transition and unwind to identity.
     requestAnimationFrame(() => {
       if (!el) return;
-      el.style.transition = "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)";
+      // EK26 — Was `transform 700ms cubic-bezier(0.22, 1, 0.36, 1)`
+      // (ease-out: fast start, slow end). The fast start meant cards
+      // shot off their slot positions the instant the spread layout
+      // mounted — the seeker barely had time to register that the
+      // transition was beginning before the cards were already
+      // halfway to their final spread positions. Bumped duration to
+      // 1100ms and switched the curve to a true ease-in-out
+      // (`cubic-bezier(0.65, 0, 0.35, 1)`), so motion eases in
+      // slowly, peaks at mid-flight, and decelerates gently into
+      // place — visible speed curve at both ends, more time spent
+      // in the legible middle portion.
+      el.style.transition = "transform 1100ms cubic-bezier(0.65, 0, 0.35, 1)";
       el.style.transform = "translate(0, 0)";
     });
     flipPlayedRef.current = true;

@@ -565,6 +565,20 @@ export function Tabletop({
   // re-mount churn at the effect level. This ref persists across
   // re-renders and prevents the IIFE from being torn down.
   const generationStartedRef = useRef(false);
+  // EK26 — Tracks the LAST snapshotRegenTrigger value the snapshot
+  // effect ran a generation for. When the trigger advances past
+  // this, the effect treats it as a regeneration request: clears
+  // the gen-started gate and the existing blob, then re-runs.
+  const lastSnapshotTriggerRef = useRef(0);
+  // EK26 — Bumped after each gather commit so the snapshot effect
+  // regenerates the PNG from the post-shuffle card positions. Without
+  // this, the snapshot was captured ONCE at initial mount and the
+  // generationStartedRef gate prevented any re-runs — so copying the
+  // table snapshot after shuffling cards gave the seeker the
+  // pre-shuffle image, which felt like "Copy doesn't work the second
+  // time." Bumping this counter clears the gate and the blob so the
+  // effect runs again with the current positions.
+  const [snapshotRegenTrigger, setSnapshotRegenTrigger] = useState(0);
   // EK13 — Counter for diagnostic surfacing. Incremented every time
   // the effect's body runs (whether or not it starts a generation).
   // Surfaced in the menu description on failure so we can see if
@@ -587,6 +601,18 @@ export function Tabletop({
     // generationStartedRef guard below still ensures the IIFE runs
     // at most once.
     if (activeDeckLoading) return;
+    // EK26 — When snapshotRegenTrigger has been bumped (by a gather
+    // commit), clear the gate ref and the existing blob so the
+    // effect can produce a fresh PNG from the new card positions.
+    // We compare to a ref that tracks the LAST trigger value the
+    // effect ran with — only reset on actual changes, not on every
+    // re-render. The reset must happen BEFORE the gate check below.
+    if (snapshotRegenTrigger !== lastSnapshotTriggerRef.current) {
+      lastSnapshotTriggerRef.current = snapshotRegenTrigger;
+      generationStartedRef.current = false;
+      setSnapshotBlob(null);
+      setSnapshotStatus("idle");
+    }
     // EK13 — Hard guard: once a generation has started, never start
     // another. Replaces EK12's `snapshotStatus !== "idle"` guard,
     // which was vulnerable to the status being reset by other code
@@ -685,7 +711,7 @@ export function Tabletop({
     // from starting a second IIFE. The watchdog runs independently
     // and is no longer cleared by anything.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, size?.w, size?.h, initialScatter.length, activeDeckLoading]);
+  }, [seed, size?.w, size?.h, initialScatter.length, activeDeckLoading, snapshotRegenTrigger]);
 
   // EK07 — Wire copyRef.current to the SYNCHRONOUS clipboard-write
   // implementation. The forward-ref above expects this exact shape:
@@ -1673,6 +1699,10 @@ export function Tabletop({
           for (const id of newTargets.keys()) merged.delete(id);
           return merged.size > 0 ? merged : null;
         });
+        // EK26 — Card positions have changed; ask the snapshot
+        // effect to regenerate so the next Copy reflects the
+        // post-shuffle state of the table.
+        setSnapshotRegenTrigger((t) => t + 1);
       }, 900);
     }
     gatheredOriginsRef.current = new Map();
@@ -1709,6 +1739,16 @@ export function Tabletop({
     const newSet = new Set<number>();
     for (const c of cards) {
       if (c.selectionOrder !== null) continue;
+      // EK26 — Skip cards that are currently mid-release-transition
+      // (their card.x/y still points at their OLD position even
+      // though their visual is animating toward a placed cell). If
+      // we let cluster-check use their stale card.x/y, dragging the
+      // cluster back over the OLD spot would yank them into the
+      // cluster mid-animation — visible as the card "flying back
+      // to a spot left long ago." Once their commit completes
+      // (release timeout removes them from releaseTargets), they
+      // become eligible again at their new position.
+      if (releaseTargets?.has(c.id)) continue;
       const dx = gatherCenter.x - (c.x + cardW / 2);
       const dy = gatherCenter.y - (c.y + cardH / 2);
       if (dx * dx + dy * dy < r2) newSet.add(c.id);
@@ -1782,6 +1822,9 @@ export function Tabletop({
           for (const id of idsToCommit) merged.delete(id);
           return merged.size > 0 ? merged : null;
         });
+        // EK26 — Card positions have changed; refresh the snapshot
+        // so a later Copy gives the post-shuffle table.
+        setSnapshotRegenTrigger((t) => t + 1);
       }, 900);
     }
     currentlyClusteredRef.current = newSet;
@@ -2725,7 +2768,7 @@ export function Tabletop({
                 color: "var(--accent, var(--gold))",
               }}
             >
-              Copy draw proof?
+              The veil before it parts
             </h2>
             <p
               style={{
@@ -2736,14 +2779,15 @@ export function Tabletop({
                 opacity: 0.85,
               }}
             >
-              {/* EK15 — Always reads "Copy it to your clipboard" so
-                  it matches the button label below. Was a conditional
-                  on webShareAvailable. Underlying handler still uses
-                  Web Share when available; the share sheet on mobile
-                  IS effectively how the seeker copies + saves there. */}
-              A snapshot of the table is ready. Copy it to your clipboard
-              before you pick so you can verify later that the cards
-              were always where they are.
+              {/* EK26 — Reworded from "Copy draw proof?" → "A snapshot
+                  of the table is ready..." to match the sacred tone
+                  set in EK17 ("The veil before it parts"). The
+                  forensic "verify later that the cards were always
+                  where they are" framing was replaced with a
+                  contemplative invitation to hold the moment. */}
+              A snapshot of the table, before the veil parts. Save it
+              if you want to hold this moment before any card is
+              chosen.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
