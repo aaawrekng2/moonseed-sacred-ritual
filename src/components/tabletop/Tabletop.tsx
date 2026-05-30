@@ -370,11 +370,15 @@ export function Tabletop({
         if (!prev) return { w: r.width, h: r.height };
         const dw = Math.abs(r.width - prev.w);
         const dh = Math.abs(r.height - prev.h);
-        // Ignore sub-5px size changes — these are usually mobile
-        // viewport-bar collapses or scrollbar transitions, not real
-        // resizes. Recomputing the scatter on those shifts visibly
-        // reflows cards as they fly to a slot.
-        if (dw < 5 && dh < 5) return prev;
+        // EK20 — Bumped threshold from 5px → 30px. The slot row's
+        // height changes by ~10-25px when slot count / position label
+        // appears, and at the 5px gate every slot-fill triggered an
+        // initialScatter recompute → all 78 cards jumped to new
+        // random positions → visible as a "screen repaint flash"
+        // every time a card flew to its slot. 30px is large enough
+        // to swallow slot-row reflows but still catches genuine
+        // viewport resizes (orientation, window resize).
+        if (dw < 30 && dh < 30) return prev;
         return { w: r.width, h: r.height };
       });
     };
