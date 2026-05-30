@@ -666,8 +666,21 @@ export function Tabletop({
 
     (async () => {
       try {
+        // EK27 — Was `scatter: initialScatter`, which referenced the
+        // useMemo of the FIRST scatter (deps: seed, geometry). After
+        // a gather session moved cards, `initialScatter` was still
+        // the pre-shuffle positions — every regenerated snapshot
+        // produced an identical PNG, so the seeker's "Copy" gave
+        // them the original image no matter how many times they
+        // shuffled. Switched to `cards` (the live state), which
+        // holds the current post-shuffle positions. CardState
+        // extends ScatterCard structurally so it satisfies the
+        // ScatterCard[] param. If a card is in a slot
+        // (selectionOrder !== null), its card.x/y still represents
+        // its table position — that's fine for the snapshot, which
+        // captures the table BEFORE picks.
         const blob = await generateTableSnapshot({
-          scatter: initialScatter,
+          scatter: cards.length > 0 ? cards : initialScatter,
           deckMapping,
           containerWidth: size.w,
           containerHeight: Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE),
@@ -1546,6 +1559,26 @@ export function Tabletop({
     };
   }, [size, cardW, cardH, maxRotation]);
 
+  // EK27 — Play-area bounds in container-relative coords. Same
+  // minX/maxX/minY/maxY math as the placement clamp in
+  // `placeCardInFreeCell`, lifted out so CardSlot can reuse it to
+  // clamp the in-cluster visual position. Without this clamp, a
+  // cluster held near the edge pushes cards outside the table area
+  // by up to 0.6 × cardH (the cluster offset radius), making them
+  // visually exit the rectangle before snapping in on release.
+  const playBounds = useMemo(() => {
+    if (!size) return null;
+    const minX = TABLETOP_CONFIG.SCATTER_PADDING;
+    const maxX = Math.max(minX, size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING);
+    const minY = TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING;
+    const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
+    const maxY = Math.max(
+      minY,
+      TABLETOP_CONFIG.TOP_RESERVE + usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+    );
+    return { minX, maxX, minY, maxY };
+  }, [size, cardW, cardH]);
+
   // EK25 — Pick the BEST free grid cell to place an exiting card in,
   // and compute its position with buildScatter-style jitter and
   // rotation. "Free" = no other (non-exiting, non-cluster) card has
@@ -1703,18 +1736,26 @@ export function Tabletop({
         // effect to regenerate so the next Copy reflects the
         // post-shuffle state of the table.
         setSnapshotRegenTrigger((t) => t + 1);
-      }, 900);
+      }, 1100);
     }
     gatheredOriginsRef.current = new Map();
     currentlyClusteredRef.current = new Set();
     // EK18 — Keep gather-center alive at off-screen coords briefly so
     // CardSlot's "outside radius" branch runs the smooth release
-    // transition. After 900ms, clear gatherCenter — by then all
+    // transition. After 1100ms, clear gatherCenter — by then all
     // committed cards have settled at their new spots.
+    //
+    // EK27 — Bumped 900 → 1100 to cover CardSlot's 800ms transition
+    // PLUS the per-card stagger (up to 219ms based on card.id). At
+    // 900 the highest-stagger cards were still ~120ms into their
+    // 800ms transition when the commit fired, so the card.x/y change
+    // would snap the visual the final 15% of the way — visible as a
+    // "pop in" from outside the placed position. 1100ms guarantees
+    // every card's transition has run to completion before commit.
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
-    }, 900);
+    }, 1100);
   }, [gatherCenter, gridParams, cards, cellIndexForPosition, placeCardInFreeCell]);
 
   // EK25 — On-the-fly cluster transition tracking. Every time
@@ -1825,7 +1866,7 @@ export function Tabletop({
         // EK26 — Card positions have changed; refresh the snapshot
         // so a later Copy gives the post-shuffle table.
         setSnapshotRegenTrigger((t) => t + 1);
-      }, 900);
+      }, 1100);
     }
     currentlyClusteredRef.current = newSet;
   }, [gatherCenter, cards, cardW, cardH, gridParams, cellIndexForPosition, placeCardInFreeCell, releaseTargets]);
@@ -2314,6 +2355,9 @@ export function Tabletop({
             // card animates smoothly from cluster to new spot
             // without a jump.
             releaseTarget={releaseTargets?.get(c.id) ?? null}
+            // EK27 — Play-area bounds: clamps in-cluster visual so
+            // the cluster doesn't push cards outside the table.
+            playBounds={playBounds}
             containerRect={
               containerOrigin && size
                 ? {
