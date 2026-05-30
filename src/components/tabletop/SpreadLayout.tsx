@@ -672,11 +672,27 @@ function CardFace({
     // FROM its final spread position BACK to the slot position. After
     // the transition removes the transform, the card is at the spread
     // position.
+    //
+    // EK29 — Also SCALE from slot size to spread size. Without
+    // scale, the card mounts at full spread dimensions but at the
+    // slot's position — which makes it appear dramatically larger
+    // than the rail-card it just replaced, reading as "the cards
+    // disappeared and reappeared much larger before sliding up."
+    // Compute scale factors against the FINAL dest rect (spread
+    // size), set `transform-origin: top left` so the scale anchors
+    // at the position the translate targets (otherwise default
+    // center-origin shrinks the card toward its center, misplacing
+    // it). Initial transform: translate to slot top-left AND scale
+    // down to slot dimensions. Final transform: identity (full
+    // size, spread position). Browser interpolates both jointly.
     const deltaX = fromSlotRect.x - dest.left;
     const deltaY = fromSlotRect.y - dest.top;
+    const scaleX = dest.width > 0 ? fromSlotRect.width / dest.width : 1;
+    const scaleY = dest.height > 0 ? fromSlotRect.height / dest.height : 1;
     // Apply the inverse transform immediately (no transition).
     el.style.transition = "none";
-    el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    el.style.transformOrigin = "top left";
+    el.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
     // Force layout so the browser registers the starting transform
     // before we kick off the transition. Reading offsetWidth is a
     // classic synchronous-layout trick to commit the style.
@@ -697,7 +713,7 @@ function CardFace({
       // place — visible speed curve at both ends, more time spent
       // in the legible middle portion.
       el.style.transition = "transform 1100ms cubic-bezier(0.65, 0, 0.35, 1)";
-      el.style.transform = "translate(0, 0)";
+      el.style.transform = "translate(0, 0) scale(1, 1)";
     });
     flipPlayedRef.current = true;
   }, [fromSlotRect]);

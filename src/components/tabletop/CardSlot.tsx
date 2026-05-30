@@ -57,6 +57,11 @@ export function CardSlot({
   // clamp the in-cluster visual position so a cluster held near an
   // edge doesn't push cards outside the usable scatter rectangle.
   playBounds = null,
+  // EK29 — When true, this CardSlot renders `transition: "none"`
+  // on its outside-radius branch so the commit-render transform
+  // change doesn't visibly teleport-and-slide. See Tabletop's
+  // suppressTransitionFor state for the full reasoning.
+  suppressTransition = false,
 }: {
   card: CardState;
   cardW: number;
@@ -163,6 +168,15 @@ export function CardSlot({
    * the prop yet).
    */
   playBounds?: { minX: number; maxX: number; minY: number; maxY: number } | null;
+  /**
+   * EK29 — When true, the outside-radius gather branch renders
+   * `transition: "none"` instead of the 800ms transform transition.
+   * Used by Tabletop's commit pathway to suppress the brief jump
+   * that would otherwise occur when `card.x/y` and the transform
+   * declared value change in the same render. See the long-form
+   * comment near Tabletop's `suppressTransitionFor` state.
+   */
+  suppressTransition?: boolean;
 }) {
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
@@ -1001,7 +1015,15 @@ export function CardSlot({
             // pipeline (no jank when transitioning between the two
             // states mid-gather).
             transform: `translate3d(0, 0, 0) rotate(${card.rotation}deg)`,
-            transition: `transform 800ms cubic-bezier(0.4, 0, 0.2, 1) ${releaseDelay}ms`,
+            // EK29 — When the commit just fired for this card,
+            // suppress the transform transition for ONE render so
+            // the browser snaps transform from `(target - OLD)` to
+            // identity without interpolating through the wrong
+            // intermediate values. Without this, the card visibly
+            // teleports by `(NEW - OLD)` and slides back over 800ms.
+            transition: suppressTransition
+              ? "none"
+              : `transform 800ms cubic-bezier(0.4, 0, 0.2, 1) ${releaseDelay}ms`,
             willChange: "transform",
             animation: "none",
           };
