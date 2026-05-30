@@ -338,6 +338,31 @@ export function CardSlot({
   // after one rAF once the new coords have settled.
   const [justDropped, setJustDropped] = useState(false);
   const wasDraggedRef = useRef(false);
+  // EK20 — `hasSettled` tracks whether this CardSlot has finished its
+  // initial mount-time settle-in animation. The settle-in keyframes
+  // are intended as a ONE-TIME entrance fade (opacity 0 → 1, slight
+  // scale up). The old code rendered them on every idle-branch
+  // re-render — when other state shifted (gather release, slot fill,
+  // size threshold trip), React re-applied `animation: settle-in
+  // 320ms ease-out both` and the browser restarted the animation
+  // from frame 0, producing a visible screen-wide flash.
+  //
+  // We flip `hasSettled` to true after settleDelay + the 320ms
+  // animation duration (+ 50ms buffer for safety). Once true, the
+  // idle branch renders `animation: "none"` permanently — the card
+  // is already at rest, no need to ever replay the entrance.
+  const [hasSettled, setHasSettled] = useState(false);
+  useEffect(() => {
+    if (hasSettled) return;
+    const t = window.setTimeout(() => {
+      setHasSettled(true);
+    }, settleDelay + 320 + 50);
+    return () => window.clearTimeout(t);
+    // Only depend on settleDelay (stable for this card's lifetime).
+    // hasSettled is read-only inside the effect; once true, the
+    // effect's guard short-circuits the next call.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settleDelay]);
   // EJ72 — Clear justDropped on the next frame once the post-drop render
   // has painted at the new card.x/card.y, so the normal idle transition
   // resumes for future layout shifts. MUST stay below the useState above
@@ -746,10 +771,20 @@ export function CardSlot({
               // Skip the settle-in entrance animation if the card was just
               // dragged — it's already at the drop position and replaying
               // the opacity:0 → 1 fade looks like a disappear/reappear.
-              animation: wasDraggedRef.current
-                ? "none"
-                : `settle-in 320ms ease-out both`,
-              animationDelay: wasDraggedRef.current ? "0ms" : `${settleDelay}ms`,
+              // EK20 — Also skip if hasSettled is true. settle-in is a
+              // one-time mount animation; replaying it on later renders
+              // (slot-fly re-render, gather release, etc.) caused the
+              // observed screen flashes. Once the card has finished its
+              // initial settle, this branch renders `animation: "none"`
+              // permanently.
+              animation:
+                wasDraggedRef.current || hasSettled
+                  ? "none"
+                  : `settle-in 320ms ease-out both`,
+              animationDelay:
+                wasDraggedRef.current || hasSettled
+                  ? "0ms"
+                  : `${settleDelay}ms`,
               // Drives the .card-hit element's inset via a CSS variable so the
               // touch target scales with the rendered card size.
               ["--card-hit-inset" as string]: `${hitInset}px`,
@@ -805,43 +840,54 @@ export function CardSlot({
             const offX = Math.cos(angle) * clusterRadius * radial;
             const offY = Math.sin(angle) * clusterRadius * radial;
             const rotJitter = (((seed * 47) % 31) - 15); // -15..+15
+            // EK20 — Motion is now via GPU-accelerated transform
+            // translate3d, NOT via left/top. Animating left/top forces
+            // a layout recompute every frame, and at 78 cards with
+            // overlap the browser became CPU-bound and dropped frames
+            // (visible as stutter / stop-start as cards "hit" each
+            // other). left/top stay pinned at the card's home scatter
+            // coords; the visual offset is purely a transform.
             const targetX = gatherCenter.x - cardW / 2 + offX;
             const targetY = gatherCenter.y - cardH / 2 + offY;
+            const deltaX = targetX - card.x;
+            const deltaY = targetY - card.y;
             return {
-              left: targetX,
-              top: targetY,
+              left: card.x,
+              top: card.y,
               width: cardW,
               height: cardH,
-              transform: `rotate(${card.rotation + rotJitter}deg)`,
+              transform: `translate3d(${deltaX}px, ${deltaY}px, 0) rotate(${
+                card.rotation + rotJitter
+              }deg)`,
               // Lift gathered cards above non-gathered so the cluster
               // reads as a single visual group on top of the rest of
               // the scatter.
               zIndex: 800 + card.z,
-              // EK18 — Ease-in-out (Material standard cubic-bezier),
-              // longer duration so the inward motion ramps in and
-              // decelerates instead of snapping. Was 240ms ease-out.
-              transition:
-                "left 380ms cubic-bezier(0.4, 0, 0.2, 1), top 380ms cubic-bezier(0.4, 0, 0.2, 1), transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
+              // Only transition `transform` — left/top don't change so
+              // animating them is wasted work. Same 380ms ease-in-out
+              // ramp Cori felt was right.
+              transition: "transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
+              willChange: "transform",
               ["--card-hit-inset" as string]: `${hitInset}px`,
               ["--card-rotation" as string]: `${card.rotation + rotJitter}deg`,
             };
           }
-          // Card is outside radius — fall through to baseStyle, but
-          // override its transition so the return-to-home is smooth
-          // instead of snapping back via the settle-in animation.
+          // Card is outside radius — keep `left`/`top` at home, return
+          // transform to identity (translate3d(0,0,0) + the card's
+          // natural rotation). CSS transitions the transform smoothly
+          // back to home. No settle-in replay because we keep `animation: "none"`.
           return {
             ...baseStyle,
-            // Remove the settle-in animation; if it's still running
-            // (rare), `none` cancels it.
+            left: card.x,
+            top: card.y,
+            // Force the same GPU-accelerated path as the inside-radius
+            // branch so the OUT transition runs from the same render
+            // pipeline (no jank when transitioning between the two
+            // states mid-gather).
+            transform: `translate3d(0, 0, 0) rotate(${card.rotation}deg)`,
+            transition: "transform 420ms cubic-bezier(0.4, 0, 0.2, 1)",
+            willChange: "transform",
             animation: "none",
-            // EK18 — Ease-in-out + longer duration for the return.
-            // Was 280ms ease-out. Matches the inward 380ms feel with
-            // a slightly longer outward ramp so the cards settle
-            // back gently. Tabletop's release watchdog (420ms after
-            // pointerup) preserves this transition long enough to
-            // finish before gatherCenter goes null.
-            transition:
-              "left 420ms cubic-bezier(0.4, 0, 0.2, 1), top 420ms cubic-bezier(0.4, 0, 0.2, 1), transform 420ms cubic-bezier(0.4, 0, 0.2, 1)",
           };
         }
         return baseStyle;
