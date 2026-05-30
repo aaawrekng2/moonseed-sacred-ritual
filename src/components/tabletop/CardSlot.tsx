@@ -43,6 +43,15 @@ export function CardSlot({
   // so clustered cards visibly stir around each other rather than
   // sitting perfectly still.
   clusterDriftEpoch = 0,
+  // EK24 — When non-null, this card is in the post-release
+  // transition. Render with `left`/`top` at card.x/y (unchanged)
+  // and `transform: translate3d(target.x - card.x, target.y -
+  // card.y, 0)` so the visual position equals the target. CSS
+  // interpolates the transform smoothly from the previous cluster
+  // delta to this target delta. After the 900ms transition,
+  // Tabletop commits target → card.x/y in a single render and
+  // clears this prop, so the visual position stays put.
+  releaseTarget = null,
 }: {
   card: CardState;
   cardW: number;
@@ -132,6 +141,14 @@ export function CardSlot({
    * feedback the seeker sees while holding).
    */
   clusterDriftEpoch?: number;
+  /**
+   * EK24 — Release-transition target. When present, the card is
+   * mid-release: render with `left`/`top` at the unchanged
+   * card.x/y, transform set to translate the visual to this target.
+   * After the transition, Tabletop commits target → card.x/y and
+   * sets this back to null.
+   */
+  releaseTarget?: { x: number; y: number; rotation: number } | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
@@ -861,16 +878,22 @@ export function CardSlot({
           if (dist < radius) {
             // EK23 — Per-card cluster offset that DRIFTS over time.
             // The seed combines card.id with clusterDriftEpoch (a
-            // counter that ticks every ~300ms while gather is active
+            // counter that ticks every ~200ms while gather is active
             // in Tabletop). Each tick produces a fresh offset; CSS
             // transitions smoothly interpolate from the old offset to
             // the new one, so clustered cards visibly stir around
             // each other as the user holds.
             //
-            // Cluster radius is larger here (0.6 × cardH) than the
-            // pre-EK23 0.25 × cardH so the drift is VISIBLE — too
-            // small a cluster radius makes the motion invisible.
-            const seed = card.id * 2654435761 + clusterDriftEpoch * 1597463007;
+            // EK24 — Per-card PHASE OFFSET on the epoch so cards
+            // don't all refresh in lockstep. `(card.id % 6)` shifts
+            // each card by up to 5 ticks worth, so at any given
+            // moment some cards are 0ms into their transition,
+            // others are 200ms, 400ms, etc. — never all snapping
+            // together. Combined with the longer 600ms transition
+            // below (transition longer than tick interval), the
+            // cluster looks like continuous fluid motion.
+            const effectiveEpoch = clusterDriftEpoch + (card.id % 6);
+            const seed = card.id * 2654435761 + effectiveEpoch * 1597463007;
             const clusterRadius = cardH * 0.6;
             const angle = ((seed * 137.508) % 360) * (Math.PI / 180);
             const radial = ((Math.abs(seed) * 31) % 100) / 100; // 0..1
@@ -895,12 +918,11 @@ export function CardSlot({
               // reads as a single visual group on top of the rest of
               // the scatter.
               zIndex: 800 + card.z,
-              // EK23 — Slightly longer cluster transition (450ms) so
-              // the drift between epochs looks like fluid stirring,
-              // not a snap to each new offset. Initial pull-in still
-              // feels brisk because the FIRST transition runs from
-              // home → cluster which is a longer visual distance.
-              transition: "transform 450ms cubic-bezier(0.4, 0, 0.2, 1)",
+              // EK24 — 600ms transition. Tabletop's drift tick is
+              // 200ms (EK24), so any given card has 400-600ms of
+              // overlap between successive transitions — motion
+              // never stops. Looks like fluid stirring, not stepped.
+              transition: "transform 600ms cubic-bezier(0.4, 0, 0.2, 1)",
               willChange: "transform",
               ["--card-hit-inset" as string]: `${hitInset}px`,
               ["--card-rotation" as string]: `${card.rotation + rotJitter}deg`,
@@ -918,7 +940,28 @@ export function CardSlot({
           // Tabletop's release watchdog (900ms after pointerup)
           // preserves this transition long enough to finish before
           // gatherCenter goes null.
+          //
+          // EK24 — If `releaseTarget` is set, this card is in the
+          // post-release transition. Use the target as the transform
+          // END-point (translate the visual to target while keeping
+          // left/top pinned at card.x/y) so the card animates
+          // smoothly from its current cluster position to the new
+          // spot — no jump caused by left/top snapping to a new
+          // value mid-transition.
           const releaseDelay = (card.id * 37) % 220; // 0..219ms
+          if (releaseTarget) {
+            const rdx = releaseTarget.x - card.x;
+            const rdy = releaseTarget.y - card.y;
+            return {
+              ...baseStyle,
+              left: card.x,
+              top: card.y,
+              transform: `translate3d(${rdx}px, ${rdy}px, 0) rotate(${releaseTarget.rotation}deg)`,
+              transition: `transform 800ms cubic-bezier(0.4, 0, 0.2, 1) ${releaseDelay}ms`,
+              willChange: "transform",
+              animation: "none",
+            };
+          }
           return {
             ...baseStyle,
             left: card.x,

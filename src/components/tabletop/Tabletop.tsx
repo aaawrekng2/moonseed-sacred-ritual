@@ -1446,7 +1446,7 @@ export function Tabletop({
   const [clusterDriftEpoch, setClusterDriftEpoch] = useState(0);
 
   // EK23 — Permutation-based release. While gather is active, every
-  // card that has entered the radius is added to `gatheredIdsRef`
+  // card that has entered the radius is added to `gatheredOriginsRef`
   // along with its ORIGINAL position (the position it had BEFORE
   // joining the cluster). On release, those original positions form
   // a "pool" — each gathered card is assigned to ANOTHER gathered
@@ -1458,6 +1458,26 @@ export function Tabletop({
   const gatheredOriginsRef = useRef<Map<number, { x: number; y: number; rotation: number }>>(
     new Map(),
   );
+
+  // EK24 — Release targets. When the seeker releases the gather
+  // gesture, we DO NOT immediately rewrite card.x/y — that would
+  // make `left`/`top` snap to the new positions while the transform
+  // (still holding the cluster delta from the OLD card.x/y) gets
+  // applied relative to the NEW positions, causing every released
+  // card to visually jump by (NEW - OLD) before the transition
+  // even begins. Instead we capture each gathered card's NEW
+  // position into this state and pass it down to CardSlot, which
+  // uses it as the transform END-point while keeping `left`/`top`
+  // pinned at the original card.x/y. CSS interpolates the transform
+  // smoothly from the cluster delta to the target delta — no jump.
+  // After the 900ms transition finishes, Tabletop commits the
+  // targets to card.x/y via setCards and clears this state; the
+  // visual position stays exactly where the transition ended
+  // because `left+0 transform === target` already.
+  const [releaseTargets, setReleaseTargets] = useState<Map<
+    number,
+    { x: number; y: number; rotation: number }
+  > | null>(null);
 
   const handleTableGatherUp = useCallback(() => {
     if (gatherHoldTimerRef.current !== null) {
@@ -1514,14 +1534,31 @@ export function Tabletop({
           rotation: targetOrigin.rotation + jr,
         });
       }
-      setCards((prev) =>
-        prev.map((c) => {
-          const next = assignments.get(c.id);
-          if (!next) return c;
-          if (c.selectionOrder !== null) return c;
-          return { ...c, ...next };
-        }),
-      );
+      // EK24 — Publish the assignments as releaseTargets so CardSlot
+      // can use them as the TRANSFORM end-point while keeping its
+      // `left`/`top` pinned at the original card.x/y. The actual
+      // card.x/y commit happens after the 900ms transition completes
+      // (see the setTimeout below). This is the key to the
+      // jump-free release: by deferring the card.x/y change,
+      // `left`/`top` don't snap and the transform interpolates from
+      // the cluster delta to the target delta smoothly.
+      setReleaseTargets(assignments);
+      // Schedule the commit. After the transition finishes, write
+      // the new positions to card.x/y AND clear releaseTargets in
+      // one render — left/top change to NEW, transform resets to
+      // identity, visual position stays the same because they were
+      // already showing the target via the transform.
+      window.setTimeout(() => {
+        setCards((prev) =>
+          prev.map((c) => {
+            const next = assignments.get(c.id);
+            if (!next) return c;
+            if (c.selectionOrder !== null) return c;
+            return { ...c, ...next };
+          }),
+        );
+        setReleaseTargets(null);
+      }, 900);
     } else if (gathered.size === 1) {
       // Edge case: only 1 card was ever in the cluster — can't
       // permute, no other origin to swap with. Leave it at home;
@@ -1587,12 +1624,19 @@ export function Tabletop({
   // every ~300ms. CardSlot reads this prop and uses it to derive a
   // fresh per-card offset within the cluster, giving the visible
   // "stirring" motion.
+  //
+  // EK24 — Tick faster (200ms) so successive transitions overlap
+  // heavily, blurring the per-card "jump-from-A-to-B" feel into
+  // a continuous flow. Combined with CardSlot's longer 600ms
+  // transition (also EK24) and per-card phase offsets in the seed
+  // hash, the cluster looks like a smooth simmering soup rather
+  // than synchronized step-wise hops.
   useEffect(() => {
     if (!gatherCenter) return;
     if (gatherCenter.x < -1000 || gatherCenter.y < -1000) return;
     const intv = window.setInterval(() => {
       setClusterDriftEpoch((e) => e + 1);
-    }, 300);
+    }, 200);
     return () => window.clearInterval(intv);
   }, [gatherCenter]);
 
@@ -2060,6 +2104,12 @@ export function Tabletop({
             // card.id to compute a fresh per-card cluster offset so
             // clustered cards visibly stir around each other.
             clusterDriftEpoch={clusterDriftEpoch}
+            // EK24 — Release target. When non-null, CardSlot uses
+            // it as the transform end-point during the release
+            // transition, keeping `left`/`top` at card.x/y so the
+            // card animates smoothly from cluster to new spot
+            // without a jump.
+            releaseTarget={releaseTargets?.get(c.id) ?? null}
             containerRect={
               containerOrigin && size
                 ? {
