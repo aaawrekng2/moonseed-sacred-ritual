@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EK27";
+export const APP_VERSION_LETTER = "EK28";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
@@ -36,6 +36,13 @@ const DEV_SLOT_COLORS_EVENT = "tarotseed:dev-slot-colors-changed";
 // the nav without re-laying out the page. Default: OFF (menu shown).
 const DEV_HIDE_MENU_KEY = "tarotseed:dev_hide_menu";
 const DEV_HIDE_MENU_EVENT = "tarotseed:dev-hide-menu-changed";
+// EK28 — face-flip sub-toggle. When ON, every card on the tabletop
+// renders FACE-UP regardless of card.revealed, so the seeker can
+// see which physical card is at each position. Used to verify the
+// gather shuffle is actually mixing the deck. Default: OFF
+// (face-down, normal behavior).
+const DEV_FACES_KEY = "tarotseed:dev_faces";
+const DEV_FACES_EVENT = "tarotseed:dev-faces-changed";
 
 function readDevMode(): boolean {
   if (typeof window === "undefined") return false;
@@ -141,6 +148,45 @@ export function setDevMode(on: boolean): void {
   if (on) window.localStorage.setItem(DEV_MODE_KEY, "true");
   else window.localStorage.removeItem(DEV_MODE_KEY);
   window.dispatchEvent(new CustomEvent<boolean>(DEV_EVENT, { detail: on }));
+}
+
+// EK28 — face-flip sub-toggle reader. Default OFF when no key set.
+export function readDevFaces(): boolean {
+  if (typeof window === "undefined") return false;
+  const raw = window.localStorage.getItem(DEV_FACES_KEY);
+  if (raw === null) return false;
+  return raw === "true";
+}
+
+export function setDevFaces(on: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DEV_FACES_KEY, on ? "true" : "false");
+  window.dispatchEvent(new CustomEvent<boolean>(DEV_FACES_EVENT, { detail: on }));
+}
+
+// EK28 — live-tracking React hook for the faces sub-toggle.
+// CardSlot consumes this; when ON, it passes flipped={true} to
+// CardImage regardless of card.revealed, so every face-down card
+// reveals its identity for visual verification of shuffle behavior.
+export function useDevFaces(): boolean {
+  const [on, setOn] = useState<boolean>(() => readDevFaces());
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setOn(typeof detail === "boolean" ? detail : readDevFaces());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DEV_FACES_KEY) setOn(readDevFaces());
+    };
+    window.addEventListener(DEV_FACES_EVENT, handler);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(DEV_FACES_EVENT, handler);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return on;
 }
 
 export function publishMistLevel(level: number): void {
