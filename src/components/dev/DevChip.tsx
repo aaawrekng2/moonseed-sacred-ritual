@@ -18,8 +18,10 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
   APP_VERSION_LETTER,
+  readDevFaces,
   readDevHideMenu,
   readDevSlotColors,
+  setDevFaces,
   setDevHideMenu,
   setDevMode,
   setDevSlotColors,
@@ -33,6 +35,9 @@ const DEV_SLOT_COLORS_EVENT = "tarotseed:dev-slot-colors-changed";
 // EJ49 — hide-menu sub-toggle. Mirrors the slot-colors pattern.
 const DEV_HIDE_MENU_KEY = "tarotseed:dev_hide_menu";
 const DEV_HIDE_MENU_EVENT = "tarotseed:dev-hide-menu-changed";
+// EK28 — face-flip sub-toggle. Mirrors the slot-colors pattern.
+const DEV_FACES_KEY = "tarotseed:dev_faces";
+const DEV_FACES_EVENT = "tarotseed:dev-faces-changed";
 const CHIP_POS_KEY = "tarotseed:dev_chip_pos";
 
 type Pos = { x: number; y: number };
@@ -78,6 +83,8 @@ export function DevChip() {
   const [slotColorsOn, setSlotColorsOn] = useState<boolean>(() => readDevSlotColors());
   // EJ49 — hide-menu sub-toggle state.
   const [hideMenuOn, setHideMenuOn] = useState<boolean>(() => readDevHideMenu());
+  // EK28 — face-flip sub-toggle state.
+  const [facesOn, setFacesOn] = useState<boolean>(() => readDevFaces());
   // EJ47 — version + opacity readout for the chip header (replaces
   // the standalone top-left DevOverlay pill).
   const opacity = useDevOpacity();
@@ -128,19 +135,27 @@ export function DevChip() {
       const detail = (e as CustomEvent<boolean>).detail;
       setHideMenuOn(typeof detail === "boolean" ? detail : readDevHideMenu());
     };
+    // EK28 — faces listener.
+    const onFaces = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setFacesOn(typeof detail === "boolean" ? detail : readDevFaces());
+    };
     const onStorage = (e: StorageEvent) => {
       if (e.key === DEV_MODE_KEY) setDevOn(readDevMode());
       if (e.key === DEV_SLOT_COLORS_KEY) setSlotColorsOn(readDevSlotColors());
       if (e.key === DEV_HIDE_MENU_KEY) setHideMenuOn(readDevHideMenu());
+      if (e.key === DEV_FACES_KEY) setFacesOn(readDevFaces());
     };
     window.addEventListener(DEV_EVENT, onDev);
     window.addEventListener(DEV_SLOT_COLORS_EVENT, onSlot);
     window.addEventListener(DEV_HIDE_MENU_EVENT, onHideMenu);
+    window.addEventListener(DEV_FACES_EVENT, onFaces);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(DEV_EVENT, onDev);
       window.removeEventListener(DEV_SLOT_COLORS_EVENT, onSlot);
       window.removeEventListener(DEV_HIDE_MENU_EVENT, onHideMenu);
+      window.removeEventListener(DEV_FACES_EVENT, onFaces);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -292,6 +307,19 @@ export function DevChip() {
         onChange={(next) => {
           setDevHideMenu(next);
           setHideMenuOn(next);
+        }}
+      />
+
+      {/* EK28 — Show faces sub-toggle. When on, every card on the
+          tabletop renders FACE-UP regardless of card.revealed, so
+          the seeker can verify the gather shuffle by watching
+          which physical card sits at each position. */}
+      <ChipRow
+        label="Show faces"
+        on={facesOn}
+        onChange={(next) => {
+          setDevFaces(next);
+          setFacesOn(next);
         }}
       />
     </div>
