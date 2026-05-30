@@ -865,13 +865,15 @@ export function Tabletop({
   const gatherActiveRef = useRef(false);
   const gatherHoldTimerRef = useRef<number | null>(null);
   const gatherStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  // EK21 — Set of card IDs that were inside the 1.75 × cardH radius
-  // at any point during the current gather session. On pointerup,
-  // every card in this set is assigned a new random scatter position,
-  // so the gesture actually SHUFFLES the deck instead of bringing
-  // cards back to their original spots. Cleared on release once the
-  // shuffle has been dispatched.
-  const gatheredIdsRef = useRef<Set<number>>(new Set());
+  // EK22 — Tracks which cards are inside the 1.75 × cardH radius RIGHT
+  // NOW (this frame), so we can detect transitions from in→out and
+  // dispatch a new random position to each exiting card. This is the
+  // "shuffle on the fly" model: as the cluster center moves across the
+  // table, cards at the trailing edge get tossed out into nearby
+  // random spots; cards at the leading edge get pulled in. There's no
+  // global reshuffle on release — only the still-clustered cards at
+  // pointerup are treated as "just exited" and given new positions.
+  const currentlyClusteredRef = useRef<Set<number>>(new Set());
 
   // ---- Onboarding hint --------------------------------------------------
   // Show a small hint on the tabletop that explains the hold-to-drag
@@ -1435,6 +1437,55 @@ export function Tabletop({
     [],
   );
 
+  // Helper — assign a new random scatter position to a card. Position
+  // is chosen in an annulus around `aroundX/Y` (the center the card
+  // is currently leaving) at radius 1.75..2.6 × cardH. The INNER
+  // bound matches the gather radius itself, so the new position is
+  // guaranteed to land OUTSIDE the cluster — otherwise the card
+  // would re-enter on the next frame and the transition tracker
+  // would shuffle it again, producing a feedback loop. The OUTER
+  // bound keeps the new spot LOCAL to the cluster (no teleport
+  // across the table). Result is clamped to the usable scatter area.
+  //
+  // EK22 — Used both by the mid-gesture exit handler (cards trailing
+  // out of the moving cluster) and the pointerup handler (still-
+  // clustered cards at release).
+  const placeCardNearGather = useCallback(
+    (
+      c: CardState,
+      aroundX: number,
+      aroundY: number,
+    ): { x: number; y: number; rotation: number } => {
+      if (!size) return { x: c.x, y: c.y, rotation: c.rotation };
+      const minR = cardH * 1.75;
+      const maxR = cardH * 2.6;
+      const angle = Math.random() * Math.PI * 2;
+      const r = minR + Math.random() * (maxR - minR);
+      const dx = Math.cos(angle) * r;
+      const dy = Math.sin(angle) * r;
+      // Target position is the gather center plus radial offset,
+      // then expressed as the card's TOP-LEFT (subtract cardW/2 and
+      // cardH/2 since gather coords describe the cluster CENTER).
+      let nx = aroundX + dx - cardW / 2;
+      let ny = aroundY + dy - cardH / 2;
+      const minX = TABLETOP_CONFIG.SCATTER_PADDING;
+      const maxX = Math.max(minX, size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING);
+      const minY = TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING;
+      const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
+      const maxY = Math.max(
+        minY,
+        TABLETOP_CONFIG.TOP_RESERVE + usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+      );
+      if (nx < minX) nx = minX;
+      if (nx > maxX) nx = maxX;
+      if (ny < minY) ny = minY;
+      if (ny > maxY) ny = maxY;
+      const nrot = (Math.random() * 2 - 1) * maxRotation;
+      return { x: nx, y: ny, rotation: nrot };
+    },
+    [size, cardW, cardH, maxRotation],
+  );
+
   const handleTableGatherUp = useCallback(() => {
     if (gatherHoldTimerRef.current !== null) {
       window.clearTimeout(gatherHoldTimerRef.current);
@@ -1442,85 +1493,84 @@ export function Tabletop({
     }
     gatherActiveRef.current = false;
     gatherStartPosRef.current = null;
-    // EK18 — Smooth release: instead of immediately setting
-    // gatherCenter to null (which causes every gathered card to
-    // snap back to its home position with no transition), move the
-    // gather center far off-screen for a brief window. Every card is
-    // now outside its 1.75 × cardH radius, so CardSlot's existing
-    // "outside radius" branch runs — applying a transition and
-    // restoring the home position smoothly. After 420ms (matching
-    // the release transition duration), actually clear gatherCenter
-    // so subsequent renders revert to the pre-EK17 baseStyle path.
-    //
-    // EK21 — The release also SHUFFLES every card that touched the
-    // gather radius during this session. New random scatter positions
-    // are written into the cards state, and CardSlot's outside-radius
-    // transform-based transition carries them visually to the new
-    // homes over 420ms. Cards that never entered the radius keep
-    // their existing positions. Cards in slots are excluded.
-    if (gatheredIdsRef.current.size > 0 && size) {
-      const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
-      const minX = TABLETOP_CONFIG.SCATTER_PADDING;
-      const maxX = Math.max(minX, size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING);
-      const minY = TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING;
-      const maxY = Math.max(
-        minY,
-        TABLETOP_CONFIG.TOP_RESERVE + usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
-      );
-      const touched = gatheredIdsRef.current;
+    // EK22 — On release, treat every card STILL in the cluster as
+    // having just exited: assign it a new random position in the
+    // annulus around the final gather center. Cards that left the
+    // cluster mid-gesture were already given new positions by the
+    // transition-tracking effect below, so they aren't touched here.
+    // No more "grand reshuffle of the entire board" — only the cards
+    // physically holding hands with the finger at the moment of
+    // release get new spots.
+    const stillClustered = currentlyClusteredRef.current;
+    const lastCenter = gatherCenter;
+    if (stillClustered.size > 0 && lastCenter && size) {
       setCards((prev) =>
         prev.map((c) => {
-          if (!touched.has(c.id)) return c;
-          // Don't shuffle a card that's currently in a slot — its
-          // position is anchored to slotRect, and rewriting card.x/y
-          // would only affect a future return-to-scatter, not the
-          // current visual.
+          if (!stillClustered.has(c.id)) return c;
           if (c.selectionOrder !== null) return c;
-          // Uniform random within the usable scatter area. We don't
-          // try to avoid collisions — the gather metaphor is "shuffle
-          // and scatter again", so slight overlap is fine and even
-          // expected after a mix. The full buildScatter collision
-          // pass is intentionally skipped here for simplicity and
-          // perceived randomness.
-          const nx = minX + Math.random() * (maxX - minX);
-          const ny = minY + Math.random() * (maxY - minY);
-          const nrot = (Math.random() * 2 - 1) * maxRotation;
-          return { ...c, x: nx, y: ny, rotation: nrot };
+          return { ...c, ...placeCardNearGather(c, lastCenter.x, lastCenter.y) };
         }),
       );
-      gatheredIdsRef.current = new Set();
     }
+    currentlyClusteredRef.current = new Set();
+    // EK18 — Smooth release: keep gatherCenter alive at off-screen
+    // coords for 420ms so CardSlot's "outside radius" branch runs
+    // the transition that carries each card to its new home.
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
     }, 420);
-  }, [size, cardW, maxRotation]);
+  }, [gatherCenter, size, placeCardNearGather]);
 
-  // EK21 — While gather is active, sweep all unselected cards and
-  // record which ones are inside the 1.75 × cardH radius. The set
-  // accumulates: even cards that drift in and out across the gesture
-  // remain "touched". On pointerup, handleTableGatherUp uses the
-  // accumulated set to decide which cards get new random positions.
+  // EK22 — On-the-fly cluster transition tracking. Every time
+  // `gatherCenter` changes (pointermove updates it as the seeker
+  // drags), we compute the NEW set of in-radius card ids and compare
+  // to the ref's PREVIOUS set:
+  //   - Cards in new but not prev = JUST ENTERED (no action; CardSlot
+  //     will animate them inward).
+  //   - Cards in prev but not new = JUST EXITED (give them a new
+  //     random position near where they exited).
+  // The ref is updated to the new set so the next frame compares
+  // against this one.
+  //
+  // Off-screen sentinel (-10000, -10000) means we're in the release
+  // window — handleTableGatherUp already handled the still-clustered
+  // set; skip this effect.
   useEffect(() => {
-    if (!gatherCenter || !gatherActiveRef.current || !cards.length) return;
-    // Off-screen sentinel means we're in the release transition —
-    // don't record IDs there.
+    if (!gatherCenter) {
+      currentlyClusteredRef.current = new Set();
+      return;
+    }
     if (gatherCenter.x < -1000 || gatherCenter.y < -1000) return;
+    if (!cards.length) return;
     const radius = cardH * 1.75;
     const r2 = radius * radius;
-    let next: Set<number> | null = null;
+    const newSet = new Set<number>();
+    const prev = currentlyClusteredRef.current;
     for (const c of cards) {
       if (c.selectionOrder !== null) continue;
-      if (gatheredIdsRef.current.has(c.id)) continue;
       const dx = gatherCenter.x - (c.x + cardW / 2);
       const dy = gatherCenter.y - (c.y + cardH / 2);
-      if (dx * dx + dy * dy < r2) {
-        if (!next) next = new Set(gatheredIdsRef.current);
-        next.add(c.id);
-      }
+      if (dx * dx + dy * dy < r2) newSet.add(c.id);
     }
-    if (next) gatheredIdsRef.current = next;
-  }, [gatherCenter, cards, cardW, cardH]);
+    // Find ids in prev but not newSet — those JUST EXITED.
+    const exited: number[] = [];
+    for (const id of prev) {
+      if (!newSet.has(id)) exited.push(id);
+    }
+    if (exited.length > 0) {
+      const exitedIds = new Set(exited);
+      const center = gatherCenter;
+      setCards((prevCards) =>
+        prevCards.map((c) => {
+          if (!exitedIds.has(c.id)) return c;
+          if (c.selectionOrder !== null) return c;
+          return { ...c, ...placeCardNearGather(c, center.x, center.y) };
+        }),
+      );
+    }
+    currentlyClusteredRef.current = newSet;
+  }, [gatherCenter, cards, cardW, cardH, placeCardNearGather]);
 
   // Safety: if the component unmounts mid-gather, clear timers.
   useEffect(() => {
