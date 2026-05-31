@@ -2146,10 +2146,20 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             id: p.id,
             cardIndex: p.cardIndex,
             isReversed: p.isReversed,
+            // EK31 — Forward the per-pick deck attribution so oracle
+            // cards (cardIndex >= 78) save successfully and the row
+            // gets `card_deck_ids` + `deck_id` populated for Insights
+            // filtering. null = "drawn from the active deck"; the
+            // server resolves nulls against `activeDeckId` below.
+            deckId: p.deckId,
           })),
           question: question.trim() || undefined,
           note: note.trim() || undefined,
           createdAt: backdate ? backdate.toISOString() : undefined,
+          // EK31 — Active deck at save time, used by the server to
+          // resolve any per-pick deckId that came through as null
+          // ("active deck" sentinel).
+          activeDeckId: activeDeckForCta?.id ?? null,
         },
       });
       if (!result.ok) {
