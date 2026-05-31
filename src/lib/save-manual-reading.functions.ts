@@ -107,26 +107,27 @@ export const saveManualReading = createServerFn({ method: "POST" })
             topCount = count;
           }
         }
+        const insertPayload = {
+          user_id: userId,
+          spread_type: data.spread,
+          card_ids: data.picks.map((p) => p.cardIndex),
+          card_orientations: data.picks.map((p) => p.isReversed ?? false),
+          // EK31 — Per-card deck attribution + primary deck for the row.
+          // Column actually accepts nulls in the array (matches the
+          // reconnect-deck path); generated types narrow to string[],
+          // so cast at the boundary.
+          card_deck_ids: cardDeckIds,
+          deck_id: primaryDeckId,
+          entry_mode: "manual",
+          mode: "personal",
+          interpretation: null,
+          question: data.question ?? null,
+          note: data.note ?? null,
+          ...(data.createdAt ? { created_at: data.createdAt } : {}),
+        };
         const { data: inserted, error: insertErr } = await supabase
           .from("readings")
-          .insert({
-            user_id: userId,
-            spread_type: data.spread,
-            card_ids: data.picks.map((p) => p.cardIndex),
-            card_orientations: data.picks.map((p) => p.isReversed ?? false),
-            // EK31 — Per-card deck attribution + primary deck for the row.
-            card_deck_ids: cardDeckIds,
-            deck_id: primaryDeckId,
-            // EK31 — Mirror the import-batch path's metadata so manual
-            // entries show up correctly in entry-mode filters and admin
-            // queries.
-            entry_mode: "manual",
-            mode: "personal",
-            interpretation: null,
-            question: data.question ?? null,
-            note: data.note ?? null,
-            ...(data.createdAt ? { created_at: data.createdAt } : {}),
-          })
+          .insert(insertPayload as never)
           .select("id")
           .single();
         if (insertErr || !inserted) {
