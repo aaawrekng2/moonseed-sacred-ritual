@@ -738,6 +738,18 @@ export function CardSlot({
         isSelected ? "z-30" : null,
       )}
       style={(() => {
+        // EK30 — Wrap the existing style IIFE so we can layer one
+        // overlay rule on top: when the dev "Show faces" toggle is
+        // ON, every CardSlot's button becomes pointer-events: none
+        // so click-and-hold on the tabletop falls through to the
+        // gather handler underneath. Without this, clicking on a
+        // visible face-up card triggered the per-card drag handler
+        // (the same one that picks the card into a slot), which
+        // grabbed a single card and moved it far away — looked like
+        // a "long-distance teleport" mid-shuffle. The toggle is dev-
+        // only, so disabling interaction on the face-up surface is
+        // fine: the user is in inspection mode, not pick mode.
+        const inner = (() => {
         // EK16 — Wrap the existing ternary style chain in an IIFE so we
         // can mix in a fade-out opacity at the end without duplicating
         // the opacity into every branch.
@@ -1028,7 +1040,12 @@ export function CardSlot({
             animation: "none",
           };
         }
-        return baseStyle;
+          return baseStyle;
+        })();
+        if (devFacesOn) {
+          return { ...inner, pointerEvents: "none" as const };
+        }
+        return inner;
       })()}
     >
       {/* Invisible expanded hit area for easier tapping on mobile. */}
