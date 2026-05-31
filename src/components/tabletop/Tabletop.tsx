@@ -8,6 +8,7 @@ import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { TabletopCloseButton } from "@/components/tabletop/TabletopCloseButton";
 import { useAuth } from "@/lib/auth";
+import { setDevFaces } from "@/components/dev/DevOverlay";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, getSpreadCount, type SpreadMode } from "@/lib/spreads";
@@ -1995,6 +1996,20 @@ export function Tabletop({
       if (gatherHoldTimerRef.current !== null) {
         window.clearTimeout(gatherHoldTimerRef.current);
       }
+    };
+  }, []);
+
+  // EK30 — Auto-disable the dev "Show faces" toggle when the seeker
+  // navigates away from /draw. The toggle is purely a debug aid for
+  // verifying gather-shuffle behavior on this screen, and leaving it
+  // ON elsewhere would cause every face-down card across the app to
+  // render face-up, which is surprising. Scoping it to "while on
+  // /draw" means flipping it on here, then leaving the page, lands
+  // back at the default OFF state — the next visit needs an explicit
+  // toggle, no stale state.
+  useEffect(() => {
+    return () => {
+      setDevFaces(false);
     };
   }, []);
 
