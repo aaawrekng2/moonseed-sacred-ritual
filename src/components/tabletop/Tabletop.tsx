@@ -9,6 +9,7 @@ import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { TabletopCloseButton } from "@/components/tabletop/TabletopCloseButton";
 import { useAuth } from "@/lib/auth";
 import { setDevFaces } from "@/components/dev/DevOverlay";
+import { SlotLabel } from "@/components/tabletop/SlotLabel";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, getSpreadCount, type SpreadMode } from "@/lib/spreads";
@@ -2673,7 +2674,21 @@ export function Tabletop({
                       so toggling the eyeball density doesn't reflow the
                       tabletop. Only opacity / pointer-events change.
                     */}
-                    <span
+                    {/* EK33 — Was a static `<span>` rendering
+                        `slotLabels[i] ?? `Slot ${i + 1}``. The fallback
+                        produced "Slot 1", "Slot 2" etc on Custom (and
+                        any spread without a `positions` array), which
+                        the styling doc bans. Now uses <SlotLabel>: if
+                        no `positionsShort[i]` (i.e. custom spread), the
+                        component returns null and the rail row stays
+                        unlabeled. When a label exists it's underlined
+                        and tappable — on tap, a small popover shows the
+                        full position name + description from
+                        positionDescriptions. */}
+                    <SlotLabel
+                      shortName={slotLabels[i] ?? null}
+                      fullName={fullPositionLabels[i] ?? null}
+                      description={positionDescriptions[i] ?? null}
                       className={cn(
                         "font-display italic",
                         isNext && showLabels && "slot-next-label",
@@ -2684,23 +2699,13 @@ export function Tabletop({
                         opacity: showLabels ? (isNext ? undefined : restingAlpha) : 0,
                         letterSpacing: "0.05em",
                         whiteSpace: "nowrap",
-                        // Q68 — clip labels to the slot's calculated
-                        // width. Without this, long labels (e.g.
-                        // "Slot 8") push the flex-column item wider
-                        // than slotW and overflow the rail. The slot
-                        // number is always legible from the rectangle's
-                        // position; the full position name is shown in
-                        // the whisper above the rail.
                         maxWidth: slotW,
                         overflow: "hidden",
                         textOverflow: "clip",
                         pointerEvents: showLabels ? undefined : "none",
                         transition: "opacity 200ms ease-out",
                       }}
-                      aria-hidden={!showLabels}
-                    >
-                      {slotLabels[i] ?? `Slot ${i + 1}`}
-                    </span>
+                    />
                   </div>
                 );
               })}
