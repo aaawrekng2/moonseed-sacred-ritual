@@ -9,11 +9,31 @@
  *
  * Position: fixed at top:var(--topbar-height)+8, left:8. z-index
  * just below the panel's drawer level so the panel can slide over it.
+ *
+ * EK32 — Portaled to document.body. Without the portal, the trigger
+ * mounts inside Tabletop's wrapper (position: fixed, z-30). That
+ * wrapper creates a stacking context, so the trigger's z-index 500
+ * is local to z-30 and capped against TopNav (z-40, rendered at the
+ * root layer). When TopNav expands from compact (28px) to expanded
+ * (56px), its band overlapped the hamburger because the wrapper's
+ * stacking context made the hamburger's 500 effectively read as
+ * "above other Tabletop children but below the parent's 30." The
+ * portal mounts the button directly under document.body so z-index
+ * 500 is now relative to the root and beats TopNav cleanly. SSR-safe
+ * via the `mounted` guard — server renders nothing, client portals
+ * on first effect tick.
  */
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Menu } from "lucide-react";
 
 export function PageMenuTrigger({ onClick }: { onClick: () => void }) {
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  const button = (
     <button
       type="button"
       onClick={onClick}
@@ -60,4 +80,5 @@ export function PageMenuTrigger({ onClick }: { onClick: () => void }) {
       <Menu size={18} strokeWidth={1.6} aria-hidden />
     </button>
   );
+  return createPortal(button, document.body);
 }
