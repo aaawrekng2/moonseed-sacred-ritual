@@ -245,6 +245,7 @@ export function SpreadLayout({
           spread={spread}
           picks={picks}
           labels={labels}
+          descriptions={descriptions}
           cardBack={cardBack}
           revealedFlags={revealedFlags}
           nextIndex={nextIndex}
@@ -322,6 +323,7 @@ function SpreadContent({
   spread,
   picks,
   labels,
+  descriptions,
   cardBack,
   revealedFlags,
   nextIndex,
@@ -334,6 +336,7 @@ function SpreadContent({
   spread: SpreadMode;
   picks: Pick[];
   labels: string[];
+  descriptions: string[];
   cardBack: CardBackId;
   revealedFlags: boolean[];
   nextIndex: number;
