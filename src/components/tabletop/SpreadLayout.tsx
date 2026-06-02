@@ -13,6 +13,7 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { responsiveSlotWidth, TABLETOP_CONFIG } from "@/components/tabletop/config";
+import { SlotLabel } from "@/components/tabletop/SlotLabel";
 import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -129,6 +130,12 @@ export function SpreadLayout({
   );
 
   const labels = meta.positions ?? meta.positionsShort ?? [];
+  // EK33 — Per-position one-sentence descriptions, threaded down to
+  // PositionLabel so it can render the tap-to-reveal popover. Custom
+  // spreads have no `positionDescriptions` (undefined), so the resulting
+  // array stays empty and PositionLabel falls back to the non-tappable
+  // plain-text path.
+  const descriptions = meta.positionDescriptions ?? [];
 
   // The lowest unrevealed index — that's the card the user must tap next.
   const nextIndex = revealedFlags.findIndex((r) => !r);
@@ -169,7 +176,7 @@ export function SpreadLayout({
   return (
     <main
       ref={mainRef}
-      className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
+      className="cast-screen-enter bg-cosmos fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
       style={{
         // Allow native pinch-zoom + pan without the browser snapping the
@@ -238,6 +245,7 @@ export function SpreadLayout({
           spread={spread}
           picks={picks}
           labels={labels}
+          descriptions={descriptions}
           cardBack={cardBack}
           revealedFlags={revealedFlags}
           nextIndex={nextIndex}
@@ -315,6 +323,7 @@ function SpreadContent({
   spread,
   picks,
   labels,
+  descriptions,
   cardBack,
   revealedFlags,
   nextIndex,
@@ -327,6 +336,7 @@ function SpreadContent({
   spread: SpreadMode;
   picks: Pick[];
   labels: string[];
+  descriptions: string[];
   cardBack: CardBackId;
   revealedFlags: boolean[];
   nextIndex: number;
@@ -352,6 +362,7 @@ function SpreadContent({
       <CelticCross
         picks={picks}
         labels={labels}
+        descriptions={descriptions}
         cardBack={cardBack}
         revealedFlags={revealedFlags}
         nextIndex={nextIndex}
@@ -370,6 +381,7 @@ function SpreadContent({
       <ThreeRow
         picks={picks}
         labels={labels}
+        descriptions={descriptions}
         cardBack={cardBack}
         revealedFlags={revealedFlags}
         nextIndex={nextIndex}
@@ -470,9 +482,10 @@ function SpreadContent({
                       gap: 2,
                     }}
                   >
-                    {showLabels && (
-                      <PositionLabel cardWidth={displayW}>{`Card ${i + 1}`}</PositionLabel>
-                    )}
+                    {/* EK33 — Was `<PositionLabel>{`Card ${i + 1}`}</PositionLabel>`.
+                        Per the styling doc + EK33 request: custom
+                        spreads have no `positions` data, so they
+                        render no label at all. Removed entirely. */}
                     {showLabels && revealedFlags[i] && (
                       <CardNameLabel
                         cardIndex={pick.cardIndex}
@@ -544,7 +557,20 @@ function SpreadContent({
               key={`label-${pick.id}`}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}
             >
-              {showLabels && <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>}
+              {/* EK33 — Non-custom multi-card spreads (horseshoe,
+                  relationship, decision, year_of_lunations etc.) get
+                  the underlined tappable label with popover. Custom
+                  spreads have no `labels[i]` and PositionLabel's null
+                  guard makes them render nothing. */}
+              {showLabels && (
+                <PositionLabel
+                  cardWidth={sizing.w}
+                  fullName={labels[i] ?? null}
+                  description={descriptions[i] ?? null}
+                >
+                  {labels[i] ?? null}
+                </PositionLabel>
+              )}
               {showLabels && revealedFlags[i] && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
@@ -831,32 +857,79 @@ function CardFace({
   );
 }
 
+/**
+ * EK33 — Underlined, tappable position label with a popover containing
+ * the full position name + one-sentence description.
+ *
+ * When `children` (the short label) is falsy, renders nothing — same
+ * contract as the rail's SlotLabel. Custom spreads have no `positions`
+ * data, so call sites passing literal "Card N" fallbacks now pass null
+ * instead and the label simply doesn't render.
+ *
+ * `description` is the per-position explanation from
+ * `meta.positionDescriptions`. When absent, the popover is suppressed
+ * and the label renders as plain non-tappable styled text — same look
+ * as before EK33.
+ */
 export function PositionLabel({
   children,
+  fullName,
+  description,
   cardWidth,
 }: {
   children: React.ReactNode;
+  /** Full position name shown as the popover header. */
+  fullName?: string | null;
+  /** One-sentence description shown below the name in the popover. */
+  description?: string | null;
   cardWidth?: number;
 }) {
+  // If children is null/undefined/empty, render nothing — bans the
+  // legacy "Card N" / "Slot N" fallback per the styling doc.
+  if (children === null || children === undefined || children === "") return null;
+  // Without a description, fall back to a plain styled span (the
+  // pre-EK33 look). The popover only opens when there's real content
+  // for it; otherwise the label is informational text, not a control.
+  if (!description) {
+    return (
+      <span
+        className="font-display italic"
+        style={{
+          fontSize: "var(--text-body-lg)",
+          color: "var(--gold)",
+          opacity: 0.75,
+          letterSpacing: "0.05em",
+          textAlign: "center",
+          lineHeight: 1.2,
+          display: "inline-block",
+          ...(cardWidth ? { maxWidth: cardWidth } : {}),
+        }}
+      >
+        {children}
+      </span>
+    );
+  }
+  // With a description, render the tappable underlined affordance via
+  // SlotLabel. The visible text is the short label (children); the
+  // popover shows fullName + description.
+  const short = typeof children === "string" ? children : String(children);
   return (
-    <span
+    <SlotLabel
+      shortName={short}
+      fullName={fullName ?? short}
+      description={description}
       className="font-display italic"
       style={{
         fontSize: "var(--text-body-lg)",
         color: "var(--gold)",
         opacity: 0.75,
         letterSpacing: "0.05em",
-        // CL Group 1 — allow wrapping so long labels (e.g. "Hopes &
-        // Fears", "Final Outcome") don't force the column wider than
-        // the card and push Celtic Cross off the screen.
         textAlign: "center",
         lineHeight: 1.2,
         display: "inline-block",
         ...(cardWidth ? { maxWidth: cardWidth } : {}),
       }}
-    >
-      {children}
-    </span>
+    />
   );
 }
 
@@ -1018,6 +1091,7 @@ function SingleCard({
 function ThreeRow({
   picks,
   labels,
+  descriptions,
   cardBack,
   revealedFlags,
   nextIndex,
@@ -1031,6 +1105,9 @@ function ThreeRow({
 }: {
   picks: Pick[];
   labels: string[];
+  // EK33 — Per-position descriptions threaded down so PositionLabel can
+  // render the tap-to-reveal popover. Empty = no popover (custom).
+  descriptions: string[];
   cardBack: CardBackId;
   revealedFlags: boolean[];
   nextIndex: number;
@@ -1125,7 +1202,13 @@ function ThreeRow({
             }}
           >
             {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+              <PositionLabel
+                cardWidth={sizing.w}
+                fullName={labels[i] ?? null}
+                description={descriptions[i] ?? null}
+              >
+                {labels[i] ?? null}
+              </PositionLabel>
             )}
             {showLabels && revealedFlags[i] && (
               <CardNameLabel
@@ -1155,6 +1238,7 @@ function ThreeRow({
 function CelticCross({
   picks,
   labels,
+  descriptions,
   cardBack,
   revealedFlags,
   nextIndex,
@@ -1168,6 +1252,10 @@ function CelticCross({
 }: {
   picks: Pick[];
   labels: string[];
+  // EK33 — Per-position one-sentence descriptions, used by PositionLabel
+  // to show a tap-to-reveal popover. Empty array when meta has no
+  // descriptions (custom spread); PositionLabel falls back to plain text.
+  descriptions: string[];
   cardBack: CardBackId;
   revealedFlags: boolean[];
   nextIndex: number;
@@ -1352,6 +1440,10 @@ export function ManualSpreadSlots({
 }) {
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
+  // EK33 — Threaded to PositionLabel so manual-entry slot labels also
+  // get the tap-to-reveal popover. Custom spreads have no descriptions
+  // so PositionLabel falls back to plain non-tappable text.
+  const descriptions = meta.positionDescriptions ?? [];
   const sizing = useMemo(() => spreadSizing(spread, customCount), [spread, customCount]);
   const activeResolve = useActiveDeckImage();
   const deckRadiusPx = useActiveDeckCornerRadius();
@@ -1519,7 +1611,15 @@ export function ManualSpreadSlots({
     const cellWithLabel = (i: number, label: string, rotated = false) => (
       <div className="flex flex-col items-center gap-1.5">
         <Slot pick={picks[i] ?? null} slotIndex={i} rotated={rotated} />
-        {showLabels && <PositionLabel cardWidth={sizing.w}>{label}</PositionLabel>}
+        {showLabels && (
+          <PositionLabel
+            cardWidth={sizing.w}
+            fullName={label}
+            description={descriptions[i] ?? null}
+          >
+            {label}
+          </PositionLabel>
+        )}
         {showLabels && picks[i] && (
           <CardNameLabel
             cardIndex={picks[i]!.cardIndex}
@@ -1571,7 +1671,13 @@ export function ManualSpreadSlots({
             <div key={i} className="flex flex-col items-center gap-1.5">
               <Slot pick={picks[i] ?? null} slotIndex={i} />
               {showLabels && (
-                <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>
+                <PositionLabel
+                  cardWidth={sizing.w}
+                  fullName={labels[i] ?? null}
+                  description={descriptions[i] ?? null}
+                >
+                  {labels[i] ?? null}
+                </PositionLabel>
               )}
               {showLabels && picks[i] && (
                 <CardNameLabel
@@ -1665,7 +1771,13 @@ export function ManualSpreadSlots({
               }}
             >
               {showLabels && labels[i] && (
-                <PositionLabel cardWidth={cellW}>{labels[i]}</PositionLabel>
+                <PositionLabel
+                  cardWidth={cellW}
+                  fullName={labels[i]}
+                  description={descriptions[i] ?? null}
+                >
+                  {labels[i]}
+                </PositionLabel>
               )}
               {showLabels && pick && (
                 <CardNameLabel
@@ -1804,7 +1916,15 @@ export function ManualSpreadSlots({
           gap: 2,
         }}
       >
-        {showLabels && labels[0] && <PositionLabel cardWidth={sizing.w}>{labels[0]}</PositionLabel>}
+        {showLabels && labels[0] && (
+          <PositionLabel
+            cardWidth={sizing.w}
+            fullName={labels[0]}
+            description={descriptions[0] ?? null}
+          >
+            {labels[0]}
+          </PositionLabel>
+        )}
         {showLabels && picks[0] && (
           <CardNameLabel
             cardIndex={picks[0]!.cardIndex}
