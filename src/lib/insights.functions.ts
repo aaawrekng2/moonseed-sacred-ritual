@@ -903,61 +903,6 @@ export const getTagCloud = createServerFn({ method: "GET" })
     };
   });
 
-/** EM-2 — Guide preferences over time, bucketed by week or month. */
-export const getGuidePreferences = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context as { supabase: any; userId: string };
-    const isPremium = await getIsPremium(supabase, userId);
-    const { days } = effectiveWindow(data.timeRange, isPremium);
-    const rows = await fetchFilteredReadings(supabase, userId, data, days);
-    const useWeekly = data.timeRange === "7d" || data.timeRange === "30d";
-    const gpTz = currentTzOrFallback(data.tz);
-    function bucketKey(iso: string): string {
-      // Bucket by ISO week start (Monday) in the seeker's tz, otherwise
-      // by tz-local YYYY-MM. The previous version sliced the raw UTC
-      // ISO string and silently bucketed in UTC.
-      const localYmd = ymd(iso, gpTz);
-      if (!useWeekly) return localYmd.slice(0, 7);
-      const [y, m, d2] = localYmd.split("-").map(Number);
-      // Pure Y/M/D math: UTC weekday is the same as the calendar weekday
-      // for that date regardless of tz, because the date is already
-      // anchored in the seeker's local calendar.
-      const utc = new Date(Date.UTC(y, m - 1, d2));
-      const dayNum = utc.getUTCDay() || 7;
-      utc.setUTCDate(utc.getUTCDate() - (dayNum - 1));
-      return `${utc.getUTCFullYear()}-${String(utc.getUTCMonth() + 1).padStart(2, "0")}-${String(utc.getUTCDate()).padStart(2, "0")}`;
-    }
-    const guideTotals = new Map<string, number>();
-    const buckets = new Map<string, Map<string, number>>();
-    for (const r of rows) {
-      const g = r.guide_id;
-      if (!g) continue;
-      guideTotals.set(g, (guideTotals.get(g) ?? 0) + 1);
-      const k = bucketKey(r.created_at);
-      const m = buckets.get(k) ?? new Map<string, number>();
-      m.set(g, (m.get(g) ?? 0) + 1);
-      buckets.set(k, m);
-    }
-    const topGuides = [...guideTotals.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([id]) => id);
-    const guides = topGuides.map((id) => ({
-      guideId: id,
-      name: getGuideById(id)?.name ?? id,
-      totalCount: guideTotals.get(id) ?? 0,
-    }));
-    const months = [...buckets.entries()]
-      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-      .map(([month, m]) => {
-        const counts: Record<string, number> = {};
-        for (const id of topGuides) counts[id] = m.get(id) ?? 0;
-        return { month, counts };
-      });
-    return { months, guides, bucket: (useWeekly ? "week" : "month") as "week" | "month" };
-  });
 
 /** EM-3 — Lens distribution across all (and deep) readings. */
 export const getLensDistribution = createServerFn({ method: "GET" })
@@ -2672,3 +2617,221 @@ export const getSuitTrends = createServerFn({ method: "GET" })
 
     return { buckets: result, granularity };
   });
+
+// ============================================================================
+// EK36 — Tag stats for the constellation filter drawer.
+//
+// Computes per-tag stats for the constellation page's tag filter
+// section. Given the current filter context (date range, cards in
+// slots, scope mode any/all, other active filters), returns:
+//
+//   - tags[]: per-tag {name, count, lastUsedAt, recentlyActive,
+//     coOccurringCards (top 3 cardIds), trendDirection (up/down/flat)}
+//   - readingsInScope: total reading count after applying all filters
+//
+// The frontend renders this as the constellation-page tag list with
+// hover-only counts, font-weight gradient (visual weight), and a
+// recent-activity dot. Trend arrow appears in the hover preview.
+// ============================================================================
+
+const TagFilterStatsInput = z.object({
+  /** Days back from now. null = all time. Mirrors InsightsFilters.timeRange. */
+  days: z.number().int().nullable(),
+  /** Card indices currently in the seeker's slot row. Empty = no slot filter. */
+  cardIndices: z.array(z.number().int()).max(20).default([]),
+  /**
+   * EK36 — When cardIndices is non-empty, controls which readings the
+   * tag list is drawn from.
+   *   "any" → readings containing ANY of the slot cards (broad)
+   *   "all" → readings containing ALL slot cards (narrow theme hunt)
+   * With cardIndices empty, this has no effect.
+   */
+  scope: z.enum(["any", "all"]).default("any"),
+  /** Other active filters (spread types, deep, tags themselves, etc). */
+  spreadTypes: z.array(z.string()).default([]),
+  deckIds: z.array(z.string()).default([]),
+  deepOnly: z.boolean().default(false),
+});
+
+type TagStat = {
+  name: string;
+  count: number;
+  lastUsedAt: string | null;
+  recentlyActive: boolean;
+  coOccurringCards: number[];
+  trendDirection: "up" | "down" | "flat";
+};
+
+export const getTagFilterStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => TagFilterStatsInput.parse(raw))
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{
+      tags: TagStat[];
+      readingsInScope: number;
+    }> => {
+      const { supabase, userId } = context;
+
+      // EK36 — Helper that pulls readings from the DB for a given day
+      // range. Reused for both the current window and the prior window
+      // (used to compute trend arrows).
+      const fetchWindow = async (
+        days: number | null,
+        offsetDays: number = 0,
+      ): Promise<ReadingRow[]> => {
+        let q = supabase
+          .from("readings")
+          .select(READING_COLUMNS)
+          .eq("user_id", userId)
+          .is("archived_at", null);
+        if (days !== null) {
+          const now = Date.now();
+          const upper = offsetDays
+            ? new Date(now - offsetDays * 24 * 60 * 60 * 1000).toISOString()
+            : null;
+          const lower = new Date(
+            now - (days + offsetDays) * 24 * 60 * 60 * 1000,
+          ).toISOString();
+          q = q.gte("created_at", lower);
+          if (upper) q = q.lt("created_at", upper);
+        } else if (offsetDays) {
+          // No bounded window but trend asked — there's no "prior" for
+          // all-time, so return empty.
+          return [];
+        }
+        if (data.spreadTypes.length > 0)
+          q = q.in("spread_type", data.spreadTypes);
+        if (data.deckIds.length > 0) q = q.in("deck_id", data.deckIds);
+        if (data.deepOnly) q = q.eq("is_deep_reading", true);
+        const { data: rows, error } = await q
+          .order("created_at", { ascending: false })
+          .limit(2000);
+        if (error) throw error;
+        return (rows ?? []) as ReadingRow[];
+      };
+
+      // EK36 — Apply the cards-in-slots scope filter in JS (Postgres
+      // contains operators on int[] columns are reliable but the
+      // "all of these AND not too many extras" intent is clearer in
+      // application code, and we already have the rows loaded).
+      const applyCardScope = (rows: ReadingRow[]): ReadingRow[] => {
+        if (data.cardIndices.length === 0) return rows;
+        const slotSet = new Set(data.cardIndices);
+        if (data.scope === "all") {
+          // Every slot card must appear in the reading's card_ids.
+          return rows.filter((r) => {
+            if (!r.card_ids) return false;
+            for (const idx of data.cardIndices) {
+              if (!r.card_ids.includes(idx)) return false;
+            }
+            return true;
+          });
+        }
+        // any: reading contains at least one slot card.
+        return rows.filter((r) => {
+          if (!r.card_ids) return false;
+          for (const idx of r.card_ids) {
+            if (slotSet.has(idx)) return true;
+          }
+          return false;
+        });
+      };
+
+      // EK36 — Current window readings, scoped by cards-in-slots.
+      const currentRows = applyCardScope(await fetchWindow(data.days, 0));
+      // EK36 — Prior window for trend computation. Same length, shifted
+      // back by the window size. With no day window (all-time), skip
+      // trends.
+      const priorRows = data.days
+        ? applyCardScope(await fetchWindow(data.days, data.days))
+        : [];
+
+      // EK36 — Compute per-tag stats across currentRows.
+      type TagAgg = {
+        count: number;
+        lastUsedAt: string | null;
+        recentlyActive: boolean;
+        // Map of cardId → co-occurrence count for top-3 ranking.
+        coOccurring: Map<number, number>;
+      };
+      const sevenDaysAgo = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const tagsAgg = new Map<string, TagAgg>();
+      for (const r of currentRows) {
+        if (!r.tags || r.tags.length === 0) continue;
+        for (const tag of r.tags) {
+          let agg = tagsAgg.get(tag);
+          if (!agg) {
+            agg = {
+              count: 0,
+              lastUsedAt: null,
+              recentlyActive: false,
+              coOccurring: new Map(),
+            };
+            tagsAgg.set(tag, agg);
+          }
+          agg.count += 1;
+          if (!agg.lastUsedAt || r.created_at > agg.lastUsedAt) {
+            agg.lastUsedAt = r.created_at;
+          }
+          if (r.created_at >= sevenDaysAgo) agg.recentlyActive = true;
+          if (r.card_ids) {
+            for (const cid of r.card_ids) {
+              agg.coOccurring.set(cid, (agg.coOccurring.get(cid) ?? 0) + 1);
+            }
+          }
+        }
+      }
+
+      // EK36 — Prior-window tag counts for trend computation.
+      const priorCounts = new Map<string, number>();
+      for (const r of priorRows) {
+        if (!r.tags) continue;
+        for (const tag of r.tags) {
+          priorCounts.set(tag, (priorCounts.get(tag) ?? 0) + 1);
+        }
+      }
+
+      // EK36 — Build output, sorted by count desc then by name asc.
+      // Client may re-sort but this is the natural default.
+      const tags: TagStat[] = Array.from(tagsAgg.entries())
+        .map(([name, agg]) => {
+          const top3 = Array.from(agg.coOccurring.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([cid]) => cid);
+          const prior = priorCounts.get(name) ?? 0;
+          let trendDirection: "up" | "down" | "flat" = "flat";
+          if (data.days && prior !== agg.count) {
+            // EK36 — Flat band: within ±15% counts as flat to avoid
+            // jittery arrows on small counts (e.g. 4→5 isn't a story).
+            const diff = agg.count - prior;
+            const denominator = Math.max(prior, 1);
+            const pct = diff / denominator;
+            if (pct > 0.15) trendDirection = "up";
+            else if (pct < -0.15) trendDirection = "down";
+          }
+          return {
+            name,
+            count: agg.count,
+            lastUsedAt: agg.lastUsedAt,
+            recentlyActive: agg.recentlyActive,
+            coOccurringCards: top3,
+            trendDirection,
+          };
+        })
+        .sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return a.name.localeCompare(b.name);
+        });
+
+      return {
+        tags,
+        readingsInScope: currentRows.length,
+      };
+    },
+  );

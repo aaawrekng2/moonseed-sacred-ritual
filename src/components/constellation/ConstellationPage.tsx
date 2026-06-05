@@ -78,6 +78,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { useStreak } from "@/lib/use-streak";
 import { getLunationContaining } from "@/lib/lunation";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  ConstellationTagsPanel,
+  useTagSortPref,
+  useTagScopePref,
+  type ConstellationTagStat,
+} from "@/components/filters/ConstellationTagsPanel";
+import { getTagFilterStats } from "@/lib/insights.functions";
 import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
 import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
@@ -4017,10 +4024,34 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
               below the Manual Entry header line, while still
               surfacing filter controls in the main reading-flow
               column. */}
+          {/* EK36 — Per-tag stats for the constellation-page tag panel.
+              Computed server-side from the current date range, the
+              cards in the seeker's slot row, and the scope mode (any /
+              all). Results power the ConstellationTagsPanel's
+              hover-only counts, font-weight gradient, recent-activity
+              dot, and trend arrows. */}
+          {(() => null)()}
           <GlobalFilterBar
             filters={globalFilters}
             onChange={setGlobalFilters}
             sections={["tags", "spreadTypes", "depth", "reversed"]}
+            tagsSectionOverride={
+              <EK36TagsBridge
+                globalFilters={globalFilters}
+                onTagToggle={(name) =>
+                  setGlobalFilters((prev) => ({
+                    ...prev,
+                    tags: prev.tags.includes(name)
+                      ? prev.tags.filter((t) => t !== name)
+                      : [...prev.tags, name],
+                  }))
+                }
+                onTagModeChange={(mode) =>
+                  setGlobalFilters((prev) => ({ ...prev, tagMode: mode }))
+                }
+                cardIndices={picks.map((p) => p.cardIndex)}
+              />
+            }
             userTags={userTags}
             drawerOpen={globalDrawerOpen}
             onDrawerOpenChange={setGlobalDrawerOpen}
@@ -6560,4 +6591,93 @@ function UnsavedChangesModal({
     </div>
   );
   return typeof document === "undefined" ? null : createPortal(node, document.body);
+}
+
+/**
+ * EK36 — Bridge between GlobalFilterBar's tagsSectionOverride slot and
+ * the new ConstellationTagsPanel.
+ *
+ * Fetches per-tag stats from getTagFilterStats whenever the relevant
+ * inputs change (date range, cards in slots, scope mode, other active
+ * filters that affect the underlying reading set). Owns the sort/scope
+ * preference state via the localStorage-backed hooks. Renders the
+ * panel with the freshly-fetched stats; while a fetch is in flight,
+ * keeps the previous results visible so the panel doesn't flash empty.
+ */
+function EK36TagsBridge({
+  globalFilters,
+  onTagToggle,
+  onTagModeChange,
+  cardIndices,
+}: {
+  globalFilters: GlobalFilters;
+  onTagToggle: (name: string) => void;
+  onTagModeChange: (mode: "any" | "all") => void;
+  cardIndices: number[];
+}) {
+  const [sortMode, setSortMode] = useTagSortPref();
+  const [scopeMode, setScopeMode] = useTagScopePref();
+  const [tagStats, setTagStats] = useState<ConstellationTagStat[]>([]);
+  const [readingsInScope, setReadingsInScope] = useState<number>(0);
+
+  // Map "365d" → 365, "30d" → 30, "all" → null
+  const days = useMemo(() => {
+    const raw = globalFilters.timeRange ?? "365d";
+    if (raw === "all") return null;
+    const m = /^(\d+)d$/.exec(raw);
+    return m ? parseInt(m[1], 10) : 365;
+  }, [globalFilters.timeRange]);
+
+  // Stable key for cardIndices so the effect doesn't refetch on every
+  // render due to a new array identity.
+  const cardIndicesKey = cardIndices.join(",");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getTagFilterStats({
+          data: {
+            days,
+            cardIndices,
+            scope: scopeMode,
+            spreadTypes: globalFilters.spreadTypes ?? [],
+            deckIds: [],
+            deepOnly: globalFilters.deepOnly ?? false,
+          },
+        });
+        if (cancelled) return;
+        setTagStats(result.tags);
+        setReadingsInScope(result.readingsInScope);
+      } catch {
+        // Quiet failure — keep previous results visible.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    days,
+    cardIndicesKey,
+    scopeMode,
+    globalFilters.spreadTypes,
+    globalFilters.deepOnly,
+  ]);
+
+  return (
+    <ConstellationTagsPanel
+      tagStats={tagStats}
+      selectedTagNames={globalFilters.tags ?? []}
+      tagMode={globalFilters.tagMode ?? "any"}
+      onToggleTag={onTagToggle}
+      onTagModeChange={onTagModeChange}
+      scopeMode={scopeMode}
+      onScopeModeChange={setScopeMode}
+      sortMode={sortMode}
+      onSortModeChange={setSortMode}
+      readingsInScope={readingsInScope}
+      hasSlotCards={cardIndices.length > 0}
+    />
+  );
 }
