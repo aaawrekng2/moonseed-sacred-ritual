@@ -1730,3 +1730,143 @@ export const setUserAIFeatures = createServerFn({ method: "POST" })
 
     return { ok: true, ai_features_enabled: data.enabled };
   });
+
+/**
+ * EK38 — List AI gate violations.
+ *
+ * Returns the most recent violations, optionally filtered by:
+ *   - resolved: null (all), true (resolved only), false (unresolved only)
+ *   - category: "money_spent" | "blocked_attempt" | undefined (both)
+ *
+ * Default returns the 100 most recent unresolved violations across
+ * both categories. Admin-only.
+ */
+export const listAIGateViolations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) =>
+    z
+      .object({
+        resolved: z.boolean().optional(),
+        category: z.enum(["money_spent", "blocked_attempt"]).optional(),
+        limit: z.number().int().min(1).max(500).default(100),
+      })
+      .parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    let q = supabaseAdmin
+      .from("ai_gate_violations" as never)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+
+    if (data.resolved === true) {
+      q = q.not("reviewed_at", "is", null);
+    } else if (data.resolved === false) {
+      q = q.is("reviewed_at", null);
+    }
+    if (data.category) {
+      q = q.eq("category", data.category);
+    }
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    // Hydrate user emails so the admin sees who actually triggered
+    // each violation. Done in a single batch for efficiency.
+    const userIds = Array.from(
+      new Set(((rows as Array<{ user_id: string }> | null) ?? []).map((r) => r.user_id)),
+    );
+    const emails: Record<string, string | null> = {};
+    for (const uid of userIds) {
+      try {
+        const { data: ud } = await supabaseAdmin.auth.admin.getUserById(uid);
+        emails[uid] = ud?.user?.email ?? null;
+      } catch {
+        emails[uid] = null;
+      }
+    }
+
+    return ((rows as Array<Record<string, unknown>> | null) ?? []).map(
+      (r) => ({
+        ...r,
+        user_email: emails[r.user_id as string] ?? null,
+      }),
+    );
+  });
+
+/**
+ * EK38 — Count unresolved violations by category. Powers the red
+ * banner on /admin/usage that drives the admin to the violations
+ * detail surface.
+ */
+export const countUnresolvedAIGateViolations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { count: moneyCount } = await supabaseAdmin
+      .from("ai_gate_violations" as never)
+      .select("id", { count: "exact", head: true })
+      .is("reviewed_at", null)
+      .eq("category", "money_spent");
+
+    const { count: blockedCount } = await supabaseAdmin
+      .from("ai_gate_violations" as never)
+      .select("id", { count: "exact", head: true })
+      .is("reviewed_at", null)
+      .eq("category", "blocked_attempt");
+
+    return {
+      money_spent: moneyCount ?? 0,
+      blocked_attempt: blockedCount ?? 0,
+      total: (moneyCount ?? 0) + (blockedCount ?? 0),
+    };
+  });
+
+/**
+ * EK38 — Mark a violation as reviewed. Optionally attach a note
+ * (e.g. "investigated — was a test", "patched the UI leak in EK39").
+ * Admin-only.
+ */
+export const reviewAIGateViolation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) =>
+    z
+      .object({
+        violationId: z.string().uuid(),
+        note: z.string().max(2000).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { error } = await supabaseAdmin
+      .from("ai_gate_violations" as never)
+      .update({
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: userId,
+        reviewed_note: data.note ?? null,
+      } as never)
+      .eq("id", data.violationId);
+    if (error) throw new Error(error.message);
+
+    // Audit log entry.
+    try {
+      await supabaseAdmin.from("audit_log" as never).insert({
+        actor_user_id: userId,
+        target_user_id: null,
+        action: "ai_gate_violation_reviewed",
+        details: { violation_id: data.violationId, note: data.note ?? null },
+      } as never);
+    } catch {
+      /* audit log is best-effort */
+    }
+
+    return { ok: true };
+  });

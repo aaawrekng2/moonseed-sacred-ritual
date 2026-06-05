@@ -263,6 +263,74 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_gate_violations: {
+        Row: {
+          call_log_id: string | null
+          call_type: string | null
+          category: string
+          cost_usd: number | null
+          created_at: string
+          credits_consumed: number | null
+          effective_gate: boolean | null
+          global_default: boolean | null
+          id: string
+          model: string | null
+          provider: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewed_note: string | null
+          status: string
+          user_id: string
+          user_override: boolean | null
+        }
+        Insert: {
+          call_log_id?: string | null
+          call_type?: string | null
+          category: string
+          cost_usd?: number | null
+          created_at?: string
+          credits_consumed?: number | null
+          effective_gate?: boolean | null
+          global_default?: boolean | null
+          id?: string
+          model?: string | null
+          provider?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_note?: string | null
+          status: string
+          user_id: string
+          user_override?: boolean | null
+        }
+        Update: {
+          call_log_id?: string | null
+          call_type?: string | null
+          category?: string
+          cost_usd?: number | null
+          created_at?: string
+          credits_consumed?: number | null
+          effective_gate?: boolean | null
+          global_default?: boolean | null
+          id?: string
+          model?: string | null
+          provider?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_note?: string | null
+          status?: string
+          user_id?: string
+          user_override?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_gate_violations_call_log_id_fkey"
+            columns: ["call_log_id"]
+            isOneToOne: false
+            referencedRelation: "ai_call_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_deck_cards: {
         Row: {
           archived_at: string | null
@@ -1744,6 +1812,14 @@ export type Database = {
       }
     }
     Functions: {
+      ai_effective_gate: {
+        Args: { _user_id: string }
+        Returns: {
+          effective_gate: boolean
+          global_default: boolean
+          user_override: boolean
+        }[]
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
