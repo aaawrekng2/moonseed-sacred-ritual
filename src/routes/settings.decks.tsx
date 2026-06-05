@@ -1191,20 +1191,14 @@ function DeckEditor({
             </div>
           )}
 
-          {/* 9-6-O — desktop only; sticky version below is mobile only. */}
-          <button
-            type="button"
-            disabled={saving || !name.trim()}
-            onClick={handleContinue}
-            className="hidden sm:inline-flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Continue → photograph cards
-          </button>
-
-          {/* Bulk import entry — Stamp BH. Creates the deck row first so a
-              cancelled import still leaves a recoverable empty deck. */}
-          <div className="pt-2">
+          {/* EK39 — Two equal options for proceeding. ZIP left
+              (faster path for users with a digitized deck),
+              Photograph right (the more common path for fresh
+              physical decks). Both visually equal so the seeker
+              chooses their route explicitly. Desktop layout — see
+              the mobile fixed-bottom version below for narrow screens. */}
+          <div className="hidden sm:grid grid-cols-2 gap-3">
+            {/* ZIP — left */}
             <button
               type="button"
               disabled={saving || !name.trim()}
@@ -1232,23 +1226,76 @@ function DeckEditor({
                   setSaving(false);
                 }
               }}
-              className="italic underline disabled:opacity-50"
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-body-sm)",
-                color: "var(--color-foreground)",
-                opacity: 0.85,
-                background: "none",
-                border: "none",
-                padding: 0,
-              }}
+              className="flex flex-col items-center gap-2 rounded-md border border-gold/40 bg-gold/5 px-4 py-5 hover:bg-gold/15 disabled:opacity-50 transition-colors"
             >
-              Already have your deck digitized? Import from zip
+              <Upload className="h-6 w-6" style={{ color: "var(--gold)" }} />
+              <span
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                Import from ZIP
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.7,
+                  lineHeight: 1.4,
+                  textAlign: "center",
+                }}
+              >
+                Already have your deck<br />digitized? Upload the zip.
+              </span>
+            </button>
+
+            {/* Photograph cards — right */}
+            <button
+              type="button"
+              disabled={saving || !name.trim()}
+              onClick={handleContinue}
+              className="flex flex-col items-center gap-2 rounded-md border border-gold/40 bg-gold/5 px-4 py-5 hover:bg-gold/15 disabled:opacity-50 transition-colors"
+            >
+              {saving ? (
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--gold)" }} />
+              ) : (
+                <Camera className="h-6 w-6" style={{ color: "var(--gold)" }} />
+              )}
+              <span
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                Photograph cards
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.7,
+                  lineHeight: 1.4,
+                  textAlign: "center",
+                }}
+              >
+                Use your phone to<br />capture each card.
+              </span>
             </button>
           </div>
 
-          {/* 9-6-AB — fixed (not sticky) so the bar always pins to the
-              viewport bottom regardless of the form's parent height. */}
+          {/* EK39 — Mobile equivalent. The original was a single
+              fixed-bottom CTA with the zip link buried above as plain
+              text. Now both options share a fixed-bottom bar as a
+              two-column grid so the choice is equal on mobile too. */}
           <div
             className="fixed inset-x-0 border-t px-4 py-2 sm:hidden z-40"
             style={{
@@ -1257,15 +1304,73 @@ function DeckEditor({
               borderColor: "var(--border-subtle)",
             }}
           >
-            <button
-              type="button"
-              disabled={saving || !name.trim()}
-              onClick={handleContinue}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-medium hover:bg-gold/20 disabled:opacity-50"
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Continue → photograph cards
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={saving || !name.trim()}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    const { data, error } = await supabase
+                      .from("custom_decks")
+                      .insert({
+                        user_id: userId,
+                        name: name.trim(),
+                        shape,
+                        corner_radius_percent: cornerRadius,
+                        deck_type: deckType,
+                      })
+                      .select("*")
+                      .single();
+                    if (error) throw error;
+                    const newDeck = data as CustomDeck;
+                    setCreatedDeck(newDeck);
+                    setMode({ kind: "import", deckId: newDeck.id });
+                  } catch (err) {
+                    toast.error(
+                      `Couldn't create deck: ${(err as Error).message}`,
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="flex flex-col items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-3 py-2 hover:bg-gold/20 disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" style={{ color: "var(--gold)" }} />
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  Import ZIP
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={saving || !name.trim()}
+                onClick={handleContinue}
+                className="flex flex-col items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-3 py-2 hover:bg-gold/20 disabled:opacity-50"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--gold)" }} />
+                ) : (
+                  <Camera className="h-4 w-4" style={{ color: "var(--gold)" }} />
+                )}
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  Photograph
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
