@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { TopNav } from "@/components/nav/TopNav";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import {
   getCardPopoverData,
@@ -33,6 +34,13 @@ import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS, type TimeRange } from "@/lib/insights.types";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  ConstellationTagsPanel,
+  useTagSortPref,
+  useTagScopePref,
+  type ConstellationTagStat,
+} from "@/components/filters/ConstellationTagsPanel";
+import { getTagFilterStats } from "@/lib/insights.functions";
 import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
@@ -501,18 +509,43 @@ export function CardTraceView({
         zIndex: "var(--z-modal)" as unknown as number,
       }}
     >
-      {/* EK42 — Top chrome mirrors Manual Entry / /constellation:
-          PageMenuTrigger (left, fixed) + X close (right, fixed), no
-          sticky header band. Back arrow moved inside the PageMenu's
-          Navigate section. Card name dropped — the constellation is
-          self-explanatory (the hero IS the card the seeker tapped). */}
-      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
-      <PageMenu
-        open={pageMenuOpen}
-        onClose={() => setPageMenuOpen(false)}
-        sections={pageMenuSections}
-        title="Card Trace"
-      />
+      {/* EK43 — Top chrome MIRRORS Manual Entry exactly:
+            1. Global TopNav rendered inside the portal (CardTrace
+               is a fixed inset-0 overlay above z-modal which would
+               otherwise hide the global TopNav). Mirrors how
+               ManualEntryBuilder renders <TopNav /> inside its
+               FullScreenSheet.
+            2. Back arrow overlaid at the far LEFT of the TopNav
+               row.
+            3. X close overlaid at the far RIGHT of the TopNav row.
+            4. PageMenuTrigger hamburger sits at its standard Manual
+               Entry position just below the TopNav band. */}
+      <TopNav />
+      <button
+        type="button"
+        onClick={close}
+        aria-label="Back to Insights"
+        title="Back"
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+          left: 8,
+          zIndex: 501,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 28,
+          height: 28,
+          borderRadius: 999,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--color-foreground)",
+          opacity: 0.85,
+        }}
+      >
+        <ArrowLeft size={18} strokeWidth={1.7} />
+      </button>
       <button
         type="button"
         onClick={close}
@@ -520,46 +553,72 @@ export function CardTraceView({
         title="Close"
         style={{
           position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 8px)",
+          top: "calc(env(safe-area-inset-top, 0px) + 4px)",
           right: 8,
-          zIndex: 500,
+          zIndex: 501,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 36,
-          height: 36,
+          width: 28,
+          height: 28,
           borderRadius: 999,
-          background:
-            "color-mix(in oklch, var(--surface-elevated) 80%, transparent)",
-          border: "1px solid var(--border-subtle)",
+          background: "transparent",
+          border: "none",
           cursor: "pointer",
           color: "var(--color-foreground)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          touchAction: "manipulation",
+          opacity: 0.85,
         }}
       >
-        <X size={18} strokeWidth={1.5} />
+        <X size={18} strokeWidth={1.7} />
       </button>
+      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+      <PageMenu
+        open={pageMenuOpen}
+        onClose={() => setPageMenuOpen(false)}
+        sections={pageMenuSections}
+        title="Card Trace"
+      />
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-6">
-        {/* EK42 — Wider container matches Manual Entry's content
-            width. The constellation SVG inside stays 540 (its proven
-            scale); the wider container gives the calendar more
-            horizontal room so the 2 × 6 month cells render at a
-            comfortable size. */}
+        {/* EK43 — Spacer matching TopNav compact height (28px) so the
+            content starts BELOW the TopNav band, not under it.
+            Mirrors ManualEntryBuilder's TopNav spacer pattern. */}
+        <div style={{ height: 28 }} aria-hidden />
+        {/* EK42/EK43 — Wider container matches Manual Entry's
+            content width (1100). Constellation SVG inside stays
+            540 centered (proven scale, unchanged). */}
         <div
-          className="mx-auto mt-12"
+          className="mx-auto mt-8"
           style={{ width: "100%", maxWidth: 1100 }}
         >
-          {/* EK42 — GlobalFilterBar in content flow (not sticky),
-              mirroring Manual Entry's placement. Tags + timeRange +
-              spread types + moon phases + depth + reversed all live
-              here together as a single filter surface. */}
+          {/* EK43 — GlobalFilterBar in content flow, mirroring
+              Manual Entry's placement AND its tag panel override:
+              the standard tag-chip section is replaced with the
+              rich <ConstellationTagsPanel> (hover counts, font-
+              weight gradient, recent-activity dots, trend arrows)
+              via tagsSectionOverride. This is "the filtering like
+              Manual Entry" — same panel, same behavior. */}
           <GlobalFilterBar
             filters={gFilters}
             onChange={setGFilters}
             sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
+            tagsSectionOverride={
+              <CardTraceTagsBridge
+                globalFilters={gFilters}
+                onTagToggle={(name) =>
+                  setGFilters((prev) => ({
+                    ...prev,
+                    tags: prev.tags.includes(name)
+                      ? prev.tags.filter((t) => t !== name)
+                      : [...prev.tags, name],
+                  }))
+                }
+                onTagModeChange={(mode) =>
+                  setGFilters((prev) => ({ ...prev, tagMode: mode }))
+                }
+                cardIndices={[cid]}
+              />
+            }
             timeRange={{
               value: gFilters.timeRange ?? "all",
               options: [
@@ -940,4 +999,88 @@ function buildReflectionPayload(cardId: number, appearances: Appearance[]) {
   const reversedCount = appearances.filter((a) => a.isReversed).length;
 
   return { sampleQuestions, coOccurringCards, spreadTypes, reversedCount };
+}
+/* ============================================================
+ * EK43 — Tags filter bridge for Card Trace.
+ *
+ * Identical pattern to ConstellationPage's EK36TagsBridge: wires
+ * getTagFilterStats → ConstellationTagsPanel for the rich tags
+ * filter UI (hover counts, font-weight gradient, recent-activity
+ * dot, trend arrows). Card Trace passes the focus card's id as
+ * the only cardIndex so the panel's stats are scoped to readings
+ * that contain THIS card.
+ * ============================================================ */
+function CardTraceTagsBridge({
+  globalFilters,
+  onTagToggle,
+  onTagModeChange,
+  cardIndices,
+}: {
+  globalFilters: GlobalFilters;
+  onTagToggle: (name: string) => void;
+  onTagModeChange: (mode: "any" | "all") => void;
+  cardIndices: number[];
+}) {
+  const [sortMode, setSortMode] = useTagSortPref();
+  const [scopeMode, setScopeMode] = useTagScopePref();
+  const [tagStats, setTagStats] = useState<ConstellationTagStat[]>([]);
+  const [readingsInScope, setReadingsInScope] = useState<number>(0);
+
+  const days = useMemo(() => {
+    const raw = globalFilters.timeRange ?? "365d";
+    if (raw === "all") return null;
+    const m = /^(\d+)d$/.exec(raw);
+    return m ? parseInt(m[1], 10) : 365;
+  }, [globalFilters.timeRange]);
+
+  const cardIndicesKey = cardIndices.join(",");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await getTagFilterStats({
+          data: {
+            days,
+            cardIndices,
+            scope: scopeMode,
+            spreadTypes: globalFilters.spreadTypes ?? [],
+            deckIds: [],
+            deepOnly: globalFilters.deepOnly ?? false,
+          },
+        });
+        if (cancelled) return;
+        setTagStats(result.tags);
+        setReadingsInScope(result.readingsInScope);
+      } catch {
+        // Quiet failure — keep previous results visible.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    days,
+    cardIndicesKey,
+    scopeMode,
+    globalFilters.spreadTypes,
+    globalFilters.deepOnly,
+  ]);
+
+  return (
+    <ConstellationTagsPanel
+      tagStats={tagStats}
+      selectedTagNames={globalFilters.tags ?? []}
+      tagMode={globalFilters.tagMode ?? "any"}
+      onToggleTag={onTagToggle}
+      onTagModeChange={onTagModeChange}
+      scopeMode={scopeMode}
+      onScopeModeChange={setScopeMode}
+      sortMode={sortMode}
+      onSortModeChange={setSortMode}
+      readingsInScope={readingsInScope}
+      hasSlotCards={cardIndices.length > 0}
+    />
+  );
 }

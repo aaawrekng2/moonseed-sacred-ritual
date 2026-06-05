@@ -43,12 +43,34 @@ import {
   type ConstellationFilterOpts,
 } from "@/lib/quicklog.functions";
 import { useEcho } from "@/lib/use-echo";
-import { getCardName } from "@/lib/tarot";
-import { useActiveDeckCardName } from "@/lib/active-deck";
+import { TAROT_DECK } from "@/lib/tarot";
+import { useAnyDeckCardName } from "@/lib/active-deck";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { Modal } from "@/components/ui/modal";
 import { formatDateLong } from "@/lib/dates";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+
+/**
+ * EK43 — Safe card-name resolver. NEVER returns the literal "Card N"
+ * string (that fallback is banned from user-facing UI per the styling
+ * doc). Resolution chain:
+ *   1. Active deck name override (handles oracle/custom decks with
+ *      seeker-supplied names for ids 78+).
+ *   2. Any other custom deck the user owns.
+ *   3. Canonical tarot 0..77 name.
+ *   4. Empty string — caller decides whether to display or skip.
+ */
+function safeCardNameWith(resolver: (id: number) => string) {
+  return (cardId: number): string => {
+    const resolved = resolver(cardId);
+    if (resolved && !/^Card\s+\d+$/.test(resolved)) return resolved;
+    if (cardId >= 0 && cardId <= 77) {
+      const name = TAROT_DECK[cardId];
+      if (name && !/^Card\s+\d+$/.test(name)) return name;
+    }
+    return "";
+  };
+}
 
 type Props = {
   /** The cardId of the page's focus card. Anchors the constellation. */
@@ -87,7 +109,11 @@ export function InsightsCardConstellation({
   onTealSelectedIdsChange,
   onSwapHero,
 }: Props) {
-  const resolveCardName = useActiveDeckCardName();
+  const rawResolveCardName = useAnyDeckCardName();
+  const resolveCardName = useMemo(
+    () => safeCardNameWith(rawResolveCardName),
+    [rawResolveCardName],
+  );
   const filterPayload = filters ?? {};
   const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
 
@@ -195,7 +221,7 @@ export function InsightsCardConstellation({
         cardIndex: cardId,
         isReversed: false,
         deckId: null,
-        cardName: resolveCardName(cardId) || getCardName(cardId) || "",
+        cardName: resolveCardName(cardId),
       })),
     [tealSelectedIds, resolveCardName],
   );
@@ -337,7 +363,8 @@ export function InsightsCardConstellation({
     const unit = mode === "pull" ? "PULL" : "DAY";
     const plural = count === 1 ? "" : "S";
     const names = tealSelectedIds
-      .map((id) => resolveCardName(id) || getCardName(id) || `Card ${id}`)
+      .map((id) => resolveCardName(id))
+      .filter(Boolean)
       .join(", ");
     return {
       cardId: firstId,
@@ -395,7 +422,14 @@ export function InsightsCardConstellation({
       cardIds: number[];
       tags?: string[];
     };
-    const dayReadings = readings as ReadingFull[];
+    // EK43 — Filter the day's pulls to ONLY those that contain the
+    // hero card. The seeker hovered a hero-day cell, so they want to
+    // see the pull(s) that brought the hero into the day — not every
+    // unrelated reading they happened to do on the same date.
+    const dayReadings = (readings as ReadingFull[]).filter((r) =>
+      r.cardIds.includes(heroCardId),
+    );
+    if (dayReadings.length === 0) return null;
     const allTags = Array.from(
       new Set(dayReadings.flatMap((r) => r.tags ?? [])),
     );
@@ -464,12 +498,7 @@ export function InsightsCardConstellation({
                 }}
               >
                 {r.cardIds
-                  .map(
-                    (id) =>
-                      resolveCardName(id) ||
-                      getCardName(id) ||
-                      `Card ${id}`,
-                  )
+                  .map((id) => resolveCardName(id))
                   .filter(Boolean)
                   .join(", ")}
               </div>
@@ -571,7 +600,13 @@ export function InsightsCardConstellation({
             onDayHover={(info) => {
               const dayReadings =
                 overlap?.readingsByDate?.[info.date] ?? [];
-              if (dayReadings.length === 0) return;
+              // EK43 — Only fire the rich popover for days that
+              // contain the hero card. Days with other (non-hero)
+              // readings don't surface a popover.
+              const heroHere = dayReadings.some((r) =>
+                r.cardIds.includes(heroCardId),
+              );
+              if (!heroHere) return;
               setDayHover({
                 date: info.date,
                 anchorX: info.anchorX,
@@ -645,12 +680,8 @@ export function InsightsCardConstellation({
                 `${modalReadings.length} pull${modalReadings.length === 1 ? "" : "s"} with ${heroCardName}`}
               {readingsModal.kind === "teal" &&
                 `${modalReadings.length} ${mode === "pull" ? "pull" : "day"}${modalReadings.length === 1 ? "" : "s"} with ${tealSelectedIds
-                  .map(
-                    (id) =>
-                      resolveCardName(id) ||
-                      getCardName(id) ||
-                      `Card ${id}`,
-                  )
+                  .map((id) => resolveCardName(id))
+                  .filter(Boolean)
                   .join(", ")}`}
               {readingsModal.kind === "day" &&
                 `${modalReadings.length} reading${modalReadings.length === 1 ? "" : "s"} on this day`}
@@ -705,10 +736,7 @@ export function InsightsCardConstellation({
                     {formatDateLong(r.createdAt)} ·{" "}
                     {r.cardIds
                       .slice(0, 3)
-                      .map(
-                        (id) =>
-                          resolveCardName(id) || getCardName(id),
-                      )
+                      .map((id) => resolveCardName(id))
                       .filter(Boolean)
                       .join(", ")}
                     {r.cardIds.length > 3
