@@ -15,7 +15,12 @@ import {
   X,
   ChevronDown,
   Sparkles,
+  Calendar as CalendarIcon,
+  Layers,
+  Eraser,
 } from "lucide-react";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import {
   getCardPopoverData,
@@ -390,6 +395,98 @@ export function CardTraceView({
   // sticky header always shows the name.
   const scrollRef = useRef<HTMLElement | null>(null);
 
+  // EK42 — Constellation state lifted to the route so the PageMenu
+  // (page chrome) can include "Match mode" + "Calendar visibility"
+  // + "Clear teal selection" controls.  The embed receives these as
+  // controlled props.
+  const [constellationMode, setConstellationMode] = useState<"pull" | "day">("pull");
+  const [calendarState, setCalendarState] = useState<"none" | "recent" | "both">("both");
+  const cycleCalendar = () =>
+    setCalendarState((s) =>
+      s === "none" ? "recent" : s === "recent" ? "both" : "none",
+    );
+  const cycleMode = () =>
+    setConstellationMode((m) => (m === "pull" ? "day" : "pull"));
+  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+
+  // EK42 — Reset teal selection when the hero card changes (i.e.
+  // when the seeker drags or double-clicks to swap heroes; the new
+  // hero re-derives the constellation so the old set wouldn't map).
+  useEffect(() => {
+    setTealSelectedIds([]);
+  }, [cid]);
+
+  // EK42 — Build the PageMenu sections. Mirrors Manual Entry's
+  // structure (single source of page-level configuration). The Back
+  // arrow lives inside here instead of the old top header chrome.
+  const pageMenuSections: PageMenuSection[] = [
+    {
+      id: "nav",
+      title: "Navigate",
+      items: [
+        {
+          id: "back",
+          label: "Back to Insights",
+          description: "Return to the previous view",
+          Icon: ArrowLeft,
+          mode: "navigate",
+          onClick: () => {
+            setPageMenuOpen(false);
+            close();
+          },
+        },
+      ],
+    },
+    {
+      id: "constellation",
+      title: "Constellation",
+      items: [
+        {
+          id: "mode",
+          label: "Match mode",
+          description:
+            constellationMode === "pull"
+              ? "Same pull — cards drawn together"
+              : "Same day — cards drawn on the same date",
+          Icon: Layers,
+          mode: "cycle",
+          cycleLabel: constellationMode === "pull" ? "Same pull" : "Same day",
+          onClick: cycleMode,
+        },
+        {
+          id: "calendar",
+          label: "Calendar",
+          description: "Cycle: hidden → 1 row → 2 rows",
+          Icon: CalendarIcon,
+          mode: "cycle",
+          cycleLabel:
+            calendarState === "none"
+              ? "Hidden"
+              : calendarState === "recent"
+                ? "1 row"
+                : "2 rows",
+          onClick: cycleCalendar,
+        },
+        ...(tealSelectedIds.length > 0
+          ? [
+              {
+                id: "clear-teal",
+                label: "Clear teal selection",
+                description: `${tealSelectedIds.length} card${tealSelectedIds.length === 1 ? "" : "s"} selected`,
+                Icon: Eraser,
+                mode: "navigate" as const,
+                onClick: () => {
+                  setTealSelectedIds([]);
+                  setPageMenuOpen(false);
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+  ];
+
   return (
     <div
       className="fixed inset-0 flex flex-col"
@@ -404,81 +501,114 @@ export function CardTraceView({
         zIndex: "var(--z-modal)" as unknown as number,
       }}
     >
-      {/* EJ69 — Slim sticky header. Card name always visible (no
-          fade-on-scroll, no large scroll-away duplicate below). Back
-          arrow left, X close right. Filter bar follows. */}
-      <div
-        className="page-header-glass sticky top-0"
-        style={{ zIndex: "var(--z-sticky-header)" }}
+      {/* EK42 — Top chrome mirrors Manual Entry / /constellation:
+          PageMenuTrigger (left, fixed) + X close (right, fixed), no
+          sticky header band. Back arrow moved inside the PageMenu's
+          Navigate section. Card name dropped — the constellation is
+          self-explanatory (the hero IS the card the seeker tapped). */}
+      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+      <PageMenu
+        open={pageMenuOpen}
+        onClose={() => setPageMenuOpen(false)}
+        sections={pageMenuSections}
+        title="Card Trace"
+      />
+      <button
+        type="button"
+        onClick={close}
+        aria-label="Close"
+        title="Close"
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 8px)",
+          right: 8,
+          zIndex: 500,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 36,
+          height: 36,
+          borderRadius: 999,
+          background:
+            "color-mix(in oklch, var(--surface-elevated) 80%, transparent)",
+          border: "1px solid var(--border-subtle)",
+          cursor: "pointer",
+          color: "var(--color-foreground)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          touchAction: "manipulation",
+        }}
       >
-        <header className="flex items-center justify-between px-4 py-2">
-          <button type="button" onClick={close} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1
-            className="font-serif italic"
-            style={{
-              fontSize: "var(--text-heading-sm)",
-              color: "var(--color-foreground)",
-              opacity: 0.95,
-              margin: 0,
-              lineHeight: 1,
-            }}
-          >
-            {cardName}
-          </h1>
-          <button type="button" onClick={close} aria-label="Close">
-            <X className="h-5 w-5" />
-          </button>
-        </header>
-        <GlobalFilterBar
-          filters={gFilters}
-          onChange={setGFilters}
-          sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
-          timeRange={{
-            value: gFilters.timeRange ?? "all",
-            options: [
-              { value: "30d", label: "Last 30 days" },
-              { value: "90d", label: "Last 90 days" },
-              { value: "180d", label: "Last 180 days" },
-              { value: "365d", label: "Last 365 days" },
-              { value: "all", label: "All time" },
-            ],
-            onChange: (v) => setGFilters({ ...gFilters, timeRange: v }),
-          }}
-          userTags={userTags}
-          availableSpreadTypes={data?.availableSpreadTypes}
-          availableMoonPhases={data?.availableMoonPhases}
-        />
-      </div>
+        <X size={18} strokeWidth={1.5} />
+      </button>
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-6">
-        {/* EK41 — Constellation embed at top. The hero is the
-            card the seeker is currently viewing; companions are
-            the top 7 cards that co-occur with it. Pink lines
-            connect every co-occurred pair. Below the web sits the
-            12-month (2 rows × 6) calendar with gold-fill on hero
-            days. Filter controls (same-pull / same-day pill,
-            calendar visibility) live behind the left-side
-            hamburger that flies in from the edge. Clicking any
-            constellation card toggles it into the teal set —
-            with 2+ teal cards a teal badge appears + the calendar
-            gains teal strokes on co-occurrence days + an
-            asterism breathing fires when 3+ teal cards have met
-            in past pulls. The hero is FIXED here (can't be
-            swapped from inside the constellation); to explore a
-            different card, the seeker navigates away to that
-            card's Card Trace page. */}
+        {/* EK42 — Wider container matches Manual Entry's content
+            width. The constellation SVG inside stays 540 (its proven
+            scale); the wider container gives the calendar more
+            horizontal room so the 2 × 6 month cells render at a
+            comfortable size. */}
+        <div
+          className="mx-auto mt-12"
+          style={{ width: "100%", maxWidth: 1100 }}
+        >
+          {/* EK42 — GlobalFilterBar in content flow (not sticky),
+              mirroring Manual Entry's placement. Tags + timeRange +
+              spread types + moon phases + depth + reversed all live
+              here together as a single filter surface. */}
+          <GlobalFilterBar
+            filters={gFilters}
+            onChange={setGFilters}
+            sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
+            timeRange={{
+              value: gFilters.timeRange ?? "all",
+              options: [
+                { value: "30d", label: "Last 30 days" },
+                { value: "90d", label: "Last 90 days" },
+                { value: "180d", label: "Last 180 days" },
+                { value: "365d", label: "Last 365 days" },
+                { value: "all", label: "All time" },
+              ],
+              onChange: (v) => setGFilters({ ...gFilters, timeRange: v }),
+            }}
+            userTags={userTags}
+            availableSpreadTypes={data?.availableSpreadTypes}
+            availableMoonPhases={data?.availableMoonPhases}
+          />
+        </div>
+        {/* EK41/EK42 — Constellation embed at top. Hero is fixed
+            (the card the seeker tapped); companions are the top 7
+            co-occurrers. Drag any companion onto the hero spot OR
+            double-click it to navigate to that card's detail page.
+            Click any card to toggle into the teal set; with 2+ teal
+            cards the teal badge + teal calendar strokes + asterism
+            breathing activate. Calendar hover shows a rich popover
+            with the day's pulls (question + full cards + tags). */}
         <div
           ref={heroRef}
-          className="mx-auto"
-          style={{ width: "100%", maxWidth: 540 }}
+          className="mx-auto mt-4"
+          style={{ width: "100%", maxWidth: 1100 }}
         >
           <InsightsCardConstellation
             heroCardId={cid}
             heroCardName={cardName}
             tz={effectiveTz}
             filters={gFilters}
+            mode={constellationMode}
+            onModeChange={setConstellationMode}
+            calendarState={calendarState}
+            onCalendarStateChange={setCalendarState}
+            tealSelectedIds={tealSelectedIds}
+            onTealSelectedIdsChange={setTealSelectedIds}
+            onSwapHero={(newHeroCardId) => {
+              // Drag-to-hero / double-click-to-hero navigates to
+              // that card's detail page (route param changes, page
+              // re-derives constellation from new hero).
+              navigate({
+                to: "/insights/card/$cardId",
+                params: { cardId: String(newHeroCardId) },
+              });
+            }}
           />
         </div>
 
