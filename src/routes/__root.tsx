@@ -169,7 +169,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
           <script
             dangerouslySetInnerHTML={{
               __html:
-                "try{if('serviceWorker'in navigator&&navigator.serviceWorker.controller){Promise.all([navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}),('caches'in window?caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k.indexOf('tarotseed-shell-')===0}).map(function(k){return caches.delete(k)}))}):Promise.resolve())]).then(function(){var u=new URL(location.href);if(!u.searchParams.has('__swclean')){u.searchParams.set('__swclean','1');location.replace(u.href)}}).catch(function(){})}}catch(e){}",
+                "try{if('serviceWorker'in navigator&&navigator.serviceWorker.controller){var u=new URL(location.href);var clean=u.searchParams.has('__swclean');if(!clean&&window.stop)window.stop();Promise.all([navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}),('caches'in window?caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k.indexOf('tarotseed-shell-')===0}).map(function(k){return caches.delete(k)}))}):Promise.resolve())]).then(function(){if(!clean){u.searchParams.set('__swclean','1');location.replace(u.href)}}).catch(function(){})}}catch(e){}",
             }}
           />
         ) : null}
