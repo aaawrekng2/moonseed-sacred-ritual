@@ -403,6 +403,24 @@ export function CardTraceView({
   // sticky header always shows the name.
   const scrollRef = useRef<HTMLElement | null>(null);
 
+  // EK44 — Track the live TopNav DOM height so the filter row +
+  // constellation can sit just under it AND follow its 28 ↔ 56
+  // expansion. TopNav doesn't expose its expanded state, but it does
+  // animate its inner height, so a ResizeObserver on the rendered
+  // <nav aria-label="Primary"> element catches every state change.
+  const [topNavHeight, setTopNavHeight] = useState<number>(28);
+  useEffect(() => {
+    const nav = document.querySelector(
+      'nav[aria-label="Primary"]',
+    ) as HTMLElement | null;
+    if (!nav) return;
+    const update = () => setTopNavHeight(nav.getBoundingClientRect().height);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, []);
+
   // EK42 — Constellation state lifted to the route so the PageMenu
   // (page chrome) can include "Match mode" + "Calendar visibility"
   // + "Clear teal selection" controls.  The embed receives these as
@@ -495,11 +513,23 @@ export function CardTraceView({
     },
   ];
 
+  // EK44 — Scroll to top whenever the focus card changes. Without
+  // this, navigating between cards via drag/double-click keeps the
+  // scroll position from the previous card, which can land the
+  // seeker in the middle of the page rather than at the
+  // constellation.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [cid]);
+
   return (
     <div
-      className="fixed inset-0 flex flex-col"
+      className="fixed inset-0 flex flex-col bg-cosmos"
       style={{
-        background: "var(--background)",
+        // EK44 — Dropped flat var(--background); the cosmos gradient
+        // class (matches Manual Entry) gives the page the dark cosmic
+        // atmosphere that var(--background) was suppressing on the
+        // edges.
         // EJ70 — z above the Tabletop close button (z-50). When Card
         // Trace opens over the flip table, the Tabletop's own X button
         // (top-right, z-50) was showing through alongside Card Trace's
@@ -579,96 +609,107 @@ export function CardTraceView({
         title="Card Trace"
       />
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-6">
-        {/* EK43 — Spacer matching TopNav compact height (28px) so the
-            content starts BELOW the TopNav band, not under it.
-            Mirrors ManualEntryBuilder's TopNav spacer pattern. */}
-        <div style={{ height: 28 }} aria-hidden />
-        {/* EK42/EK43 — Wider container matches Manual Entry's
-            content width (1100). Constellation SVG inside stays
-            540 centered (proven scale, unchanged). */}
+      <main
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-5 pb-12"
+        style={{
+          // EK44 — Pad the scroll container's top by the LIVE TopNav
+          // height so the content starts immediately below TopNav,
+          // and follows its 28 ↔ 56 expansion smoothly.
+          paddingTop: topNavHeight,
+        }}
+      >
+        {/* EK44 — Filter row + constellation share the same top
+            zone. The filter is positioned in a left-aligned floated
+            block; the constellation centers inside its own block at
+            the same vertical position. The result: filter on the
+            left edge, constellation centered in the middle of the
+            available width, both starting just under TopNav.
+            
+            The filter row uses position: relative inside an
+            absolutely-anchored container so it stays visually
+            anchored to the left independent of the centered
+            constellation column. */}
         <div
-          className="mx-auto mt-8"
+          className="relative mx-auto"
           style={{ width: "100%", maxWidth: 1100 }}
         >
-          {/* EK43 — GlobalFilterBar in content flow, mirroring
-              Manual Entry's placement AND its tag panel override:
-              the standard tag-chip section is replaced with the
-              rich <ConstellationTagsPanel> (hover counts, font-
-              weight gradient, recent-activity dots, trend arrows)
-              via tagsSectionOverride. This is "the filtering like
-              Manual Entry" — same panel, same behavior. */}
-          <GlobalFilterBar
-            filters={gFilters}
-            onChange={setGFilters}
-            sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
-            tagsSectionOverride={
-              <CardTraceTagsBridge
-                globalFilters={gFilters}
-                onTagToggle={(name) =>
-                  setGFilters((prev) => ({
-                    ...prev,
-                    tags: prev.tags.includes(name)
-                      ? prev.tags.filter((t) => t !== name)
-                      : [...prev.tags, name],
-                  }))
-                }
-                onTagModeChange={(mode) =>
-                  setGFilters((prev) => ({ ...prev, tagMode: mode }))
-                }
-                cardIndices={[cid]}
-              />
-            }
-            timeRange={{
-              value: gFilters.timeRange ?? "all",
-              options: [
-                { value: "30d", label: "Last 30 days" },
-                { value: "90d", label: "Last 90 days" },
-                { value: "180d", label: "Last 180 days" },
-                { value: "365d", label: "Last 365 days" },
-                { value: "all", label: "All time" },
-              ],
-              onChange: (v) => setGFilters({ ...gFilters, timeRange: v }),
+          {/* Filter row: absolutely positioned at the TOP-LEFT of
+              the column. Doesn't push the centered constellation
+              down. Wraps so on small viewports it can shrink. */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              zIndex: 5,
+              maxWidth: "60%",
             }}
-            userTags={userTags}
-            availableSpreadTypes={data?.availableSpreadTypes}
-            availableMoonPhases={data?.availableMoonPhases}
-          />
-        </div>
-        {/* EK41/EK42 — Constellation embed at top. Hero is fixed
-            (the card the seeker tapped); companions are the top 7
-            co-occurrers. Drag any companion onto the hero spot OR
-            double-click it to navigate to that card's detail page.
-            Click any card to toggle into the teal set; with 2+ teal
-            cards the teal badge + teal calendar strokes + asterism
-            breathing activate. Calendar hover shows a rich popover
-            with the day's pulls (question + full cards + tags). */}
-        <div
-          ref={heroRef}
-          className="mx-auto mt-4"
-          style={{ width: "100%", maxWidth: 1100 }}
-        >
-          <InsightsCardConstellation
-            heroCardId={cid}
-            heroCardName={cardName}
-            tz={effectiveTz}
-            filters={gFilters}
-            mode={constellationMode}
-            onModeChange={setConstellationMode}
-            calendarState={calendarState}
-            onCalendarStateChange={setCalendarState}
-            tealSelectedIds={tealSelectedIds}
-            onTealSelectedIdsChange={setTealSelectedIds}
-            onSwapHero={(newHeroCardId) => {
-              // Drag-to-hero / double-click-to-hero navigates to
-              // that card's detail page (route param changes, page
-              // re-derives constellation from new hero).
-              navigate({
-                to: "/insights/card/$cardId",
-                params: { cardId: String(newHeroCardId) },
-              });
-            }}
-          />
+          >
+            <GlobalFilterBar
+              filters={gFilters}
+              onChange={setGFilters}
+              sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
+              tagsSectionOverride={
+                <CardTraceTagsBridge
+                  globalFilters={gFilters}
+                  onTagToggle={(name) =>
+                    setGFilters((prev) => ({
+                      ...prev,
+                      tags: prev.tags.includes(name)
+                        ? prev.tags.filter((t) => t !== name)
+                        : [...prev.tags, name],
+                    }))
+                  }
+                  onTagModeChange={(mode) =>
+                    setGFilters((prev) => ({ ...prev, tagMode: mode }))
+                  }
+                  cardIndices={[cid]}
+                />
+              }
+              timeRange={{
+                value: gFilters.timeRange ?? "all",
+                options: [
+                  { value: "30d", label: "Last 30 days" },
+                  { value: "90d", label: "Last 90 days" },
+                  { value: "180d", label: "Last 180 days" },
+                  { value: "365d", label: "Last 365 days" },
+                  { value: "all", label: "All time" },
+                ],
+                // EK44 — Functional setter avoids the stale-closure
+                // bug where rapid changes lost updates.
+                onChange: (v) =>
+                  setGFilters((prev) => ({ ...prev, timeRange: v })),
+              }}
+              userTags={userTags}
+              availableSpreadTypes={data?.availableSpreadTypes}
+              availableMoonPhases={data?.availableMoonPhases}
+            />
+          </div>
+          {/* Constellation embed: in normal flow, centered. The
+              filter above is absolute so it doesn't push this down
+              — the constellation top edge sits at the SAME y as the
+              filter, just centered in the column. */}
+          <div ref={heroRef} className="mx-auto">
+            <InsightsCardConstellation
+              heroCardId={cid}
+              heroCardName={cardName}
+              tz={effectiveTz}
+              filters={gFilters}
+              mode={constellationMode}
+              onModeChange={setConstellationMode}
+              calendarState={calendarState}
+              onCalendarStateChange={setCalendarState}
+              tealSelectedIds={tealSelectedIds}
+              onTealSelectedIdsChange={setTealSelectedIds}
+              onSwapHero={(newHeroCardId) => {
+                navigate({
+                  to: "/insights/card/$cardId",
+                  params: { cardId: String(newHeroCardId) },
+                });
+              }}
+            />
+          </div>
         </div>
 
         {/* EJ69 — Rich stats panel directly below the hero. Composition
