@@ -3,7 +3,7 @@
  * We deliberately keep the cache small and use network-first for navigations
  * so deploys propagate without needing a manual "update" prompt.
  */
-const CACHE = "tarotseed-shell-v5";
+const CACHE = "tarotseed-shell-v6";
 // Only cache truly static assets — never HTML or JS bundles. Caching JS
 // (cache-first) caused hydration mismatches because the SW would serve a
 // stale client bundle against a fresh SSR HTML response.
@@ -52,6 +52,10 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
     url.pathname.endsWith(".mjs") ||
+    url.pathname.startsWith("/@") ||
+    url.pathname.startsWith("/@id/") ||
+    url.pathname.startsWith("/@vite/") ||
+    url.pathname.startsWith("/node_modules/.vite/") ||
     url.pathname.startsWith("/_build/") ||
     url.pathname.startsWith("/assets/")
   ) {
