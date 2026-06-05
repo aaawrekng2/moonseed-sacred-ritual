@@ -666,7 +666,7 @@ export function InsightsCardConstellation({
       {/* Readings modal — opens on hero badge click, teal badge
           click, or day-cell click. */}
       {readingsModal.kind !== "none" && (
-        <Modal onClose={() => setReadingsModal({ kind: "none" })}>
+        <Modal open onClose={() => setReadingsModal({ kind: "none" })}>
           <div style={{ padding: 20, minWidth: 320, maxWidth: 520 }}>
             <h3
               style={{
