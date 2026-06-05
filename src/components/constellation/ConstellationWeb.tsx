@@ -566,21 +566,24 @@ function ConstellationSvg({
                     <span
                       aria-hidden
                       style={{
-                        // EJ27 — solid trace fill, 2px outset, NO box-shadow
-                        // glow (the glow was extending visibly past the
-                        // card's bottom and corners). borderRadius derives
-                        // from the seeker's chosen deck corner radius so
-                        // the highlight silhouette matches the image's
-                        // baked-in rounded shape, plus 2px for the outset.
+                        // EJ27 — solid trace fill, originally 2px outset,
+                        // NO box-shadow glow (the glow was extending
+                        // visibly past the card's bottom and corners).
                         // EJ28 — breathing animation class dropped per
-                        // user feedback ("too in your face"). Static glow,
-                        // visible but quiet.
+                        // user feedback ("too in your face"). Static
+                        // glow, visible but quiet.
+                        // EK35 — Outset bumped from 2px to 6px (+4 per
+                        // request) so the asterism stroke sits visibly
+                        // outside the card's image edge. borderRadius
+                        // adjusted to match: deck radius + 6 keeps the
+                        // outline silhouette aligned with the image's
+                        // rounded corners at the new offset.
                         position: "absolute",
-                        top: -2,
-                        left: -2,
-                        right: -2,
-                        bottom: -2,
-                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 2,
+                        top: -6,
+                        left: -6,
+                        right: -6,
+                        bottom: -6,
+                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 6,
                         background: TRACE_VAR,
                         zIndex: 0,
                         pointerEvents: "none",
@@ -672,6 +675,19 @@ function ConstellationSvg({
                         onPopoverDismissImmediate?.();
                         onHeroBadgeHover?.(e.clientX, e.clientY);
                       }}
+                      // EK35 — Stop mousemove events on the badge from
+                      // bubbling up to the card. Without this, the
+                      // card's onMouseMove kept calling onCardHover
+                      // every pixel of cursor movement on the badge,
+                      // which replaced the badge popover with the card
+                      // popover one frame after the badge popover
+                      // appeared. The badge popover should take
+                      // priority while the cursor is on the badge —
+                      // including the transition from "hovering card"
+                      // to "hovering badge" — so the card's mousemove
+                      // is silenced for the duration of the badge
+                      // hover.
+                      onMouseMove={(e) => e.stopPropagation()}
                       onMouseLeave={(e) => {
                         e.stopPropagation();
                         onHeroBadgeHoverEnd?.();
@@ -897,14 +913,16 @@ function ConstellationSvg({
                       aria-hidden
                       style={{
                         // EJ27 — matched hero treatment. Solid trace fill,
-                        // 2px outset, deck-derived radius, no glow.
+                        // deck-derived radius, no glow.
                         // EJ28 — breathing class dropped (too in-your-face).
+                        // EK35 — Outset bumped from 2px to 6px to match
+                        // the hero card's asterism stroke extension.
                         position: "absolute",
-                        top: -2,
-                        left: -2,
-                        right: -2,
-                        bottom: -2,
-                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 2,
+                        top: -6,
+                        left: -6,
+                        right: -6,
+                        bottom: -6,
+                        borderRadius: Math.round((deckRadiusPct / 100) * pos.w) + 6,
                         background: TRACE_VAR,
                         zIndex: 0,
                         pointerEvents: "none",
@@ -967,10 +985,20 @@ function ConstellationSvg({
                         onTealBadgeHover
                           ? (e) => {
                               e.stopPropagation();
+                              // EK35 — Mirror the hero badge: dismiss
+                              // any in-flight card popover so the teal
+                              // badge popover replaces it cleanly.
+                              onPopoverDismissImmediate?.();
                               onTealBadgeHover(e.clientX, e.clientY);
                             }
                           : undefined
                       }
+                      // EK35 — Same propagation guard as the hero badge.
+                      // Mousemove events on the teal badge must not
+                      // bubble to the card's onMouseMove, which would
+                      // otherwise replace the badge popover with a card
+                      // popover one frame later.
+                      onMouseMove={(e) => e.stopPropagation()}
                       onMouseLeave={(e) => {
                         e.stopPropagation();
                         onTealBadgeHoverEnd?.();
