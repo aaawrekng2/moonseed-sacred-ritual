@@ -176,7 +176,7 @@ export function SpreadLayout({
   return (
     <main
       ref={mainRef}
-      className="cast-screen-enter bg-cosmos fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
+      className="bg-cosmos fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
       style={{
         // Allow native pinch-zoom + pan without the browser snapping the
