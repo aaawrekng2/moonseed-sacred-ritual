@@ -1114,7 +1114,7 @@ function ViolationsTab() {
 
       {/* Review note modal */}
       {reviewingId && (
-        <Modal onClose={() => setReviewingId(null)}>
+        <Modal open onClose={() => setReviewingId(null)}>
           <div style={{ padding: 20, minWidth: 380 }}>
             <h3
               style={{
