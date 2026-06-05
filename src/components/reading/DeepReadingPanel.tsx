@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import {
   computeMistIntensity,
   dawnCycleDateLocal,
@@ -66,6 +67,8 @@ export function DeepReadingPanel({
   initialMirrorSaved,
 }: Props) {
   const { user } = useAuth();
+  // EK37 — Gate the entire Deep Reading surface on AI features.
+  const aiEnabled = useAIEnabled();
   const { effectiveTz } = useTimezone();
   const [mist, setMist] = useState<MistState>({
     level: 0,
@@ -261,6 +264,11 @@ export function DeepReadingPanel({
       setMirrorSavedState(!next);
     }
   };
+
+  // EK37 — Gate everything. When AI is off for this user, the panel
+  // does not render at all — no mist doorway, no lenses, no Mirror
+  // save action. The seeker simply doesn't see Deep Reading exists.
+  if (aiEnabled !== true) return null;
 
   if (flow.kind === "mist") {
     return (

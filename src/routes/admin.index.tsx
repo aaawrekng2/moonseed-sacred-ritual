@@ -57,6 +57,7 @@ import {
   restoreAdminBackup,
   runDetectWeavesAdmin,
   getEmailLog,
+  setUserAIFeatures,
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
 import { DeckInspectModal } from "@/components/admin/DeckInspectModal";
@@ -2025,6 +2026,8 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
                 <Th>Role</Th>
                 <Th>Activity</Th>
                 <Th>Joined</Th>
+                {/* EK37 — Per-user AI features toggle column. */}
+                <Th>AI</Th>
               </tr>
             </thead>
             <tbody>
@@ -2033,6 +2036,7 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
                   key={u.user_id}
                   user={u}
                   onSelect={() => setSelectedUserId(u.user_id)}
+                  onAIToggle={() => void load()}
                 />
               ))}
             </tbody>
@@ -2051,8 +2055,22 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
  * inline action icons that used to live here are gone — they belong on
  * the detail page (CQ adds them).
  */
-function UserListRow({ user, onSelect }: { user: AdminUser; onSelect: () => void }) {
+function UserListRow({
+  user,
+  onSelect,
+  onAIToggle,
+}: {
+  user: AdminUser;
+  onSelect: () => void;
+  onAIToggle: () => void;
+}) {
   const [hover, setHover] = useState(false);
+  // EK37 — Optimistic local state for the AI toggle so the cell
+  // updates immediately on tap. Parent refetches afterward to sync.
+  const [aiOverride, setAiOverride] = useState<boolean | null>(
+    (user as { ai_features_enabled?: boolean | null }).ai_features_enabled ?? null,
+  );
+  const [aiBusy, setAiBusy] = useState(false);
   const name = user.display_name?.trim() || null;
   // Q62 Fix 11 — anomalous accounts (no email + no name) get a clear
   // "— no email —" label with a tiny user-id stub underneath instead of
@@ -2113,6 +2131,70 @@ function UserListRow({ user, onSelect }: { user: AdminUser; onSelect: () => void
       </Td>
       <Td>{formatActivity(user.reading_count, user.last_reading)}</Td>
       <Td>{formatDateLong(user.created_at)}</Td>
+      {/* EK37 — AI features toggle column. One-tap grant/revoke. */}
+      <Td>
+        <button
+          type="button"
+          disabled={aiBusy}
+          onClick={async (e) => {
+            e.stopPropagation();
+            const next = aiOverride === true ? false : true;
+            setAiBusy(true);
+            setAiOverride(next);
+            try {
+              await setUserAIFeatures({
+                data: { targetUserId: user.user_id, enabled: next },
+                headers: await authHeaders(),
+              });
+              onAIToggle();
+            } catch (err) {
+              // Revert on failure.
+              setAiOverride(aiOverride);
+              console.error("[admin] setUserAIFeatures failed:", err);
+            } finally {
+              setAiBusy(false);
+            }
+          }}
+          title={
+            aiOverride === true
+              ? "AI enabled for this user (click to revoke)"
+              : aiOverride === false
+                ? "AI revoked for this user (click to enable)"
+                : "Follows global default — click to set explicit"
+          }
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "transparent",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: 999,
+            padding: "3px 10px",
+            cursor: aiBusy ? "wait" : "pointer",
+            opacity: aiBusy ? 0.5 : 1,
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.05em",
+            color: "var(--color-foreground)",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 999,
+              background:
+                aiOverride === true
+                  ? "var(--accent, var(--gold))"
+                  : "color-mix(in oklab, var(--color-foreground) 25%, transparent)",
+              flexShrink: 0,
+            }}
+          />
+          {aiOverride === true ? "ON" : aiOverride === false ? "OFF" : "—"}
+        </button>
+      </Td>
     </tr>
   );
 }

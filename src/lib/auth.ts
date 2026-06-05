@@ -118,3 +118,36 @@ export async function upgradeWithEmail(email: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ email });
   if (error) throw error;
 }
+
+/**
+ * EK37 — Force-trigger anonymous sign-in. The default useAuth flow
+ * defers anonymous sign-in until the visitor's first interaction
+ * (pointerdown / keydown / touchstart / scroll). For surfaces that
+ * land users with no session and no interaction yet (e.g. /settings
+ * loaded from a direct URL or a deep link), this helper kicks the
+ * gate manually so the user gets a session immediately.
+ *
+ * Returns the new user on success, or throws on failure. The Settings
+ * fallback now calls this on mount when there's no user, so the
+ * generic "Couldn't set up your session" error only surfaces when the
+ * underlying Supabase call truly fails — making it actionable rather
+ * than a routine first-paint state.
+ */
+export async function triggerAnonymousSession(): Promise<User> {
+  const { data: existing } = await supabase.auth.getSession();
+  if (existing.session?.user) return existing.session.user;
+  const { data: anon, error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    // Surface the underlying error so the caller can show a real
+    // diagnostic instead of a generic message. Most common cause:
+    // anonymous sign-in is disabled in the Supabase Auth settings.
+    throw new Error(
+      `signInAnonymously failed: ${error.message}` +
+        ((error as { code?: string }).code
+          ? ` (code: ${(error as { code?: string }).code})`
+          : ""),
+    );
+  }
+  if (!anon.user) throw new Error("signInAnonymously returned no user");
+  return anon.user;
+}

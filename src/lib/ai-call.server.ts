@@ -398,7 +398,41 @@ async function checkQuota(userId: string | null, callType: AICallType): Promise<
 
   if (!userId) return { allowed: true };
 
-  // Q32 — admin can block AI for a specific seeker.
+  // EK37 — Per-user AI features gate (two-layer with global default).
+  // Layer 1: user_preferences.ai_features_enabled.
+  //   NULL  → defer to global default
+  //   TRUE  → explicit grant (existing users / beta testers)
+  //   FALSE → explicit revoke (overrides global when global is on)
+  // Layer 2: admin_settings.ai_features_default
+  //   today: false (gated); launch day: flip to true.
+  try {
+    const { data: prefsRow } = await supabaseAdmin
+      .from("user_preferences" as never)
+      .select("ai_features_enabled")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const override = (prefsRow as { ai_features_enabled?: boolean | null } | null)
+      ?.ai_features_enabled;
+    let effective: boolean;
+    if (override === true) effective = true;
+    else if (override === false) effective = false;
+    else {
+      // Read global default. Default to false if the row doesn't
+      // exist yet (pre-migration state).
+      effective = await getAdminSettingBool("ai_features_default", false);
+    }
+    if (!effective) return { allowed: false, reason: "ai_disabled" };
+  } catch {
+    // Fail closed on read error — if we can't read the gate, deny.
+    // This is the safer default for the cost-conscious phase; a
+    // transient DB hiccup shouldn't burn API budget.
+    return { allowed: false, reason: "ai_disabled" };
+  }
+
+  // Q32 — admin can block AI for a specific seeker (legacy ai_blocked
+  // column, kept for backward compatibility). The new EK37 gate above
+  // is the canonical path; ai_blocked remains as a hard kill switch
+  // for emergency manual intervention.
   try {
     const { data: blockedRow } = await supabaseAdmin
       .from("user_preferences" as never)

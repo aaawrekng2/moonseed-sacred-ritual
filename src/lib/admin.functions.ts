@@ -126,7 +126,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
         const { data: chunk, error: chunkErr } = await supabaseAdmin
           .from("user_preferences")
           .select(
-            "user_id, display_name, role, subscription_type, is_premium, premium_since, premium_expires_at, premium_months_used, admin_note",
+            "user_id, display_name, role, subscription_type, is_premium, premium_since, premium_expires_at, premium_months_used, admin_note, ai_features_enabled",
           )
           .in("user_id", slice);
         if (chunkErr) throw new Error(chunkErr.message);
@@ -162,6 +162,9 @@ export const listAdminUsers = createServerFn({ method: "GET" })
           premium_expires_at: p.premium_expires_at ?? null,
           premium_months_used: p.premium_months_used ?? 0,
           admin_note: p.admin_note ?? null,
+          // EK37 — Per-user AI features override.
+          ai_features_enabled:
+            (p.ai_features_enabled as boolean | null | undefined) ?? null,
           reading_count: 0,
           last_reading: null as string | null,
         };
@@ -1669,4 +1672,61 @@ export const getDeckExportBundle = createServerFn({ method: "GET" })
       cards: cardRows,
       signed_urls: signedByPath,
     };
+  });
+
+/**
+ * EK37 — Toggle a user's AI features access.
+ *
+ * Three-state per-user override:
+ *   true  → explicit grant
+ *   false → explicit revoke
+ *   null  → defer to global default
+ *
+ * The admin Users column passes true/false directly (one-tap grant or
+ * revoke). The drill-down may later expose "clear override" which sets
+ * null to let the user follow the global default.
+ *
+ * Super admin only. Logs to audit_log so the grant trail is durable.
+ */
+export const setUserAIFeatures = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) =>
+    z
+      .object({
+        targetUserId: z.string().uuid(),
+        enabled: z.union([z.boolean(), z.null()]),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    // Upsert the per-user override. The migration backfilled every
+    // existing user_preferences row, but new signups might not yet
+    // have a row — upsert covers both.
+    const { error } = await supabaseAdmin
+      .from("user_preferences" as never)
+      .upsert(
+        {
+          user_id: data.targetUserId,
+          ai_features_enabled: data.enabled,
+        } as never,
+        { onConflict: "user_id" },
+      );
+    if (error) throw new Error(error.message);
+
+    // EK37 — Audit log entry for the grant trail.
+    try {
+      await supabaseAdmin.from("audit_log" as never).insert({
+        actor_user_id: userId,
+        target_user_id: data.targetUserId,
+        action: "ai_features_set",
+        details: { enabled: data.enabled },
+      } as never);
+    } catch {
+      /* audit log is best-effort */
+    }
+
+    return { ok: true, ai_features_enabled: data.enabled };
   });
