@@ -48,6 +48,7 @@ import { useAnyDeckCardName } from "@/lib/active-deck";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { Modal } from "@/components/ui/modal";
 import { formatDateLong } from "@/lib/dates";
+import { parseIsoDay } from "@/lib/time";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
 /**
@@ -376,6 +377,21 @@ export function InsightsCardConstellation({
   // ── 11. Asterism badge hover (intensifies trace stroke) ────────
   const [asterismBadgeHovered, setAsterismBadgeHovered] = useState(false);
 
+  // ── 11b. EK44 — Hovered constellation card (drives calendar
+  //   preview of "what if this card joined the asterism").
+  //   When a card is hovered, augment the teal set with it so
+  //   OverlapStrip's existing teal-stroke logic previews the days
+  //   where the would-be asterism co-occurred. With 0 teal +
+  //   hover = 1 effective card = no stroke (below 2+ threshold).
+  //   With 1+ teal + hover = 2+ effective = preview stroke. The
+  //   hero's own gold-fill remains untouched.
+  const [hoverCardId, setHoverCardId] = useState<number | null>(null);
+  const effectiveTealIds = useMemo(() => {
+    if (hoverCardId == null) return tealSelectedIds;
+    if (tealSelectedIds.includes(hoverCardId)) return tealSelectedIds;
+    return [...tealSelectedIds, hoverCardId];
+  }, [hoverCardId, tealSelectedIds]);
+
   // ── 12. Calendar hover rich popover ────────────────────────────
   // EK42 — When the cursor enters a calendar cell with at least one
   // reading, OverlapStrip fires onDayHover with the cell's date,
@@ -422,13 +438,25 @@ export function InsightsCardConstellation({
       cardIds: number[];
       tags?: string[];
     };
-    // EK43 — Filter the day's pulls to ONLY those that contain the
-    // hero card. The seeker hovered a hero-day cell, so they want to
-    // see the pull(s) that brought the hero into the day — not every
-    // unrelated reading they happened to do on the same date.
-    const dayReadings = (readings as ReadingFull[]).filter((r) =>
-      r.cardIds.includes(heroCardId),
-    );
+    // EK43/EK44 — Filter the day's pulls based on which signal
+    // the hover is responding to:
+    //   - If this day has a teal stroke (2+ teal selected AND
+    //     all teal cards co-occur here), show the pulls that
+    //     contain all the teal cards (the asterism's pulls).
+    //   - Otherwise, show the pulls that contain the hero card
+    //     (the hero-day pulls).
+    // Unrelated readings on the same date are excluded either way.
+    const allReadings = readings as ReadingFull[];
+    const isTealDay =
+      tealSelectedIds.length >= 2 &&
+      allReadings.some((r) =>
+        tealSelectedIds.every((id) => r.cardIds.includes(id)),
+      );
+    const dayReadings = isTealDay
+      ? allReadings.filter((r) =>
+          tealSelectedIds.every((id) => r.cardIds.includes(id)),
+        )
+      : allReadings.filter((r) => r.cardIds.includes(heroCardId));
     if (dayReadings.length === 0) return null;
     const allTags = Array.from(
       new Set(dayReadings.flatMap((r) => r.tags ?? [])),
@@ -466,7 +494,12 @@ export function InsightsCardConstellation({
             opacity: 0.85,
           }}
         >
-          {formatDateLong(dayHover.date)}
+          {/* EK44 — parseIsoDay(tz) parses the YYYY-MM-DD string
+              as midnight in the seeker's timezone. Without this,
+              formatDateLong interprets the string as UTC midnight,
+              which on negative-offset zones (e.g. America/Los_Angeles)
+              renders the previous calendar day. */}
+          {formatDateLong(parseIsoDay(dayHover.date, tz).toISOString())}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {dayReadings.slice(0, 5).map((r) => (
@@ -555,7 +588,10 @@ export function InsightsCardConstellation({
     <div className="relative">
       {/* Constellation web — hero centered, top 7 companions around.
           EK42 — wired drag handlers so any card can be dragged onto
-          the hero spot to swap (parent navigates). */}
+          the hero spot to swap (parent navigates).
+          EK44 — onCardHover wired so the calendar can preview what
+          asterism days would look like if the hovered card were
+          added to the teal set. */}
       <div className="mx-auto" style={{ maxWidth: 540 }}>
         <ConstellationWeb
           heroPick={heroPick}
@@ -574,12 +610,20 @@ export function InsightsCardConstellation({
           onConstellationDragOver={handleConstellationDragOver}
           onConstellationDrop={handleConstellationDrop}
           dragOverTargetId={dragOverTargetId}
+          onCardHover={(cardId) => setHoverCardId(cardId)}
         />
       </div>
 
       {/* 12-month calendar — 2 rows × 6 months. Gold-fill on hero
           days, teal stroke on days where all teal cards co-occurred.
-          EK42 — onDayHover wired for the rich popover. */}
+          EK42 — onDayHover wired for the rich popover.
+          EK44 — effectiveTealIds augments the teal set with the
+          hover card (if any). When the seeker hovers a card not
+          yet in the teal set, the calendar previews the asterism
+          stroke as if it were added. With 0 teal selected, hovering
+          1 card → 1 in the effective set → no stroke (OverlapStrip
+          requires 2+). With 1+ teal selected, hovering another card
+          → 2+ in the effective set → preview stroke fires. */}
       {calendarState !== "none" && (
         <div className="mx-auto mt-6" style={{ width: "100%" }}>
           <OverlapStrip
@@ -588,7 +632,7 @@ export function InsightsCardConstellation({
             pullCardIds={[]}
             mode={mode}
             onModeChange={onModeChange}
-            tealSelectedIds={tealSelectedIds}
+            tealSelectedIds={effectiveTealIds}
             layout="grid12"
             showOlder={calendarState === "both"}
             onShowOlderChange={(v) =>
@@ -600,13 +644,19 @@ export function InsightsCardConstellation({
             onDayHover={(info) => {
               const dayReadings =
                 overlap?.readingsByDate?.[info.date] ?? [];
-              // EK43 — Only fire the rich popover for days that
-              // contain the hero card. Days with other (non-hero)
-              // readings don't surface a popover.
+              if (dayReadings.length === 0) return;
+              // EK44 — Fire popover for any day with a hero pull OR
+              // (when teal is active) a teal co-occurrence pull.
+              // Days with neither don't surface the popover.
               const heroHere = dayReadings.some((r) =>
                 r.cardIds.includes(heroCardId),
               );
-              if (!heroHere) return;
+              const tealHere =
+                tealSelectedIds.length >= 2 &&
+                dayReadings.some((r) =>
+                  tealSelectedIds.every((id) => r.cardIds.includes(id)),
+                );
+              if (!heroHere && !tealHere) return;
               setDayHover({
                 date: info.date,
                 anchorX: info.anchorX,
@@ -666,7 +716,7 @@ export function InsightsCardConstellation({
       {/* Readings modal — opens on hero badge click, teal badge
           click, or day-cell click. */}
       {readingsModal.kind !== "none" && (
-        <Modal open onClose={() => setReadingsModal({ kind: "none" })}>
+        <Modal onClose={() => setReadingsModal({ kind: "none" })}>
           <div style={{ padding: 20, minWidth: 320, maxWidth: 520 }}>
             <h3
               style={{
