@@ -41,6 +41,7 @@ import { TagCloud } from "@/components/card/TagCloud";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
+import { InsightsCardConstellation } from "@/components/insights/InsightsCardConstellation";
 import { useTimezone } from "@/lib/use-timezone";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { ReadingRow } from "@/components/ui/reading-row";
@@ -452,16 +453,33 @@ export function CardTraceView({
       </div>
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-6">
-        {/* EJ69 — Large card image at top. Centered. Uses min(85vw, 250px)
-            on mobile, ~320px on desktop. The seeker explicitly asked for
-            a large image; this replaces the prior duplicate title +
-            image block with just the image. */}
+        {/* EK41 — Constellation embed at top. The hero is the
+            card the seeker is currently viewing; companions are
+            the top 7 cards that co-occur with it. Pink lines
+            connect every co-occurred pair. Below the web sits the
+            12-month (2 rows × 6) calendar with gold-fill on hero
+            days. Filter controls (same-pull / same-day pill,
+            calendar visibility) live behind the left-side
+            hamburger that flies in from the edge. Clicking any
+            constellation card toggles it into the teal set —
+            with 2+ teal cards a teal badge appears + the calendar
+            gains teal strokes on co-occurrence days + an
+            asterism breathing fires when 3+ teal cards have met
+            in past pulls. The hero is FIXED here (can't be
+            swapped from inside the constellation); to explore a
+            different card, the seeker navigates away to that
+            card's Card Trace page. */}
         <div
           ref={heroRef}
           className="mx-auto"
-          style={{ width: "min(85vw, 260px)" }}
+          style={{ width: "100%", maxWidth: 540 }}
         >
-          <AdaptiveCardImage src={url} alt={cardName} />
+          <InsightsCardConstellation
+            heroCardId={cid}
+            heroCardName={cardName}
+            tz={effectiveTz}
+            filters={gFilters}
+          />
         </div>
 
         {/* EJ69 — Rich stats panel directly below the hero. Composition
@@ -508,18 +526,11 @@ export function CardTraceView({
           )}
         </div>
 
-        {/* EJ69 — Calendar, readings list, AI reflection sit BELOW the
-            popover-composition panel. These are the deep-dive sections
-            (filterable list, AI reflection, full calendar) — kept as
-            additive context for power-seekers. Empty state shown when
-            no appearances yet. */}
-        <div className="mx-auto mt-8" style={{ maxWidth: 960 }}>
-          {data && count > 0 && (
-            <div className="my-6">
-              <ExpandableCalendar appearances={appearances} />
-            </div>
-          )}
-        </div>
+        {/* EK41 — ExpandableCalendar removed. The 12-month calendar
+            now lives inside InsightsCardConstellation at the top of
+            this page. Keeping it here would duplicate the same
+            visualization on the same screen. */}
+        <div className="mx-auto mt-8" style={{ maxWidth: 960 }} />
 
         <div className="mx-auto mt-2 flex max-w-md flex-col gap-4">
           {data && totalCount === 0 && (
