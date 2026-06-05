@@ -4,11 +4,12 @@
  * Three tiles for Spark, Flame, Bonfire. Tapping a tile opens a
  * Stripe Checkout Session in the same tab via window.location.href.
  */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 
 export const Route = createFileRoute("/credits/")({
   head: () => ({ meta: [{ title: "Credits — Tarot Seed" }] }),
@@ -31,9 +32,22 @@ const PACKS: Pack[] = [
 ];
 
 function CreditsPage() {
+  // EK37 — Gate the entire /credits route on AI features. When AI is
+  // off for this user, redirect to home — the seeker has no concept
+  // of credits in their experience of Tarot Seed.
+  const aiEnabled = useAIEnabled();
   const { user } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  if (aiEnabled === false) {
+    return <Navigate to="/" />;
+  }
+  if (aiEnabled === null) {
+    // Loading — render nothing briefly to avoid flashing the pricing
+    // tiles before the gate resolves.
+    return null;
+  }
 
   async function buy(sku: string) {
     if (!user) {

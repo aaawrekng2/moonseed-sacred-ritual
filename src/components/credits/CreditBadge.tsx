@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useCredits } from "@/lib/use-credits";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { formatDateLong } from "@/lib/dates";
 
 const INTRO_KEY = "credits_intro_seen";
@@ -18,10 +19,18 @@ function fmtDate(d: Date): string {
 }
 
 export function CreditBadge() {
+  // EK37 — Gate on AI features. If AI is off for this user, the
+  // credit badge does not render at all. No "credits" affordance, no
+  // hint that token purchases exist, nothing.
+  const aiEnabled = useAIEnabled();
   const { balance, nextRefillAt, subscriptionType, loading } = useCredits();
   const [introOpen, setIntroOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // EK37 — Early return BEFORE any hooks below. Hooks above (state +
+  // refs) must run unconditionally; useEffect below also runs but is
+  // gated internally. The render branch is the actual gate.
 
   useEffect(() => {
     if (!popoverOpen) return;
@@ -70,6 +79,10 @@ export function CreditBadge() {
     color: "var(--color-foreground)",
     opacity: loading ? 0.5 : 1,
   };
+
+  // EK37 — Render nothing when AI features are off (or loading).
+  // null while resolving prevents a flash of the badge on slow networks.
+  if (aiEnabled !== true) return null;
 
   return (
     <div ref={wrapRef} style={{ position: "relative", display: "inline-block" }}>

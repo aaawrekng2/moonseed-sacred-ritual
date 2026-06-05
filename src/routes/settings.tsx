@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation } from "@tanstack/react-router";
-import { type CSSProperties } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import {
   Database,
   MessageSquare,
@@ -12,7 +12,7 @@ import {
   Layers,
   BarChart2,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, triggerAnonymousSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useNavigate } from "@tanstack/react-router";
@@ -112,6 +112,34 @@ function SettingsLayout() {
   // top-bar cluster.
   useRegisterCloseHandler(() => void navigate({ to: "/" }));
 
+  // EK37 — Auto-trigger anonymous sign-in when Settings lands with no
+  // user. The default useAuth flow defers anonymous sign-in until the
+  // visitor's first interaction (pointerdown / keydown / scroll); if
+  // the seeker arrives at /settings via a direct URL or deep link
+  // without interacting first, they'd see "Couldn't set up your
+  // session" even though Supabase is healthy. We kick the gate here
+  // so the user gets a session immediately; the generic error only
+  // appears if signInAnonymously actually fails.
+  const [autoSignInError, setAutoSignInError] = useState<string | null>(null);
+  const [autoSignInTried, setAutoSignInTried] = useState(false);
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) return;
+    if (autoSignInTried) return;
+    setAutoSignInTried(true);
+    void (async () => {
+      try {
+        await triggerAnonymousSession();
+        // useAuth subscribes to onAuthStateChange and will pick up
+        // the new session automatically — no manual refresh needed.
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setAutoSignInError(msg);
+        console.warn("[settings] auto anonymous sign-in failed:", msg);
+      }
+    })();
+  }, [authLoading, user, autoSignInTried]);
+
   // EJ43 — used to be `if (authLoading || !user) return null` which
   // produced a fully blank screen if the anonymous session never
   // resolved. Replaced with a visible fallback so blank screens become
@@ -142,6 +170,10 @@ function SettingsLayout() {
     );
   }
   if (!user) {
+    // EK37 — While the auto-trigger is in flight (or hasn't been
+    // attempted yet), show a quiet loading state. Only show the
+    // diagnostic error after the trigger has actually failed.
+    const showError = autoSignInTried && !!autoSignInError;
     return (
       <main
         className="flex items-center justify-center bg-cosmos px-6"
@@ -150,6 +182,18 @@ function SettingsLayout() {
           paddingTop: 0,
         }}
       >
+        {!showError ? (
+          <p
+            className="font-serif italic"
+            style={{
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+              fontSize: "var(--text-body)",
+            }}
+          >
+            Setting up your session…
+          </p>
+        ) : (
         <div className="flex max-w-sm flex-col items-center gap-4 text-center">
           <p
             className="font-serif italic"
@@ -173,6 +217,21 @@ function SettingsLayout() {
           >
             Tap the moon below to try again. If this keeps happening, open tarotseed.com/?debug=1 to
             surface the cause in the console.
+          </p>
+          {/* EK37 — Surface the actual Supabase error so future drift
+              is diagnosable. Most common cause: "Enable Anonymous
+              Sign-Ins" was toggled off in Supabase Auth settings. */}
+          <p
+            className="font-mono"
+            style={{
+              color: "var(--color-foreground)",
+              opacity: 0.45,
+              fontSize: "var(--text-caption)",
+              lineHeight: 1.4,
+              wordBreak: "break-word",
+            }}
+          >
+            {autoSignInError}
           </p>
           <button
             type="button"
@@ -199,6 +258,7 @@ function SettingsLayout() {
             Try again
           </button>
         </div>
+        )}
       </main>
     );
   }

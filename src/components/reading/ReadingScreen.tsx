@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { cn } from "@/lib/utils";
 import { getCurrentMoonPhase } from "@/lib/moon";
 import { FACETS, LENSES } from "@/lib/guides";
@@ -985,6 +986,8 @@ function ReadingActions({
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  // EK37 — Gate AI-triggering UI on the per-user toggle.
+  const aiEnabled = useAIEnabled();
   const { guideId, setGuide } = useActiveGuide();
   const [open, setOpen] = useState(false);
   const [customGuides, setCustomGuides] = useState<CustomGuide[]>([]);
@@ -1181,23 +1184,30 @@ function ReadingActions({
 
       {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
           The mist breathes behind the words so the call still feels
-          alive without becoming a UI button. */}
-      <GuideContextPreview
-        spread={spread}
-        picks={picks}
-        positionLabels={positionLabels}
-        guideName={activeName}
-        guideId={guideId}
-        lensId={lensId}
-        facetIds={facetIds}
-        question={question}
-      />
+          alive without becoming a UI button.
+          EK37 — Everything in this block is AI-related: the guide
+          preview describes what the AI will read, and the button
+          triggers the call. When AI is off for this seeker, none of
+          this renders at all. */}
+      {aiEnabled === true && (
+        <GuideContextPreview
+          spread={spread}
+          picks={picks}
+          positionLabels={positionLabels}
+          guideName={activeName}
+          guideId={guideId}
+          lensId={lensId}
+          facetIds={facetIds}
+          question={question}
+        />
+      )}
       <button
         type="button"
         onClick={onSpeak}
-        disabled={isLoading}
+        disabled={isLoading || aiEnabled !== true}
         className="reading-mist-button reading-invocation"
         aria-busy={isLoading}
+        style={aiEnabled !== true ? { display: "none" } : undefined}
       >
         <span className="reading-mist" aria-hidden />
         <span

@@ -11,6 +11,7 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { ChevronLeft, Pencil, Archive, Share2, StickyNote, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import { LoadingText } from "@/components/ui/loading-text";
@@ -118,6 +119,8 @@ function PatternChamber() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { effectiveTz } = useTimezone();
+  // EK37 — Gate AI auto-orchestration + manual AI actions.
+  const aiEnabled = useAIEnabled();
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
@@ -256,6 +259,11 @@ function PatternChamber() {
   useEffect(() => {
     if (!pattern || !patternId) return;
     if (pattern.reading_ids.length === 0) return;
+    // EK37 — Skip the auto-orchestration entirely when AI is off
+    // for this seeker. The server-side gate would refuse the call
+    // anyway, but skipping client-side avoids a wasted round trip
+    // and an "ai_disabled" error in the console.
+    if (aiEnabled !== true) return;
     const needsGen = !pattern.ai_generated_at;
     const thresholds = [3, 5, 10, 25];
     const lastGen = pattern.ai_reading_count_at_gen ?? 0;
