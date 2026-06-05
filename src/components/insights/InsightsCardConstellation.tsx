@@ -1,36 +1,38 @@
 /**
- * EK41 — InsightsCardConstellation
+ * EK41 / EK42 — InsightsCardConstellation
  *
  * Embeds the constellation surface from Manual Entry into the
- * Insights → Cards detail page. Pared down per spec:
- *   - Hero is FIXED by the page (the card the seeker is viewing).
- *     The constellation cannot be swapped from inside this embed —
- *     no slot row, no manual entry building, no save-to-journal.
- *   - Just the constellation web at top + the 12-month calendar
- *     (2 rows × 6 months) below.
- *   - Teal selection ON: click any companion to toggle it into the
- *     teal set. With 2+ teal cards: teal badge + teal calendar
- *     strokes + asterism breathing (3+ teal cards co-occurred in
- *     past pulls).
- *   - Filter controls (same-pull / same-day pill, calendar visibility)
- *     live behind a left-side hamburger PageMenuTrigger that flies in.
- *   - Hero badge → readings modal scoped to all pulls containing the
- *     hero. Teal badge → readings modal scoped to the teal selection.
- *     Day-cell click → readings modal scoped to that day.
+ * Insights → Cards detail page. Pared down per spec — no slot row,
+ * no question/notes, no save-to-journal, no right-side data card.
  *
- * Reuses the canonical pieces:
- *   - <ConstellationWeb> — the SVG renderer with all hover/badge
- *     logic.
- *   - <OverlapStrip layout="grid12"> — the 12-month calendar.
+ * EK42 changes:
+ *   - All page-level state (mode, calendar visibility, teal
+ *     selection) is now CONTROLLED via props. The route owns it so
+ *     the page-level PageMenu can drive these controls (mirroring
+ *     Manual Entry's structure where controls live in the chrome,
+ *     not inside the embed).
+ *   - Removed the embed-local hamburger button + side panel. The
+ *     PageMenuTrigger in the route handles this now.
+ *   - Drag-to-hero: drag any companion onto the hero spot and the
+ *     parent navigates to that card's detail page via onSwapHero.
+ *   - Double-click-to-hero: double-clicking any companion also
+ *     invokes onSwapHero.
+ *   - Wider container: the embed inside fills its parent (the route
+ *     widens to 1100px); the constellation SVG itself stays 540
+ *     centered with breathing room; the calendar fills the wider
+ *     container so day cells render larger.
+ *   - Calendar hover rich popover: hovering any cell with at least
+ *     one pull shows a positioned panel listing each pull on that
+ *     day with question + cards + tags. Closes on cursor leave.
+ *
+ * Reuses canonical:
+ *   - <ConstellationWeb> — SVG renderer with hover/badge/drag.
+ *   - <OverlapStrip layout="grid12"> — 12-month calendar.
  *   - useEcho — asterism detection (3+ cards have appeared together).
  *   - ReadingDetailModal — opening a single reading.
- *
- * Loads data via the same server fns ConstellationPage uses:
- *   - getCardConstellation: companions + co-occurrence
- *   - getQuickLogOverlap: 12-month calendar + reading days
  */
-import { useEffect, useMemo, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
 import { OverlapStrip } from "@/components/tabletop/QuickLog";
 import {
@@ -55,9 +57,21 @@ type Props = {
   heroCardName: string;
   /** Effective IANA timezone for date bucketing on the calendar. */
   tz: string;
-  /** Page-level filters (time range + tags + spreadTypes + etc.).
-   *  Optional — when omitted, the constellation queries unfiltered. */
+  /** Page-level filters (time range + tags + spreadTypes + etc.). */
   filters?: ConstellationFilterOpts;
+  /** Same-pull vs same-day match mode (controlled by parent). */
+  mode: "pull" | "day";
+  onModeChange: (m: "pull" | "day") => void;
+  /** Calendar visibility cycle (controlled by parent). */
+  calendarState: "none" | "recent" | "both";
+  onCalendarStateChange: (s: "none" | "recent" | "both") => void;
+  /** Teal selection set (controlled by parent). */
+  tealSelectedIds: number[];
+  onTealSelectedIdsChange: (ids: number[]) => void;
+  /** EK42 — Drag a companion to the hero spot OR double-click it
+   *  to navigate to that card's detail page. Parent handles the
+   *  actual route change. */
+  onSwapHero: (newHeroCardId: number) => void;
 };
 
 export function InsightsCardConstellation({
@@ -65,12 +79,15 @@ export function InsightsCardConstellation({
   heroCardName,
   tz,
   filters,
+  mode,
+  onModeChange,
+  calendarState,
+  onCalendarStateChange,
+  tealSelectedIds,
+  onTealSelectedIdsChange,
+  onSwapHero,
 }: Props) {
-  // Use the active deck's card name resolver so oracle decks (78+
-  // ids) get their seeker-supplied names rather than the default
-  // tarot fallback.
   const resolveCardName = useActiveDeckCardName();
-
   const filterPayload = filters ?? {};
   const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
 
@@ -112,38 +129,65 @@ export function InsightsCardConstellation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroCardId, tz, filterKey]);
 
-  // ── 3. Teal selection state ─────────────────────────────────────
-  // Click any constellation card to toggle into the teal set. Hero
-  // can be clicked too — it joins the set just like a companion.
-  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
-  const toggleTeal = (cardId: number) => {
-    setTealSelectedIds((prev) =>
-      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId],
-    );
+  // ── 3. Teal selection toggling ──────────────────────────────────
+  // Single-click toggles. Double-click navigates (handled below via
+  // a tracked-last-click timer). Drag-to-hero handled by the SVG
+  // drag handlers.
+  const lastClickRef = useRef<{ cardId: number; ts: number } | null>(null);
+  const handleCardClick = (cardId: number) => {
+    // EK42 — Double-click detection: if the same card was clicked
+    // within 300ms, treat the second click as a navigate intent.
+    // Otherwise it's a regular teal toggle.
+    const now = Date.now();
+    const prev = lastClickRef.current;
+    if (prev && prev.cardId === cardId && now - prev.ts < 300) {
+      lastClickRef.current = null;
+      if (cardId !== heroCardId) {
+        onSwapHero(cardId);
+      }
+      return;
+    }
+    lastClickRef.current = { cardId, ts: now };
+    // Single-click toggle (delayed slightly via the click tracker;
+    // the toggle fires immediately, the navigate only fires if a
+    // second click follows within 300ms).
+    const next = tealSelectedIds.includes(cardId)
+      ? tealSelectedIds.filter((id) => id !== cardId)
+      : [...tealSelectedIds, cardId];
+    onTealSelectedIdsChange(next);
   };
 
-  // Reset teal selection when the hero changes — the new hero re-
-  // derives the constellation and the old teal set wouldn't map
-  // cleanly to it.
+  // ── 4. Drag-to-hero ─────────────────────────────────────────────
+  // ConstellationWeb fires onCardDragStart with the dragged card's
+  // id. We track which card is currently being dragged. When the
+  // hero spot is the drop target (= heroCardId), we treat the drop
+  // as a hero-swap navigation.
+  const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
+  const [dragOverTargetId, setDragOverTargetId] = useState<number | null>(null);
+  const handleCardDragStart = (cardId: number) => {
+    setDraggedCardId(cardId);
+  };
+  const handleConstellationDragOver = (targetCardId: number | null) => {
+    setDragOverTargetId(targetCardId);
+  };
+  const handleConstellationDrop = (targetCardId: number, droppedCardId: number) => {
+    setDraggedCardId(null);
+    setDragOverTargetId(null);
+    // Only the hero spot accepts hero-swap drops. Drops on other
+    // companions are no-ops here (no swap-companions semantics on
+    // the read-only Insights surface).
+    if (targetCardId === heroCardId && droppedCardId !== heroCardId) {
+      onSwapHero(droppedCardId);
+    }
+  };
+
+  // Reset drag state on hero change too, for safety.
   useEffect(() => {
-    setTealSelectedIds([]);
+    setDraggedCardId(null);
+    setDragOverTargetId(null);
   }, [heroCardId]);
 
-  // ── 4. Filter-stack controls (live in the side panel) ───────────
-  const [mode, setMode] = useState<"pull" | "day">("pull");
-  const [pageMenuOpen, setPageMenuOpen] = useState(false);
-  const [calendarState, setCalendarState] = useState<"none" | "recent" | "both">(
-    "both",
-  );
-  const cycleCalendar = () => {
-    setCalendarState((s) =>
-      s === "none" ? "recent" : s === "recent" ? "both" : "none",
-    );
-  };
-
   // ── 5. Asterism / Echo detection (3+ teal cards have met before) ─
-  // useEcho expects a ManualPick[] shape — synthesize from the teal
-  // selection for compatibility with the existing detection logic.
   const tealAsPicks: ManualPick[] = useMemo(
     () =>
       tealSelectedIds.map((cardId, i) => ({
@@ -158,7 +202,6 @@ export function InsightsCardConstellation({
   const echo = useEcho(tealAsPicks, overlap, mode);
 
   // ── 6. Hero draw count for the gold badge ──────────────────────
-  // Number of PULLS in the filtered universe containing the hero.
   const heroPullCount = useMemo(() => {
     if (!overlap) return 0;
     let n = 0;
@@ -171,9 +214,6 @@ export function InsightsCardConstellation({
   }, [overlap, heroCardId]);
 
   // ── 7. Discovery-hint candidates (teal mode 2+ cards) ──────────
-  // For each constellation card NOT already in the teal set: would
-  // adding it still leave at least one matching pull/day? If yes,
-  // mark it a candidate so ConstellationWeb draws a teal hint line.
   const candidateIds = useMemo(() => {
     if (tealSelectedIds.length < 2 || !overlap) return [] as number[];
     const constellationCardIds = new Set<number>([
@@ -184,7 +224,6 @@ export function InsightsCardConstellation({
     for (const candidate of constellationCardIds) {
       if (tealSelectedIds.includes(candidate)) continue;
       const trial = [...tealSelectedIds, candidate];
-      // Does any pull or day match all of trial?
       let matches = false;
       const entries = Object.entries(overlap.readingsByDate ?? {});
       if (mode === "pull") {
@@ -220,7 +259,6 @@ export function InsightsCardConstellation({
   const [readingsModal, setReadingsModal] = useState<ModalState>({ kind: "none" });
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
-  // Aggregate the matching readings for the modal title and rows.
   const modalReadings = useMemo(() => {
     if (readingsModal.kind === "none") return [];
     if (readingsModal.kind === "hero") {
@@ -248,7 +286,6 @@ export function InsightsCardConstellation({
           const dayCards = new Set<number>();
           for (const r of readings) r.cardIds.forEach((id) => dayCards.add(id));
           if (tealSelectedIds.every((id) => dayCards.has(id))) {
-            // For same-day mode include every pull on that day.
             for (const r of readings) out.push(r);
           }
         }
@@ -312,26 +349,189 @@ export function InsightsCardConstellation({
   // ── 11. Asterism badge hover (intensifies trace stroke) ────────
   const [asterismBadgeHovered, setAsterismBadgeHovered] = useState(false);
 
+  // ── 12. Calendar hover rich popover ────────────────────────────
+  // EK42 — When the cursor enters a calendar cell with at least one
+  // reading, OverlapStrip fires onDayHover with the cell's date,
+  // anchor coords, target rect, and a basic tooltipText. We render a
+  // richer panel listing every pull on that day with question +
+  // cards + tags. Positioned above the cell when there's room,
+  // below it otherwise.
+  type DayHoverState = {
+    date: string;
+    anchorX: number;
+    anchorY: number;
+    targetRect: DOMRect | null;
+  };
+  const [dayHover, setDayHover] = useState<DayHoverState | null>(null);
+
+  // ── 13. Day-hover popover render ──────────────────────────────
+  const dayPopover = (() => {
+    if (!dayHover || !overlap) return null;
+    const readings = overlap.readingsByDate?.[dayHover.date] ?? [];
+    if (readings.length === 0) return null;
+
+    // Position the popover above the cell with an 8px gap when
+    // possible; flip below if there isn't room above.
+    const rect = dayHover.targetRect;
+    const POPOVER_WIDTH = 360;
+    const POPOVER_GAP = 8;
+    let top = dayHover.anchorY - 8;
+    let left = dayHover.anchorX;
+    let placement: "above" | "below" = "above";
+    if (rect) {
+      const aboveSpace = rect.top;
+      const belowSpace = window.innerHeight - rect.bottom;
+      placement = aboveSpace >= 240 || aboveSpace >= belowSpace ? "above" : "below";
+      left = rect.left + rect.width / 2 - POPOVER_WIDTH / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - POPOVER_WIDTH - 8));
+      top = placement === "above" ? rect.top - POPOVER_GAP : rect.bottom + POPOVER_GAP;
+    }
+
+    // Gather all tags across the day's readings, deduped.
+    type ReadingFull = {
+      id: string;
+      createdAt: string;
+      question: string | null;
+      cardIds: number[];
+      tags?: string[];
+    };
+    const dayReadings = readings as ReadingFull[];
+    const allTags = Array.from(
+      new Set(dayReadings.flatMap((r) => r.tags ?? [])),
+    );
+
+    const popover = (
+      <div
+        style={{
+          position: "fixed",
+          top,
+          left,
+          width: POPOVER_WIDTH,
+          maxHeight: 360,
+          overflowY: "auto",
+          zIndex: 300,
+          background: "var(--surface-elevated)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: 10,
+          padding: "12px 14px",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.35)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          transform:
+            placement === "above" ? "translateY(-100%)" : "translateY(0%)",
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+            marginBottom: 6,
+            opacity: 0.85,
+          }}
+        >
+          {formatDateLong(dayHover.date)}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {dayReadings.slice(0, 5).map((r) => (
+            <div
+              key={r.id}
+              style={{
+                borderTop: "1px solid var(--border-subtle)",
+                paddingTop: 6,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--color-foreground)",
+                  marginBottom: 4,
+                  opacity: 0.95,
+                }}
+              >
+                {r.question || "(no question)"}
+              </div>
+              <div
+                style={{
+                  fontSize: "var(--text-caption)",
+                  opacity: 0.7,
+                  fontFamily: "var(--font-serif)",
+                  marginBottom: 3,
+                }}
+              >
+                {r.cardIds
+                  .map(
+                    (id) =>
+                      resolveCardName(id) ||
+                      getCardName(id) ||
+                      `Card ${id}`,
+                  )
+                  .filter(Boolean)
+                  .join(", ")}
+              </div>
+              {r.tags && r.tags.length > 0 && (
+                <div
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    opacity: 0.6,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Tags: {r.tags.join(", ")}
+                </div>
+              )}
+            </div>
+          ))}
+          {dayReadings.length > 5 && (
+            <div
+              style={{
+                fontSize: "var(--text-caption)",
+                opacity: 0.55,
+                fontStyle: "italic",
+                fontFamily: "var(--font-serif)",
+                paddingTop: 4,
+              }}
+            >
+              +{dayReadings.length - 5} more pull
+              {dayReadings.length - 5 === 1 ? "" : "s"} on this day
+            </div>
+          )}
+        </div>
+        {allTags.length > 0 && dayReadings.length > 1 && (
+          <div
+            style={{
+              marginTop: 8,
+              paddingTop: 6,
+              borderTop: "1px solid var(--border-subtle)",
+              fontSize: "var(--text-caption)",
+              opacity: 0.65,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+            }}
+          >
+            All tags this day: {allTags.join(", ")}
+          </div>
+        )}
+      </div>
+    );
+    return createPortal(popover, document.body);
+  })();
+
   return (
     <div className="relative">
-      {/* Hamburger trigger — left side, opens the side panel for
-          filter controls (same-pull/same-day, calendar visibility). */}
-      <button
-        type="button"
-        aria-label="Constellation controls"
-        onClick={() => setPageMenuOpen(true)}
-        className="absolute top-2 left-2 z-10 inline-flex items-center justify-center rounded-md p-2 hover:bg-white/5 transition-colors"
-        style={{ color: "var(--color-foreground)", opacity: 0.7 }}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      {/* Constellation web — hero centered, top 7 companions around. */}
+      {/* Constellation web — hero centered, top 7 companions around.
+          EK42 — wired drag handlers so any card can be dragged onto
+          the hero spot to swap (parent navigates). */}
       <div className="mx-auto" style={{ maxWidth: 540 }}>
         <ConstellationWeb
           heroPick={heroPick}
           constellation={constellation}
-          onCardClick={toggleTeal}
+          onCardClick={handleCardClick}
           tealSelectedIds={tealSelectedIds}
           candidateIds={candidateIds}
           heroDrawCount={heroPullCount}
@@ -341,34 +541,52 @@ export function InsightsCardConstellation({
           onTealBadgeClick={() => setReadingsModal({ kind: "teal" })}
           onTealBadgeHover={() => setAsterismBadgeHovered(true)}
           onTealBadgeHoverEnd={() => setAsterismBadgeHovered(false)}
+          onCardDragStart={handleCardDragStart}
+          onConstellationDragOver={handleConstellationDragOver}
+          onConstellationDrop={handleConstellationDrop}
+          dragOverTargetId={dragOverTargetId}
         />
       </div>
 
       {/* 12-month calendar — 2 rows × 6 months. Gold-fill on hero
-          days, teal stroke on days where all teal cards co-occurred. */}
+          days, teal stroke on days where all teal cards co-occurred.
+          EK42 — onDayHover wired for the rich popover. */}
       {calendarState !== "none" && (
-        <div className="mx-auto mt-6" style={{ maxWidth: 540 }}>
+        <div className="mx-auto mt-6" style={{ width: "100%" }}>
           <OverlapStrip
             overlap={overlap}
             heroCardId={heroCardId}
             pullCardIds={[]}
             mode={mode}
-            onModeChange={setMode}
+            onModeChange={onModeChange}
             tealSelectedIds={tealSelectedIds}
             layout="grid12"
             showOlder={calendarState === "both"}
-            onShowOlderChange={(v) => setCalendarState(v ? "both" : "recent")}
+            onShowOlderChange={(v) =>
+              onCalendarStateChange(v ? "both" : "recent")
+            }
             onDayClick={(date, readingIds) =>
               setReadingsModal({ kind: "day", date, readingIds })
             }
+            onDayHover={(info) => {
+              const dayReadings =
+                overlap?.readingsByDate?.[info.date] ?? [];
+              if (dayReadings.length === 0) return;
+              setDayHover({
+                date: info.date,
+                anchorX: info.anchorX,
+                anchorY: info.anchorY,
+                targetRect: info.targetRect,
+              });
+            }}
+            onDayHoverEnd={() => setDayHover(null)}
             asterismBadgeHovered={asterismBadgeHovered}
           />
         </div>
       )}
 
       {/* Asterism breathing — fires when 3+ teal cards have appeared
-          together in past pulls. The seeker has uncovered a real
-          asterism in their history. */}
+          together in past pulls. */}
       {echo.active && (
         <div
           className="mx-auto mt-3 text-center"
@@ -385,171 +603,33 @@ export function InsightsCardConstellation({
         </div>
       )}
 
-      {/* Side panel — flies in from the left when the hamburger is
-          tapped. Holds the same-pull/same-day pill and the calendar
-          visibility cycle. Tapping outside closes it. */}
-      {pageMenuOpen && (
-        <>
+      {/* Hint at drag/double-click behavior when companions are
+          present and no teal selection yet. Calm, low-key. */}
+      {!echo.active &&
+        tealSelectedIds.length === 0 &&
+        constellation &&
+        constellation.companions.length > 0 && (
           <div
-            className="fixed inset-0 z-40"
-            style={{ background: "rgba(0,0,0,0.35)" }}
-            onClick={() => setPageMenuOpen(false)}
-          />
-          <div
-            className="fixed top-0 left-0 bottom-0 z-50 flex flex-col"
+            className="mx-auto mt-3 text-center"
             style={{
-              width: "min(85vw, 320px)",
-              background: "var(--surface-elevated)",
-              borderRight: "1px solid var(--border-subtle)",
-              padding: "20px 18px",
+              maxWidth: 540,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground)",
+              opacity: 0.55,
             }}
           >
-            <div className="flex items-center justify-between mb-6">
-              <span
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-heading-sm)",
-                }}
-              >
-                Constellation
-              </span>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={() => setPageMenuOpen(false)}
-                className="p-1 hover:bg-white/5 rounded"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-5">
-              <div>
-                <div
-                  className="mb-2"
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption)",
-                    opacity: 0.7,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Match mode
-                </div>
-                <div className="flex gap-4">
-                  {(["pull", "day"] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setMode(m)}
-                      className="bg-transparent border-none p-0"
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontStyle: "italic",
-                        fontSize: "var(--text-body)",
-                        color: "var(--color-foreground)",
-                        opacity: mode === m ? 1 : 0.55,
-                        borderBottom:
-                          mode === m
-                            ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                            : "1px solid transparent",
-                        paddingBottom: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Same {m}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div
-                  className="mb-2"
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption)",
-                    opacity: 0.7,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Calendar
-                </div>
-                <button
-                  type="button"
-                  onClick={cycleCalendar}
-                  className="bg-transparent border-none p-0 text-left"
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body)",
-                    color: "var(--color-foreground)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {calendarState === "none"
-                    ? "Hidden"
-                    : calendarState === "recent"
-                      ? "1 row"
-                      : "2 rows"}
-                </button>
-                <div
-                  className="mt-1"
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption)",
-                    opacity: 0.6,
-                  }}
-                >
-                  Tap to cycle visibility.
-                </div>
-              </div>
-
-              {tealSelectedIds.length > 0 && (
-                <div>
-                  <div
-                    className="mb-2"
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontStyle: "italic",
-                      fontSize: "var(--text-caption)",
-                      opacity: 0.7,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Teal selection ({tealSelectedIds.length})
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setTealSelectedIds([])}
-                    className="bg-transparent border-none p-0 underline italic"
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontSize: "var(--text-body-sm)",
-                      color: "var(--color-foreground)",
-                      opacity: 0.85,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Clear selection
-                  </button>
-                </div>
-              )}
-            </div>
+            Tap a companion to add it to your selection. Drag or
+            double-tap to make it the hero.
           </div>
-        </>
-      )}
+        )}
+
+      {/* Day-cell rich hover popover — pulls + cards + tags */}
+      {dayPopover}
 
       {/* Readings modal — opens on hero badge click, teal badge
-          click, or day-cell click. Lists matching readings; tap one
-          to open the full reading detail. */}
+          click, or day-cell click. */}
       {readingsModal.kind !== "none" && (
         <Modal open onClose={() => setReadingsModal({ kind: "none" })}>
           <div style={{ padding: 20, minWidth: 320, maxWidth: 520 }}>
@@ -565,7 +645,12 @@ export function InsightsCardConstellation({
                 `${modalReadings.length} pull${modalReadings.length === 1 ? "" : "s"} with ${heroCardName}`}
               {readingsModal.kind === "teal" &&
                 `${modalReadings.length} ${mode === "pull" ? "pull" : "day"}${modalReadings.length === 1 ? "" : "s"} with ${tealSelectedIds
-                  .map((id) => resolveCardName(id) || getCardName(id) || `Card ${id}`)
+                  .map(
+                    (id) =>
+                      resolveCardName(id) ||
+                      getCardName(id) ||
+                      `Card ${id}`,
+                  )
                   .join(", ")}`}
               {readingsModal.kind === "day" &&
                 `${modalReadings.length} reading${modalReadings.length === 1 ? "" : "s"} on this day`}
@@ -620,10 +705,15 @@ export function InsightsCardConstellation({
                     {formatDateLong(r.createdAt)} ·{" "}
                     {r.cardIds
                       .slice(0, 3)
-                      .map((id) => resolveCardName(id) || getCardName(id))
+                      .map(
+                        (id) =>
+                          resolveCardName(id) || getCardName(id),
+                      )
                       .filter(Boolean)
                       .join(", ")}
-                    {r.cardIds.length > 3 ? `, +${r.cardIds.length - 3} more` : ""}
+                    {r.cardIds.length > 3
+                      ? `, +${r.cardIds.length - 3} more`
+                      : ""}
                   </div>
                 </button>
               ))}
