@@ -551,7 +551,7 @@ export function InsightsCardConstellation({
           click, or day-cell click. Lists matching readings; tap one
           to open the full reading detail. */}
       {readingsModal.kind !== "none" && (
-        <Modal onClose={() => setReadingsModal({ kind: "none" })}>
+        <Modal open onClose={() => setReadingsModal({ kind: "none" })}>
           <div style={{ padding: 20, minWidth: 320, maxWidth: 520 }}>
             <h3
               style={{
