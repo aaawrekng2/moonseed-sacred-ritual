@@ -1113,23 +1113,69 @@ function DeckEditor({
               "calc(var(--bottom-nav-height) + 80px + env(safe-area-inset-bottom, 0px))",
           }}
         >
-          {/* 9-6-A — deck type selector. First choice in the form. */}
+          {/* EK40 — Deck name first (the seeker thinks about WHAT
+              they're naming before WHICH type/shape it is). Underline
+              affordance on focus per the styling doc's SearchInput
+              pattern. */}
+          <label className="block">
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--color-foreground)", opacity: 0.85 }}
+            >
+              Deck name
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              className="mt-1 block w-full bg-transparent px-1 py-2 text-sm focus:outline-none"
+              style={{
+                color: "var(--color-foreground)",
+                borderBottom: "1px solid var(--border-default)",
+                fontFamily: "var(--font-serif)",
+              }}
+              maxLength={60}
+            />
+          </label>
+
+          {/* EK40 — Underline-segmented selectors, not filled pills.
+              Matches the tab-strip pattern in Insights / Journal /
+              Stories / Settings. Active = brighter foreground + thin
+              gold underline. Inactive = muted foreground at ~55%,
+              no underline. The two proceed buttons at the bottom are
+              now the only zone of visual emphasis. */}
           <div>
-            <span className="text-sm font-medium">Deck type</span>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--color-foreground)", opacity: 0.85 }}
+            >
+              Deck type
+            </span>
+            <div className="mt-2 flex gap-6">
               {(["tarot", "oracle"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setDeckType(t)}
-                  className={cn(
-                    "rounded-md border px-3 py-2 text-sm capitalize",
-                    deckType === t
-                      ? "border-gold bg-gold/10 text-gold"
-                      : "border-border/60 text-muted-foreground hover:bg-gold/5",
-                  )}
+                  className="bg-transparent border-none px-0 py-1"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body)",
+                    color: "var(--color-foreground)",
+                    opacity: deckType === t ? 1 : 0.55,
+                    borderBottom:
+                      deckType === t
+                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                        : "1px solid transparent",
+                    paddingBottom: 4,
+                    marginTop: 4,
+                    cursor: "pointer",
+                    transition: "opacity 200ms ease, border-color 200ms ease",
+                  }}
                 >
-                  {t === "tarot" ? "Tarot (78 cards)" : "Oracle / Other"}
+                  {t === "tarot" ? "Tarot" : "Oracle / Other"}
                 </button>
               ))}
             </div>
@@ -1147,32 +1193,35 @@ function DeckEditor({
             )}
           </div>
 
-          <label className="block">
-            <span className="text-sm font-medium">Deck name</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onFocus={(e) => e.target.select()}
-              className="mt-1 block w-full rounded-md border border-border/60 bg-cosmos px-3 py-2 text-sm"
-              maxLength={60}
-            />
-          </label>
-
           <div>
-            <span className="text-sm font-medium">Card shape</span>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--color-foreground)", opacity: 0.85 }}
+            >
+              Card shape
+            </span>
+            <div className="mt-2 flex gap-6">
               {(["rectangle", "round"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setShape(s)}
-                  className={cn(
-                    "rounded-md border px-3 py-2 text-sm capitalize",
-                    shape === s
-                      ? "border-gold bg-gold/10 text-gold"
-                      : "border-border/60 text-muted-foreground hover:bg-gold/5",
-                  )}
+                  className="bg-transparent border-none px-0 py-1 capitalize"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body)",
+                    color: "var(--color-foreground)",
+                    opacity: shape === s ? 1 : 0.55,
+                    borderBottom:
+                      shape === s
+                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                        : "1px solid transparent",
+                    paddingBottom: 4,
+                    marginTop: 4,
+                    cursor: "pointer",
+                    transition: "opacity 200ms ease, border-color 200ms ease",
+                  }}
                 >
                   {s}
                 </button>
