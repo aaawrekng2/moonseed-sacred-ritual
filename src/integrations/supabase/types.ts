@@ -1786,37 +1786,6 @@ export type Database = {
       }
     }
     Views: {
-      ai_gate_violations_unresolved: {
-        Row: {
-          call_log_id: string | null
-          call_type: string | null
-          category: string | null
-          cost_usd: number | null
-          created_at: string | null
-          credits_consumed: number | null
-          effective_gate: boolean | null
-          global_default: boolean | null
-          id: string | null
-          model: string | null
-          provider: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          reviewed_note: string | null
-          status: string | null
-          user_email: string | null
-          user_id: string | null
-          user_override: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_gate_violations_call_log_id_fkey"
-            columns: ["call_log_id"]
-            isOneToOne: false
-            referencedRelation: "ai_call_log"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       seeker_usage_monthly: {
         Row: {
           ai_blocked: boolean | null
