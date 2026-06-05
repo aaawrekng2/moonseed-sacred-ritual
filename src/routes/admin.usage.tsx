@@ -20,7 +20,12 @@ import {
   reEnableAI,
   type CircuitBreakerTripRow,
 } from "@/lib/admin-usage.functions";
-import { listAdminUsers } from "@/lib/admin.functions";
+import {
+  listAdminUsers,
+  listAIGateViolations,
+  countUnresolvedAIGateViolations,
+  reviewAIGateViolation,
+} from "@/lib/admin.functions";
 import { formatDateLong } from "@/lib/dates";
 import { Modal } from "@/components/ui/modal";
 import { toast } from "sonner";
@@ -99,7 +104,7 @@ const headerStyle: CSSProperties = {
   margin: 0,
 };
 
-type Tab = "overview" | "seekers" | "anomalies" | "settings";
+type Tab = "overview" | "seekers" | "anomalies" | "violations" | "settings";
 
 function formatTimeAgo(iso: string): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -279,16 +284,21 @@ function AdminUsagePage() {
         <h1 style={{ ...headerStyle, marginLeft: 8 }}>Usage</h1>
       </div>
       <CircuitBreakerBanner />
+      {/* EK38 — Red banner at the top of /admin/usage when there
+          are unresolved AI gate violations. Drives the admin into
+          the Gate Violations tab so issues don't sit unnoticed. */}
+      <AIGateViolationsBanner onClickGo={() => setTab("violations")} />
       <div style={{ borderBottom: "0.5px solid rgba(255,255,255,0.1)", marginBottom: 24 }}>
-        {(["overview", "seekers", "anomalies", "settings"] as Tab[]).map((t) => (
+        {(["overview", "seekers", "anomalies", "violations", "settings"] as Tab[]).map((t) => (
           <button key={t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
-            {t}
+            {t === "violations" ? "Gate Violations" : t}
           </button>
         ))}
       </div>
       {tab === "overview" && <OverviewTab />}
       {tab === "seekers" && <SeekersTab />}
       {tab === "anomalies" && <AnomaliesTab />}
+      {tab === "violations" && <ViolationsTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
   );
@@ -698,6 +708,496 @@ function SettingsTab() {
           </div>
         );
       })}
+    </div>
+  );
+}
+/* ---------------- EK38 — AI Gate Violations ---------------- */
+
+/**
+ * Red banner at the top of /admin/usage when there are unresolved
+ * violations. Lights up loud — admin needs to investigate, money
+ * may have been spent.
+ */
+function AIGateViolationsBanner({ onClickGo }: { onClickGo: () => void }) {
+  const [counts, setCounts] = useState<{
+    money_spent: number;
+    blocked_attempt: number;
+    total: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await countUnresolvedAIGateViolations();
+        if (!cancelled) setCounts(r);
+      } catch {
+        // Silent — banner just won't render.
+      }
+    };
+    void load();
+    const interval = window.setInterval(load, 60_000); // poll every minute
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  if (!counts || counts.total === 0) return null;
+
+  const moneyOnly = counts.money_spent > 0;
+  const blockedOnly = counts.blocked_attempt > 0 && counts.money_spent === 0;
+
+  return (
+    <div
+      style={{
+        background: moneyOnly
+          ? "color-mix(in oklch, oklch(0.55 0.21 25) 22%, transparent)"
+          : "color-mix(in oklch, oklch(0.7 0.18 80) 18%, transparent)",
+        border: `1px solid ${
+          moneyOnly
+            ? "color-mix(in oklch, oklch(0.65 0.21 25) 60%, transparent)"
+            : "color-mix(in oklch, oklch(0.75 0.18 80) 50%, transparent)"
+        }`,
+        borderRadius: 8,
+        padding: "12px 16px",
+        marginBottom: 16,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-lg)",
+            color: moneyOnly ? "oklch(0.75 0.21 25)" : "oklch(0.85 0.18 80)",
+          }}
+        >
+          {moneyOnly
+            ? `⚠️ AI gate violation — money spent (${counts.money_spent})`
+            : blockedOnly
+              ? `AI gate flagged ${counts.blocked_attempt} blocked attempt${counts.blocked_attempt === 1 ? "" : "s"}`
+              : `AI gate violations — ${counts.money_spent} money, ${counts.blocked_attempt} blocked`}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            opacity: 0.7,
+          }}
+        >
+          {moneyOnly
+            ? "An AI call succeeded for a user whose AI is supposed to be off. Investigate immediately."
+            : "Calls were blocked by the server gate but shouldn't have been attempted. Likely a UI gate leak."}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onClickGo}
+        style={{
+          background: "transparent",
+          border: `1px solid ${moneyOnly ? "oklch(0.65 0.21 25)" : "oklch(0.75 0.18 80)"}`,
+          borderRadius: 999,
+          padding: "8px 16px",
+          color: moneyOnly ? "oklch(0.85 0.21 25)" : "oklch(0.9 0.18 80)",
+          fontFamily: "var(--font-display)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-sm)",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Review →
+      </button>
+    </div>
+  );
+}
+
+type AIGateViolation = {
+  id: string;
+  created_at: string;
+  call_log_id: string | null;
+  user_id: string;
+  user_email: string | null;
+  call_type: string | null;
+  model: string | null;
+  provider: string | null;
+  status: string;
+  cost_usd: number;
+  credits_consumed: number;
+  user_override: boolean | null;
+  global_default: boolean | null;
+  effective_gate: boolean | null;
+  category: "money_spent" | "blocked_attempt";
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  reviewed_note: string | null;
+};
+
+/**
+ * EK38 — Full Gate Violations panel. Lists violations with filter
+ * controls, per-row review/dismiss action, and review note. Money
+ * spent violations are visually emphasized.
+ */
+function ViolationsTab() {
+  const [violations, setViolations] = useState<AIGateViolation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resolvedFilter, setResolvedFilter] = useState<"unresolved" | "all">(
+    "unresolved",
+  );
+  const [categoryFilter, setCategoryFilter] = useState<
+    "all" | "money_spent" | "blocked_attempt"
+  >("all");
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const result = await listAIGateViolations({
+        data: {
+          resolved: resolvedFilter === "all" ? undefined : false,
+          category: categoryFilter === "all" ? undefined : categoryFilter,
+          limit: 200,
+        },
+      });
+      setViolations(result as AIGateViolation[]);
+    } catch (e) {
+      console.error("[admin] listAIGateViolations failed", e);
+      toast.error("Failed to load violations");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedFilter, categoryFilter]);
+
+  const handleReview = async (id: string) => {
+    setSubmitting(true);
+    try {
+      await reviewAIGateViolation({
+        data: { violationId: id, note: reviewNote || undefined },
+      });
+      toast.success("Marked as reviewed");
+      setReviewingId(null);
+      setReviewNote("");
+      void load();
+    } catch (e) {
+      console.error("[admin] reviewAIGateViolation failed", e);
+      toast.error("Failed to mark as reviewed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <span
+            style={{
+              fontSize: "var(--text-caption)",
+              opacity: 0.6,
+              alignSelf: "center",
+            }}
+          >
+            Show:
+          </span>
+          {(["unresolved", "all"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setResolvedFilter(v)}
+              style={{
+                background: "transparent",
+                border: "none",
+                borderBottom: `1px solid ${
+                  resolvedFilter === v
+                    ? "color-mix(in oklab, var(--gold) 70%, transparent)"
+                    : "transparent"
+                }`,
+                color: "var(--color-foreground)",
+                opacity: resolvedFilter === v ? 1 : 0.6,
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                padding: "4px 0",
+                cursor: "pointer",
+              }}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <span
+            style={{
+              fontSize: "var(--text-caption)",
+              opacity: 0.6,
+              alignSelf: "center",
+            }}
+          >
+            Category:
+          </span>
+          {(["all", "money_spent", "blocked_attempt"] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategoryFilter(c)}
+              style={{
+                background: "transparent",
+                border: "none",
+                borderBottom: `1px solid ${
+                  categoryFilter === c
+                    ? "color-mix(in oklab, var(--gold) 70%, transparent)"
+                    : "transparent"
+                }`,
+                color: "var(--color-foreground)",
+                opacity: categoryFilter === c ? 1 : 0.6,
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                padding: "4px 0",
+                cursor: "pointer",
+              }}
+            >
+              {c.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && (
+        <p style={{ fontStyle: "italic", opacity: 0.6 }}>Loading…</p>
+      )}
+
+      {!loading && violations.length === 0 && (
+        <p style={{ fontStyle: "italic", opacity: 0.55 }}>
+          No violations in this view. The gate is holding.
+        </p>
+      )}
+
+      {!loading && violations.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {violations.map((v) => (
+            <div
+              key={v.id}
+              style={{
+                border: "1px solid var(--border-subtle)",
+                borderRadius: 8,
+                padding: 12,
+                background:
+                  v.category === "money_spent"
+                    ? "color-mix(in oklch, oklch(0.55 0.21 25) 8%, transparent)"
+                    : "var(--surface-card)",
+                opacity: v.reviewed_at ? 0.55 : 1,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  marginBottom: 8,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-body)",
+                      color:
+                        v.category === "money_spent"
+                          ? "oklch(0.85 0.21 25)"
+                          : "var(--color-foreground)",
+                      marginBottom: 2,
+                    }}
+                  >
+                    {v.category === "money_spent"
+                      ? "⚠️ Money spent"
+                      : "Blocked attempt"}{" "}
+                    · {v.call_type ?? "?"} · {v.status}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-body-sm)",
+                      opacity: 0.7,
+                    }}
+                  >
+                    {v.user_email ?? v.user_id} · {formatDateLong(v.created_at)}
+                  </div>
+                </div>
+                {!v.reviewed_at && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReviewingId(v.id);
+                      setReviewNote("");
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: 999,
+                      padding: "4px 12px",
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-caption)",
+                      color: "var(--color-foreground)",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Review
+                  </button>
+                )}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "auto 1fr auto 1fr",
+                  gap: "4px 12px",
+                  fontSize: "var(--text-caption)",
+                  opacity: 0.75,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Model</span>
+                <span>{v.model ?? "—"}</span>
+                <span style={{ opacity: 0.7 }}>Cost</span>
+                <span>${v.cost_usd}</span>
+                <span style={{ opacity: 0.7 }}>Credits</span>
+                <span>{v.credits_consumed}</span>
+                <span style={{ opacity: 0.7 }}>Override</span>
+                <span>
+                  {v.user_override === true
+                    ? "true"
+                    : v.user_override === false
+                      ? "false"
+                      : "null (follows global)"}
+                </span>
+                <span style={{ opacity: 0.7 }}>Global default</span>
+                <span>
+                  {v.global_default === true ? "true" : "false"}
+                </span>
+                <span style={{ opacity: 0.7 }}>Effective gate</span>
+                <span>
+                  {v.effective_gate === true ? "true" : "false"}
+                </span>
+              </div>
+              {v.reviewed_at && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    paddingTop: 8,
+                    borderTop: "1px solid var(--border-subtle)",
+                    fontSize: "var(--text-caption)",
+                    fontStyle: "italic",
+                    opacity: 0.7,
+                  }}
+                >
+                  Reviewed {formatDateLong(v.reviewed_at)}
+                  {v.reviewed_note ? ` — "${v.reviewed_note}"` : ""}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Review note modal */}
+      {reviewingId && (
+        <Modal onClose={() => setReviewingId(null)}>
+          <div style={{ padding: 20, minWidth: 380 }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-md)",
+                marginBottom: 12,
+              }}
+            >
+              Mark as reviewed
+            </h3>
+            <p
+              style={{
+                fontSize: "var(--text-body-sm)",
+                opacity: 0.7,
+                marginBottom: 12,
+              }}
+            >
+              Optional note about what you found.
+            </p>
+            <textarea
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              rows={4}
+              style={{
+                width: "100%",
+                background: "var(--surface-card)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: 6,
+                padding: 10,
+                color: "var(--color-foreground)",
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                resize: "vertical",
+              }}
+              placeholder="e.g. test account, patched in EK39, false positive"
+            />
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                marginTop: 14,
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setReviewingId(null)}
+                disabled={submitting}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: 999,
+                  padding: "6px 14px",
+                  color: "var(--color-foreground)",
+                  cursor: submitting ? "wait" : "pointer",
+                  fontStyle: "italic",
+                  opacity: submitting ? 0.5 : 0.8,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleReview(reviewingId)}
+                disabled={submitting}
+                style={{
+                  background: "color-mix(in oklab, var(--gold) 18%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--gold) 50%, transparent)",
+                  borderRadius: 999,
+                  padding: "6px 14px",
+                  color: "var(--gold)",
+                  cursor: submitting ? "wait" : "pointer",
+                  fontStyle: "italic",
+                  opacity: submitting ? 0.5 : 1,
+                }}
+              >
+                {submitting ? "Saving…" : "Mark reviewed"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
