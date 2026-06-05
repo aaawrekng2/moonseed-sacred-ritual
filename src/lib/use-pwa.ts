@@ -9,6 +9,25 @@ export function usePWA() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
+    if (import.meta.env.DEV) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((registration) => registration.unregister());
+        })
+        .catch(() => undefined);
+      if ("caches" in window) {
+        caches
+          .keys()
+          .then((keys) => {
+            keys
+              .filter((key) => key.startsWith("tarotseed-shell-"))
+              .forEach((key) => caches.delete(key));
+          })
+          .catch(() => undefined);
+      }
+      return;
+    }
     // Defer registration until after first paint so it never blocks startup.
     const register = () => {
       navigator.serviceWorker

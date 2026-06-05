@@ -165,6 +165,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {import.meta.env.DEV ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "try{if('serviceWorker'in navigator&&navigator.serviceWorker.controller){var u=new URL(location.href);var clean=u.searchParams.has('__swclean');if(!clean&&window.stop)window.stop();Promise.all([navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}),('caches'in window?caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k.indexOf('tarotseed-shell-')===0}).map(function(k){return caches.delete(k)}))}):Promise.resolve())]).then(function(){if(!clean){u.searchParams.set('__swclean','1');location.replace(u.href)}}).catch(function(){})}}catch(e){}",
+            }}
+          />
+        ) : null}
         {/*
           Synchronously apply persisted resting opacity BEFORE any CSS
           paints. Sets --resting-opacity on <html> so all --ro-plus-N
