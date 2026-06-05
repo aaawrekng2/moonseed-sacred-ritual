@@ -63,6 +63,16 @@ export type GlobalFilterBarProps = {
    */
   drawerOpen?: boolean;
   onDrawerOpenChange?: (next: boolean) => void;
+  /**
+   * EK36 — Optional override for the "tags" section. When provided,
+   * this React node renders in place of the built-in TagsSection
+   * inside the drawer. Used by the constellation/manual-entry page
+   * to render the richer ConstellationTagsPanel (with toggles,
+   * font-weight gradient, recent-activity dot, hover preview) without
+   * forking GlobalFilterBar. Other consumers ignore this prop and get
+   * the standard simple list.
+   */
+  tagsSectionOverride?: React.ReactNode;
 };
 
 const STORIES_DEFAULT_VISIBLE = 5;
@@ -81,6 +91,7 @@ export function GlobalFilterBar({
   trailingDropdowns,
   drawerOpen: controlledOpen,
   onDrawerOpenChange,
+  tagsSectionOverride,
 }: GlobalFilterBarProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled =
@@ -218,6 +229,7 @@ export function GlobalFilterBar({
         availableTags={availableTags}
         availableSpreadTypes={availableSpreadTypes}
         availableMoonPhases={availableMoonPhases}
+        tagsSectionOverride={tagsSectionOverride}
       />
     </>
   );
@@ -242,6 +254,7 @@ function FilterDrawer({
   availableTags,
   availableSpreadTypes,
   availableMoonPhases,
+  tagsSectionOverride,
 }: {
   open: boolean;
   onClose: () => void;
@@ -253,6 +266,8 @@ function FilterDrawer({
   availableTags?: ReadonlyArray<string>;
   availableSpreadTypes?: ReadonlyArray<string>;
   availableMoonPhases?: ReadonlyArray<string>;
+  /** EK36 — when provided, replaces the built-in TagsSection. */
+  tagsSectionOverride?: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -333,6 +348,14 @@ function FilterDrawer({
           {sections.map((key) => {
             switch (key) {
               case "tags":
+                // EK36 — If the caller supplied an override (constellation
+                // page does), render it in this section's slot. Otherwise
+                // fall back to the standard TagsSection.
+                if (tagsSectionOverride) {
+                  return (
+                    <div key={key}>{tagsSectionOverride}</div>
+                  );
+                }
                 return (
                   <TagsSection
                     key={key}

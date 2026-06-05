@@ -354,7 +354,7 @@ function DrawPage() {
     const prevSession = readTabletopSession(spread);
     if (prevSession) {
       const nextCount =
-        next === "custom" ? (customCount ?? 0) : (getSpreadCount(next) ?? 0);
+        next === "custom" ? (customCount ?? getSpreadCount(next)) : getSpreadCount(next);
       const carried: TabletopSession = {
         cards: prevSession.cards.map((c) =>
           c.selectionOrder !== null && c.selectionOrder > nextCount
@@ -380,7 +380,18 @@ function DrawPage() {
   };
 
   return (
-    <div className="relative h-[100dvh] w-full">
+    <div className="bg-cosmos relative h-[100dvh] w-full">
+      {/* EK36 — bg-cosmos on the route wrapper, not just Tabletop. The
+          wrapper sits behind both Tabletop (fixed inset-0 z-30) and
+          SpreadLayout (fixed inset-0 z-40, max-width 1280px centered).
+          When Tabletop unmounts during phase change to "cast", there
+          was a brief frame where neither wrapper covered the viewport
+          and the body's dark background showed through (manifesting as
+          a black flash). Then SpreadLayout mounted with its 1280px
+          constraint, leaving the sides of wide monitors uncovered (the
+          "narrower width" Cori reported). With bg-cosmos on this
+          wrapper, the gradient never disappears: it shows during the
+          phase swap AND in the side gutters on wide viewports. */}
       {showProcessingBanner && phase === "select" && (
         <div
           className="pointer-events-none absolute left-1/2 top-2 z-40 max-w-[92%] -translate-x-1/2 px-3 py-2 text-center"
