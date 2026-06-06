@@ -143,6 +143,22 @@ function DrawPage() {
     setPendingPhase(next);
   };
 
+  // EK52 — Keep Tabletop mounted for a brief overlap window after
+  // setPhase("cast") fires. Without this, Tabletop unmounts before
+  // SpreadLayout's first paint, producing a 1-frame gap where the
+  // cards visibly disappear. With the overlap, Tabletop stays
+  // mounted at z-30 while SpreadLayout mounts at z-40 on top — the
+  // browser never sees a frame without one of them rendered.
+  // SpreadLayout's bg-cosmos covers Tabletop visually so the seeker
+  // doesn't see two stacks of cards, just smooth continuity.
+  const [castOverlapActive, setCastOverlapActive] = useState(false);
+  useEffect(() => {
+    if (phase !== "cast") return;
+    setCastOverlapActive(true);
+    const t = setTimeout(() => setCastOverlapActive(false), 600);
+    return () => clearTimeout(t);
+  }, [phase]);
+
   // Q24 Fix 2 — register an exit-to-home X in the FloatingMenu while
   // the seeker is in the card-selection phase. Cleared once cards
   // are cast / revealed so the seeker stays in the reading.
@@ -421,7 +437,12 @@ function DrawPage() {
           Your deck is still processing. Some cards may appear blank until complete.
         </div>
       )}
-      {picks && phase === "cast" ? (
+      {/* EK52 — SpreadLayout renders during cast phase. Tabletop
+          stays mounted underneath for the first 600ms of cast
+          (castOverlapActive) so the browser never has a frame
+          without one of them rendered, eliminating the
+          mount/unmount gap that caused the visible flicker. */}
+      {picks && phase === "cast" && (
         <SpreadLayout
           spread={spread}
           picks={picks}
@@ -437,7 +458,8 @@ function DrawPage() {
           // center-emerge default.
           fromSlotRects={castOriginRects}
         />
-      ) : entrySurface === "manual" && phase === "select" ? (
+      )}
+      {entrySurface === "manual" && phase === "select" ? (
         (() => {
           const sharedProps = {
             spread,
@@ -476,54 +498,21 @@ function DrawPage() {
             },
           };
           // ED — gate the viewport-based branch on viewport.mounted.
-          // Before mount, server-render and client-pre-effect both see
-          // the same placeholder state, so React renders ManualEntryBuilder
-          // on both sides → no hydration mismatch. After the first effect
-          // fires, viewport.mounted flips true and the correct branch
-          // re-renders in a regular update (not hydration). This
-          // eliminates the React error #418 that was cascading into a
-          // ReferenceError in ConstellationPage's bundled chunk.
           if (!viewport.mounted) return <ManualEntryBuilder {...sharedProps} />;
           const isDesktopLandscape = viewport.width >= 1024 && viewport.isLandscape;
           const isDesktopPortrait = viewport.width >= 1024 && !viewport.isLandscape;
-          // EJ63 — Pass `onSwitchToTable` so the EntryModeToggle
-          // (Draw button upper-left) actually flips entrySurface
-          // instead of trying to navigate to /draw (where we already
-          // are). Without this prop, ConstellationPage falls back to
-          // a navigate() that becomes a no-op because the route
-          // doesn't change.
           if (isDesktopLandscape)
             return <ConstellationPage onSwitchToTable={switchToTable} />;
           if (isDesktopPortrait) return <RotatePrompt />;
           return <ManualEntryBuilder {...sharedProps} />;
         })()
-      ) : (
+      ) : null}
+      {/* EK52 — Tabletop renders in (a) select phase digital, AND
+          (b) during the cast-overlap window. Keeping it mounted in
+          (b) eliminates the frame gap during phase swap. */}
+      {((phase === "select" && entrySurface !== "manual") ||
+        (phase === "cast" && castOverlapActive)) && (
         <ClientOnly fallback={null}>
-          {/* EK11 — Wrap Tabletop in TanStack Router's ClientOnly to
-              suppress ALL SSR rendering of this subtree. EK09's
-              `webShareAvailable` useMemo was one source of hydration
-              mismatch (fixed in EK10), but the React #418 error persisted
-              after EK10 — meaning Tabletop has at least one OTHER
-              SSR-mismatch source we haven't pinned down (could be in
-              TopNav, FloatingMenu, the scatter geometry, any browser-
-              only state read at render time, etc.). Each round of
-              hydration failure caused React to discard the tree and
-              re-render fresh on the client, which kept tearing down
-              the snapshot effect's lifecycle — the in-flight
-              generation was cancelled by the cleanup on each remount,
-              so the snapshot never completed and the popup never
-              appeared.
-
-              TanStack Start's official guidance for this exact
-              situation is "Wrap unstable UI in <ClientOnly> to avoid
-              SSR and mismatches" (per tanstack.com/start docs,
-              "Hydration Errors" page). The fallback={null} means the
-              server emits empty HTML for this subtree; the client
-              hydrates that as empty too (matching, no mismatch); then
-              the effect-driven hydration check inside ClientOnly flips
-              true and the full Tabletop renders fresh, exactly once,
-              client-side only. The snapshot effect now runs on a
-              stable mount with no churn. */}
           <Tabletop
             spread={spread}
             onExit={exit}
@@ -535,14 +524,6 @@ function DrawPage() {
             onOpenQuestion={() => setQuestionOpen(true)}
             onCustomCountChange={spread === "custom" ? handleCustomCountChange : undefined}
             onComplete={(p, mode, meta) => {
-              // Phase 9.55 — assign orientation per card based on the
-              // seeker's preference. `generateOrientations` returns
-              // all-false when reversals are disabled, so this is safe to
-              // call unconditionally.
-              // For manually-entered readings the seeker has already
-              // declared each card's orientation (via the picker's
-              // 'Reversed?' toggle), so we honor `pick.isReversed`
-              // verbatim and skip the random generator.
               const isManual = meta?.entryMode === "manual";
               const orientations = isManual
                 ? p.map((pp) => pp.isReversed ?? false)
@@ -555,12 +536,8 @@ function DrawPage() {
                 })),
               );
               setEntryMode(isManual ? "manual" : "digital");
-              // EK16 — Capture slot rects for shared-element transition.
-              // Manual entry sends meta without slotOrigins → null,
-              // SpreadLayout falls back to its default emerge animation.
               setCastOriginRects(meta?.slotOrigins ?? null);
               triggerPhase(mode === "cast" ? "cast" : "reading");
-              // Reaching reveal/cast counts as today's practice. Fire-and-forget.
               void recordDraw();
             }}
           />
