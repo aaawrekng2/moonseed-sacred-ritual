@@ -212,18 +212,14 @@ export function SpreadLayout({
         right: 0,
       }}
     >
-      {/* EK50 — Flicker debug Pause B. When the URL has
-          `?debugFlicker=1` and the seeker hasn't yet clicked Proceed,
-          render ONLY a Proceed button — none of the cards, spread
-          layout, or animations mount. This isolates whether the
-          flicker happens during SpreadLayout's mount/style swap or
-          later during the actual cast animation.
-          
-          Compare to Pause A in draw.tsx: A pauses BEFORE the swap
-          from Tabletop to SpreadLayout. B pauses AFTER the swap but
-          BEFORE the animation. If flicker happens between A and B
-          (auto-advance), it's the mount swap. If between B and the
-          animation start, it's the layout effect on line ~697. */}
+      {/* EK53 — Pause B is now a TRANSPARENT overlay. The earlier
+          versions gated all spread content behind `castReady`, which
+          meant the cards literally weren't in the DOM until the
+          seeker clicked Proceed — that's why cards appeared to
+          "disappear" at Pause A's click. EK53 mounts the spread
+          content unconditionally; only the cast ANIMATION is gated.
+          The Pause B overlay itself is just a centered button with
+          no scrim, so the cards stay visible underneath. */}
       {!castReady && (
         <div
           style={{
@@ -233,13 +229,16 @@ export function SpreadLayout({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            pointerEvents: "auto",
+            // EK53 — Transparent; pointer-events only on the button.
+            pointerEvents: "none",
+            background: "transparent",
           }}
         >
           <button
             type="button"
             onClick={() => setCastReady(true)}
             style={{
+              pointerEvents: "auto",
               padding: "16px 32px",
               borderRadius: 12,
               background: "var(--surface-elevated, #1a1230)",
@@ -272,7 +271,11 @@ export function SpreadLayout({
           </div>
         </div>
       )}
-      {castReady && (<>
+      {/* EK53 — Spread content renders ALWAYS. No castReady gate
+          here. The cast animation downstream still respects
+          castReady, but the cards are present in the DOM from
+          first paint. */}
+      <>
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
           ReadingScreen's X isn't here yet). */}
       <button
@@ -387,7 +390,7 @@ export function SpreadLayout({
           onClose={() => setZoomedCard(null)}
         />
       )}
-      </>)}
+      </>
     </main>
   );
 }
