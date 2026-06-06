@@ -52,6 +52,8 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
 import { FeatureGate } from "@/components/feature-gate/FeatureGate";
+import { JournalBlock } from "@/components/journal/JournalBlock";
+import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { toast } from "sonner";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 
@@ -104,7 +106,33 @@ export function ReadingScreen({
 }: Props) {
   const meta = SPREAD_META[spread];
   useAuth();
+  // EK51 — aiEnabled at the outer ReadingScreen level so the
+  // EnrichmentPanel + DeepReadingPanel FeatureGate (further down)
+  // can reach it. The inner ReadingActions component fetches its
+  // own copy via useAIEnabled() — both calls hit the same cached
+  // server response.
+  const aiEnabled = useAIEnabled();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
+
+  // EK51 — JournalBlock local state. Visible to ALL seekers post-
+  // flip regardless of AI access (notes are not an AI feature).
+  // Prompts are resolved from the FIRST picked card's id via the
+  // existing `resolvePromptsForFirstCard` helper.
+  const [journalNote, setJournalNote] = useState<string>("");
+  const [journalUsedPrompt, setJournalUsedPrompt] = useState<string | null>(null);
+  const journalPrompts = useMemo(() => {
+    const firstCardId = picks[0]?.cardIndex;
+    return resolvePromptsForFirstCard(firstCardId, null) ?? [];
+  }, [picks]);
+  // Combine note + used prompt into the single `note` text column
+  // expected by the readings table. Auto-save and Save-and-close
+  // both read from this.
+  const composedNoteForSave = useMemo(() => {
+    const trimmed = journalNote.trim();
+    if (journalUsedPrompt && trimmed) return `${journalUsedPrompt}\n\n${trimmed}`;
+    if (journalUsedPrompt && !trimmed) return journalUsedPrompt;
+    return trimmed || null;
+  }, [journalNote, journalUsedPrompt]);
   const [retryNonce, setRetryNonce] = useState(0);
   // Dev override: when true, the next interpret call sets allowOverride
   // so the server bypasses the daily-quota check. Reset back to false
@@ -504,6 +532,33 @@ export function ReadingScreen({
               deckId={deckId}
               onExit={onExit}
               createdAt={createdAt}
+              pendingNote={composedNoteForSave}
+            />
+          </div>
+        )}
+
+        {/* EK51 — JournalBlock visible post-flip for every seeker
+              regardless of AI access. Notes are NOT an AI feature.
+              Prompts come from the first picked card via the existing
+              resolver; the textarea + picker UI is the shared
+              JournalBlock component built in EK48. On Save and close
+              (or AI auto-save), the composed note is included in the
+              inserted readings row via `pendingNote` threaded through
+              ReadingActions. */}
+        {(state.kind === "idle" || state.kind === "loading") && (
+          <div
+            className="mx-auto w-full"
+            style={{ maxWidth: 560, marginTop: 8 }}
+          >
+            <JournalBlock
+              prompts={journalPrompts}
+              note={journalNote}
+              usedPrompt={journalUsedPrompt}
+              onChange={(n, p) => {
+                setJournalNote(n);
+                setJournalUsedPrompt(p);
+              }}
+              voiceMode="plain"
             />
           </div>
         )}
@@ -537,6 +592,13 @@ export function ReadingScreen({
 
         {state.kind === "loaded" && (
           <>
+            {/* EK51 — EnrichmentPanel and DeepReadingPanel are AI
+                  surfaces. They were implicitly gated by the AI flow
+                  (state.kind only goes to "loaded" after AI fires),
+                  but wrapping them in FeatureGate makes the gating
+                  explicit AND defends against any future code path
+                  that sets state.kind = "loaded" without AI. */}
+            <FeatureGate enabled={aiEnabled === true}>
             {savedReading && (
               <EnrichmentPanel
                 reading={savedReading}
@@ -573,6 +635,7 @@ export function ReadingScreen({
               facetIds={facetIds}
             />
           )}
+          </FeatureGate>
           <button
             type="button"
             onClick={onExit}
@@ -971,6 +1034,7 @@ function ReadingActions({
   deckId,
   onExit,
   createdAt,
+  pendingNote,
 }: {
   isLoading: boolean;
   onSpeak: () => void;
@@ -984,6 +1048,10 @@ function ReadingActions({
   deckId?: string | null;
   onExit: () => void;
   createdAt?: string;
+  /** EK51 — Optional note text to include when Save and close
+   *  inserts the readings row. Composed from the JournalBlock
+   *  state in the parent ReadingScreen. */
+  pendingNote?: string | null;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -1070,6 +1138,11 @@ function ReadingActions({
         question: question || null,
         entry_mode: entryMode ?? "digital",
         deck_id: deckId ?? null,
+        // EK51 — Persist the seeker's JournalBlock note (and the
+        // used prompt, prepended as italic blockquote-style text in
+        // the same column) into the readings row at save-and-close
+        // time. When pendingNote is null/empty, nothing is set.
+        ...(pendingNote ? { note: pendingNote } : {}),
         ...(createdAt ? { created_at: createdAt } : {}),
       });
       if (error) {

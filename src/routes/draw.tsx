@@ -131,25 +131,16 @@ function DrawPage() {
     { x: number; y: number; width: number; height: number }[] | null
   >(null);
 
-  // EK50 — Flicker debug instrumentation. Enable with `?debugFlicker=1`
-  // in the URL. When enabled, the draw → cast transition pauses at
-  // each candidate flicker point with a centered Proceed button so
-  // the seeker can step through manually and identify which moment
-  // produces the visible flicker.
-  const debugFlicker =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("debugFlicker") === "1";
-  // null = no pending advance; otherwise the next phase the auto-
-  // pipeline wanted to set. Click Proceed → actually setPhase.
+  // EK51 — Flicker isolation: every phase change goes through a
+  // Proceed overlay so the seeker can step through manually. The
+  // overlay appears in the middle of the screen at each transition.
+  // No URL flag — this is on for everyone until the flicker is
+  // localized and fixed in a follow-up.
   const [pendingPhase, setPendingPhase] = useState<
     "cast" | "reading" | null
   >(null);
   const triggerPhase = (next: "cast" | "reading") => {
-    if (debugFlicker) {
-      setPendingPhase(next);
-    } else {
-      setPhase(next);
-    }
+    setPendingPhase(next);
   };
 
   // Q24 Fix 2 — register an exit-to-home X in the FloatingMenu while
@@ -639,7 +630,7 @@ function DrawPage() {
                       
           The button has no styling that could itself flicker —
           plain text on a translucent backdrop. */}
-      {debugFlicker && pendingPhase && (
+      {pendingPhase && (
         <div
           style={{
             position: "fixed",
@@ -687,7 +678,7 @@ function DrawPage() {
               letterSpacing: "0.08em",
             }}
           >
-            DEBUG FLICKER · Pause A — before setPhase
+            Pause A — before setPhase
           </div>
         </div>
       )}

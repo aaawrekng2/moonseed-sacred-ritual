@@ -118,14 +118,10 @@ export function SpreadLayout({
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
   const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // EK50 — Flicker debug Pause B: when `?debugFlicker=1` is in the
-  // URL, hide the spread content until the seeker clicks Proceed.
-  // This isolates whether the flicker happens AT MOUNT (route wrapper
-  // → SpreadLayout takeover) or LATER (during the cast animation).
-  const debugFlicker =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("debugFlicker") === "1";
-  const [castReady, setCastReady] = useState<boolean>(!debugFlicker);
+  // EK51 — Always pause once on mount with a Proceed button so the
+  // seeker can isolate flicker between SpreadLayout's mount and the
+  // cast animation. No URL flag — the pause is unconditional.
+  const [castReady, setCastReady] = useState<boolean>(false);
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -228,7 +224,7 @@ export function SpreadLayout({
           BEFORE the animation. If flicker happens between A and B
           (auto-advance), it's the mount swap. If between B and the
           animation start, it's the layout effect on line ~697. */}
-      {debugFlicker && !castReady && (
+      {!castReady && (
         <div
           style={{
             position: "absolute",
@@ -272,11 +268,11 @@ export function SpreadLayout({
               letterSpacing: "0.08em",
             }}
           >
-            DEBUG FLICKER · Pause B — SpreadLayout mounted, before animation
+            Pause B — SpreadLayout mounted, before animation
           </div>
         </div>
       )}
-      {(!debugFlicker || castReady) && (<>
+      {castReady && (<>
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
           ReadingScreen's X isn't here yet). */}
       <button
