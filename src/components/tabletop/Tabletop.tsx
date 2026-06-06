@@ -2229,28 +2229,34 @@ export function Tabletop({
           is gone — its handler `handleExit` is now wired to the
           TabletopTopActions overlay rendered as a sibling of the
           TopNav band. */}
-      {/* Q95 #7 — single-line question preview directly below the X button,
-          right-aligned, with a right-edge fade mask. */}
+      {/* EK49 — Centered question preview. Was right-aligned with a
+          right-edge fade that caused longer questions to disappear
+          off the right edge of the screen. Now anchored at the same
+          Y but centered horizontally with two-sided fade so it never
+          clips at either edge. */}
       {question && question.trim().length > 0 && (
         <div
           aria-hidden="true"
           style={{
             position: "absolute",
             top: "calc(env(safe-area-inset-top, 0px) + 40px)",
-            right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
             zIndex: 60,
-            maxWidth: 200,
+            maxWidth: "min(420px, 80vw)",
             whiteSpace: "nowrap",
             overflow: "hidden",
-            textAlign: "left",
+            textAlign: "center",
             pointerEvents: "none",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: "var(--text-caption)",
             color: "var(--color-foreground)",
             opacity: 0.55,
-            WebkitMaskImage: "linear-gradient(to right, black 70%, transparent 100%)",
-            maskImage: "linear-gradient(to right, black 70%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+            maskImage:
+              "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
           }}
         >
           {question.trim()}
