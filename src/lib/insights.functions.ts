@@ -401,11 +401,18 @@ export const getCardFrequency = createServerFn({ method: "GET" })
     const counts = new Array<number>(78).fill(0);
     const reversedCounts = new Array<number>(78).fill(0);
     const recent: Array<string | null> = new Array<string | null>(78).fill(null);
+    // EK45 — Per-card set of YYYY-MM-DD days the card appeared on
+    // (for computing longest consecutive-day streak).
+    const daysByCard: Array<Set<string>> = Array.from(
+      { length: 78 },
+      () => new Set<string>(),
+    );
     let totalDraws = 0;
     for (const r of rows) {
       const ids = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
       const ts = r.created_at;
+      const ymd = (ts as string).slice(0, 10); // ISO date prefix; tz nuance accepted (see styling doc §25 for the canonical path; this is read-only ordering).
       for (let i = 0; i < ids.length; i++) {
         const cid = ids[i];
         if (cid < 0 || cid >= 78) continue;
@@ -414,7 +421,33 @@ export const getCardFrequency = createServerFn({ method: "GET" })
         totalDraws += 1;
         if (orients[i]) reversedCounts[cid] += 1;
         if (!recent[cid] || ts > (recent[cid] as string)) recent[cid] = ts;
+        daysByCard[cid].add(ymd);
       }
+    }
+    // Compute the longest consecutive-day appearance run for each
+    // card. A "streak" here means: N consecutive calendar days on
+    // which the card was drawn at least once. Returns 0 for cards
+    // that never appeared.
+    const longestStreak = new Array<number>(78).fill(0);
+    for (let cid = 0; cid < 78; cid++) {
+      const sorted = Array.from(daysByCard[cid]).sort();
+      if (sorted.length === 0) continue;
+      let cur = 1;
+      let best = 1;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = new Date(`${sorted[i - 1]}T00:00:00Z`);
+        const next = new Date(`${sorted[i]}T00:00:00Z`);
+        const diff = Math.round(
+          (next.getTime() - prev.getTime()) / 86_400_000,
+        );
+        if (diff === 1) {
+          cur += 1;
+          if (cur > best) best = cur;
+        } else {
+          cur = 1;
+        }
+      }
+      longestStreak[cid] = best;
     }
     return {
       cards: counts.map((count, cardId) => ({
@@ -422,6 +455,7 @@ export const getCardFrequency = createServerFn({ method: "GET" })
         count,
         reversedCount: reversedCounts[cardId],
         lastSeen: recent[cardId],
+        longestStreak: longestStreak[cardId],
       })),
       totalDraws,
       totalReadings: rows.length,

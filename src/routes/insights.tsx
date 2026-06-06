@@ -399,6 +399,34 @@ function InsightsRoute() {
             availableTags={overview?.availableTags}
             availableSpreadTypes={overview?.availableSpreadTypes}
             availableMoonPhases={overview?.availableMoonPhases}
+            leadingDropdowns={
+              tab === "cards" ? (
+                // EK45 — View-mode selector left of the time-range
+                // dropdown. Two modes:
+                //   Count  — sort by appearance frequency (default;
+                //            mirrors the page's prior behavior).
+                //   Streak — sort by longest consecutive-day run.
+                // This overrides whatever cardSortBy is in trailing
+                // Sort dropdown, so the seeker doesn't see two
+                // controls conflicting.
+                <Dropdown
+                  value={
+                    filters.cardSortBy === "streak" ? "streak" : "count"
+                  }
+                  options={[
+                    { value: "count", label: "Count" },
+                    { value: "streak", label: "Streak" },
+                  ]}
+                  onChange={(v) =>
+                    setFilters({
+                      ...filters,
+                      cardSortBy:
+                        v === "streak" ? "streak" : "frequency",
+                    })
+                  }
+                />
+              ) : undefined
+            }
             trailingDropdowns={
               tab === "cards" ? (
                 <>
