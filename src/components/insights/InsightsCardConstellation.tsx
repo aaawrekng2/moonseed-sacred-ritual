@@ -49,6 +49,7 @@ import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { Modal } from "@/components/ui/modal";
 import { formatDateLong } from "@/lib/dates";
 import { parseIsoDay } from "@/lib/time";
+import { useCardViewMode } from "@/lib/use-card-view-mode";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
 /**
@@ -240,6 +241,43 @@ export function InsightsCardConstellation({
     return n;
   }, [overlap, heroCardId]);
 
+  // ── 6b. EK47 — Hero longest-streak (for the badge in Streak mode)
+  //
+  // Mirrors the server-side `getCardFrequency` computation but runs
+  // client-side on the already-loaded overlap.readingsByDate. For
+  // every YYYY-MM-DD where the hero card appears, count the longest
+  // run of consecutive 1-day-apart dates. Empty set → 0.
+  const [viewMode] = useCardViewMode();
+  const heroStreak = useMemo(() => {
+    if (!overlap) return 0;
+    const days: string[] = [];
+    for (const [date, readings] of Object.entries(
+      overlap.readingsByDate ?? {},
+    )) {
+      if (readings.some((r) => r.cardIds.includes(heroCardId))) {
+        days.push(date);
+      }
+    }
+    if (days.length === 0) return 0;
+    days.sort();
+    let cur = 1;
+    let best = 1;
+    for (let i = 1; i < days.length; i++) {
+      const prev = new Date(`${days[i - 1]}T00:00:00Z`);
+      const next = new Date(`${days[i]}T00:00:00Z`);
+      const diff = Math.round(
+        (next.getTime() - prev.getTime()) / 86_400_000,
+      );
+      if (diff === 1) {
+        cur += 1;
+        if (cur > best) best = cur;
+      } else {
+        cur = 1;
+      }
+    }
+    return best;
+  }, [overlap, heroCardId]);
+
   // ── 7. Discovery-hint candidates (teal mode 2+ cards) ──────────
   const candidateIds = useMemo(() => {
     if (tealSelectedIds.length < 2 || !overlap) return [] as number[];
@@ -341,7 +379,21 @@ export function InsightsCardConstellation({
   );
 
   // ── 10. Badge tooltip text (unit-aware) ────────────────────────
-  const heroBadgeTooltip = `${heroPullCount} PULL${heroPullCount === 1 ? "" : "S"} · ${heroCardName}`;
+  // EK47 — In Streak mode, the hero badge displays the longest
+  // consecutive-day streak instead of total pulls. Badge is hidden
+  // entirely when the streak is below 3 (passing null to
+  // ConstellationWeb's `heroDrawCount` skips the badge render).
+  // Count mode is unchanged.
+  const heroBadgeValue: number | null =
+    viewMode === "streak"
+      ? heroStreak >= 3
+        ? heroStreak
+        : null
+      : heroPullCount;
+  const heroBadgeTooltip =
+    viewMode === "streak"
+      ? `${heroStreak}-DAY STREAK · ${heroCardName}`
+      : `${heroPullCount} PULL${heroPullCount === 1 ? "" : "S"} · ${heroCardName}`;
   const tealBadge = useMemo(() => {
     if (tealSelectedIds.length < 2) return null;
     const firstId = tealSelectedIds[0];
@@ -599,7 +651,7 @@ export function InsightsCardConstellation({
           onCardClick={handleCardClick}
           tealSelectedIds={tealSelectedIds}
           candidateIds={candidateIds}
-          heroDrawCount={heroPullCount}
+          heroDrawCount={heroBadgeValue}
           heroBadgeTooltip={heroBadgeTooltip}
           tealBadge={tealBadge}
           onHeroBadgeClick={() => setReadingsModal({ kind: "hero" })}
