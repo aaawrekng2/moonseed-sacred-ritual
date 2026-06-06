@@ -616,8 +616,14 @@ function DrawPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            pointerEvents: "auto",
-            background: "rgba(0, 0, 0, 0.55)",
+            // EK53 — Backdrop is now TRANSPARENT. The earlier 55% black
+            // scrim was itself a visible change at each transition,
+            // defeating the purpose of step-by-step inspection. Only
+            // the button itself catches clicks; the rest passes
+            // through (pointerEvents: none on the container, auto on
+            // the button).
+            pointerEvents: "none",
+            background: "transparent",
           }}
         >
           <button
@@ -627,6 +633,7 @@ function DrawPage() {
               setPendingPhase(null);
             }}
             style={{
+              pointerEvents: "auto",
               padding: "16px 32px",
               borderRadius: 12,
               background: "var(--surface-elevated, #1a1230)",

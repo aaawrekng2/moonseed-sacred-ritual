@@ -464,36 +464,35 @@ export function ReadingScreen({
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
-        {/* EK52 — Temporary AI gate debug pill. Shows the live value
-              of the useAIEnabled hook so we can verify whether the
-              new default-deny logic is actually deployed. Pill is
-              fixed top-right; it'll be removed once the gate is
-              confirmed working. Values:
-                AI: loading  → hook fetching (briefly shown)
-                AI: true     → server returned enabled = true
-                AI: false    → server returned enabled = false (correct
-                                state for a user with the flag off)
-                AI: null     → hook errored or no session
-            */}
+        {/* EK53 — APPLY-VERIFICATION BANNER. Bright magenta/cyan
+              banner across the very top of the post-flip page that
+              proves ReadingScreen.tsx made it through Lovable's
+              deploy. If you don't see this banner, Lovable silently
+              dropped the file (EK52 had the AI pill in this same
+              file; you couldn't see the pill, meaning ReadingScreen
+              didn't apply). Once we confirm it shows, we know the
+              file is live. Will be removed in EK54. */}
         <div
           style={{
             position: "fixed",
-            top: 80,
-            right: 12,
-            zIndex: 200,
-            background: "rgba(20, 14, 40, 0.85)",
-            border: "1px solid rgba(212, 175, 55, 0.5)",
-            color: "var(--gold)",
-            padding: "6px 12px",
-            borderRadius: 999,
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            padding: "10px 16px",
+            background: "linear-gradient(90deg, #ff00aa 0%, #00d4ff 100%)",
+            color: "#000",
             fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 12,
+            fontSize: 14,
+            fontWeight: 700,
+            textAlign: "center",
+            letterSpacing: "0.1em",
             pointerEvents: "none",
-            backdropFilter: "blur(6px)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
           }}
         >
-          AI: {aiEnabled === null ? "loading" : String(aiEnabled)}
+          EK53 ACTIVE · AI:{" "}
+          {aiEnabled === null ? "loading" : String(aiEnabled).toUpperCase()}
         </div>
         <header className="flex flex-col items-center gap-1 text-center">
           <span className="text-[13px] uppercase tracking-[0.25em] text-gold/80">
