@@ -33,17 +33,16 @@ export const getAIFeaturesEnabled = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ enabled: boolean }> => {
     const { supabase: supa, userId } = context;
-    // Read the global default first. Cached briefly via Supabase row.
-    const { data: globalRow } = await supa
-      .from("admin_settings" as never)
-      .select("value")
-      .eq("key", "ai_features_default" as never)
-      .maybeSingle();
-    const globalDefault =
-      (globalRow as { value?: unknown } | null)?.value === true ||
-      String((globalRow as { value?: unknown } | null)?.value) === "true";
-
-    // Per-user override.
+    // EK51 — DEFAULT-DENY model. AI is hidden for every user unless
+    // their `user_preferences.ai_features_enabled` is explicitly
+    // `true`. The legacy global flag (`admin_settings.ai_features_default`)
+    // is no longer consulted — having a global "on" switch left every
+    // user without an override exposed to AI by default, which is the
+    // opposite of the intended behavior (per the per-user opt-in
+    // model: nobody sees AI until you grant them access). The flag
+    // can be re-introduced later as a fast "force-on for everyone"
+    // override, but the safer default is to require explicit user-
+    // level grant.
     const { data: userRow } = await supa
       .from("user_preferences" as never)
       .select("ai_features_enabled")
@@ -51,10 +50,7 @@ export const getAIFeaturesEnabled = createServerFn({ method: "GET" })
       .maybeSingle();
     const override = (userRow as { ai_features_enabled?: boolean | null } | null)
       ?.ai_features_enabled;
-
-    if (override === true) return { enabled: true };
-    if (override === false) return { enabled: false };
-    return { enabled: globalDefault };
+    return { enabled: override === true };
   });
 
 /**
