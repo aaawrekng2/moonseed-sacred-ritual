@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
-import { TopNav } from "@/components/nav/TopNav";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import {
   getCardPopoverData,
@@ -524,33 +523,29 @@ export function CardTraceView({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col bg-cosmos"
+      className="flex min-h-screen flex-col bg-cosmos"
       style={{
-        // EK44 — Dropped flat var(--background); the cosmos gradient
-        // class (matches Manual Entry) gives the page the dark cosmic
-        // atmosphere that var(--background) was suppressing on the
-        // edges.
-        // EJ70 — z above the Tabletop close button (z-50). When Card
-        // Trace opens over the flip table, the Tabletop's own X button
-        // (top-right, z-50) was showing through alongside Card Trace's
-        // own X — two X's at the same corner. Card Trace's opaque
-        // full-screen background at z-modal (100) covers it; only Card
-        // Trace's X remains.
-        zIndex: "var(--z-modal)" as unknown as number,
+        // EK45 — Removed the `fixed inset-0` + `zIndex: var(--z-modal)`
+        // wrapping. CardTrace was originally rendered as a modal-style
+        // overlay so it could open over the Tabletop flip table, but
+        // that put it in a stacking context above z-modal (100), and
+        // every dropdown/drawer in the page (time-range, filter
+        // drawer, Dropdown components) renders at lower z-indexes and
+        // ended up BEHIND CardTrace. The trigger clicked, the arrow
+        // flipped, but the menu was invisible underneath the overlay.
+        //
+        // Now CardTrace is a regular page — `min-h-screen` fills the
+        // viewport, the cosmos gradient still spans edge to edge, but
+        // the dropdown / drawer / modal layers (50/60/100) work as
+        // they do everywhere else. The Tabletop X-button overlap that
+        // motivated the original modal pattern is handled by the
+        // router navigation (CardTrace replaces the Tabletop route
+        // entry rather than overlaying it).
       }}
     >
-      {/* EK43 — Top chrome MIRRORS Manual Entry exactly:
-            1. Global TopNav rendered inside the portal (CardTrace
-               is a fixed inset-0 overlay above z-modal which would
-               otherwise hide the global TopNav). Mirrors how
-               ManualEntryBuilder renders <TopNav /> inside its
-               FullScreenSheet.
-            2. Back arrow overlaid at the far LEFT of the TopNav
-               row.
-            3. X close overlaid at the far RIGHT of the TopNav row.
-            4. PageMenuTrigger hamburger sits at its standard Manual
-               Entry position just below the TopNav band. */}
-      <TopNav />
+      {/* EK45 — Global <TopNav /> is now visible because CardTrace
+            is a normal page (TopNavGate renders it on /insights routes).
+            Back/X buttons stay overlaid on its row. */}
       <button
         type="button"
         onClick={close}

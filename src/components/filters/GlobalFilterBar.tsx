@@ -53,6 +53,11 @@ export type GlobalFilterBarProps = {
   trailingChips?: React.ReactNode;
   /** Optional dropdowns rendered to the right of the time range. */
   trailingDropdowns?: React.ReactNode;
+  /** EK45 — Optional dropdowns rendered to the LEFT of the time
+   *  range (between the slider icon and the time-range dropdown).
+   *  Used by Insights → Cards to surface a Count/Streak view-mode
+   *  selector that sits BEFORE "All time". */
+  leadingDropdowns?: React.ReactNode;
   /**
    * DX — optional controlled-drawer mode. When `drawerOpen` is provided
    * along with `onDrawerOpenChange`, the parent drives the fly-out's
@@ -89,6 +94,7 @@ export function GlobalFilterBar({
   availableMoonPhases,
   trailingChips,
   trailingDropdowns,
+  leadingDropdowns,
   drawerOpen: controlledOpen,
   onDrawerOpenChange,
   tagsSectionOverride,
@@ -180,6 +186,8 @@ export function GlobalFilterBar({
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
+
+        {leadingDropdowns}
 
         {timeRange && <TimeRangeDropdown {...timeRange} />}
 

@@ -17,6 +17,7 @@ export type CardGroupBy = (typeof CARD_GROUP_BY)[number];
 
 export const CARD_SORT_BY = [
   "frequency",
+  "streak",
   "recent",
   "suit_order",
   "card_number",
@@ -34,6 +35,7 @@ export const CARD_GROUP_BY_LABEL: Record<CardGroupBy, string> = {
 
 export const CARD_SORT_BY_LABEL: Record<CardSortBy, string> = {
   frequency: "Frequency",
+  streak: "Streak",
   recent: "Recent",
   suit_order: "Suit order",
   card_number: "Card number",

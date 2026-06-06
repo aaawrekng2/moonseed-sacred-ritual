@@ -31,6 +31,10 @@ type Entry = {
   count: number;
   reversedCount: number;
   lastSeen: string | null;
+  /** EK45 — Longest consecutive-day appearance run in the active
+   *  filter window. Powers the new "Streak" sort and the optional
+   *  badge on the cells. Defaults to 0 if not provided by the server. */
+  longestStreak?: number;
 };
 
 export function makeCardComparator(sortBy: CardSortBy) {
@@ -38,6 +42,13 @@ export function makeCardComparator(sortBy: CardSortBy) {
     switch (sortBy) {
       case "frequency":
         return b.count - a.count || a.cardId - b.cardId;
+      case "streak": {
+        // EK45 — Highest longest-streak wins. Ties broken by count,
+        // then cardId for stability.
+        const sa = a.longestStreak ?? 0;
+        const sb = b.longestStreak ?? 0;
+        return sb - sa || b.count - a.count || a.cardId - b.cardId;
+      }
       case "recent": {
         const ra = a.lastSeen ?? "";
         const rb = b.lastSeen ?? "";

@@ -468,17 +468,32 @@ function TagHoverPopover({
   stat: ConstellationTagStat;
   anchorRect: DOMRect;
 }) {
-  // EK36 — Anchored ABOVE the tag pill by default; if there's not
-  // enough room (within 140px of the viewport top), flip below.
+  // EK45 — Manual Entry's tag fly-out drawer slides in from the
+  // RIGHT side of the screen. Placing the hover popover above/below
+  // a tag put it either above the entire drawer (out of context) or
+  // below it (off-screen / hidden), depending on which side of the
+  // viewport-top threshold the tag landed. Now we prefer the LEFT of
+  // the tag — pointing into open page space outside the drawer — and
+  // only fall back to right if the tag is near the left edge.
   const PANEL_MAX_W = 260;
-  const GAP = 6;
-  const centerX = anchorRect.left + anchorRect.width / 2;
-  let left = centerX - PANEL_MAX_W / 2;
-  if (left < 8) left = 8;
-  if (left + PANEL_MAX_W > window.innerWidth - 8)
-    left = window.innerWidth - 8 - PANEL_MAX_W;
-  const above = anchorRect.top > 160;
-  const top = above ? anchorRect.top - GAP : anchorRect.bottom + GAP;
+  const GAP = 8;
+  const spaceLeft = anchorRect.left;
+  const spaceRight = window.innerWidth - anchorRect.right;
+  const placeLeft = spaceLeft >= PANEL_MAX_W + GAP || spaceLeft >= spaceRight;
+  const left = placeLeft
+    ? anchorRect.left - GAP - PANEL_MAX_W
+    : anchorRect.right + GAP;
+  // Vertically center on the tag, clamped to viewport.
+  const TOP_PAD = 8;
+  const BOTTOM_PAD = 8;
+  let top = anchorRect.top + anchorRect.height / 2;
+  // Tooltip is ~130px tall typically; offset so its vertical
+  // centerline matches the tag's centerline.
+  const APPROX_H = 130;
+  top -= APPROX_H / 2;
+  if (top < TOP_PAD) top = TOP_PAD;
+  if (top + APPROX_H > window.innerHeight - BOTTOM_PAD)
+    top = window.innerHeight - BOTTOM_PAD - APPROX_H;
 
   const cardNames = stat.coOccurringCards
     .slice(0, 3)
@@ -502,7 +517,7 @@ function TagHoverPopover({
         color: "var(--color-foreground)",
         boxShadow:
           "0 8px 24px color-mix(in oklch, var(--color-foreground) 14%, transparent)",
-        transform: above ? "translateY(-100%)" : undefined,
+        transform: undefined,
         pointerEvents: "none",
       }}
     >
