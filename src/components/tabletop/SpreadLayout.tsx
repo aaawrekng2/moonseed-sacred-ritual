@@ -193,9 +193,15 @@ export function SpreadLayout({
         // Q77 #3 — prevent a few px of horizontal scroll on 10-card
         // custom spreads (cells + 12px side padding can exceed viewport).
         overflowX: "hidden",
-        // Q94 #2 — clamp the cast/reveal layout to 1280px on wide
-        // monitors so cards don't stretch across a 1920px viewport.
-        maxWidth: 1280,
+        // EK49 — Dropped the maxWidth: 1280 cap. On wide monitors the
+        // draw table fills the full viewport but the reveal layout was
+        // pinching to 1280px in the center, reading as a visible width
+        // shrink during the cast/flip transition. Matching the draw
+        // table's full-width behavior eliminates the perceived shrink.
+        // (Q94 #2's intent — keep cards from stretching uncomfortably
+        // wide — is preserved by the per-spread cell sizing logic
+        // further down the file, which already caps individual card
+        // widths.)
         margin: "0 auto",
         left: 0,
         right: 0,

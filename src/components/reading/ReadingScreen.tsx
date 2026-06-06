@@ -51,6 +51,7 @@ import { stripMarkdown } from "@/lib/strip-markdown";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
+import { FeatureGate } from "@/components/feature-gate/FeatureGate";
 import { toast } from "sonner";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 
@@ -1087,6 +1088,12 @@ function ReadingActions({
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
+      {/* EK49 — Guide dropdown (Moon Oracle, etc.) is AI-related so
+          it's now wrapped in FeatureGate. When the seeker doesn't
+          have AI enabled, the entire guide-picker disappears (it
+          would only ever pick a guide for an AI call that can't
+          fire). */}
+      <FeatureGate enabled={aiEnabled === true}>
       {/* Guide dropdown */}
       <div ref={dropdownRef} className="relative">
         <button
@@ -1181,6 +1188,7 @@ function ReadingActions({
           </div>
         )}
       </div>
+      </FeatureGate>
 
       {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
           The mist breathes behind the words so the call still feels
