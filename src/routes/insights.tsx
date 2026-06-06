@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import { useCardViewMode } from "@/lib/use-card-view-mode";
 import { EMPTY_GLOBAL_FILTERS, hasAnyActive, type GlobalFilters } from "@/lib/filters.types";
 import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
@@ -174,6 +175,21 @@ function InsightsRoute() {
   //   • all + non-time filter → "N readings matching filters"
   // See computeStatsLine() below.
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+
+  // EK47 — Persisted Count/Streak preference. Shared with Card
+  // Trace (which lives at /insights/card/$cardId) so the badge
+  // there reflects whichever mode the seeker chose here.
+  const [viewMode, setViewMode] = useCardViewMode();
+  // Keep filters.cardSortBy in sync with the saved view mode so
+  // changes the seeker makes via the selector AND the legacy
+  // trailing Sort dropdown stay consistent across surfaces.
+  useEffect(() => {
+    const desired = viewMode === "streak" ? "streak" : "frequency";
+    if ((filters.cardSortBy ?? "frequency") !== desired) {
+      setFilters((f) => ({ ...f, cardSortBy: desired }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
   // Phase 10 — keep filters.tz synced with the user's effective timezone so
   // every server fn that spreads filters aggregates on local calendar days.
   const { effectiveTz } = useTimezone();
@@ -410,19 +426,13 @@ function InsightsRoute() {
                 // Sort dropdown, so the seeker doesn't see two
                 // controls conflicting.
                 <Dropdown
-                  value={
-                    filters.cardSortBy === "streak" ? "streak" : "count"
-                  }
+                  value={viewMode}
                   options={[
                     { value: "count", label: "Count" },
                     { value: "streak", label: "Streak" },
                   ]}
                   onChange={(v) =>
-                    setFilters({
-                      ...filters,
-                      cardSortBy:
-                        v === "streak" ? "streak" : "frequency",
-                    })
+                    setViewMode(v === "streak" ? "streak" : "count")
                   }
                 />
               ) : undefined
