@@ -464,6 +464,37 @@ export function ReadingScreen({
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
+        {/* EK52 — Temporary AI gate debug pill. Shows the live value
+              of the useAIEnabled hook so we can verify whether the
+              new default-deny logic is actually deployed. Pill is
+              fixed top-right; it'll be removed once the gate is
+              confirmed working. Values:
+                AI: loading  → hook fetching (briefly shown)
+                AI: true     → server returned enabled = true
+                AI: false    → server returned enabled = false (correct
+                                state for a user with the flag off)
+                AI: null     → hook errored or no session
+            */}
+        <div
+          style={{
+            position: "fixed",
+            top: 80,
+            right: 12,
+            zIndex: 200,
+            background: "rgba(20, 14, 40, 0.85)",
+            border: "1px solid rgba(212, 175, 55, 0.5)",
+            color: "var(--gold)",
+            padding: "6px 12px",
+            borderRadius: 999,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 12,
+            pointerEvents: "none",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          AI: {aiEnabled === null ? "loading" : String(aiEnabled)}
+        </div>
         <header className="flex flex-col items-center gap-1 text-center">
           <span className="text-[13px] uppercase tracking-[0.25em] text-gold/80">
             {meta.label}
@@ -537,31 +568,26 @@ export function ReadingScreen({
           </div>
         )}
 
-        {/* EK51 — JournalBlock visible post-flip for every seeker
-              regardless of AI access. Notes are NOT an AI feature.
-              Prompts come from the first picked card via the existing
-              resolver; the textarea + picker UI is the shared
-              JournalBlock component built in EK48. On Save and close
-              (or AI auto-save), the composed note is included in the
-              inserted readings row via `pendingNote` threaded through
-              ReadingActions. */}
-        {(state.kind === "idle" || state.kind === "loading") && (
-          <div
-            className="mx-auto w-full"
-            style={{ maxWidth: 560, marginTop: 8 }}
-          >
-            <JournalBlock
-              prompts={journalPrompts}
-              note={journalNote}
-              usedPrompt={journalUsedPrompt}
-              onChange={(n, p) => {
-                setJournalNote(n);
-                setJournalUsedPrompt(p);
-              }}
-              voiceMode="plain"
-            />
-          </div>
-        )}
+        {/* EK52 — JournalBlock visible UNCONDITIONALLY post-flip
+              for every seeker regardless of AI access OR state.kind.
+              Previous EK51 wiring gated it on idle/loading which
+              hid it once AI fired or in other states; that was the
+              wrong default. Notes are never an AI feature. */}
+        <div
+          className="mx-auto w-full"
+          style={{ maxWidth: 560, marginTop: 8 }}
+        >
+          <JournalBlock
+            prompts={journalPrompts}
+            note={journalNote}
+            usedPrompt={journalUsedPrompt}
+            onChange={(n, p) => {
+              setJournalNote(n);
+              setJournalUsedPrompt(p);
+            }}
+            voiceMode="plain"
+          />
+        </div>
 
         <section
           className="reading-actions-fade-in w-full"
