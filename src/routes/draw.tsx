@@ -131,6 +131,27 @@ function DrawPage() {
     { x: number; y: number; width: number; height: number }[] | null
   >(null);
 
+  // EK50 — Flicker debug instrumentation. Enable with `?debugFlicker=1`
+  // in the URL. When enabled, the draw → cast transition pauses at
+  // each candidate flicker point with a centered Proceed button so
+  // the seeker can step through manually and identify which moment
+  // produces the visible flicker.
+  const debugFlicker =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debugFlicker") === "1";
+  // null = no pending advance; otherwise the next phase the auto-
+  // pipeline wanted to set. Click Proceed → actually setPhase.
+  const [pendingPhase, setPendingPhase] = useState<
+    "cast" | "reading" | null
+  >(null);
+  const triggerPhase = (next: "cast" | "reading") => {
+    if (debugFlicker) {
+      setPendingPhase(next);
+    } else {
+      setPhase(next);
+    }
+  };
+
   // Q24 Fix 2 — register an exit-to-home X in the FloatingMenu while
   // the seeker is in the card-selection phase. Cleared once cards
   // are cast / revealed so the seeker stays in the reading.
@@ -414,7 +435,7 @@ function DrawPage() {
           spread={spread}
           picks={picks}
           onExit={exit}
-          onContinue={() => setPhase("reading")}
+          onContinue={() => triggerPhase("reading")}
           question={question || undefined}
           entryMode={entryMode}
           deckId={activeDeckId}
@@ -547,7 +568,7 @@ function DrawPage() {
               // Manual entry sends meta without slotOrigins → null,
               // SpreadLayout falls back to its default emerge animation.
               setCastOriginRects(meta?.slotOrigins ?? null);
-              setPhase(mode === "cast" ? "cast" : "reading");
+              triggerPhase(mode === "cast" ? "cast" : "reading");
               // Reaching reveal/cast counts as today's practice. Fire-and-forget.
               void recordDraw();
             }}
@@ -595,6 +616,80 @@ function DrawPage() {
               : undefined
           }
         />
+      )}
+
+      {/* EK50 — Flicker debug Proceed overlay. Renders only when
+          `?debugFlicker=1` is present in the URL AND a phase change
+          is queued. Centered fixed button at z-popover so it sits
+          above Tabletop (z-30) and below SpreadLayout (z-40) — when
+          clicked, the actual `setPhase` fires and the swap proceeds.
+          
+          Use case: load /draw?debugFlicker=1, draw cards, tap cast.
+          Instead of the auto-swap, this overlay appears at:
+          
+            Point A — Tabletop's onComplete fired, before setPhase.
+                      Tabletop is still mounted. Click Proceed →
+                      setPhase("cast") fires → Tabletop unmounts and
+                      SpreadLayout mounts. Watch for flicker AT THIS
+                      CLICK. If flicker happens here, the issue is
+                      the mount/unmount swap.
+                      
+            Point B — SpreadLayout's "Continue" was tapped, before
+                      setPhase("reading"). Different transition.
+                      
+          The button has no styling that could itself flicker —
+          plain text on a translucent backdrop. */}
+      {debugFlicker && pendingPhase && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 35,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "auto",
+            background: "rgba(0, 0, 0, 0.55)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setPhase(pendingPhase);
+              setPendingPhase(null);
+            }}
+            style={{
+              padding: "16px 32px",
+              borderRadius: 12,
+              background: "var(--surface-elevated, #1a1230)",
+              border: "1px solid var(--gold, #d4af37)",
+              color: "var(--gold, #d4af37)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-heading-md, 18px)",
+              cursor: "pointer",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+            }}
+          >
+            Proceed: {pendingPhase === "cast" ? "draw → flip" : "flip → reading"}
+          </button>
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "var(--gold, #d4af37)",
+              opacity: 0.7,
+              letterSpacing: "0.08em",
+            }}
+          >
+            DEBUG FLICKER · Pause A — before setPhase
+          </div>
+        </div>
       )}
     </div>
   );

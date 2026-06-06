@@ -118,6 +118,15 @@ export function SpreadLayout({
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
   const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // EK50 — Flicker debug Pause B: when `?debugFlicker=1` is in the
+  // URL, hide the spread content until the seeker clicks Proceed.
+  // This isolates whether the flicker happens AT MOUNT (route wrapper
+  // → SpreadLayout takeover) or LATER (during the cast animation).
+  const debugFlicker =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debugFlicker") === "1";
+  const [castReady, setCastReady] = useState<boolean>(!debugFlicker);
+
   useEffect(() => {
     setCardBack(getStoredCardBack());
   }, []);
@@ -207,6 +216,67 @@ export function SpreadLayout({
         right: 0,
       }}
     >
+      {/* EK50 — Flicker debug Pause B. When the URL has
+          `?debugFlicker=1` and the seeker hasn't yet clicked Proceed,
+          render ONLY a Proceed button — none of the cards, spread
+          layout, or animations mount. This isolates whether the
+          flicker happens during SpreadLayout's mount/style swap or
+          later during the actual cast animation.
+          
+          Compare to Pause A in draw.tsx: A pauses BEFORE the swap
+          from Tabletop to SpreadLayout. B pauses AFTER the swap but
+          BEFORE the animation. If flicker happens between A and B
+          (auto-advance), it's the mount swap. If between B and the
+          animation start, it's the layout effect on line ~697. */}
+      {debugFlicker && !castReady && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "auto",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setCastReady(true)}
+            style={{
+              padding: "16px 32px",
+              borderRadius: 12,
+              background: "var(--surface-elevated, #1a1230)",
+              border: "1px solid var(--gold, #d4af37)",
+              color: "var(--gold, #d4af37)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-heading-md, 18px)",
+              cursor: "pointer",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+            }}
+          >
+            Proceed: animate cards in
+          </button>
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "var(--gold, #d4af37)",
+              opacity: 0.7,
+              letterSpacing: "0.08em",
+            }}
+          >
+            DEBUG FLICKER · Pause B — SpreadLayout mounted, before animation
+          </div>
+        </div>
+      )}
+      {(!debugFlicker || castReady) && (<>
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
           ReadingScreen's X isn't here yet). */}
       <button
@@ -321,6 +391,7 @@ export function SpreadLayout({
           onClose={() => setZoomedCard(null)}
         />
       )}
+      </>)}
     </main>
   );
 }
