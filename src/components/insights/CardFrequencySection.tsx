@@ -228,12 +228,26 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
     () => (data?.cards ?? []).slice().sort(makeCardComparator(sortBy)),
     [data, sortBy],
   );
-  const max = sorted[0]?.count ?? 0;
+  // EK46 — In Streak mode, the number rendered on each card cell
+  // and the bar length should reflect the STREAK length, not the
+  // total draw count. We pass a transformed list to the views where
+  // each entry's `count` field carries the metric being sorted on:
+  //   - Count mode  → entry.count = e.count   (total draws)
+  //   - Streak mode → entry.count = e.longestStreak (longest run)
+  // The Entry type is preserved so views need no changes.
+  const displayed = useMemo(() => {
+    if (sortBy !== "streak") return sorted;
+    return sorted.map((e) => ({
+      ...e,
+      count: e.longestStreak ?? 0,
+    }));
+  }, [sorted, sortBy]);
+  const max = displayed[0]?.count ?? 0;
 
   const groups = useMemo(() => {
     if (groupBy === "none") return null;
     const map = new Map<string, Entry[]>();
-    for (const e of sorted) {
+    for (const e of displayed) {
       if (e.count === 0) continue;
       const k = groupKey(e.cardId, groupBy);
       if (!map.has(k)) map.set(k, []);
@@ -242,7 +256,7 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
     return Array.from(map.entries()).sort((a, b) =>
       compareGroupKeys(groupBy, a[0], b[0]),
     );
-  }, [sorted, groupBy]);
+  }, [displayed, groupBy]);
 
   return (
     <section className="space-y-3">
@@ -349,13 +363,13 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
             <>
           {mode === "bar" && (
             <BarView
-              entries={(showAll ? sorted : sorted.slice(0, 30)).filter((e) => e.count > 0 || showAll)}
+              entries={(showAll ? displayed : displayed.slice(0, 30)).filter((e) => e.count > 0 || showAll)}
               max={max}
               cardScale={barScale}
             />
           )}
-          {mode === "grid" && <GridView entries={sorted} cardScale={gridScale} />}
-          {mode === "deck" && <DeckGrid entries={sorted} cardScale={deckScale} />}
+          {mode === "grid" && <GridView entries={displayed} cardScale={gridScale} />}
+          {mode === "deck" && <DeckGrid entries={displayed} cardScale={deckScale} />}
           {mode === "bar" && !showAll && (
             <button
               type="button"
