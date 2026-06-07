@@ -111,19 +111,42 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+export type CardRichPreload = {
+  constellation?: CardConstellation | null;
+  stats?: CardPopoverData | null;
+  rank?: { rank: number; universe: number } | null;
+};
+
 export function CardRichPopoverContent({
   cardId,
   filters,
+  showConstellation = true,
+  preload,
 }: {
   cardId: number;
   filters: InsightsFilters;
+  /** EK63 — whether to render the mini-constellation on top. Set per
+   *  surface in code: ON for Insights → Cards; OFF where the host page
+   *  already shows a constellation (e.g. manual entry). */
+  showConstellation?: boolean;
+  /** EK63 — preloaded data. When provided, the component uses it instead of
+   *  fetching, so callers that already hold this in memory (manual entry)
+   *  don't trigger a redundant round-trip. Omit it to let the component
+   *  fetch for itself (Insights, and future surfaces). */
+  preload?: CardRichPreload;
 }) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
   const rankFn = useServerFn(getCardDrawCounts);
-  const [constellation, setConstellation] = useState<CardConstellation | null>(null);
-  const [stats, setStats] = useState<CardPopoverData | null>(null);
-  const [rank, setRank] = useState<{ rank: number; universe: number } | null>(null);
+  // When preloaded, skip the fetch entirely and never re-run it.
+  const hasPreload = preload !== undefined;
+  const [constellation, setConstellation] = useState<CardConstellation | null>(
+    preload?.constellation ?? null,
+  );
+  const [stats, setStats] = useState<CardPopoverData | null>(preload?.stats ?? null);
+  const [rank, setRank] = useState<{ rank: number; universe: number } | null>(
+    preload?.rank ?? null,
+  );
 
   const tz = filters.tz;
   // Re-run when the filter window changes (the envelope is the part the
@@ -131,6 +154,7 @@ export function CardRichPopoverContent({
   const envKey = JSON.stringify(toEnvelope(filters));
 
   useEffect(() => {
+    if (hasPreload) return; // caller supplied data — don't fetch
     let alive = true;
     void (async () => {
       try {
@@ -155,7 +179,7 @@ export function CardRichPopoverContent({
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardId, tz, envKey, constFn, dataFn, rankFn]);
+  }, [cardId, tz, envKey, hasPreload, constFn, dataFn, rankFn]);
 
   const name = getCardName(cardId);
   const meaning = getCardMeaning(cardId);
@@ -194,16 +218,19 @@ export function CardRichPopoverContent({
         boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
       }}
     >
-      {/* Constellation on top (static — hero + companions + lines) */}
-      <div style={{ height: 200, marginBottom: 8, position: "relative" }}>
-        <ConstellationWeb
-          heroPick={heroPick}
-          constellation={constellation}
-          onCardClick={() => {}}
-          tealSelectedIds={[]}
-          heroDrawCount={pulls}
-        />
-      </div>
+      {/* Constellation on top (static — hero + companions + lines).
+          EK63 — hidden where the host page already shows a constellation. */}
+      {showConstellation && (
+        <div style={{ height: 200, marginBottom: 8, position: "relative" }}>
+          <ConstellationWeb
+            heroPick={heroPick}
+            constellation={constellation}
+            onCardClick={() => {}}
+            tealSelectedIds={[]}
+            heroDrawCount={pulls}
+          />
+        </div>
+      )}
 
       {/* Name + arcana */}
       <div
@@ -405,11 +432,15 @@ export function CardHoverTip({
   filters,
   children,
   className,
+  showConstellation = true,
+  preload,
 }: {
   cardId: number;
   filters: InsightsFilters;
   children: React.ReactNode;
   className?: string;
+  showConstellation?: boolean;
+  preload?: CardRichPreload;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
@@ -468,7 +499,12 @@ export function CardHoverTip({
             onMouseEnter={() => window.clearTimeout(closeTimer.current)}
             onMouseLeave={hide}
           >
-            <CardRichPopoverContent cardId={cardId} filters={filters} />
+            <CardRichPopoverContent
+              cardId={cardId}
+              filters={filters}
+              showConstellation={showConstellation}
+              preload={preload}
+            />
           </div>,
           document.body,
         )}
