@@ -29,6 +29,10 @@ import {
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
 import { useActiveDeck, useActiveDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
+// EK59 — moon-phase indicators on the grid12 calendar.
+import { getPhaseOccurrences } from "@/lib/moon";
+import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
+import { isoDayInTz } from "@/lib/time";
 import { useElementWidth } from "@/lib/use-element-width";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { cn } from "@/lib/utils";
@@ -2101,6 +2105,22 @@ function OverlapStrip({
   const monthsToShow =
     monthsToShowProp ?? (layout === "grid12" ? 12 : viewportWidth >= 1280 ? 6 : 5);
 
+  // EK59 — Full-/new-moon day sets for the grid12 calendar. getPhaseOccurrences
+  // searches forward, so anchor ~13 months back and span ~15 months to cover
+  // the whole visible 12-month window plus edges. Keys are UTC yyyy-mm-dd to
+  // match the calendar's day cells (which are stored UTC). Computed once —
+  // moon phases don't change within a session.
+  const moonDayYmds = useMemo(() => {
+    const full = new Set<string>();
+    const nw = new Set<string>();
+    if (layout !== "grid12") return { full, nw };
+    const DAY_MS = 86400000;
+    const from = new Date(Date.now() - 13 * 30 * DAY_MS);
+    for (const d of getPhaseOccurrences("Full Moon", from, 15)) full.add(isoDayInTz(d, "UTC"));
+    for (const d of getPhaseOccurrences("New Moon", from, 15)) nw.add(isoDayInTz(d, "UTC"));
+    return { full, nw };
+  }, [layout]);
+
   // DU — for grid12 layout, the top row (older 6 months) can be collapsed.
   // DW — default COLLAPSED so the recent 6 months are visible above the
   // fold; tap "Show older →" to reveal the older row.
@@ -2775,6 +2795,41 @@ function OverlapStrip({
                               zIndex: 3,
                             }}
                           />
+                        )}
+                        {/* EK59 — full/new moon indicator, top-right
+                            corner, non-interactive, above fills + strokes.
+                            A day is never both, so two guards are fine. */}
+                        {layout === "grid12" && moonDayYmds.full.has(day.date) && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: 1,
+                              right: 1,
+                              width: 10,
+                              height: 10,
+                              pointerEvents: "none",
+                              zIndex: 4,
+                            }}
+                          >
+                            <MoonPhaseIcon phase="Full Moon" size={10} />
+                          </div>
+                        )}
+                        {layout === "grid12" && moonDayYmds.nw.has(day.date) && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: 1,
+                              right: 1,
+                              width: 10,
+                              height: 10,
+                              pointerEvents: "none",
+                              zIndex: 4,
+                            }}
+                          >
+                            <MoonPhaseIcon phase="New Moon" size={10} />
+                          </div>
                         )}
                       </div>
                     );
