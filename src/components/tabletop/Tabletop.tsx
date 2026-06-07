@@ -2608,7 +2608,15 @@ export function Tabletop({
                   columns matches. Hidden when ready (reveal phase) or
                   when no onSpreadChange handler is provided, mirroring
                   the previous SpreadPicker visibility gate. */}
-              {onSpreadChange && !ready && (
+              {/* EK59 — was `onSpreadChange && !ready`. Unmounting this
+                  leading chevron column the instant the last slot filled
+                  made the justify-center rail re-center without it, so
+                  every placed card (anchored to the slot rects) jumped
+                  left/up. Keep it mounted; the parent rail already goes
+                  visibility:hidden when ready, so it's invisible either
+                  way — but its reserved width keeps the rail geometry
+                  identical before and after the last drop. */}
+              {onSpreadChange && (
                 <div
                   role="listitem"
                   className="flex flex-col items-center gap-1 shrink-0"

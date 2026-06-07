@@ -470,8 +470,13 @@ function SpreadContent({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${colsInRow}, 1fr)`,
+                // EK59 — fixed-width, center-justified columns instead of
+                // 1fr. 1fr stretched 5+ cards edge-to-edge across the
+                // viewport; fixed width keeps them clustered and centered,
+                // matching the ≤4-card layout.
+                gridTemplateColumns: `repeat(${colsInRow}, ${displayW}px)`,
                 gap: `${gap}px`,
+                justifyContent: "center",
                 alignItems: "end",
                 justifyItems: "center",
                 marginBottom: 4,
@@ -509,8 +514,10 @@ function SpreadContent({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${colsInRow}, 1fr)`,
+                // EK59 — match the cards row: fixed-width, centered.
+                gridTemplateColumns: `repeat(${colsInRow}, ${displayW}px)`,
                 gap: `${gap}px`,
+                justifyContent: "center",
                 alignItems: "start",
                 justifyItems: "center",
               }}
