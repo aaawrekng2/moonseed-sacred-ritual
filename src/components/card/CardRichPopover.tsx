@@ -141,6 +141,9 @@ export function CardRichPopoverContent({
   const dataFn = useServerFn(getCardPopoverData);
   const rankFn = useServerFn(getCardDrawCounts);
   const resolveCardName = useAnyDeckCardName();
+  // EK65 — name of the constellation card currently hovered inside this
+  // popup, shown as a small label near the cursor.
+  const [webHover, setWebHover] = useState<{ name: string; x: number; y: number } | null>(null);
   // When preloaded, skip the fetch entirely and never re-run it.
   const hasPreload = preload !== undefined;
   const [constellation, setConstellation] = useState<CardConstellation | null>(
@@ -213,10 +216,11 @@ export function CardRichPopoverContent({
     (constellation ? constellation.matches.length : 0);
 
   return (
+    <>
     <div
       style={{
         width: 320,
-        maxHeight: "78vh",
+        maxHeight: "calc(100vh - 16px)",
         overflowY: "auto",
         background: "var(--surface-card)",
         border: "1px solid var(--border-subtle)",
@@ -230,13 +234,16 @@ export function CardRichPopoverContent({
     >
       {/* Constellation on top — hidden where the host page already shows one. */}
       {showConstellation && (
-        <div style={{ height: 200, position: "relative" }}>
+        <div style={{ height: 200, marginBottom: 24, position: "relative" }}>
           <ConstellationWeb
             heroPick={heroPick}
             constellation={constellation}
             onCardClick={() => {}}
             tealSelectedIds={[]}
             heroDrawCount={pulls}
+            onCardHover={(cid, x, y) =>
+              setWebHover(cid != null ? { name: resolveCardName(cid), x, y } : null)
+            }
           />
         </div>
       )}
@@ -254,6 +261,33 @@ export function CardRichPopoverContent({
         tz={tz}
       />
     </div>
+      {webHover &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: webHover.x + 12,
+              top: webHover.y + 12,
+              zIndex: 210,
+              pointerEvents: "none",
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--color-foreground)",
+              background: "var(--surface-elevated, var(--surface-card))",
+              border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+              borderRadius: 6,
+              padding: "3px 8px",
+              whiteSpace: "nowrap",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+            }}
+          >
+            {webHover.name}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -294,7 +328,9 @@ export function CardHoverTip({
       const wantLeft = r.right + 10;
       const left =
         wantLeft + POP_W > window.innerWidth ? Math.max(8, r.left - POP_W - 10) : wantLeft;
-      const top = Math.max(8, Math.min(r.top, window.innerHeight - 40));
+      // EK65 — pin the top near the top of the screen so the popup can show
+      // as much of itself as possible (it grows up to full window height).
+      const top = 8;
       setPos({ left, top });
       setOpen(true);
     }, 220);
