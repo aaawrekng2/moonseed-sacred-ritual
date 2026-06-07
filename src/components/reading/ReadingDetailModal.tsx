@@ -17,6 +17,7 @@ import { formatDateTime } from "@/lib/dates";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { JournalPromptsReadOnly } from "@/components/tarot/JournalPrompts";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
+import { JournalBlock } from "@/components/journal/JournalBlock";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { useAuth } from "@/lib/auth";
 import { swapReadingDeck, swapDeckAcrossReadings } from "@/lib/reconnect-deck.functions";

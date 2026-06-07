@@ -118,10 +118,9 @@ export function SpreadLayout({
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
   const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // EK51 — Always pause once on mount with a Proceed button so the
-  // seeker can isolate flicker between SpreadLayout's mount and the
-  // cast animation. No URL flag — the pause is unconditional.
-  const [castReady, setCastReady] = useState<boolean>(false);
+  // EK54 — castReady/Pause B removed. The flicker we were chasing
+  // turned out to be edits in the wrong file (ReadingScreen vs
+  // InlineReading). Spread content always renders on mount.
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -212,69 +211,8 @@ export function SpreadLayout({
         right: 0,
       }}
     >
-      {/* EK53 — Pause B is now a TRANSPARENT overlay. The earlier
-          versions gated all spread content behind `castReady`, which
-          meant the cards literally weren't in the DOM until the
-          seeker clicked Proceed — that's why cards appeared to
-          "disappear" at Pause A's click. EK53 mounts the spread
-          content unconditionally; only the cast ANIMATION is gated.
-          The Pause B overlay itself is just a centered button with
-          no scrim, so the cards stay visible underneath. */}
-      {!castReady && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            // EK53 — Transparent; pointer-events only on the button.
-            pointerEvents: "none",
-            background: "transparent",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setCastReady(true)}
-            style={{
-              pointerEvents: "auto",
-              padding: "16px 32px",
-              borderRadius: 12,
-              background: "var(--surface-elevated, #1a1230)",
-              border: "1px solid var(--gold, #d4af37)",
-              color: "var(--gold, #d4af37)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-md, 18px)",
-              cursor: "pointer",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-            }}
-          >
-            Proceed: animate cards in
-          </button>
-          <div
-            style={{
-              position: "absolute",
-              top: 16,
-              left: "50%",
-              transform: "translateX(-50%)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 12,
-              color: "var(--gold, #d4af37)",
-              opacity: 0.7,
-              letterSpacing: "0.08em",
-            }}
-          >
-            Pause B — SpreadLayout mounted, before animation
-          </div>
-        </div>
-      )}
-      {/* EK53 — Spread content renders ALWAYS. No castReady gate
-          here. The cast animation downstream still respects
-          castReady, but the cards are present in the DOM from
-          first paint. */}
+      {/* EK54 — Pause B overlay removed (was an unhelpful diagnostic;
+          spread content renders unconditionally). */}
       <>
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
           ReadingScreen's X isn't here yet). */}
@@ -795,6 +733,15 @@ function CardFace({
     el.style.transition = "none";
     el.style.transformOrigin = "top left";
     el.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+    // EK54 — Reveal the card now that the slot-position transform is
+    // applied. Initial render uses opacity:0 to hide the card during
+    // the small window between React's commit and this layout effect
+    // — without this, the browser sometimes paints the card at its
+    // FINAL spread position once, then snaps to slot position, then
+    // animates. That "down and over before moving up" jump goes away
+    // when the card is invisible until the slot-position transform
+    // is in place.
+    el.style.opacity = "1";
     // Force layout so the browser registers the starting transform
     // before we kick off the transition. Reading offsetWidth is a
     // classic synchronous-layout trick to commit the style.
@@ -845,6 +792,12 @@ function CardFace({
                 // for the upcoming animation.
                 display: "inline-block",
                 willChange: "transform",
+                // EK54 — Start hidden. The layout effect sets opacity
+                // to 1 once the slot-position transform is applied.
+                // Eliminates the brief paint at the spread position
+                // that caused the "shift down and over before moving
+                // up" jump.
+                opacity: 0,
               }
             : {
                 // Pre-EK16 fallback path: small fade-up from center.
