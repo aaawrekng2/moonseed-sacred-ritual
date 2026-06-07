@@ -1986,6 +1986,10 @@ function OverlapStrip({
   onDayHover,
   onDayHoverEnd,
   asterismBadgeHovered = false,
+  // EK57 — Set of YYYY-MM-DD days to stroke in traceColor while a
+  // constellation card is hovered (the hovered card's drawn days).
+  // Additive to the teal-selection trace; defaults to none.
+  hoverStrokeYmds,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -2035,6 +2039,10 @@ function OverlapStrip({
    *  heatmap to solid trace color, completely overriding the heatmap
    *  so the seeker sees the asterism's days at 100% visibility. */
   asterismBadgeHovered?: boolean;
+  /** EK57 — days (YYYY-MM-DD) drawn on by the currently-hovered
+   *  constellation card. Stroked in traceColor, additive to the teal
+   *  trace. Optional; absent = no hover stroke. */
+  hoverStrokeYmds?: Set<string>;
   /** EJ65 — accepted for API symmetry with <OverlapPills/>. OverlapStrip
    *  in controlled mode does not render the legacy inline Show-older pill,
    *  so this prop is currently a no-op here; kept so ConstellationPage can
@@ -2474,6 +2482,10 @@ function OverlapStrip({
                       opacity = 1;
                       textColor = "var(--background)";
                     }
+                    // EK57 — hover stroke: stroke this day if the
+                    // currently-hovered constellation card was drawn on
+                    // it. Independent of teal selection.
+                    const hoverStrokeHit = hoverStrokeYmds?.has(day.date) ?? false;
                     const isPerfectMatch = matchCount > 0 && matchCount === pullSet.size;
                     const isBestAvailable =
                       !isPerfectMatch &&
@@ -2723,6 +2735,22 @@ function OverlapStrip({
                           </div>
                         )}
                         {tealTraceHit && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: -1,
+                              borderRadius: 5,
+                              border: `2px solid ${traceColor}`,
+                              pointerEvents: "none",
+                              zIndex: 3,
+                            }}
+                          />
+                        )}
+                        {/* EK57 — hover stroke for the hovered card's
+                            drawn days. Skipped when tealTraceHit already
+                            drew the identical stroke. */}
+                        {hoverStrokeHit && !tealTraceHit && (
                           <div
                             aria-hidden
                             style={{
