@@ -667,7 +667,7 @@ function OverviewTab({
       )}
 
       {stalkers && (stalkers.topCard || (stalkers.stalkerCards ?? []).length > 0) && (
-        <HeroCard result={stalkers} onTap={onTapHero} />
+        <HeroCard result={stalkers} onTap={onTapHero} filters={filters} />
       )}
 
       {/* Q101 #6 — Horizontal 3-month calendar of stalker appearances, desktop only.
