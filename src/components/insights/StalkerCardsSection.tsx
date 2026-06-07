@@ -64,7 +64,7 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
             >
               {/* Q60 Fix 1 — canonical card-with-badge cell. */}
               <div style={{ width: 64, flexShrink: 0 }}>
-                <CardCellWithBadge cardId={s.cardId} count={s.count} />
+                <CardCellWithBadge cardId={s.cardId} count={s.count} richHoverCardId={s.cardId} richHoverFilters={filters} />
               </div>
               <div className="flex-1">
                 <div

@@ -119,6 +119,22 @@ export type CardRichPreload = {
   rank?: { rank: number; universe: number } | null;
 };
 
+// EK66 — all-time filters for surfaces that have no Insights filter bar
+// (e.g. Journal → Readings). Gives the popup a valid envelope + tz so its
+// stats reflect the seeker's whole history.
+export function allTimeFilters(tz: string): InsightsFilters {
+  return {
+    timeRange: "all",
+    moonPhases: [],
+    spreadTypes: [],
+    tagIds: [],
+    deckIds: [],
+    reversedOnly: false,
+    deepOnly: false,
+    tz,
+  };
+}
+
 export function CardRichPopoverContent({
   cardId,
   filters,
@@ -234,7 +250,7 @@ export function CardRichPopoverContent({
     >
       {/* Constellation on top — hidden where the host page already shows one. */}
       {showConstellation && (
-        <div style={{ height: 200, marginBottom: 24, position: "relative" }}>
+        <div style={{ height: 200, marginBottom: 56, position: "relative" }}>
           <ConstellationWeb
             heroPick={heroPick}
             constellation={constellation}

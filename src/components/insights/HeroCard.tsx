@@ -1,6 +1,7 @@
 import { getCardName } from "@/lib/tarot";
 import type { StalkerCardsResult } from "@/lib/insights.types";
 import { CardImage } from "@/components/card/CardImage";
+import { CardHoverTip } from "@/components/card/CardRichPopover";
 
 /**
  * EJ-6 — Hero card for the Overview tab.
@@ -10,7 +11,7 @@ import { CardImage } from "@/components/card/CardImage";
  *   C — 5+ readings, no clear stalker → "Most-drawn so far."
  *   D — Stalker detected → "Stalker emerging." (gold ring).
  */
-export function HeroCard({ result, onTap }: { result: StalkerCardsResult; onTap?: () => void }) {
+export function HeroCard({ result, onTap, filters }: { result: StalkerCardsResult; onTap?: () => void; filters: InsightsFilters }) {
   const { stalkerCards, topCard, totalReadings } = result;
   // EJ41 — defensive: stalkerCards may be undefined on partial payloads.
   const safeStalkerCards = Array.isArray(stalkerCards) ? stalkerCards : [];
@@ -66,15 +67,17 @@ export function HeroCard({ result, onTap }: { result: StalkerCardsResult; onTap?
         }}
       >
         <div style={{ position: "relative", width: 180, containerType: "inline-size" }}>
-          <CardImage
-            cardId={featuredId}
-            variant="face"
-            size="custom"
-            widthPx={180}
-            ariaLabel={cardName}
-            eager
-            style={{ width: "100%" }}
-          />
+          <CardHoverTip cardId={featuredId} filters={filters}>
+            <CardImage
+              cardId={featuredId}
+              variant="face"
+              size="custom"
+              widthPx={180}
+              ariaLabel={cardName}
+              eager
+              style={{ width: "100%" }}
+            />
+          </CardHoverTip>
           <span className="tarotseed-card-badge" aria-label={`${count} appearances`}>
             {count}
             <span style={{ fontSize: "0.7em", marginLeft: "0.05em" }}>×</span>
