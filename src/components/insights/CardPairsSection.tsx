@@ -166,6 +166,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
               pair={p}
               scale={pairScale}
               onTap={() => setSelectedPair(p)}
+              filters={filters}
             />
           ))}
         </div>
@@ -182,7 +183,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
   );
 }
 
-function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () => void }) {
+function PairRow({ pair, scale, onTap, filters }: { pair: Pair; scale: number; onTap: () => void; filters: InsightsFilters }) {
   const w = Math.round(38 * scale / 100);
   const navigate = useNavigate();
   return (
@@ -210,7 +211,7 @@ function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () 
           style={{ cursor: "pointer", display: "inline-block" }}
           aria-label={`View Card Trace for ${pair.cardAName}`}
         >
-          <CardHoverTip cardId={pair.cardA}><CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} /></CardHoverTip>
+          <CardHoverTip cardId={pair.cardA} filters={filters}><CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} /></CardHoverTip>
         </span>
         <span
           role="button"
@@ -229,7 +230,7 @@ function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () 
           style={{ cursor: "pointer", display: "inline-block" }}
           aria-label={`View Card Trace for ${pair.cardBName}`}
         >
-          <CardHoverTip cardId={pair.cardB}><CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} /></CardHoverTip>
+          <CardHoverTip cardId={pair.cardB} filters={filters}><CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} /></CardHoverTip>
         </span>
       </div>
       <div
@@ -346,7 +347,7 @@ function PairDetailModal({
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
             aria-label={`View Card Trace for ${pair.cardAName}`}
           >
-            <CardHoverTip cardId={pair.cardA}><CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} /></CardHoverTip>
+            <CardHoverTip cardId={pair.cardA} filters={filters}><CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} /></CardHoverTip>
           </button>
           <button
             type="button"

@@ -94,7 +94,7 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
       )}
       {!loading &&
         sortedPatterns.map((p) => (
-          <ReversalRow key={p.cardId} pattern={p} onTap={() =>
+          <ReversalRow key={p.cardId} pattern={p} filters={filters} onTap={() =>
             navigate({ to: "/insights/card/$cardId", params: { cardId: String(p.cardId) } })
           } />
         ))}
@@ -102,7 +102,7 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
   );
 }
 
-function ReversalRow({ pattern, onTap }: { pattern: Pattern; onTap: () => void }) {
+function ReversalRow({ pattern, onTap, filters }: { pattern: Pattern; onTap: () => void; filters: InsightsFilters }) {
   return (
     <button
       type="button"
@@ -111,7 +111,7 @@ function ReversalRow({ pattern, onTap }: { pattern: Pattern; onTap: () => void }
       style={{ background: "var(--surface-card)", borderRadius: 14 }}
     >
       {/* EY-7 — unified card render with reversed orientation. */}
-      <CardHoverTip cardId={pattern.cardId}><CardImage
+      <CardHoverTip cardId={pattern.cardId} filters={filters}><CardImage
         cardId={pattern.cardId}
         variant="face"
         reversed

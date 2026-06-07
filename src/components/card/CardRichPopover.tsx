@@ -1,19 +1,15 @@
 /**
- * EK60 — CardRichPopover + CardHoverTip
+ * EK60/EK61 — CardRichPopover + CardHoverTip
  *
  * A reusable hover tip that reproduces the manual-entry constellation
  * card popover: a static mini-constellation on top (hovered card as hero,
  * no teal/badges/calendar interaction) and the rich card stats below.
  *
- * Built standalone so it can be dropped onto any card cell app-wide. It
- * fetches its own data (getCardConstellation + getCardPopoverData) and
- * reads static meanings from tarot-meanings.
- *
- * Known gap (noted, not faked): the manual-entry popover shows a global
- * "#N of M rank" tile. That rank needs the all-cards ranking computed on
- * the constellation page (drawCounts.perCardRank), which these standalone
- * endpoints don't return. Rather than fabricate a number, the rank tile is
- * omitted here until a dedicated rank source is wired.
+ * EK61 — filter-aware. Receives the active InsightsFilters, threads tz +
+ * the filter envelope into every fetch, includes the global rank tile
+ * (#N of M, from getCardDrawCounts), and shows a one-line filter indicator
+ * that fades out at the right edge so the seeker can see how the numbers
+ * are filtered.
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
@@ -22,9 +18,11 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
   getCardConstellation,
   getCardPopoverData,
+  getCardDrawCounts,
   type CardConstellation,
   type CardPopoverData,
 } from "@/lib/quicklog.functions";
+import type { InsightsFilters } from "@/lib/insights.types";
 import { getCardName, cardType } from "@/lib/tarot";
 import { getCardMeaning } from "@/lib/tarot-meanings";
 import { formatDateLong, formatTimeAgo } from "@/lib/dates";
@@ -32,6 +30,39 @@ import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// EK61 — map the Insights filter shape onto the endpoints' envelope.
+const TIME_RANGE_LABEL: Record<string, string> = {
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+  "90d": "Last 90 days",
+  "180d": "Last 180 days",
+  "365d": "Last 365 days",
+  all: "All time",
+};
+
+function toEnvelope(f: InsightsFilters) {
+  return {
+    timeRange: f.timeRange,
+    tags: f.tagIds,
+    spreadTypes: f.spreadTypes,
+    moonPhases: f.moonPhases,
+    reversedOnly: f.reversedOnly,
+    deepOnly: f.deepOnly,
+  };
+}
+
+// One-line, priority-ordered summary of the active filters.
+function filterSummary(f: InsightsFilters): string {
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const parts: string[] = [TIME_RANGE_LABEL[f.timeRange] ?? String(f.timeRange)];
+  if (f.tagIds.length) parts.push(plural(f.tagIds.length, "tag"));
+  if (f.spreadTypes.length) parts.push(plural(f.spreadTypes.length, "spread"));
+  if (f.moonPhases.length) parts.push(plural(f.moonPhases.length, "moon phase"));
+  if (f.reversedOnly) parts.push("reversed only");
+  if (f.deepOnly) parts.push("deep only");
+  return parts.join("  ·  ");
+}
 
 function Tile({ value, label }: { value: string; label: string }) {
   return (
@@ -80,24 +111,42 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CardRichPopoverContent({ cardId }: { cardId: number }) {
+export function CardRichPopoverContent({
+  cardId,
+  filters,
+}: {
+  cardId: number;
+  filters: InsightsFilters;
+}) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
+  const rankFn = useServerFn(getCardDrawCounts);
   const [constellation, setConstellation] = useState<CardConstellation | null>(null);
   const [stats, setStats] = useState<CardPopoverData | null>(null);
+  const [rank, setRank] = useState<{ rank: number; universe: number } | null>(null);
+
+  const tz = filters.tz;
+  // Re-run when the filter window changes (the envelope is the part the
+  // endpoints actually filter on).
+  const envKey = JSON.stringify(toEnvelope(filters));
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const [c, d] = await Promise.all([
-          constFn({ data: { heroCardId: cardId }, headers }),
-          dataFn({ data: { cardIds: [cardId] }, headers }),
+        const envelope = toEnvelope(filters);
+        const [c, d, dc] = await Promise.all([
+          constFn({ data: { heroCardId: cardId, tz, filters: envelope }, headers }),
+          dataFn({ data: { cardIds: [cardId], tz, filters: envelope }, headers }),
+          rankFn({ data: { cardIds: [cardId], tz, filters: envelope }, headers }),
         ]);
         if (!alive) return;
         setConstellation(c);
         setStats((d as Record<number, CardPopoverData>)[cardId] ?? null);
+        const r = dc as { perCardRank: Record<number, number>; rankUniverseSize: number };
+        const rk = r.perCardRank?.[cardId];
+        setRank(typeof rk === "number" ? { rank: rk, universe: r.rankUniverseSize } : null);
       } catch {
         /* leave nulls — render what we can */
       }
@@ -105,7 +154,8 @@ export function CardRichPopoverContent({ cardId }: { cardId: number }) {
     return () => {
       alive = false;
     };
-  }, [cardId, constFn, dataFn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardId, tz, envKey, constFn, dataFn, rankFn]);
 
   const name = getCardName(cardId);
   const meaning = getCardMeaning(cardId);
@@ -180,8 +230,28 @@ export function CardRichPopoverContent({ cardId }: { cardId: number }) {
         </div>
       )}
 
-      {/* Tiles: pulls + reversed (rank omitted — see file header) */}
+      {/* EK61 — one-line filter indicator. Packs as much as fits in
+          priority order, never wraps, and fades to transparent at the
+          right edge (mask) so it "trails off" instead of hard-clipping. */}
+      <div
+        title={filterSummary(filters)}
+        style={{
+          marginTop: 6,
+          fontSize: "var(--text-caption)",
+          fontStyle: "italic",
+          color: "var(--color-foreground-muted)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          WebkitMaskImage: "linear-gradient(to right, #000 80%, transparent 100%)",
+          maskImage: "linear-gradient(to right, #000 80%, transparent 100%)",
+        }}
+      >
+        {filterSummary(filters)}
+      </div>
+
+      {/* Tiles: rank (filter-aware) + pulls + reversed */}
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        {rank && <Tile value={`#${rank.rank}`} label={`Rank of ${rank.universe}`} />}
         <Tile value={pulls != null ? String(pulls) : "—"} label="Pulls" />
         <Tile value={reversedPct} label="Reversed" />
       </div>
@@ -332,10 +402,12 @@ export function CardRichPopoverContent({ cardId }: { cardId: number }) {
  */
 export function CardHoverTip({
   cardId,
+  filters,
   children,
   className,
 }: {
   cardId: number;
+  filters: InsightsFilters;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -396,7 +468,7 @@ export function CardHoverTip({
             onMouseEnter={() => window.clearTimeout(closeTimer.current)}
             onMouseLeave={hide}
           >
-            <CardRichPopoverContent cardId={cardId} />
+            <CardRichPopoverContent cardId={cardId} filters={filters} />
           </div>,
           document.body,
         )}

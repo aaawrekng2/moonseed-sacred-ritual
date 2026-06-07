@@ -354,7 +354,7 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
                     {entries.length === 1 ? "" : "s"}
                   </div>
                   {mode === "bar" && <BarView entries={entries} max={max} cardScale={barScale} />}
-                  {mode === "grid" && <GridView entries={entries} cardScale={gridScale} />}
+                  {mode === "grid" && <GridView entries={entries} cardScale={gridScale} filters={filters} />}
                   {mode === "deck" && <DeckGrid entries={entries} cardScale={deckScale} />}
                 </div>
               ))}
@@ -368,7 +368,7 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
               cardScale={barScale}
             />
           )}
-          {mode === "grid" && <GridView entries={displayed} cardScale={gridScale} />}
+          {mode === "grid" && <GridView entries={displayed} cardScale={gridScale} filters={filters} />}
           {mode === "deck" && <DeckGrid entries={displayed} cardScale={deckScale} />}
           {mode === "bar" && !showAll && (
             <button
@@ -474,7 +474,7 @@ function BarView({ entries, max, cardScale = 100 }: { entries: Array<{ cardId: n
   );
 }
 
-function GridView({ entries, cardScale = 100 }: { entries: Array<{ cardId: number; count: number }>; cardScale?: number }) {
+function GridView({ entries, cardScale = 100, filters }: { entries: Array<{ cardId: number; count: number }>; cardScale?: number; filters: InsightsFilters }) {
   const navigate = useNavigate();
   const visible = entries.filter((e) => e.count > 0);
   const wide = typeof window !== "undefined" && window.innerWidth >= 640;
@@ -499,6 +499,7 @@ function GridView({ entries, cardScale = 100 }: { entries: Array<{ cardId: numbe
           count={e.count}
           eager={index < 10}
           richHoverCardId={e.cardId}
+          richHoverFilters={filters}
           onClick={() =>
             navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
           }

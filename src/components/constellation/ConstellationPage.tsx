@@ -90,6 +90,7 @@ import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { isoDayInTz } from "@/lib/time";
+import { getPhaseOccurrences } from "@/lib/moon";
 import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
 import { SPREADS, SPREAD_STORAGE_KEY, getSpread, type SpreadKey } from "@/lib/spreads";
 import { EMPTY_GLOBAL_FILTERS, countActiveFilters, type GlobalFilters } from "@/lib/filters.types";
@@ -1944,6 +1945,18 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     for (const k of keys) if (k < earliest) earliest = k;
     return spanFrom(earliest);
   }, [globalFilters.timeRange, effectiveTz, overlap]);
+
+  // EK62 — full/new moon day sets (UTC keys), used to add a moon header to
+  // the day-readings modal. Same source as the EK59 calendar icons.
+  const moonDayYmds = useMemo(() => {
+    const full = new Set<string>();
+    const nw = new Set<string>();
+    const DAY_MS = 86400000;
+    const from = new Date(Date.now() - 13 * 30 * DAY_MS);
+    for (const d of getPhaseOccurrences("Full Moon", from, 15)) full.add(isoDayInTz(d, "UTC"));
+    for (const d of getPhaseOccurrences("New Moon", from, 15)) nw.add(isoDayInTz(d, "UTC"));
+    return { full, nw };
+  }, []);
 
   // EJ16 — slot-card matched readings. When the seeker clicks a
   // rank or count box at the bottom of any slot card, the modal
@@ -6087,6 +6100,39 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         })()}
         size="sm"
       >
+        {(() => {
+          // EK62 — moon header: if the clicked day is a full or new moon,
+          // show the moon icon + label at the very top of the modal.
+          const date = dayPopover.date;
+          if (!date) return null;
+          const isFull = moonDayYmds.full.has(date);
+          const isNew = moonDayYmds.nw.has(date);
+          if (!isFull && !isNew) return null;
+          return (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 22px 0",
+              }}
+            >
+              <div style={{ width: 20, height: 20, flexShrink: 0 }}>
+                <MoonPhaseIcon phase={isFull ? "Full Moon" : "New Moon"} size={20} />
+              </div>
+              <span
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                {isFull ? "Full Moon" : "New Moon"}
+              </span>
+            </div>
+          );
+        })()}
         {(() => {
           if (!dayPopover.date) return null;
           const list = overlap?.readingsByDate?.[dayPopover.date] ?? [];
