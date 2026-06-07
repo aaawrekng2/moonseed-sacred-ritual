@@ -1235,6 +1235,14 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     targetRect?: DOMRect | null,
   ) => {
     if (cardId !== null) {
+      // EK57 — badge precedence. While a hero/asterism badge is hovered,
+      // do NOT open the card-meaning popover, and cancel any pending
+      // open timer. The badge popover (set by its own hover handler)
+      // wins. Read from a ref so it's accurate within the same mousemove.
+      if (badgeHoveredRef.current) {
+        window.clearTimeout(slimHoverDelayRef.current);
+        return;
+      }
       cancelPopoverDismiss();
       // EJ24 — hover delay applied at this single chokepoint so every
       // hover source (slot row, constellation hero, constellation
@@ -1248,6 +1256,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       const alreadyOpenForThisCard =
         activePopover?.kind === "card-meaning" && activePopover.key === String(cardId);
       const openPopover = () => {
+        // EK57 — drive the calendar hover stroke off the same intentional
+        // hover commit as the popover (after the 450ms delay), so quick
+        // cursor passes don't strobe the calendar.
+        setHoverCardId(cardId);
         setActivePopover((prev) => {
           if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
             // EJ70 — Once the popover is open for THIS card, do NOT chase
@@ -1295,6 +1307,8 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       // over a card doesn't trigger the popover after the cursor has
       // already left.
       window.clearTimeout(slimHoverDelayRef.current);
+      // EK57 — clear the calendar hover stroke when the cursor leaves.
+      setHoverCardId(null);
       schedulePopoverDismiss("card-meaning");
     }
   };
@@ -1820,6 +1834,14 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // cursor pass-over doesn't fire, short enough that intentional
   // hovers feel responsive.
   const slimHoverDelayRef = useRef<number>(0);
+  // EK57 — Synchronous flag (a ref, not state, so it's true the instant
+  // the cursor enters a badge — before React commits the state update
+  // that the same mousemove would otherwise race). Set true while the
+  // hero OR asterism badge is hovered; read by handleConstellationHover
+  // to suppress the card-meaning popover so the badge popover wins. The
+  // earlier asterismBadgeHovered STATE flag existed but was never read
+  // in the popover-open path, which is why the card data kept winning.
+  const badgeHoveredRef = useRef(false);
 
   // EJ20 — pinned card modals. Each entry is a cardId the seeker has
   // pinned via the pushpin button on the card popover. Pinned cards
@@ -1853,6 +1875,46 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   const heroMatchedReadings = useMemo(() => {
     return constellationData?.matches ?? [];
   }, [constellationData?.matches]);
+
+  // EK57 — Authoritative per-card count within the active filtered
+  // universe (overlap = the same time-range + chip filters the gold
+  // badge and calendar represent). Counts each reading once per card it
+  // contains. Used by the slim/rich card chip instead of the 12-bucket
+  // monthCounts sum, which silently dropped readings landing in the
+  // 13th edge calendar month of the 365-day window — the source of the
+  // chip (21) vs gold badge (25) mismatch.
+  const filteredCountByCard = useMemo(() => {
+    const m = new Map<number, number>();
+    if (!overlap?.readingsByDate) return m;
+    for (const readings of Object.values(overlap.readingsByDate)) {
+      for (const r of readings) {
+        const seen = new Set<number>();
+        for (const id of r.cardIds) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+          m.set(id, (m.get(id) ?? 0) + 1);
+        }
+      }
+    }
+    return m;
+  }, [overlap]);
+
+  // EK57 — Days (YYYY-MM-DD) the currently-hovered constellation card
+  // was drawn on, within the filtered universe. Passed to the calendar
+  // so those days get a trace-color stroke while the card is hovered.
+  const hoverStrokeYmds = useMemo(() => {
+    const s = new Set<string>();
+    if (hoverCardId === null || !overlap?.readingsByDate) return s;
+    for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+      for (const r of readings) {
+        if (r.cardIds.includes(hoverCardId)) {
+          s.add(date);
+          break;
+        }
+      }
+    }
+    return s;
+  }, [overlap, hoverCardId]);
 
   // EJ16 — slot-card matched readings. When the seeker clicks a
   // rank or count box at the bottom of any slot card, the modal
@@ -2482,8 +2544,17 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     // Falls back to drawCounts for the brief window before
     // popoverDataMap loads, then refines once it arrives.
     const countFromMonths = pd?.monthCounts?.reduce((acc, n) => acc + n, 0);
+    // EK57 — prefer the gold-badge source (drawCounts.perCard, present
+    // for slot picks incl. the hero) so the chip equals the visible
+    // badge; then the true filtered-universe count (covers companions,
+    // which drawCounts lacks); fall back to the monthCounts sum only
+    // before overlap/drawCounts have loaded. The bare monthCounts sum
+    // undercounted (12 fixed buckets dropped the 365-day window's edge
+    // month) — that was the 21-vs-25 gap.
     const count =
-      typeof countFromMonths === "number" ? countFromMonths : (drawCounts?.perCard?.[cardId] ?? 0);
+      drawCounts?.perCard?.[cardId] ??
+      filteredCountByCard.get(cardId) ??
+      (typeof countFromMonths === "number" ? countFromMonths : 0);
     const reversedPct = pd?.reversedPct ?? null;
     const lastSeenIso = overlap?.cardLastDrawnAt?.[cardId] ?? null;
     const topMoonPhase = pd?.topMoonPhase ?? null;
@@ -2900,10 +2971,12 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     // data loads.
     const pdForCount = popoverDataMap?.[cardId];
     const countFromMonthsRich = pdForCount?.monthCounts?.reduce((acc, n) => acc + n, 0);
+    // EK57 — see slim chip: badge source first, then filtered-universe
+    // count, then monthCounts fallback. Keeps the chip == gold badge.
     const count =
-      typeof countFromMonthsRich === "number"
-        ? countFromMonthsRich
-        : (drawCounts?.perCard?.[cardId] ?? 0);
+      drawCounts?.perCard?.[cardId] ??
+      filteredCountByCard.get(cardId) ??
+      (typeof countFromMonthsRich === "number" ? countFromMonthsRich : 0);
     // Roman numeral for majors (cardId 0..21). Pips and courts get
     // their rank label from card-astrology.
     const ROMAN = [
@@ -4774,6 +4847,11 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             }}
             onHeroBadgeHover={(clientX, clientY) => {
               if (!heroPick) return;
+              // EK57 — badge precedence: flag badge hover and kill any
+              // pending card-popover open timer so card data can't
+              // clobber the badge popover.
+              badgeHoveredRef.current = true;
+              window.clearTimeout(slimHoverDelayRef.current);
               const heroName = heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
               const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
               cancelPopoverDismiss();
@@ -4788,8 +4866,14 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                 cardLabel: heroName,
               });
             }}
-            onHeroBadgeHoverEnd={() => schedulePopoverDismiss("constellation-badge")}
+            onHeroBadgeHoverEnd={() => {
+              badgeHoveredRef.current = false;
+              schedulePopoverDismiss("constellation-badge");
+            }}
             onTealBadgeHover={(clientX, clientY) => {
+              // EK57 — badge precedence (see hero badge above).
+              badgeHoveredRef.current = true;
+              window.clearTimeout(slimHoverDelayRef.current);
               const names = tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
               const unit =
                 overlapMode === "pull"
@@ -4815,6 +4899,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
               setAsterismBadgeHovered(true);
             }}
             onTealBadgeHoverEnd={() => {
+              badgeHoveredRef.current = false;
               schedulePopoverDismiss("constellation-badge");
               // EJ25 — revert calendar fills on leave.
               setAsterismBadgeHovered(false);
@@ -4862,6 +4947,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             }}
             onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
             asterismBadgeHovered={asterismBadgeHovered}
+            hoverStrokeYmds={hoverStrokeYmds}
           />
         </div>
       )}
