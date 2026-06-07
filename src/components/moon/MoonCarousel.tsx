@@ -678,15 +678,14 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
                   transformOrigin: "top center",
-                  // Q86 — 3-day window background tint. Gold for full moon,
-                  // purple for new moon. Gold takes priority if both match.
-                  background: isGoldDay
-                    ? "color-mix(in oklab, var(--gold) 12%, transparent)"
-                    : isNewMoonDay
-                      ? "color-mix(in oklab, oklch(0.65 0.25 290) 20%, transparent)"
-                      : undefined,
-                  borderRadius:
-                    isGoldDay || isNewMoonDay ? 12 : undefined,
+                  // EK56 — Removed the 3-day full/new-moon window box.
+                  // The faint rounded rectangle (background tint +
+                  // borderRadius) that drew around each of the 3 peak
+                  // days is gone per request. The moon-glyph recolor
+                  // (filter, below) is intentionally kept — only the
+                  // rectangle around the days is removed.
+                  background: undefined,
+                  borderRadius: undefined,
                   // The 3-day full-moon window receives a gentle gold tint
                   // applied via SVG-friendly CSS filters. Recolors the moon
                   // body without affecting surrounding text.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
@@ -733,70 +733,55 @@ function CardFace({
   // sibling div below.
   const flipRef = useRef<HTMLDivElement | null>(null);
   const flipPlayedRef = useRef(false);
-  useLayoutEffect(() => {
-    if (!fromSlotRect) return;
-    if (flipPlayedRef.current) return;
-    const el = flipRef.current;
-    if (!el) return;
-    const dest = el.getBoundingClientRect();
-    // Compute delta in screen px. The transform translates the card
-    // FROM its final spread position BACK to the slot position. After
-    // the transition removes the transform, the card is at the spread
-    // position.
-    //
-    // EK29 — Also SCALE from slot size to spread size. Without
-    // scale, the card mounts at full spread dimensions but at the
-    // slot's position — which makes it appear dramatically larger
-    // than the rail-card it just replaced, reading as "the cards
-    // disappeared and reappeared much larger before sliding up."
-    // Compute scale factors against the FINAL dest rect (spread
-    // size), set `transform-origin: top left` so the scale anchors
-    // at the position the translate targets (otherwise default
-    // center-origin shrinks the card toward its center, misplacing
-    // it). Initial transform: translate to slot top-left AND scale
-    // down to slot dimensions. Final transform: identity (full
-    // size, spread position). Browser interpolates both jointly.
-    const deltaX = fromSlotRect.x - dest.left;
-    const deltaY = fromSlotRect.y - dest.top;
-    const scaleX = dest.width > 0 ? fromSlotRect.width / dest.width : 1;
-    const scaleY = dest.height > 0 ? fromSlotRect.height / dest.height : 1;
-    // Apply the inverse transform immediately (no transition).
-    el.style.transition = "none";
-    el.style.transformOrigin = "top left";
-    el.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
-    // EK54 — Reveal the card now that the slot-position transform is
-    // applied. Initial render uses opacity:0 to hide the card during
-    // the small window between React's commit and this layout effect
-    // — without this, the browser sometimes paints the card at its
-    // FINAL spread position once, then snaps to slot position, then
-    // animates. That "down and over before moving up" jump goes away
-    // when the card is invisible until the slot-position transform
-    // is in place.
-    el.style.opacity = "1";
-    // Force layout so the browser registers the starting transform
-    // before we kick off the transition. Reading offsetWidth is a
-    // classic synchronous-layout trick to commit the style.
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    el.offsetWidth;
-    // Next frame: enable the transition and unwind to identity.
-    requestAnimationFrame(() => {
+  // EK56 — Lift-off in place. The slot→spread transition is now armed
+  // in the flip node's REF CALLBACK rather than a useLayoutEffect.
+  //
+  // Why: the ref callback runs during React's commit, before the
+  // browser's first paint of this node. Applying the inverse transform
+  // (translate + scale back to the rail rect) AND flipping opacity to 1
+  // here means the card's very FIRST painted frame already sits at the
+  // exact rail position/size — never at the final spread position. The
+  // old useLayoutEffect path left a window where the browser could
+  // paint the card once at its final spread spot over the opaque cosmos
+  // background while Tabletop was hidden underneath, which read as
+  // "disappear, then reappear smaller and in a slightly different spot,
+  // then shift up." With the transform committed pre-paint there is no
+  // blank frame and no pre-travel snap: the card lifts straight off the
+  // rail and travels to its already-coded spread position.
+  const setFlipNode = useCallback(
+    (el: HTMLDivElement | null) => {
+      flipRef.current = el;
       if (!el) return;
-      // EK26 — Was `transform 700ms cubic-bezier(0.22, 1, 0.36, 1)`
-      // (ease-out: fast start, slow end). The fast start meant cards
-      // shot off their slot positions the instant the spread layout
-      // mounted — the seeker barely had time to register that the
-      // transition was beginning before the cards were already
-      // halfway to their final spread positions. Bumped duration to
-      // 1100ms and switched the curve to a true ease-in-out
-      // (`cubic-bezier(0.65, 0, 0.35, 1)`), so motion eases in
-      // slowly, peaks at mid-flight, and decelerates gently into
-      // place — visible speed curve at both ends, more time spent
-      // in the legible middle portion.
-      el.style.transition = "transform 1100ms cubic-bezier(0.65, 0, 0.35, 1)";
-      el.style.transform = "translate(0, 0) scale(1, 1)";
-    });
-    flipPlayedRef.current = true;
-  }, [fromSlotRect]);
+      if (!fromSlotRect) return;
+      if (flipPlayedRef.current) return;
+      const dest = el.getBoundingClientRect();
+      // translate FROM the final spread position BACK to the rail rect,
+      // and scale FROM spread size DOWN to rail size. transform-origin
+      // top-left so the scale anchors where the translate targets.
+      const deltaX = fromSlotRect.x - dest.left;
+      const deltaY = fromSlotRect.y - dest.top;
+      const scaleX = dest.width > 0 ? fromSlotRect.width / dest.width : 1;
+      const scaleY = dest.height > 0 ? fromSlotRect.height / dest.height : 1;
+      el.style.transition = "none";
+      el.style.transformOrigin = "top left";
+      el.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+      el.style.opacity = "1";
+      // Commit the start transform synchronously before enabling the
+      // transition (offsetWidth read forces layout).
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      el.offsetWidth;
+      requestAnimationFrame(() => {
+        const node = flipRef.current;
+        if (!node) return;
+        // 1100ms true ease-in-out: eases in slowly, peaks mid-flight,
+        // decelerates gently into the spread slot.
+        node.style.transition = "transform 1100ms cubic-bezier(0.65, 0, 0.35, 1)";
+        node.style.transform = "translate(0, 0) scale(1, 1)";
+      });
+      flipPlayedRef.current = true;
+    },
+    [fromSlotRect],
+  );
 
   return (
     <div
@@ -807,27 +792,26 @@ function CardFace({
       }}
     >
       <div
-        ref={flipRef}
-        // EK16 — Use the cast-card-emerge class ONLY when there's no
-        // fromSlotRect (i.e. the existing fade-up animation). When
-        // we have a slot rect, the shared-element transition drives
-        // motion entirely via inline styles set in the layout effect
-        // above, and we don't want the emerge keyframes fighting it.
+        ref={setFlipNode}
+        // EK16/EK56 — cast-card-emerge class ONLY when there's no
+        // fromSlotRect (the pre-EK16 fade-up fallback). With a slot
+        // rect, the lift-off is driven entirely by inline styles set
+        // in the setFlipNode ref callback above; the emerge keyframes
+        // would fight it.
         className={fromSlotRect ? undefined : "cast-card-emerge"}
         style={
           fromSlotRect
             ? {
-                // Inline transform/transition is set by the layout
-                // effect above; default to identity for SSR + first
-                // paint. willChange hint keeps the GPU layer warm
-                // for the upcoming animation.
+                // Inline transform/transition is set by the ref
+                // callback during commit; default to identity for
+                // SSR + first paint. willChange keeps the GPU layer
+                // warm for the travel.
                 display: "inline-block",
                 willChange: "transform",
-                // EK54 — Start hidden. The layout effect sets opacity
-                // to 1 once the slot-position transform is applied.
-                // Eliminates the brief paint at the spread position
-                // that caused the "shift down and over before moving
-                // up" jump.
+                // EK54/EK56 — Start hidden. The ref callback flips
+                // opacity to 1 the same frame it applies the rail
+                // transform, so the first painted frame is the card
+                // sitting at the rail (never at the spread position).
                 opacity: 0,
               }
             : {
