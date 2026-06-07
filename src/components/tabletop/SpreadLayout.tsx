@@ -158,6 +158,23 @@ export function SpreadLayout({
     });
   }, [allRevealed]);
 
+  // EK55 — Delay the InlineReading mount until the last card's flip
+  // animation completes + 1s pause, then fade in. Without this, the
+  // notes section pops in instantly the moment the last card is
+  // clicked, before the seeker has even finished seeing the card
+  // turn over. The flip animation is 1100ms (the `--flip-ms` CSS
+  // variable on the card's flip-3d wrapper); add a 1000ms pause
+  // for the seeker to register the spread before notes appear.
+  const [mountReading, setMountReading] = useState<boolean>(false);
+  useEffect(() => {
+    if (!allRevealed) {
+      setMountReading(false);
+      return;
+    }
+    const t = setTimeout(() => setMountReading(true), 2100);
+    return () => clearTimeout(t);
+  }, [allRevealed]);
+
   const handleTap = useCallback(
     (i: number) => {
       if (revealedFlags[i]) return;
@@ -282,15 +299,29 @@ export function SpreadLayout({
             paddingTop: 8,
           }}
         >
-          <InlineReading
-            spread={spread}
-            picks={picks}
-            onExit={onExit}
-            onCopyTextChange={setCopyText}
-            question={question}
-            entryMode={entryMode}
-            deckId={deckId}
-          />
+          {/* EK55 — Fade-in wrapper. opacity transitions over 400ms
+                when mountReading flips to true (after flip animation
+                + 1s pause). InlineReading itself is mounted from
+                first paint so its internal state doesn't reset on
+                toggle — the opacity is the only visible change. */}
+          <div
+            style={{
+              width: "100%",
+              opacity: mountReading ? 1 : 0,
+              transition: "opacity 400ms ease-out",
+              pointerEvents: mountReading ? "auto" : "none",
+            }}
+          >
+            <InlineReading
+              spread={spread}
+              picks={picks}
+              onExit={onExit}
+              onCopyTextChange={setCopyText}
+              question={question}
+              entryMode={entryMode}
+              deckId={deckId}
+            />
+          </div>
         </div>
       ) : (
         <div

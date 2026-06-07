@@ -15,7 +15,6 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateTime } from "@/lib/dates";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
-import { JournalPromptsReadOnly } from "@/components/tarot/JournalPrompts";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { JournalBlock } from "@/components/journal/JournalBlock";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
@@ -382,28 +381,35 @@ export function ReadingDetailModal({
             </section>
           ) : null}
 
-          {reading.note ? (
-            <section
-              className="mt-6 rounded-lg p-3"
-              style={{ background: "color-mix(in oklab, var(--gold) 6%, transparent)" }}
-            >
-              <h3 className="mb-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                Notes
-              </h3>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{reading.note}</p>
-            </section>
-          ) : null}
-
+          {/* EK55 — Past journal entries display via JournalBlock in
+                read-only mode so they have the same visual layout as
+                live entries on the post-flip page. Splits the stored
+                note (which is `"${usedPrompt}\n\n${note}"` when a
+                prompt was selected) into the two fields JournalBlock
+                expects. When there's no `\n\n`, the whole string is
+                the seeker's note and usedPrompt is null. */}
           {(() => {
             const firstCardId = reading.card_ids?.[0];
-            const prompts = resolvePromptsForFirstCard(firstCardId, null);
-            if (!prompts || prompts.length === 0) return null;
+            const prompts = resolvePromptsForFirstCard(firstCardId, null) ?? [];
+            const raw = (reading.note ?? "").trim();
+            const splitIdx = raw.indexOf("\n\n");
+            const parsedPrompt =
+              splitIdx >= 0 ? raw.slice(0, splitIdx).trim() : null;
+            const parsedNote =
+              splitIdx >= 0 ? raw.slice(splitIdx + 2).trim() : raw;
+            // Hide the JournalBlock entirely if there's nothing to
+            // show: no note AND no available prompts.
+            if (!parsedNote && prompts.length === 0) return null;
             return (
               <section className="mt-6">
-                <h3 className="text-[11px] uppercase tracking-widest italic text-muted-foreground">
-                  Reflection Prompts
-                </h3>
-                <JournalPromptsReadOnly prompts={prompts} className="mt-2" />
+                <JournalBlock
+                  prompts={prompts}
+                  note={parsedNote}
+                  usedPrompt={parsedPrompt}
+                  onChange={() => {}}
+                  voiceMode="plain"
+                  readOnly
+                />
               </section>
             );
           })()}

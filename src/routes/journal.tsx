@@ -1337,6 +1337,36 @@ function ReadingCard({
             “{reading.question!.trim()}”
           </p>
         )}
+        {/* EK55 — Show the first line of the seeker's note alongside the
+              question. The stored note is `"${usedPrompt}\n\n${note}"`
+              when a prompt was selected, or just the note otherwise.
+              Splitting on the first `\n\n` and taking the part AFTER
+              yields the seeker's own words (skipping the prompt); if
+              there's no `\n\n` the whole string is the seeker's note.
+              First line only (newline split) so multi-line notes
+              don't push the row down. */}
+        {(() => {
+          const raw = (reading.note ?? "").trim();
+          if (!raw) return null;
+          const splitIdx = raw.indexOf("\n\n");
+          const body = splitIdx >= 0 ? raw.slice(splitIdx + 2).trim() : raw;
+          const firstLine = body.split("\n")[0]?.trim() ?? "";
+          if (!firstLine) return null;
+          return (
+            <p
+              className="mt-2 text-[13px] leading-snug text-foreground/85"
+              style={{
+                opacity: "var(--ro-plus-15)",
+                display: "-webkit-box",
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {firstLine}
+            </p>
+          );
+        })()}
         {interpClean && !hasQuestion && (
           <p
             className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
