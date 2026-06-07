@@ -2516,7 +2516,13 @@ function OverlapStrip({
                     // currently-hovered constellation card was drawn on
                     // it. Independent of teal selection.
                     const hoverStrokeHit = hoverStrokeYmds?.has(day.date) ?? false;
-                    const isPerfectMatch = matchCount > 0 && matchCount === pullSet.size;
+                    // EK60 — require 2+ cards in the slots. With a single
+                    // card every hero day trivially "perfectly matches"
+                    // (matchCount 1 === pullSet.size 1), ringing every
+                    // gold-badge day for no meaning. Rings need a real
+                    // multi-card pull to compare against.
+                    const isPerfectMatch =
+                      matchCount > 0 && matchCount === pullSet.size && pullSet.size >= 2;
                     const isBestAvailable =
                       !isPerfectMatch &&
                       // EK58 — a stroke means "2+ of your spread cards
