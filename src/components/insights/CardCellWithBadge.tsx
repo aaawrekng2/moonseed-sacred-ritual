@@ -6,6 +6,7 @@ import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { CardCountBadge } from "@/components/ui/CardCountBadge";
 import { CardHoverTip } from "@/components/card/CardRichPopover";
+import type { InsightsFilters } from "@/lib/insights.types";
 
 export function CardCellWithBadge({
   cardId,
@@ -14,6 +15,7 @@ export function CardCellWithBadge({
   onClick,
   eager,
   richHoverCardId,
+  richHoverFilters,
 }: {
   cardId: number;
   count?: number;
@@ -24,6 +26,9 @@ export function CardCellWithBadge({
   /** EK60 — when set, wrap the cell in the rich card hover tip. Opt-in so
    *  only surfaces that want it (Insights → Cards) get it. */
   richHoverCardId?: number;
+  /** EK61 — active Insights filters, threaded into the hover tip so its
+   *  stats + rank reflect the same window the page is showing. */
+  richHoverFilters?: InsightsFilters;
 }) {
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const cell = (
@@ -69,8 +74,12 @@ export function CardCellWithBadge({
     </button>
   );
 
-  if (richHoverCardId !== undefined) {
-    return <CardHoverTip cardId={richHoverCardId}>{cell}</CardHoverTip>;
+  if (richHoverCardId !== undefined && richHoverFilters) {
+    return (
+      <CardHoverTip cardId={richHoverCardId} filters={richHoverFilters}>
+        {cell}
+      </CardHoverTip>
+    );
   }
   return cell;
 }
