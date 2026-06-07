@@ -2156,16 +2156,22 @@ export function Tabletop({
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
     const timer = window.setTimeout(() => {
-      // EK16 — Capture each slotted card's CURRENT viewport rect just
-      // before handoff. We read it from the `slotRects` state which is
-      // already maintained for the slot rail (CardSlot uses the same
-      // rect as its position:fixed anchor). If any slot didn't measure
-      // (e.g. very fast pick race condition), we omit slotOrigins so
-      // SpreadLayout falls back to its pre-EK16 center-emerge animation.
+      // EK16/EK56 — Capture each slotted card's CURRENT viewport rect
+      // at the exact moment of handoff. Read LIVE from slotRefs rather
+      // than the `slotRects` state, which can lag a reflow (the rAF
+      // re-measure may not have committed yet on a fast final pick). A
+      // stale rect let allMeasured fall to false on some casts, dropping
+      // SpreadLayout to its center-emerge fallback (card scaling up from
+      // screen center) instead of lifting straight off the rail — read
+      // by the seeker as the card reappearing "smaller and moved." A
+      // fresh getBoundingClientRect here is the card's true rail rect.
+      const liveSlotRects = slotRefs.current.map((el) =>
+        el ? el.getBoundingClientRect() : null,
+      );
       const slotOrigins =
-        usesSlots && slotRects.length >= picks.length
-          ? picks.map((p, i) => {
-              const r = slotRects[i];
+        usesSlots && liveSlotRects.length >= picks.length
+          ? picks.map((_p, i) => {
+              const r = liveSlotRects[i];
               if (!r) return null;
               return { x: r.left, y: r.top, width: r.width, height: r.height };
             })
