@@ -1990,6 +1990,12 @@ function OverlapStrip({
   // constellation card is hovered (the hovered card's drawn days).
   // Additive to the teal-selection trace; defaults to none.
   hoverStrokeYmds,
+  // EK58 — grid12 month count override. When provided, the calendar
+  // shows this many months (most recent first). Defaults to the legacy
+  // fixed 12. Drives the responsive "months follow the time-range"
+  // behavior; ≤6 collapses to a single row automatically (the grid is
+  // 6 columns, so ≤6 cells = one row).
+  monthsToShow: monthsToShowProp,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -2043,6 +2049,9 @@ function OverlapStrip({
    *  constellation card. Stroked in traceColor, additive to the teal
    *  trace. Optional; absent = no hover stroke. */
   hoverStrokeYmds?: Set<string>;
+  /** EK58 — number of (most-recent) months to show in the grid12
+   *  calendar. Optional; absent = legacy fixed 12. */
+  monthsToShow?: number;
   /** EJ65 — accepted for API symmetry with <OverlapPills/>. OverlapStrip
    *  in controlled mode does not render the legacy inline Show-older pill,
    *  so this prop is currently a no-op here; kept so ConstellationPage can
@@ -2089,7 +2098,8 @@ function OverlapStrip({
       window.removeEventListener("orientationchange", handle);
     };
   }, []);
-  const monthsToShow = layout === "grid12" ? 12 : viewportWidth >= 1280 ? 6 : 5;
+  const monthsToShow =
+    monthsToShowProp ?? (layout === "grid12" ? 12 : viewportWidth >= 1280 ? 6 : 5);
 
   // DU — for grid12 layout, the top row (older 6 months) can be collapsed.
   // DW — default COLLAPSED so the recent 6 months are visible above the
@@ -2489,7 +2499,10 @@ function OverlapStrip({
                     const isPerfectMatch = matchCount > 0 && matchCount === pullSet.size;
                     const isBestAvailable =
                       !isPerfectMatch &&
-                      matchCount > 0 &&
+                      // EK58 — a stroke means "2+ of your spread cards
+                      // landed here," not "least-bad day." When the best
+                      // any day can do is 1 of N, no dashed rings show.
+                      matchCount >= 2 &&
                       matchCount === maxMatchInCalendar &&
                       pullSet.size > 1;
                     const dateLabel = formatDateLong(`${day.date}T00:00:00`);

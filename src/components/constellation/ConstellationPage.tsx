@@ -1244,6 +1244,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         return;
       }
       cancelPopoverDismiss();
+      // EK58 — stroke the calendar IMMEDIATELY on hover, decoupled from
+      // the popover's 450ms intentional-hover delay below. The card
+      // popover still waits 450ms; only the calendar stroke is instant.
+      setHoverCardId(cardId);
       // EJ24 — hover delay applied at this single chokepoint so every
       // hover source (slot row, constellation hero, constellation
       // companions) gets the same 450ms intentional-hover delay. If
@@ -1256,10 +1260,6 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       const alreadyOpenForThisCard =
         activePopover?.kind === "card-meaning" && activePopover.key === String(cardId);
       const openPopover = () => {
-        // EK57 — drive the calendar hover stroke off the same intentional
-        // hover commit as the popover (after the 450ms delay), so quick
-        // cursor passes don't strobe the calendar.
-        setHoverCardId(cardId);
         setActivePopover((prev) => {
           if (prev && prev.kind === "card-meaning" && prev.key === String(cardId)) {
             // EJ70 — Once the popover is open for THIS card, do NOT chase
@@ -1915,6 +1915,35 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     }
     return s;
   }, [overlap, hoverCardId]);
+
+  // EK58 — how many (most-recent) calendar months the grid12 strip
+  // should show, driven by the active time range. Fixed windows show
+  // the calendar months the window spans (current month back to the
+  // window's start month). "All time" shows the seeker's actual data
+  // span (earliest reading's month → now). Capped at 12, floored at 1.
+  // ≤6 collapses to a single row (the grid is 6 columns wide).
+  const calendarMonthsToShow = useMemo(() => {
+    const tr = globalFilters.timeRange ?? DEFAULT_TIMEFRAME;
+    const monthIdxOf = (ymd: string) => {
+      const [y, m] = ymd.split("-").map(Number);
+      return y * 12 + (m - 1);
+    };
+    const nowIdx = monthIdxOf(isoDayInTz(new Date(), effectiveTz));
+    const spanFrom = (startYmd: string) =>
+      Math.min(12, Math.max(1, nowIdx - monthIdxOf(startYmd) + 1));
+    const m = /^(\d+)d$/.exec(tr);
+    if (m) {
+      const days = Number(m[1]);
+      const startYmd = isoDayInTz(new Date(Date.now() - days * 86400000), effectiveTz);
+      return spanFrom(startYmd);
+    }
+    // "all" → data-driven span from the earliest reading.
+    const keys = overlap?.readingsByDate ? Object.keys(overlap.readingsByDate) : [];
+    if (keys.length === 0) return 1;
+    let earliest = keys[0];
+    for (const k of keys) if (k < earliest) earliest = k;
+    return spanFrom(earliest);
+  }, [globalFilters.timeRange, effectiveTz, overlap]);
 
   // EJ16 — slot-card matched readings. When the seeker clicks a
   // rank or count box at the bottom of any slot card, the modal
@@ -4746,6 +4775,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                   saveError={saveError}
                   saveDisabled={!canSubmit}
                   align="flex-start"
+                  // EK58 — at ≤6 months there's only one row and nothing
+                  // older to reveal, so hide the Show-older toggle.
+                  showOlderToggle={calendarMonthsToShow > 6}
                 />
               </div>
             </div>
@@ -4948,6 +4980,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
             asterismBadgeHovered={asterismBadgeHovered}
             hoverStrokeYmds={hoverStrokeYmds}
+            monthsToShow={calendarMonthsToShow}
           />
         </div>
       )}
