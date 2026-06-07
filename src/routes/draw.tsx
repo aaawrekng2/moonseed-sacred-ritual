@@ -131,26 +131,18 @@ function DrawPage() {
     { x: number; y: number; width: number; height: number }[] | null
   >(null);
 
-  // EK51 — Flicker isolation: every phase change goes through a
-  // Proceed overlay so the seeker can step through manually. The
-  // overlay appears in the middle of the screen at each transition.
-  // No URL flag — this is on for everyone until the flicker is
-  // localized and fixed in a follow-up.
-  const [pendingPhase, setPendingPhase] = useState<
-    "cast" | "reading" | null
-  >(null);
+  // EK54 — Removed Pause A debug pause. We now understand the issue
+  // (was working in the wrong file — InlineReading vs ReadingScreen).
+  // triggerPhase advances the phase immediately.
   const triggerPhase = (next: "cast" | "reading") => {
-    setPendingPhase(next);
+    setPhase(next);
   };
 
   // EK52 — Keep Tabletop mounted for a brief overlap window after
   // setPhase("cast") fires. Without this, Tabletop unmounts before
   // SpreadLayout's first paint, producing a 1-frame gap where the
   // cards visibly disappear. With the overlap, Tabletop stays
-  // mounted at z-30 while SpreadLayout mounts at z-40 on top — the
-  // browser never sees a frame without one of them rendered.
-  // SpreadLayout's bg-cosmos covers Tabletop visually so the seeker
-  // doesn't see two stacks of cards, just smooth continuity.
+  // mounted at z-30 while SpreadLayout mounts at z-40 on top.
   const [castOverlapActive, setCastOverlapActive] = useState(false);
   useEffect(() => {
     if (phase !== "cast") return;
@@ -586,86 +578,8 @@ function DrawPage() {
         />
       )}
 
-      {/* EK50 — Flicker debug Proceed overlay. Renders only when
-          `?debugFlicker=1` is present in the URL AND a phase change
-          is queued. Centered fixed button at z-popover so it sits
-          above Tabletop (z-30) and below SpreadLayout (z-40) — when
-          clicked, the actual `setPhase` fires and the swap proceeds.
-          
-          Use case: load /draw?debugFlicker=1, draw cards, tap cast.
-          Instead of the auto-swap, this overlay appears at:
-          
-            Point A — Tabletop's onComplete fired, before setPhase.
-                      Tabletop is still mounted. Click Proceed →
-                      setPhase("cast") fires → Tabletop unmounts and
-                      SpreadLayout mounts. Watch for flicker AT THIS
-                      CLICK. If flicker happens here, the issue is
-                      the mount/unmount swap.
-                      
-            Point B — SpreadLayout's "Continue" was tapped, before
-                      setPhase("reading"). Different transition.
-                      
-          The button has no styling that could itself flicker —
-          plain text on a translucent backdrop. */}
-      {pendingPhase && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 35,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            // EK53 — Backdrop is now TRANSPARENT. The earlier 55% black
-            // scrim was itself a visible change at each transition,
-            // defeating the purpose of step-by-step inspection. Only
-            // the button itself catches clicks; the rest passes
-            // through (pointerEvents: none on the container, auto on
-            // the button).
-            pointerEvents: "none",
-            background: "transparent",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setPhase(pendingPhase);
-              setPendingPhase(null);
-            }}
-            style={{
-              pointerEvents: "auto",
-              padding: "16px 32px",
-              borderRadius: 12,
-              background: "var(--surface-elevated, #1a1230)",
-              border: "1px solid var(--gold, #d4af37)",
-              color: "var(--gold, #d4af37)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-md, 18px)",
-              cursor: "pointer",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-            }}
-          >
-            Proceed: {pendingPhase === "cast" ? "draw → flip" : "flip → reading"}
-          </button>
-          <div
-            style={{
-              position: "absolute",
-              top: 16,
-              left: "50%",
-              transform: "translateX(-50%)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 12,
-              color: "var(--gold, #d4af37)",
-              opacity: 0.7,
-              letterSpacing: "0.08em",
-            }}
-          >
-            Pause A — before setPhase
-          </div>
-        </div>
-      )}
+      {/* EK54 — Pause A overlay removed. Was a diagnostic for a
+          flicker that turned out to be edits in the wrong file. */}
     </div>
   );
 }

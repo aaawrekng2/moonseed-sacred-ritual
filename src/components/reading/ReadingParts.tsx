@@ -40,6 +40,13 @@ import { ShareBuilder } from "@/components/share/ShareBuilder";
 import type { ShareLevel } from "@/components/share/share-types";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
+// EK54 — AI gate + JournalBlock wired into InlineReading. Previous
+// ships put these on ReadingScreen which doesn't actually render on
+// the post-flip page; SpreadLayout mounts InlineReading from here.
+import { useAIEnabled } from "@/lib/use-ai-enabled";
+import { FeatureGate } from "@/components/feature-gate/FeatureGate";
+import { JournalBlock } from "@/components/journal/JournalBlock";
+import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 
 type Pick = {
   id: number;
@@ -88,6 +95,26 @@ export function InlineReading({
   const { user } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
+  // EK54 — aiEnabled at the outer InlineReading level so the
+  // AI-bearing panels below (EnrichmentPanel, DeepReadingPanel)
+  // and the inner ReadingActions guide dropdown can both gate on
+  // the same hook value.
+  const aiEnabled = useAIEnabled();
+  // EK54 — JournalBlock local state. Visible to every seeker
+  // regardless of AI access; notes are not an AI feature. Prompts
+  // resolve from the FIRST picked card via the existing helper.
+  const [journalNote, setJournalNote] = useState<string>("");
+  const [journalUsedPrompt, setJournalUsedPrompt] = useState<string | null>(null);
+  const journalPrompts = useMemo(() => {
+    const firstCardId = picks[0]?.cardIndex;
+    return resolvePromptsForFirstCard(firstCardId, null) ?? [];
+  }, [picks]);
+  const composedNoteForSave = useMemo(() => {
+    const trimmed = journalNote.trim();
+    if (journalUsedPrompt && trimmed) return `${journalUsedPrompt}\n\n${trimmed}`;
+    if (journalUsedPrompt && !trimmed) return journalUsedPrompt;
+    return trimmed || null;
+  }, [journalNote, journalUsedPrompt]);
   const [retryNonce, setRetryNonce] = useState(0);
   const overrideRef = useRef(false);
   const { guideId, lensId, facetIds } = useActiveGuide();
@@ -349,9 +376,37 @@ export function InlineReading({
             entryMode={entryMode}
             deckId={deckId}
             onExit={onExit}
+            // EK54 — Note + AI gate threaded down. ReadingActions
+            // includes pendingNote in the readings-row insert when
+            // Save and close fires. aiEnabled tells the guide
+            // dropdown / Get Reading / GuideContextPreview whether
+            // to render at all.
+            pendingNote={composedNoteForSave}
+            aiEnabled={aiEnabled}
           />
         </div>
       )}
+
+      {/* EK54 — JournalBlock visible UNCONDITIONALLY post-flip for
+            every seeker regardless of AI access OR state.kind.
+            Notes are never an AI feature. Lives in InlineReading
+            (the component that actually renders on the flip table)
+            — NOT ReadingScreen, which is the dead sibling. */}
+      <div
+        className="mx-auto w-full"
+        style={{ maxWidth: 560, marginTop: 8 }}
+      >
+        <JournalBlock
+          prompts={journalPrompts}
+          note={journalNote}
+          usedPrompt={journalUsedPrompt}
+          onChange={(n, p) => {
+            setJournalNote(n);
+            setJournalUsedPrompt(p);
+          }}
+          voiceMode="plain"
+        />
+      </div>
 
       <section
         className="reading-actions-fade-in w-full"
@@ -391,6 +446,12 @@ export function InlineReading({
 
       {state.kind === "loaded" && (
         <>
+          {/* EK54 — AI surfaces gated explicitly. State.kind === "loaded"
+                only happens after AI fires, so these are implicitly
+                gated by the AI flow — but explicit FeatureGate
+                defends against any future code path that lands here
+                without AI being allowed. */}
+          <FeatureGate enabled={aiEnabled === true}>
           {savedReading && (
             <EnrichmentPanel
               reading={savedReading}
@@ -434,6 +495,7 @@ export function InlineReading({
               facetIds={facetIds}
             />
           )}
+          </FeatureGate>
           <div className="reading-actions-fade-in mt-2 flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
@@ -640,6 +702,8 @@ function ReadingActions({
   entryMode,
   deckId,
   onExit,
+  pendingNote,
+  aiEnabled,
 }: {
   isLoading: boolean;
   onSpeak: () => void;
@@ -652,6 +716,15 @@ function ReadingActions({
   entryMode?: "digital" | "manual";
   deckId?: string | null;
   onExit?: () => void;
+  /** EK54 — Optional note text included in the readings-row insert
+   *  when Save and close fires. Composed from the JournalBlock
+   *  state in the parent InlineReading. */
+  pendingNote?: string | null;
+  /** EK54 — AI gate from useAIEnabled(). When not strictly true,
+   *  the guide dropdown, GuideContextPreview, and the Get Reading
+   *  button are hidden so the seeker uses Tarot Seed as a pure
+   *  journaling app. */
+  aiEnabled?: boolean | null;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -738,6 +811,10 @@ function ReadingActions({
         entry_mode: entryMode ?? "digital",
         moon_phase: getCurrentMoonPhase(new Date()).phase,
         deck_id: deckId ?? null,
+        // EK54 — Persist the seeker's JournalBlock note + optional
+        // used prompt into the readings.note column. Composed in
+        // the parent InlineReading and threaded down via prop.
+        ...(pendingNote ? { note: pendingNote } : {}),
       });
       if (error) {
         toast.error("Couldn't save your reading. Try again?");
@@ -755,6 +832,10 @@ function ReadingActions({
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
+      {/* EK54 — Guide dropdown + What the guide will see + Get Reading
+            are AI features. Gate with FeatureGate so users without
+            ai_features_enabled=true see ONLY Save and close. */}
+      <FeatureGate enabled={aiEnabled === true}>
       <div ref={dropdownRef} className="relative">
         <button
           type="button"
@@ -881,6 +962,7 @@ function ReadingActions({
           {isLoading ? loadingLabel : speakLabel}
         </span>
       </button>
+      </FeatureGate>
       {!isLoading && (
         <button
           type="button"

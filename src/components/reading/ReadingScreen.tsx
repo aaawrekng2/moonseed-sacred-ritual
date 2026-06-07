@@ -464,36 +464,6 @@ export function ReadingScreen({
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
-        {/* EK53 — APPLY-VERIFICATION BANNER. Bright magenta/cyan
-              banner across the very top of the post-flip page that
-              proves ReadingScreen.tsx made it through Lovable's
-              deploy. If you don't see this banner, Lovable silently
-              dropped the file (EK52 had the AI pill in this same
-              file; you couldn't see the pill, meaning ReadingScreen
-              didn't apply). Once we confirm it shows, we know the
-              file is live. Will be removed in EK54. */}
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 9999,
-            padding: "10px 16px",
-            background: "linear-gradient(90deg, #ff00aa 0%, #00d4ff 100%)",
-            color: "#000",
-            fontFamily: "var(--font-serif)",
-            fontSize: 14,
-            fontWeight: 700,
-            textAlign: "center",
-            letterSpacing: "0.1em",
-            pointerEvents: "none",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-          }}
-        >
-          EK53 ACTIVE · AI:{" "}
-          {aiEnabled === null ? "loading" : String(aiEnabled).toUpperCase()}
-        </div>
         <header className="flex flex-col items-center gap-1 text-center">
           <span className="text-[13px] uppercase tracking-[0.25em] text-gold/80">
             {meta.label}
