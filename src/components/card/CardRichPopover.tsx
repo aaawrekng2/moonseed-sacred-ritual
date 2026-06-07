@@ -27,6 +27,8 @@ import { getCardName, cardType } from "@/lib/tarot";
 import { getCardMeaning } from "@/lib/tarot-meanings";
 import { formatDateLong, formatTimeAgo } from "@/lib/dates";
 import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
+import { CardRichContent } from "@/components/card/CardRichContent";
+import { useAnyDeckCardName } from "@/lib/active-deck";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -138,6 +140,7 @@ export function CardRichPopoverContent({
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
   const rankFn = useServerFn(getCardDrawCounts);
+  const resolveCardName = useAnyDeckCardName();
   // When preloaded, skip the fetch entirely and never re-run it.
   const hasPreload = preload !== undefined;
   const [constellation, setConstellation] = useState<CardConstellation | null>(
@@ -205,6 +208,10 @@ export function CardRichPopoverContent({
     stats?.reversedPct != null ? `${Math.round(stats.reversedPct * 100)}%` : "—";
   const maxMonth = stats ? Math.max(1, ...stats.monthCounts) : 1;
 
+  const count =
+    stats?.monthCounts?.reduce((a, n) => a + n, 0) ??
+    (constellation ? constellation.matches.length : 0);
+
   return (
     <div
       style={{
@@ -214,14 +221,16 @@ export function CardRichPopoverContent({
         background: "var(--surface-card)",
         border: "1px solid var(--border-subtle)",
         borderRadius: "var(--radius-lg)",
-        padding: 14,
+        padding: "12px 14px",
         boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      {/* Constellation on top (static — hero + companions + lines).
-          EK63 — hidden where the host page already shows a constellation. */}
+      {/* Constellation on top — hidden where the host page already shows one. */}
       {showConstellation && (
-        <div style={{ height: 200, marginBottom: 8, position: "relative" }}>
+        <div style={{ height: 200, position: "relative" }}>
           <ConstellationWeb
             heroPick={heroPick}
             constellation={constellation}
@@ -231,193 +240,19 @@ export function CardRichPopoverContent({
           />
         </div>
       )}
-
-      {/* Name + arcana */}
-      <div
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-        }}
-      >
-        {name}
-      </div>
-      {subhead && (
-        <div
-          style={{
-            fontSize: "var(--text-caption)",
-            color: "var(--color-foreground-muted)",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            marginTop: 2,
-          }}
-        >
-          {subhead}
-        </div>
-      )}
-
-      {/* EK61 — one-line filter indicator. Packs as much as fits in
-          priority order, never wraps, and fades to transparent at the
-          right edge (mask) so it "trails off" instead of hard-clipping. */}
-      <div
-        title={filterSummary(filters)}
-        style={{
-          marginTop: 6,
-          fontSize: "var(--text-caption)",
-          fontStyle: "italic",
-          color: "var(--color-foreground-muted)",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          WebkitMaskImage: "linear-gradient(to right, #000 80%, transparent 100%)",
-          maskImage: "linear-gradient(to right, #000 80%, transparent 100%)",
-        }}
-      >
-        {filterSummary(filters)}
-      </div>
-
-      {/* Tiles: rank (filter-aware) + pulls + reversed */}
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        {rank && <Tile value={`#${rank.rank}`} label={`Rank of ${rank.universe}`} />}
-        <Tile value={pulls != null ? String(pulls) : "—"} label="Pulls" />
-        <Tile value={reversedPct} label="Reversed" />
-      </div>
-
-      {/* Most-often lines */}
-      {stats?.topMoonPhase && (
-        <div style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", marginTop: 10 }}>
-          Most under <em>{stats.topMoonPhase.phase}</em>
-        </div>
-      )}
-      {stats?.topTimeBucket && (
-        <div style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", marginTop: 2 }}>
-          Most often drawn <em>in the {stats.topTimeBucket.bucket}</em>
-        </div>
-      )}
-      {stats?.topDayOfWeek && (
-        <div style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", marginTop: 2 }}>
-          Most often on <em>{stats.topDayOfWeek.day}s</em>{" "}
-          <span style={{ color: "var(--color-foreground-muted)" }}>
-            {stats.topDayOfWeek.count} of {stats.topDayOfWeek.total}
-          </span>
-        </div>
-      )}
-
-      {/* 12-month frequency mini-bars */}
-      {stats && (
-        <>
-          <SectionLabel>12-month frequency</SectionLabel>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 34 }}>
-            {stats.monthCounts.map((n, i) => (
-              <div
-                key={i}
-                title={`${n}`}
-                style={{
-                  flex: 1,
-                  height: `${Math.max(3, Math.round((n / maxMonth) * 34))}px`,
-                  background: n > 0 ? "var(--accent)" : "var(--border-subtle)",
-                  borderRadius: 2,
-                  opacity: n > 0 ? 0.85 : 0.4,
-                }}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Meanings */}
-      {meaning && (
-        <>
-          <SectionLabel>Upright meaning</SectionLabel>
-          <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground-muted)" }}>
-            {meaning.uprightKeywords.join(", ")}.
-          </div>
-          <div style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", marginTop: 4 }}>
-            {meaning.uprightMeaning}
-          </div>
-          <SectionLabel>Reversed meaning</SectionLabel>
-          <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground-muted)" }}>
-            {meaning.reversedKeywords.join(", ")}.
-          </div>
-          <div style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", marginTop: 4 }}>
-            {meaning.reversedMeaning}
-          </div>
-        </>
-      )}
-
-      {/* Appears with */}
-      {stats && stats.companionsTop3.length > 0 && (
-        <>
-          <SectionLabel>Most often appears with</SectionLabel>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {stats.companionsTop3.map((c) => (
-              <span
-                key={c.cardId}
-                style={{
-                  fontSize: "var(--text-body-sm)",
-                  fontStyle: "italic",
-                  color: "var(--color-foreground)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "3px 8px",
-                }}
-              >
-                {getCardName(c.cardId)}{" "}
-                <span style={{ color: "var(--color-foreground-muted)" }}>×{c.count}</span>
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* First/last seen + gap/spacing */}
-      <div style={{ display: "flex", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
-        {firstSeen && (
-          <div>
-            <SectionLabel>First seen</SectionLabel>
-            <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
-              {formatDateLong(firstSeen)}
-            </div>
-          </div>
-        )}
-        {lastSeen && (
-          <div>
-            <SectionLabel>Last seen</SectionLabel>
-            <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
-              {formatTimeAgo(lastSeen)}
-            </div>
-          </div>
-        )}
-        {stats?.longestGapDays != null && (
-          <div>
-            <SectionLabel>Longest gap</SectionLabel>
-            <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
-              {stats.longestGapDays} days
-            </div>
-          </div>
-        )}
-        {stats?.avgSpacingDays != null && (
-          <div>
-            <SectionLabel>Avg spacing</SectionLabel>
-            <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
-              {stats.avgSpacingDays} days
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Top tag */}
-      {stats?.topTag && (
-        <>
-          <SectionLabel>Most under tag</SectionLabel>
-          <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
-            {stats.topTag.tag}{" "}
-            <span style={{ color: "var(--color-foreground-muted)" }}>
-              {stats.topTag.multiplier}× baseline
-            </span>
-          </div>
-        </>
-      )}
+      {/* EK64 — the real draw-table popover body, from the shared
+          CardRichContent so fonts/sizes/placement match exactly. */}
+      <CardRichContent
+        cardId={cardId}
+        stats={stats}
+        rank={rank?.rank ?? null}
+        universeSize={rank?.universe ?? 0}
+        count={count}
+        firstSeenIso={firstSeen}
+        lastSeenIso={lastSeen}
+        resolveCardName={resolveCardName}
+        tz={tz}
+      />
     </div>
   );
 }
