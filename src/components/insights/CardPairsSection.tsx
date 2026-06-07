@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { getCardPairs, getReadingsWithCardPair } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
+import { CardHoverTip } from "@/components/card/CardRichPopover";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
 import { EmptyNote } from "@/components/ui/empty-note";
@@ -209,7 +210,7 @@ function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () 
           style={{ cursor: "pointer", display: "inline-block" }}
           aria-label={`View Card Trace for ${pair.cardAName}`}
         >
-          <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} />
+          <CardHoverTip cardId={pair.cardA}><CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} /></CardHoverTip>
         </span>
         <span
           role="button"
@@ -228,7 +229,7 @@ function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () 
           style={{ cursor: "pointer", display: "inline-block" }}
           aria-label={`View Card Trace for ${pair.cardBName}`}
         >
-          <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} />
+          <CardHoverTip cardId={pair.cardB}><CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} /></CardHoverTip>
         </span>
       </div>
       <div
@@ -345,7 +346,7 @@ function PairDetailModal({
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
             aria-label={`View Card Trace for ${pair.cardAName}`}
           >
-            <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} />
+            <CardHoverTip cardId={pair.cardA}><CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} /></CardHoverTip>
           </button>
           <button
             type="button"

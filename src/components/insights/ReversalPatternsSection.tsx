@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getReversalPatterns } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
+import { CardHoverTip } from "@/components/card/CardRichPopover";
 import type { InsightsFilters, CardSortBy } from "@/lib/insights.types";
 import { getCardName } from "@/lib/tarot";
 import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
@@ -110,14 +111,14 @@ function ReversalRow({ pattern, onTap }: { pattern: Pattern; onTap: () => void }
       style={{ background: "var(--surface-card)", borderRadius: 14 }}
     >
       {/* EY-7 — unified card render with reversed orientation. */}
-      <CardImage
+      <CardHoverTip cardId={pattern.cardId}><CardImage
         cardId={pattern.cardId}
         variant="face"
         reversed
         size="custom"
         widthPx={44}
         ariaLabel={pattern.cardName}
-      />
+      /></CardHoverTip>
       <div className="flex-1">
         <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "var(--text-body)" }}>
           {pattern.cardName}

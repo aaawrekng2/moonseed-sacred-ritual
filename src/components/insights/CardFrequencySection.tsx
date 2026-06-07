@@ -498,6 +498,7 @@ function GridView({ entries, cardScale = 100 }: { entries: Array<{ cardId: numbe
           cardId={e.cardId}
           count={e.count}
           eager={index < 10}
+          richHoverCardId={e.cardId}
           onClick={() =>
             navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
           }

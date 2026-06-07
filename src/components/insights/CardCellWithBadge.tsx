@@ -5,6 +5,7 @@
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { CardCountBadge } from "@/components/ui/CardCountBadge";
+import { CardHoverTip } from "@/components/card/CardRichPopover";
 
 export function CardCellWithBadge({
   cardId,
@@ -12,6 +13,7 @@ export function CardCellWithBadge({
   name,
   onClick,
   eager,
+  richHoverCardId,
 }: {
   cardId: number;
   count?: number;
@@ -19,9 +21,12 @@ export function CardCellWithBadge({
   onClick?: () => void;
   /** Q94 #6 — opt the inner CardImage out of lazy loading. */
   eager?: boolean;
+  /** EK60 — when set, wrap the cell in the rich card hover tip. Opt-in so
+   *  only surfaces that want it (Insights → Cards) get it. */
+  richHoverCardId?: number;
 }) {
   const { ref, width } = useElementWidth<HTMLDivElement>();
-  return (
+  const cell = (
     <button
       type="button"
       onClick={onClick}
@@ -63,4 +68,9 @@ export function CardCellWithBadge({
       )}
     </button>
   );
+
+  if (richHoverCardId !== undefined) {
+    return <CardHoverTip cardId={richHoverCardId}>{cell}</CardHoverTip>;
+  }
+  return cell;
 }
