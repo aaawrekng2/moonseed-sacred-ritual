@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { X, Eye, EyeOff } from "lucide-react";
+import { lovable } from "@/integrations/lovable";
 import { createBackup, type BackupProgress } from "@/lib/backup-export";
 import { BACKUP_CATEGORIES } from "@/lib/backup-categories";
 import { logUserResendConfirmation } from "@/lib/admin.functions";
