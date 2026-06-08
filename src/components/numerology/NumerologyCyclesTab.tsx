@@ -5,6 +5,7 @@
  * Period Cycles. All math pure; no AI, no DB.
  */
 import { useState, type CSSProperties, type ReactNode } from "react";
+import { NumerologyConceptTip } from "./NumerologyConceptTip";
 import {
   challenges,
   currentAge,
@@ -128,6 +129,12 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
     <div className="flex flex-col gap-10 pb-12">
       {/* Personal Year hero */}
       <Section header={`${year} — Your Year`} subtitle="Your year ahead.">
+        <NumerologyConceptTip
+          concept="personalYear"
+          value={forecast.personalYear.digit}
+          meaning={pyMeaning.full}
+          block
+        >
         <div
           onClick={() => setOpenPY((o) => !o)}
           style={{ ...cardStyle, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}
@@ -154,6 +161,7 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
           </div>
           {openPY && <p style={fullTextStyle}>{pyMeaning.full}</p>}
         </div>
+        </NumerologyConceptTip>
       </Section>
 
       {/* 12-month strip */}
@@ -244,7 +252,14 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
             const meaning =
               PINNACLE_MEANINGS[pin.value.digit] ?? PINNACLE_MEANINGS[1];
             return (
-              <ExpandableTimelineRow
+              <NumerologyConceptTip
+                key={pin.index}
+                concept="pinnacle"
+                value={pin.value.digit}
+                meaning={meaning.full}
+                block
+              >
+                <ExpandableTimelineRow
                 key={pin.index}
                 label={`${["First", "Second", "Third", "Fourth"][i]} Pinnacle`}
                 ageRange={ageRange}
@@ -253,6 +268,7 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
                 fullText={meaning.full}
                 isCurrent={isCurrent}
               />
+              </NumerologyConceptTip>
             );
           })}
         </div>
@@ -273,7 +289,14 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
             const meaning =
               CHALLENGE_MEANINGS[c.value.digit] ?? CHALLENGE_MEANINGS[0];
             return (
-              <ExpandableTimelineRow
+              <NumerologyConceptTip
+                key={c.index}
+                concept="challenge"
+                value={c.value.digit}
+                meaning={meaning.full}
+                block
+              >
+                <ExpandableTimelineRow
                 key={c.index}
                 label={`${["First", "Second", "Third", "Fourth"][i]} Challenge`}
                 ageRange={ageRange}
@@ -282,6 +305,7 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
                 fullText={meaning.full}
                 isCurrent={isCurrent}
               />
+              </NumerologyConceptTip>
             );
           })}
         </div>
@@ -303,7 +327,14 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
               PERIOD_CYCLE_MEANINGS[cyc.value.digit] ??
               PERIOD_CYCLE_MEANINGS[1];
             return (
-              <ExpandableTimelineRow
+              <NumerologyConceptTip
+                key={cyc.label}
+                concept="periodCycle"
+                value={cyc.value.digit}
+                meaning={meaning.full}
+                block
+              >
+                <ExpandableTimelineRow
                 key={cyc.label}
                 label={cyc.label}
                 ageRange={ageRange}
@@ -312,6 +343,7 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
                 fullText={meaning.full}
                 isCurrent={isCurrent}
               />
+              </NumerologyConceptTip>
             );
           })}
         </div>
