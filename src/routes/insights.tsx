@@ -497,7 +497,6 @@ function InsightsRoute() {
                 loading={loading}
                 overview={overview}
                 stalkers={stalkers}
-                filters={filters}
                 filtersActive={hasAnyActive(globalFilters)}
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
                 onEmptyCta={() => navigate({ to: "/" })}
@@ -561,7 +560,6 @@ function OverviewTab({
   loading,
   overview,
   stalkers,
-  filters,
   filtersActive,
   onClearFilters,
   onEmptyCta,
@@ -584,7 +582,6 @@ function OverviewTab({
   userId: string | null;
   fetchError: boolean;
   onRetry: () => void;
-  filters: InsightsFilters;
 }) {
   const { effectiveTz } = useTimezone();
   if (loading && !overview) {
