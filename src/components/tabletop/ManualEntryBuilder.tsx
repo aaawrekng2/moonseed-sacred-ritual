@@ -395,6 +395,42 @@ export function ManualEntryBuilder({
         >
           <X size={18} strokeWidth={1.5} />
         </button>
+        {/* EK73 — explicit swap link, centered on the same top line between
+            the hamburger (left) and X (right). Fixed-positioned so it adds
+            zero flow height and nothing below it moves. */}
+        {onSwitchToTable && (
+          <button
+            type="button"
+            onClick={onSwitchToTable}
+            style={{
+              position: "fixed",
+              top: "calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 8px)",
+              left: 0,
+              right: 0,
+              margin: "0 auto",
+              width: "fit-content",
+              height: 36,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--accent, var(--gold))",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+              zIndex: "var(--z-popover)" as unknown as number,
+              whiteSpace: "nowrap",
+              touchAction: "manipulation",
+            }}
+          >
+            Switch to Draw Table
+          </button>
+        )}
         <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
           {/* EJ69 — In-flow spacer matching TopNav height so content
               starts BELOW the TopNav band (not under it). */}
