@@ -268,9 +268,16 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
       "Last Quarter",
       "Waning Crescent",
     ];
+    // EK67 — anchor the window ~13 months in the PAST (and widen to ~27
+    // months) so each phase list spans past AND future. Previously the
+    // lists started at `today`, so they held only future occurrences; a
+    // "previous" ladder tap then found nothing earlier and fell back to the
+    // last (far-future) entry — tapping the left new moon jumped forward.
+    const LADDER_BACK_MS = 400 * 24 * 60 * 60 * 1000;
+    const ladderAnchor = new Date(today.getTime() - LADDER_BACK_MS);
     const map = new Map<MoonPhaseName, Date[]>();
     for (const p of phases) {
-      map.set(p, getPhaseOccurrences(p, today, 13));
+      map.set(p, getPhaseOccurrences(p, ladderAnchor, 27));
     }
     phaseOccurrencesRef.current = map;
     phaseCursorRef.current = new Map();

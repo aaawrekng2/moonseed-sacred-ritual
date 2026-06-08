@@ -42,6 +42,7 @@ import {
   useMultiDeckImage,
 } from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
+import { CardHoverTip, allTimeFilters } from "@/components/card/CardRichPopover";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { swapReadingDeck, swapDeckAcrossReadings } from "@/lib/reconnect-deck.functions";
@@ -1001,6 +1002,8 @@ function ReadingCard({
   mapsLoading?: boolean;
 }) {
   const isMobile = useIsMobile();
+  const { effectiveTz: rcTz } = useTimezone();
+  const hoverFilters = allTimeFilters(currentTzOrFallback(rcTz));
   const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
@@ -1277,6 +1280,7 @@ function ReadingCard({
               const isReversed = !!reading.card_orientations?.[idx];
               const perCardDeckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
               return (
+                <CardHoverTip cardId={id} filters={hoverFilters}>
                 <CardImage
                   key={`${id}-${idx}`}
                   cardId={id}
@@ -1288,6 +1292,7 @@ function ReadingCard({
                   className="flex-shrink-0"
                   style={{ opacity: "var(--ro-plus-30)" }}
                 />
+                </CardHoverTip>
               );
             })}
           </div>
@@ -1298,6 +1303,7 @@ function ReadingCard({
               const isReversed = idx >= 0 ? !!reading.card_orientations?.[idx] : false;
               const perCardDeckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
               return (
+                <CardHoverTip cardId={id} filters={hoverFilters}>
                 <CardImage
                   key={id}
                   cardId={id}
@@ -1308,6 +1314,7 @@ function ReadingCard({
                   loading={!!mapsLoading && perCardDeckId != null}
                   style={{ opacity: "var(--ro-plus-30)" }}
                 />
+                </CardHoverTip>
               );
             })}
             {overflow > 0 && (
@@ -2097,6 +2104,8 @@ function ReadingDetail({
   // so oracle/custom cards appear instantly instead of after a roundtrip.
   const { loading: _detailMapsLoading } = useMultiDeckImage(allDeckIds);
   void _detailMapsLoading;
+  const { effectiveTz: rdTz } = useTimezone();
+  const hoverFilters = allTimeFilters(currentTzOrFallback(rdTz));
   const resolveCardName = (id: number, idx: number) => {
     const deckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
     if (deckId) return multiNameResolve(id, deckId);
@@ -2492,6 +2501,7 @@ function ReadingDetail({
                   key={`${id}-${idx}`}
                   className="flex flex-col items-center flex-shrink-0 snap-start"
                 >
+                  <CardHoverTip cardId={id} filters={hoverFilters}>
                   <CardImage
                     cardId={id}
                     reversed={isReversed}
@@ -2502,6 +2512,7 @@ function ReadingDetail({
                     ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
                     onClick={() => setZoomedCard({ cardId: id, reversed: isReversed, idx })}
                   />
+                  </CardHoverTip>
                   <span
                     className="mt-1 text-center font-display italic break-words"
                     style={{
@@ -2561,6 +2572,7 @@ function ReadingDetail({
                     justifyContent: "center",
                   }}
                 >
+                  <CardHoverTip cardId={id} filters={hoverFilters}>
                   <CardImage
                     cardId={id}
                     reversed={isReversed}
@@ -2571,6 +2583,7 @@ function ReadingDetail({
                     ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
                     onClick={() => setZoomedCard({ cardId: id, reversed: isReversed, idx })}
                   />
+                  </CardHoverTip>
                 </div>
               );
             };
