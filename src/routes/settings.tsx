@@ -13,6 +13,7 @@ import {
   BarChart2,
 } from "lucide-react";
 import { useAuth, triggerAnonymousSession } from "@/lib/auth";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useNavigate } from "@tanstack/react-router";
@@ -106,6 +107,13 @@ function SettingsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = tabFromPath(location.pathname);
+
+  // EK69 — Guides and Usage are AI surfaces; hide them from the settings
+  // nav unless the seeker has AI access (hidden while loading too).
+  const aiEnabled = useAIEnabled();
+  const visibleTabs = TABS.filter((t) =>
+    t.key === "guides" || t.key === "usage" ? aiEnabled === true : true,
+  );
 
   // Register the X close affordance with the global FloatingMenu so
   // settings still gets a one-tap exit without owning a per-screen
@@ -285,7 +293,7 @@ function SettingsLayout() {
           {/* Mobile tab bar: canonical tab strip pattern (FU-12). */}
           <div className="-mx-4 mb-6 md:hidden" role="tablist" aria-label="Settings sections">
             <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
-              {TABS.map((t) => {
+              {visibleTabs.map((t) => {
                 const active = activeTab === t.key;
                 return (
                   <Link
@@ -340,7 +348,7 @@ function SettingsLayout() {
                 minHeight: "100dvh",
               }}
             >
-              {TABS.map((t) => {
+              {visibleTabs.map((t) => {
                 const Icon = t.icon;
                 const active = activeTab === t.key;
                 return (

@@ -6,6 +6,8 @@ import { useSettings, type Prefs } from "./SettingsContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
+import { FeatureGate } from "@/components/feature-gate/FeatureGate";
 
 /**
  * Moon & Lunar Features section in Settings → Preferences.
@@ -15,6 +17,8 @@ import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 export function MoonFeaturesSection() {
   const { user, prefs, setPrefs } = useSettings();
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  // EK69 — hide the Lunar AI & Warnings box unless the seeker has AI access.
+  const aiEnabled = useAIEnabled();
 
   const update = async (patch: Partial<Prefs>) => {
     const key = Object.keys(patch)[0];
@@ -107,6 +111,7 @@ export function MoonFeaturesSection() {
             </div>
           )}
 
+          <FeatureGate enabled={aiEnabled === true}>
           <div className="space-y-4 rounded-xl border border-gold/40 bg-gold/[0.05] p-4 shadow-[0_0_24px_-12px_var(--gold)]">
             <div className="space-y-1">
               <h3 className="flex items-center gap-2 text-sm font-normal text-foreground">
@@ -145,6 +150,7 @@ export function MoonFeaturesSection() {
               onChange={(v) => update({ moon_void_warning: v })}
             />
           </div>
+          </FeatureGate>
         </div>
       )}
     </section>

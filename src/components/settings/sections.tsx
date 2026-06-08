@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
 import { AIToneSection } from "./AIToneSection";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
+import { FeatureGate } from "@/components/feature-gate/FeatureGate";
 import { emitTrackReversalsChanged } from "@/lib/use-track-reversals";
 import { useTimezone } from "@/lib/use-timezone";
 import { COMMON_TIMEZONES, timezoneLabel } from "@/lib/timezones";
@@ -936,12 +938,16 @@ function TimezoneField() {
 
 export function PreferencesTab() {
   const { user, prefs, setPrefs, loaded } = useSettings();
+  // EK69 — AI Tone and Memory & Stories hide unless the seeker has AI access.
+  const aiEnabled = useAIEnabled();
   return (
     <div className="space-y-12" key={loaded ? "loaded" : "empty"}>
       <ReadingPreferencesSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MoonFeaturesSection />
-      <AIToneSection />
-      <MemorySection user={user} prefs={prefs} setPrefs={setPrefs} />
+      <FeatureGate enabled={aiEnabled === true}>
+        <AIToneSection />
+        <MemorySection user={user} prefs={prefs} setPrefs={setPrefs} />
+      </FeatureGate>
     </div>
   );
 }
