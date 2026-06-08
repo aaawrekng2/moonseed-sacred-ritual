@@ -506,6 +506,7 @@ function InsightsRoute() {
                 userId={userId}
                 fetchError={fetchError}
                 onRetry={() => setFetchNonce((n) => n + 1)}
+                filters={filters}
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
                 <SuitTrendsChart filters={filters} />
