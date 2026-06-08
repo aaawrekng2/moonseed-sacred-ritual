@@ -608,89 +608,92 @@ export function CardRichContent({
           ),
         )}
 
-      {/* Meanings */}
+      {/* Meanings — EK73: upright + reversed are independently toggleable. */}
       {!isOracle &&
         sec(
-          "meanings",
-          "Meanings",
+          "meaning_upright",
+          "Upright meaning",
           (
-            <>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: "var(--accent, var(--gold))",
-                    opacity: 0.9,
-                  }}
-                >
-                  Upright meaning
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 11.5,
-                    color: "var(--color-foreground)",
-                    opacity: 0.85,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {m.uprightKeywords.join(", ")}.
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 12,
-                    color: "var(--color-foreground)",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {m.uprightMeaning}
-                </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.9,
+                }}
+              >
+                Upright meaning
               </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 11.5,
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                  lineHeight: 1.35,
+                }}
+              >
+                {m.uprightKeywords.join(", ")}.
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {m.uprightMeaning}
+              </div>
+            </div>
+          ),
+        )}
 
-              {allowReversed && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 10,
-                      letterSpacing: "0.18em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.9,
-                    }}
-                  >
-                    Reversed meaning
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 11.5,
-                      color: "var(--color-foreground)",
-                      opacity: 0.85,
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {m.reversedKeywords.join(", ")}.
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontSize: 12,
-                      color: "var(--color-foreground)",
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {m.reversedMeaning}
-                  </div>
-                </div>
-              )}
-            </>
+      {!isOracle && allowReversed &&
+        sec(
+          "meaning_reversed",
+          "Reversed meaning",
+          (
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.9,
+                }}
+              >
+                Reversed meaning
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 11.5,
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                  lineHeight: 1.35,
+                }}
+              >
+                {m.reversedKeywords.join(", ")}.
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {m.reversedMeaning}
+              </div>
+            </div>
           ),
         )}
 

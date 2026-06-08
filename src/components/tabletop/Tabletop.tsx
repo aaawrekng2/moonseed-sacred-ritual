@@ -2331,6 +2331,38 @@ export function Tabletop({
         >
           <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
+        {/* EK73 — explicit swap link, floats just below the stepper row.
+            Absolutely positioned so it adds zero flow height and the card
+            scatter does not move. */}
+        {onSwitchToManual && (
+          <button
+            type="button"
+            onClick={onSwitchToManual}
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              margin: "0 auto",
+              width: "fit-content",
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--accent, var(--gold))",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+              opacity: restingAlpha,
+              zIndex: 6,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Switch to Manual Entry
+          </button>
+        )}
       </div>
       {showEntryHint && onSwitchToManual && (
         <Hint

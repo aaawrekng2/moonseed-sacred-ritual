@@ -4125,6 +4125,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
           The Classic Manual Entry link is gone with /draw/classic. */}
       <div
         style={{
+          position: "relative",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -4132,6 +4133,39 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
           gap: 12,
         }}
       >
+        {/* EK73 — explicit swap link, centered on the header row between the
+            fly-out trigger and the back X. Absolutely positioned so it adds
+            zero flow height; nothing on the page moves. Routes through the
+            same unsaved-changes guard the fly-out uses. */}
+        {onSwitchToTable && (
+          <button
+            type="button"
+            onClick={() => requestNavigate(onSwitchToTable)}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: 0,
+              right: 0,
+              margin: "0 auto",
+              transform: "translateY(-50%)",
+              width: "fit-content",
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--accent, var(--gold))",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+              whiteSpace: "nowrap",
+              zIndex: 1,
+            }}
+          >
+            Switch to Draw Table
+          </button>
+        )}
         <div
           style={{
             display: "flex",
