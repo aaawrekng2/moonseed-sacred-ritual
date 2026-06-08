@@ -506,6 +506,7 @@ function InsightsRoute() {
                 userId={userId}
                 fetchError={fetchError}
                 onRetry={() => setFetchNonce((n) => n + 1)}
+                filters={filters}
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
                 <SuitTrendsChart filters={filters} />
@@ -569,6 +570,7 @@ function OverviewTab({
   userId,
   fetchError,
   onRetry,
+  filters,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -582,6 +584,7 @@ function OverviewTab({
   userId: string | null;
   fetchError: boolean;
   onRetry: () => void;
+  filters: InsightsFilters;
 }) {
   const { effectiveTz } = useTimezone();
   if (loading && !overview) {
