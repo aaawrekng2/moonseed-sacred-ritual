@@ -31,6 +31,7 @@ import {
 import { useActiveDeck, useActiveDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 // EK59 — moon-phase indicators on the grid12 calendar.
 import { getPhaseOccurrences } from "@/lib/moon";
+import { personalDay } from "@/lib/numerology";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { isoDayInTz } from "@/lib/time";
 import { useElementWidth } from "@/lib/use-element-width";
@@ -1822,6 +1823,7 @@ export function OverlapPills({
   saveStatus = "idle",
   saveError = null,
   saveDisabled = false,
+  saveOnly = false,
   align = "flex-end",
 }: {
   mode: "pull" | "day";
@@ -1834,6 +1836,9 @@ export function OverlapPills({
   saveStatus?: "idle" | "saving" | "saved" | "error";
   saveError?: string | null;
   saveDisabled?: boolean;
+  /** EK68 — render only the Save button; the mode + older controls now
+   *  live in the fly-out menu. */
+  saveOnly?: boolean;
   /** flex justify-content for the row. Defaults to flex-end. */
   align?: "flex-start" | "flex-end" | "center" | "space-between";
 }) {
@@ -1847,7 +1852,7 @@ export function OverlapPills({
         flexWrap: "wrap",
       }}
     >
-      {showOlderToggle && (
+      {!saveOnly && showOlderToggle && (
         <button
           type="button"
           onClick={() => onShowOlderChange(!showOlder)}
@@ -1870,47 +1875,49 @@ export function OverlapPills({
           {showOlder ? "Hide older ←" : "Show older →"}
         </button>
       )}
-      <div
-        role="tablist"
-        style={{
-          display: "inline-flex",
-          height: 22,
-          borderRadius: 9999,
-          border: "1px solid var(--border-subtle)",
-          background: "var(--surface-card)",
-          overflow: "hidden",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: 10,
-        }}
-      >
-        {(["pull", "day"] as const).map((m) => {
-          const active = mode === m;
-          return (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onModeChange(m)}
-              style={{
-                padding: "0 12px",
-                height: "100%",
-                border: "none",
-                background: active
-                  ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
-                  : "transparent",
-                color: active
-                  ? "var(--color-foreground)"
-                  : "var(--color-foreground-muted, var(--color-foreground))",
-                cursor: "pointer",
-              }}
-            >
-              {m === "pull" ? "same spread" : "same day"}
-            </button>
-          );
-        })}
-      </div>
+      {!saveOnly && (
+        <div
+          role="tablist"
+          style={{
+            display: "inline-flex",
+            height: 22,
+            borderRadius: 9999,
+            border: "1px solid var(--border-subtle)",
+            background: "var(--surface-card)",
+            overflow: "hidden",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+          }}
+        >
+          {(["pull", "day"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onModeChange(m)}
+                style={{
+                  padding: "0 12px",
+                  height: "100%",
+                  border: "none",
+                  background: active
+                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                    : "transparent",
+                  color: active
+                    ? "var(--color-foreground)"
+                    : "var(--color-foreground-muted, var(--color-foreground))",
+                  cursor: "pointer",
+                }}
+              >
+                {m === "pull" ? "same spread" : "same day"}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {onSaveToJournal && (
         <button
           type="button"
@@ -2000,6 +2007,9 @@ function OverlapStrip({
   // behavior; ≤6 collapses to a single row automatically (the grid is
   // 6 columns, so ≤6 cells = one row).
   monthsToShow: monthsToShowProp,
+  // EK68 — calendar number mode + birthdate for the numerology display.
+  calendarNumberMode = "dates",
+  birthDate = null,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -2056,6 +2066,8 @@ function OverlapStrip({
   /** EK58 — number of (most-recent) months to show in the grid12
    *  calendar. Optional; absent = legacy fixed 12. */
   monthsToShow?: number;
+  calendarNumberMode?: "dates" | "numerology";
+  birthDate?: string | null;
   /** EJ65 — accepted for API symmetry with <OverlapPills/>. OverlapStrip
    *  in controlled mode does not render the legacy inline Show-older pill,
    *  so this prop is currently a no-op here; kept so ConstellationPage can
@@ -2532,6 +2544,18 @@ function OverlapStrip({
                       matchCount === maxMatchInCalendar &&
                       pullSet.size > 1;
                     const dateLabel = formatDateLong(`${day.date}T00:00:00`);
+                    // EK68 — numerology mode shows the seeker's personal day
+                    // number on every cell; otherwise the day of the month.
+                    const dpParts = day.date.split("-");
+                    const displayNumber =
+                      calendarNumberMode === "numerology" && birthDate
+                        ? personalDay(
+                            birthDate,
+                            Number(dpParts[0]),
+                            Number(dpParts[1]),
+                            Number(dpParts[2]),
+                          ).digit
+                        : Number(dpParts[2]);
                     const heroName = heroCardId != null ? resolveCardName(heroCardId) : "";
                     // EJ10 — stacked tooltip lines, replacing the prior
                     // flat "X% Match · Y of N of these cards were drawn
@@ -2696,7 +2720,7 @@ function OverlapStrip({
                                 directly; `new Date("YYYY-MM-DD")` parses as UTC
                                 midnight and getDate() then drifts one day west of
                                 UTC, so every cell was mis-labeled. */}
-                              {Number(day.date.split("-")[2])}
+                              {displayNumber}
                             </>
                           );
                           const shared = {
@@ -2770,7 +2794,7 @@ function OverlapStrip({
                               zIndex: 2,
                             }}
                           >
-                            {Number(day.date.split("-")[2])}
+                            {displayNumber}
                           </div>
                         )}
                         {tealTraceHit && (

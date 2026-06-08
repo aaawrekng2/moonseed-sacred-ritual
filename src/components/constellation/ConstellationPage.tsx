@@ -71,7 +71,7 @@ import {
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
-import { LayoutGrid, Trash2 } from "lucide-react";
+import { Eye, Hash, Layers, LayoutGrid, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
@@ -576,7 +576,17 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // EJ5 — master switch for hover tips on this surface. When
   // effectiveEnabled is false, all popovers (legend ⓘ, card, badge,
   // day-cell, line) are suppressed without removing their triggers.
-  const { effectiveEnabled: hoverTipsOn } = useConstellationHoverTips();
+  const {
+    effectiveEnabled: hoverTipsOn,
+    enabled: hoverTipsEnabled,
+    toggle: toggleHoverTips,
+  } = useConstellationHoverTips();
+
+  // EK68 — calendar number mode: day-of-month ("dates", default) vs the
+  // seeker's personal day number ("numerology"). Cycled from the fly-out.
+  const [calendarNumberMode, setCalendarNumberMode] = useState<"dates" | "numerology">(
+    "dates",
+  );
 
   // Phase 18 Fix 6 — hide the global BottomNav on /constellation.
   useRegisterTabletopActive(true);
@@ -2384,6 +2394,32 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     };
   }, [user?.id]);
 
+  // EK68 — direct supabase read of birth_date for the numerology calendar
+  // mode (same pattern as allow_reversed_cards above; the page is outside
+  // the SettingsProvider). Null when unset — the calendar then shows no
+  // number in numerology mode.
+  const [birthDate, setBirthDate] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.id) {
+      setBirthDate(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("birth_date")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as { birth_date?: string | null } | null;
+      setBirthDate(row?.birth_date ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   // DV — clear all picks (header button). No confirm — the localStorage
   // state still persists across navigation, this just resets the current
   // /constellation surface.
@@ -2429,8 +2465,8 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       ],
     },
     {
-      id: "hide-show",
-      title: "Hide / Show",
+      id: "display",
+      title: "Display",
       items: [
         {
           id: "calendars",
@@ -2442,6 +2478,45 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
           onClick: () => {
             cycleCalendar();
             // Keep the menu open so the seeker can keep cycling.
+          },
+        },
+        {
+          id: "calendar-numbers",
+          label: "Calendar numbers",
+          description: "Day of month, or your personal day number",
+          Icon: Hash,
+          mode: "cycle",
+          cycleLabel: calendarNumberMode === "dates" ? "Dates" : "Numerology",
+          onClick: () => {
+            setCalendarNumberMode((m) => (m === "dates" ? "numerology" : "dates"));
+          },
+        },
+        {
+          id: "hover-tips",
+          label: "Hover tips",
+          description: "Rich popovers when you hover a card",
+          Icon: Eye,
+          mode: "cycle",
+          cycleLabel: hoverTipsEnabled ? "On" : "Off",
+          onClick: () => {
+            toggleHoverTips();
+          },
+        },
+      ],
+    },
+    {
+      id: "reading",
+      title: "Reading",
+      items: [
+        {
+          id: "cooccurrence",
+          label: "Co-occurrence",
+          description: "Match by same spread or same day",
+          Icon: Layers,
+          mode: "cycle",
+          cycleLabel: overlapMode === "pull" ? "Same spread" : "Same day",
+          onClick: () => {
+            setOverlapMode((m) => (m === "pull" ? "day" : "pull"));
           },
         },
       ],
@@ -4788,9 +4863,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                   saveError={saveError}
                   saveDisabled={!canSubmit}
                   align="flex-start"
-                  // EK58 — at ≤6 months there's only one row and nothing
-                  // older to reveal, so hide the Show-older toggle.
-                  showOlderToggle={calendarMonthsToShow > 6}
+                  // EK68 — same-spread/day and Hide-older moved into the
+                  // fly-out menu; this row now shows only Save to journal.
+                  saveOnly
                 />
               </div>
             </div>
@@ -4805,27 +4880,8 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             position: "relative",
           }}
         >
-          {/* EJ7 — HoverTipsToggle positioned in the empty space
-              between the hero card and the upper-right companion.
-              Right edge aligns with the upper-right companion's left
-              edge (companion x=385 of SVG_W=540, so right offset =
-              (1 - 385/540) × 100% ≈ 28.7%). Absolute-positioned
-              within the relative column so it floats over the empty
-              space without displacing layout.
-              EJ11 — top % updated for the new SVG geometry. HERO_Y=0
-              in a viewBox that now runs from y=-12 to y=484, so the
-              hero card top sits at 12/496 ≈ 2.4% from the top of the
-              SVG/column. */}
-          <div
-            style={{
-              position: "absolute",
-              top: "2.4%",
-              right: "28.7%",
-              zIndex: 2,
-            }}
-          >
-            <HoverTipsToggle />
-          </div>
+          {/* EK68 — the hover-tips toggle moved into the fly-out menu
+              (Display → Hover tips), freeing this space over the web. */}
           <ConstellationWeb
             heroPick={heroPick}
             constellation={displayedConstellation}
@@ -4994,6 +5050,8 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             asterismBadgeHovered={asterismBadgeHovered}
             hoverStrokeYmds={hoverStrokeYmds}
             monthsToShow={calendarMonthsToShow}
+            calendarNumberMode={calendarNumberMode}
+            birthDate={birthDate}
           />
         </div>
       )}
