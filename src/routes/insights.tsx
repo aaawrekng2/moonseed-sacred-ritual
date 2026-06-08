@@ -561,6 +561,7 @@ function OverviewTab({
   loading,
   overview,
   stalkers,
+  filters,
   filtersActive,
   onClearFilters,
   onEmptyCta,
