@@ -570,6 +570,7 @@ function OverviewTab({
   userId,
   fetchError,
   onRetry,
+  filters,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -583,6 +584,7 @@ function OverviewTab({
   userId: string | null;
   fetchError: boolean;
   onRetry: () => void;
+  filters: InsightsFilters;
 }) {
   const { effectiveTz } = useTimezone();
   if (loading && !overview) {
