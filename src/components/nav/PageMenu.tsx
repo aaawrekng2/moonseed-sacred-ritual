@@ -21,7 +21,7 @@
  * On narrower viewports the panel takes over the full width below
  * the TopNav (acts as a full-screen drawer like Notion mobile).
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -63,6 +63,11 @@ export type PageMenuProps = {
 
 export function PageMenu({ open, onClose, sections, title }: PageMenuProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on Escape.
   useEffect(() => {
@@ -92,7 +97,7 @@ export function PageMenu({ open, onClose, sections, title }: PageMenuProps) {
     };
   }, [open, onClose]);
 
-  if (typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   // Empty sections are filtered so the panel doesn't render empty
   // headers. Pages that have no sections at all shouldn't be mounting
