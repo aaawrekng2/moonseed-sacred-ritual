@@ -20,6 +20,7 @@ import { Route as HelpRouteImport } from './routes/help'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as ConstellationRouteImport } from './routes/constellation'
+import { Route as CardNumberingRouteImport } from './routes/card-numbering'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreditsIndexRouteImport } from './routes/credits.index'
@@ -105,6 +106,11 @@ const DrawRoute = DrawRouteImport.update({
 const ConstellationRoute = ConstellationRouteImport.update({
   id: '/constellation',
   path: '/constellation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CardNumberingRoute = CardNumberingRouteImport.update({
+  id: '/card-numbering',
+  path: '/card-numbering',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -270,6 +276,7 @@ const AdminUsageUsersUserIdRoute = AdminUsageUsersUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
@@ -313,6 +320,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
@@ -358,6 +366,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
@@ -404,6 +413,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/card-numbering'
     | '/constellation'
     | '/draw'
     | '/guides'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/card-numbering'
     | '/constellation'
     | '/draw'
     | '/guides'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/card-numbering'
     | '/constellation'
     | '/draw'
     | '/guides'
@@ -536,6 +548,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  CardNumberingRoute: typeof CardNumberingRoute
   ConstellationRoute: typeof ConstellationRoute
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
@@ -634,6 +647,13 @@ declare module '@tanstack/react-router' {
       path: '/constellation'
       fullPath: '/constellation'
       preLoaderRoute: typeof ConstellationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/card-numbering': {
+      id: '/card-numbering'
+      path: '/card-numbering'
+      fullPath: '/card-numbering'
+      preLoaderRoute: typeof CardNumberingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -986,6 +1006,7 @@ const ApiPublicDetectWeavesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  CardNumberingRoute: CardNumberingRoute,
   ConstellationRoute: ConstellationRoute,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
