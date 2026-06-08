@@ -5,6 +5,8 @@
  * a 7-day Personal Day strip.
  */
 import { useMemo } from "react";
+import { NumerologyConceptTip } from "./NumerologyConceptTip";
+import { PERSONAL_YEAR_MEANINGS } from "@/lib/numerology-copy";
 import {
   numberToMajorArcana,
   personalDay,
@@ -74,9 +76,20 @@ export function NumerologyTodayTab({
             alignItems: "stretch",
           }}
         >
-          <NumberCell value={pd} label="Day" />
-          <NumberCell value={pm} label="Month" />
-          <NumberCell value={py} label="Year" />
+          <NumerologyConceptTip concept="personalDay" value={pd.digit} block>
+            <NumberCell value={pd} label="Day" />
+          </NumerologyConceptTip>
+          <NumerologyConceptTip concept="personalMonth" value={pm.digit} block>
+            <NumberCell value={pm} label="Month" />
+          </NumerologyConceptTip>
+          <NumerologyConceptTip
+            concept="personalYear"
+            value={py.digit}
+            meaning={PERSONAL_YEAR_MEANINGS[py.digit]?.full}
+            block
+          >
+            <NumberCell value={py} label="Year" />
+          </NumerologyConceptTip>
         </div>
       </section>
 

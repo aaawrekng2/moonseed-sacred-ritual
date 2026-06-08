@@ -265,3 +265,145 @@ export const PERSONAL_YEAR_MEANINGS: Record<number, NumberMeaning> = {
   22: { keyword: "Master Year of Building", short: "A grand structure wants to come through.", full: "A 4 year intensified. Large-scale building is favoured — vision married to discipline. Do not shrink the dream." },
   33: { keyword: "Master Year of Teaching", short: "Love made visible.", full: "A 6 year intensified. Service through presence is the calling. Lead by tending; teach by being tended-to first." },
 };
+/* ============================================================
+ * EK70 — Concept explainers for the numerology hover cards.
+ * "What each item IS" + "how it's derived", authored for new
+ * seekers. The per-NUMBER meaning shown in the card reuses the
+ * maps above (NUMBER_MEANINGS, PERSONAL_YEAR_MEANINGS, etc.) —
+ * this table only adds the concept-level explanation.
+ * ============================================================ */
+
+export type NumerologyConceptKey =
+  | "lifePath" | "birthday" | "expression" | "soulUrge" | "personality" | "maturity"
+  | "personalYear" | "personalMonth" | "personalDay"
+  | "pinnacle" | "challenge" | "periodCycle"
+  | "karmicDebt" | "karmicLesson" | "hiddenPassion" | "cornerstone" | "capstone";
+
+export type NumerologyConcept = {
+  title: string;
+  subtitle: string;
+  whatIs: string;
+  derived: string;
+};
+
+export const NUMEROLOGY_CONCEPTS: Record<NumerologyConceptKey, NumerologyConcept> = {
+  lifePath: {
+    title: "Life Path",
+    subtitle: "Your soul's curriculum",
+    whatIs:
+      "The headline number of your chart — the core theme of your life: your talents, your challenges, and the direction you're growing toward.",
+    derived: "from your full birth date, reduced",
+  },
+  birthday: {
+    title: "Birthday",
+    subtitle: "The gift you brought",
+    whatIs:
+      "A specific talent you carry into this life, read from the day of the month you were born.",
+    derived: "from your day of birth, reduced",
+  },
+  expression: {
+    title: "Expression",
+    subtitle: "What you came here to do",
+    whatIs:
+      "Your natural abilities and the work you're here to build — drawn from every letter of your birth name.",
+    derived: "from all the letters of your birth name",
+  },
+  soulUrge: {
+    title: "Soul Urge",
+    subtitle: "What your soul desires",
+    whatIs:
+      "Your inner motivation — what quietly drives you beneath the surface. Also called the Heart's Desire.",
+    derived: "from the vowels of your birth name",
+  },
+  personality: {
+    title: "Personality",
+    subtitle: "How others perceive you",
+    whatIs:
+      "The outer self — the first impression others form of you, before they know what's underneath.",
+    derived: "from the consonants of your birth name",
+  },
+  maturity: {
+    title: "Maturity",
+    subtitle: "Where you're heading",
+    whatIs:
+      "A goal that comes into focus in the second half of life, as your Life Path and Expression settle into one direction.",
+    derived: "from your Life Path plus your Expression",
+  },
+  personalYear: {
+    title: "Personal Year",
+    subtitle: "This year's theme",
+    whatIs:
+      "The theme of your current year, moving through a nine-year arc — from fresh beginnings (1) to release and completion (9).",
+    derived: "from your birth month and day plus the current year",
+  },
+  personalMonth: {
+    title: "Personal Month",
+    subtitle: "This month's flavour",
+    whatIs:
+      "The flavour of the current month, nested inside the larger arc of your Personal Year.",
+    derived: "from your Personal Year plus the calendar month",
+  },
+  personalDay: {
+    title: "Personal Day",
+    subtitle: "Today's micro-theme",
+    whatIs:
+      "The mood of a single day, sitting inside your Personal Month and Year. It turns over at midnight.",
+    derived: "from your Personal Month plus today's date",
+  },
+  pinnacle: {
+    title: "Pinnacle",
+    subtitle: "A long season of opportunity",
+    whatIs:
+      "One of four long life phases, each carrying its own kind of opportunity and lesson to grow into.",
+    derived: "from combinations of your birth month, day, and year",
+  },
+  challenge: {
+    title: "Challenge",
+    subtitle: "The obstacle to master",
+    whatIs:
+      "The recurring friction of a life phase — the obstacle that becomes a strength once you work through it.",
+    derived: "from the differences between parts of your birth date",
+  },
+  periodCycle: {
+    title: "Period Cycle",
+    subtitle: "A major life stage",
+    whatIs:
+      "One of three broad life stages — the formative years, the productive middle, and the harvest — each coloured by a number.",
+    derived: "from your birth month, day, and year",
+  },
+  karmicDebt: {
+    title: "Karmic Debt",
+    subtitle: "A lesson carried in",
+    whatIs:
+      "Certain numbers (13, 14, 16, 19) flag a deeper lesson said to be carried into this life — and the work of resolving it.",
+    derived: "from a double-digit total before it was reduced",
+  },
+  karmicLesson: {
+    title: "Karmic Lesson",
+    subtitle: "A skill to develop",
+    whatIs:
+      "A number missing from your birth name points to a quality you're here to cultivate this time around.",
+    derived: "from the numbers absent in your birth name",
+  },
+  hiddenPassion: {
+    title: "Hidden Passion",
+    subtitle: "Your dominant gift",
+    whatIs:
+      "The number that appears most often in your name — a talent so natural it can feel almost like an obsession.",
+    derived: "from the most-repeated number in your birth name",
+  },
+  cornerstone: {
+    title: "Cornerstone",
+    subtitle: "How you begin",
+    whatIs:
+      "The first letter of your first name — how you approach new things and meet the world.",
+    derived: "from the first letter of your first name",
+  },
+  capstone: {
+    title: "Capstone",
+    subtitle: "How you finish",
+    whatIs:
+      "The last letter of your first name — how you carry things through to completion.",
+    derived: "from the last letter of your first name",
+  },
+};

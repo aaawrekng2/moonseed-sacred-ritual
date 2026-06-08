@@ -22,6 +22,8 @@ import {
   type KarmicDebt,
   type Numerogram,
 } from "@/lib/numerology";
+import { NumerologyConceptTip } from "./NumerologyConceptTip";
+import type { NumerologyConceptKey } from "@/lib/numerology-copy";
 import {
   KARMIC_DEBT_MEANINGS,
   KARMIC_LESSON_MEANINGS,
@@ -328,7 +330,14 @@ function CoreNumbers({
         }}
       >
         {cells.map((c, i) => (
-          <CoreNumberCard key={i} {...c} />
+          <NumerologyConceptTip
+            key={i}
+            concept={CORE_CONCEPT_BY_LABEL[c.label] ?? "lifePath"}
+            value={c.value.digit}
+            block
+          >
+            <CoreNumberCard {...c} />
+          </NumerologyConceptTip>
         ))}
       </div>
       {!hasName && (
@@ -339,6 +348,14 @@ function CoreNumbers({
     </Section>
   );
 }
+
+const CORE_CONCEPT_BY_LABEL: Record<string, NumerologyConceptKey> = {
+  "Life Path": "lifePath",
+  Expression: "expression",
+  "Soul Urge": "soulUrge",
+  Personality: "personality",
+  Birthday: "birthday",
+};
 
 function CoreNumberCard({
   value,
@@ -426,7 +443,8 @@ function KarmicDebtSection({
         {debts.map((d, i) => {
           const m = KARMIC_DEBT_MEANINGS[d.number];
           return (
-            <ExpandableCard key={i} fullText={m.full}>
+            <NumerologyConceptTip concept="karmicDebt" value={d.number} meaning={m.full} block>
+<ExpandableCard key={i} fullText={m.full}>
               <div
                 style={{
                   display: "flex",
@@ -450,6 +468,7 @@ function KarmicDebtSection({
                 </div>
               </div>
             </ExpandableCard>
+</NumerologyConceptTip>
           );
         })}
       </div>
@@ -477,7 +496,8 @@ function KarmicLessonsSection({ birthName }: { birthName: string }) {
           {lessons.map((digit) => {
             const m = KARMIC_LESSON_MEANINGS[digit];
             return (
-              <ExpandableCard key={digit} fullText={m.full}>
+              <NumerologyConceptTip concept="karmicLesson" value={digit} meaning={m.full} block>
+<ExpandableCard key={digit} fullText={m.full}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <span style={{ ...goldDigitStyle, fontSize: "var(--text-heading-lg)" }}>{digit}</span>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -494,6 +514,7 @@ function KarmicLessonsSection({ birthName }: { birthName: string }) {
                   </div>
                 </div>
               </ExpandableCard>
+</NumerologyConceptTip>
             );
           })}
         </div>
@@ -512,7 +533,8 @@ function HiddenPassionSection({ birthName }: { birthName: string }) {
       header="Hidden Passion"
       subtitle="The number that appears most often in your name. Where your inner drive lives."
     >
-      <ExpandableCard fullText={m.full}>
+      <NumerologyConceptTip concept="hiddenPassion" value={hp.digit} meaning={m.full} block>
+<ExpandableCard fullText={m.full}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span style={goldDigitStyle}>{hp.digit}</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -529,6 +551,7 @@ function HiddenPassionSection({ birthName }: { birthName: string }) {
           </div>
         </div>
       </ExpandableCard>
+</NumerologyConceptTip>
     </Section>
   );
 }
@@ -585,7 +608,8 @@ function LetterCard({
 }) {
   const energy = LETTER_ENERGY_MEANINGS[digit];
   return (
-    <ExpandableCard fullText={energy}>
+    <NumerologyConceptTip concept={label === "Cornerstone" ? "cornerstone" : "capstone"} value={letter} meaning={energy} block>
+<ExpandableCard fullText={energy}>
       <div
         style={{
           display: "flex",
@@ -601,6 +625,7 @@ function LetterCard({
         </span>
       </div>
     </ExpandableCard>
+</NumerologyConceptTip>
   );
 }
 
@@ -623,11 +648,18 @@ function MaturitySection({
       header="Maturity Number"
       subtitle="What you grow into in the second half of life (~35 onward)."
     >
-      <MaturityFocalCard
-        digit={mat.digit}
-        arcana={arcana}
-        matchesBirthCard={matchesBirthCard}
-      />
+      <NumerologyConceptTip
+        concept="maturity"
+        value={mat.digit}
+        meaning={NUMBER_MEANINGS[mat.digit]?.full}
+        block
+      >
+        <MaturityFocalCard
+          digit={mat.digit}
+          arcana={arcana}
+          matchesBirthCard={matchesBirthCard}
+        />
+      </NumerologyConceptTip>
     </Section>
   );
 }
