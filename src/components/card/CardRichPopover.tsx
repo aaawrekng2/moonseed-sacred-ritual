@@ -333,7 +333,7 @@ export function CardHoverTip({
   const openTimer = useRef<number>(0);
   const closeTimer = useRef<number>(0);
 
-  const POP_W = 340;
+  const POP_W = 320;
 
   const show = () => {
     window.clearTimeout(closeTimer.current);

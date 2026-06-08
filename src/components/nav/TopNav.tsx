@@ -271,6 +271,7 @@ export const TOP_NAV_ROUTES = [
   "/insights",
   "/settings",
   "/draw",
+  "/card-numbering",
 ] as const;
 
 /** True when the current pathname is one of the TopNav routes. */
