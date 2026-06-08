@@ -1,5 +1,5 @@
 import { getCardName } from "@/lib/tarot";
-import type { StalkerCardsResult } from "@/lib/insights.types";
+import type { StalkerCardsResult, InsightsFilters } from "@/lib/insights.types";
 import { CardImage } from "@/components/card/CardImage";
 import { CardHoverTip } from "@/components/card/CardRichPopover";
 
