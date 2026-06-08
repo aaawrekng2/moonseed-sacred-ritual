@@ -485,7 +485,7 @@ function Index() {
       <section
         ref={heroSectionRef}
         className="flex flex-col items-center justify-start px-6"
-        style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0, overflow: "hidden" }}
+        style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0 }}
       >
         <div
           style={{
