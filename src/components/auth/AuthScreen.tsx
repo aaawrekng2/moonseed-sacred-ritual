@@ -32,34 +32,76 @@ type AuthMode =
 type DownloadStage = "idle" | "downloading" | "done" | "error";
 
 /**
- * Cheap probe: does the seeker have any rows on this device's session
- * worth backing up before account creation? Resolves quickly via HEAD
- * counts on the tables that matter.
+ * Cheap probe: does the seeker have any GENUINE user content on this
+ * device's session worth backing up before account creation? Resolves
+ * quickly via HEAD counts.
+ *
+ * EK71 — counts only deliberate user content and never the auto-provisioned
+ * default deck. Earlier this counted any custom_decks row, so a brand-new
+ * seeker who only has the built-in Rider-Waite default tripped the
+ * "download your data first" modal even with nothing logged. Now:
+ *   • readings   — any row is real content.
+ *   • user_tags  — any row is a deliberate user action.
+ *   • custom_decks — ONLY a deck the seeker actually made: photographed
+ *     (cards_photographed_count > 0) OR imported (source_zip_path set).
+ *     The default deck has neither, so it is never counted, regardless of
+ *     whether it exists as a seeded row or only as the built-in fallback.
  */
 async function userHasData(userId: string): Promise<boolean> {
-  const tables: Array<"readings" | "custom_decks" | "user_tags"> = [
-    "readings",
-    "custom_decks",
-    "user_tags",
-  ];
-  for (const t of tables) {
-    try {
-      const { count } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (
+  const sb = supabase as unknown as {
+    from: (t: string) => {
+      select: (
+        c: string,
+        o: { count: "exact"; head: true },
+      ) => {
+        eq: (c: string, v: string) => Promise<{ count: number | null }> & {
+          gt: (c: string, v: number) => Promise<{ count: number | null }>;
+          not: (
             c: string,
-            o: { count: "exact"; head: true },
-          ) => { eq: (c: string, v: string) => Promise<{ count: number | null }> };
+            op: string,
+            v: null,
+          ) => Promise<{ count: number | null }>;
         };
-      })
-        .from(t)
+      };
+    };
+  };
+
+  const anyRow = async (table: string): Promise<boolean> => {
+    try {
+      const { count } = await sb
+        .from(table)
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
-      if ((count ?? 0) > 0) return true;
+      return (count ?? 0) > 0;
     } catch {
-      // best-effort; treat as no data on transient failures.
+      return false;
     }
+  };
+
+  if (await anyRow("readings")) return true;
+  if (await anyRow("user_tags")) return true;
+
+  try {
+    const { count } = await sb
+      .from("custom_decks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gt("cards_photographed_count", 0);
+    if ((count ?? 0) > 0) return true;
+  } catch {
+    // best-effort
   }
+  try {
+    const { count } = await sb
+      .from("custom_decks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .not("source_zip_path", "is", null);
+    if ((count ?? 0) > 0) return true;
+  } catch {
+    // best-effort
+  }
+
   return false;
 }
 

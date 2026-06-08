@@ -235,7 +235,7 @@ export function CardRichPopoverContent({
     <>
     <div
       style={{
-        width: 320,
+        width: 340,
         maxHeight: "calc(100vh - 16px)",
         overflowY: "auto",
         background: "var(--surface-card)",
@@ -333,7 +333,7 @@ export function CardHoverTip({
   const openTimer = useRef<number>(0);
   const closeTimer = useRef<number>(0);
 
-  const POP_W = 320;
+  const POP_W = 340;
 
   const show = () => {
     window.clearTimeout(closeTimer.current);
