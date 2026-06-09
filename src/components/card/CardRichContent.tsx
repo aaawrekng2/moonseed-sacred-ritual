@@ -38,6 +38,49 @@ const MONTH_NAMES = [
 ];
 
 const HIDDEN_LS_KEY = "tarotseed:cardpopover:hidden";
+const SLIM_LS_KEY = "tarotseed:cardpopover:slim";
+const STAGE_LS_KEY = "tarotseed:cardpopover:stage";
+
+// Slim/first-hover items the seeker can toggle on the left edit pane.
+type SlimId =
+  | "count"
+  | "last-seen"
+  | "reversed"
+  | "rank"
+  | "moon-phase"
+  | "time-of-day"
+  | "day-of-week"
+  | "longest-gap"
+  | "avg-spacing"
+  | "tag-bias";
+
+const ALL_SLIM_IDS: SlimId[] = [
+  "count",
+  "last-seen",
+  "reversed",
+  "rank",
+  "moon-phase",
+  "time-of-day",
+  "day-of-week",
+  "longest-gap",
+  "avg-spacing",
+  "tag-bias",
+];
+
+const SLIM_LABELS: Record<SlimId, string> = {
+  count: "Pull count",
+  "last-seen": "Last seen",
+  reversed: "Reversed %",
+  rank: "Rank",
+  "moon-phase": "Moon phase",
+  "time-of-day": "Time of day",
+  "day-of-week": "Day of week",
+  "longest-gap": "Longest gap",
+  "avg-spacing": "Avg spacing",
+  "tag-bias": "Tag bias",
+};
+
+const SLIM_DEFAULT_VISIBLE: SlimId[] = ["count", "last-seen", "reversed"];
 
 function loadHiddenSections(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -48,6 +91,28 @@ function loadHiddenSections(): Set<string> {
     return new Set(Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : []);
   } catch {
     return new Set();
+  }
+}
+
+function loadSlimVisible(): Set<string> {
+  if (typeof window === "undefined") return new Set(SLIM_DEFAULT_VISIBLE);
+  try {
+    const raw = window.localStorage.getItem(SLIM_LS_KEY);
+    if (!raw) return new Set(SLIM_DEFAULT_VISIBLE);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : SLIM_DEFAULT_VISIBLE);
+  } catch {
+    return new Set(SLIM_DEFAULT_VISIBLE);
+  }
+}
+
+/** "1" = hover jumps straight to rich; "2" = hover shows slim, click → rich. */
+export function loadHoverStage(): "1" | "2" {
+  if (typeof window === "undefined") return "2";
+  try {
+    return window.localStorage.getItem(STAGE_LS_KEY) === "1" ? "1" : "2";
+  } catch {
+    return "2";
   }
 }
 
@@ -62,6 +127,8 @@ export function CardRichContent({
   resolveCardName,
   tz,
   allowReversed = true,
+  variant = "rich",
+  onEscalate,
 }: {
   cardId: number;
   stats: CardPopoverData | null;
@@ -73,6 +140,10 @@ export function CardRichContent({
   resolveCardName: (id: number) => string;
   tz: string;
   allowReversed?: boolean;
+  /** "slim" = compact first-hover peek; "rich" = full body (default). */
+  variant?: "slim" | "rich";
+  /** Called when the seeker clicks the slim peek to expand to rich. */
+  onEscalate?: () => void;
 }) {
   const tarotMeaning = TAROT_MEANINGS[cardId];
   const isOracle = !tarotMeaning;
@@ -134,6 +205,8 @@ export function CardRichContent({
 
   const [editing, setEditing] = useState(false);
   const [hidden, setHidden] = useState<Set<string>>(loadHiddenSections);
+  const [slimVisible, setSlimVisible] = useState<Set<string>>(loadSlimVisible);
+  const [hoverStage, setHoverStage] = useState<"1" | "2">(loadHoverStage);
 
   const toggleSection = (k: string) => {
     setHidden((prev) => {
@@ -148,6 +221,216 @@ export function CardRichContent({
       return next;
     });
   };
+
+  const toggleSlim = (k: string) => {
+    setSlimVisible((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      try {
+        window.localStorage.setItem(SLIM_LS_KEY, JSON.stringify([...next]));
+      } catch {
+        // best-effort persistence
+      }
+      return next;
+    });
+  };
+
+  const setStage = (s: "1" | "2") => {
+    setHoverStage(s);
+    try {
+      window.localStorage.setItem(STAGE_LS_KEY, s);
+    } catch {
+      // best-effort persistence
+    }
+  };
+
+  // Value string for a slim item, or null when there's no data for it.
+  const slimValue = (id: SlimId): string | null => {
+    switch (id) {
+      case "count":
+        return `${count} ${count === 1 ? "pull" : "pulls"}`;
+      case "last-seen":
+        return lastSeenIso ? `Seen ${formatTimeAgo(lastSeenIso)}` : null;
+      case "reversed":
+        return reversedPct !== null ? `${Math.round(reversedPct * 100)}% reversed` : null;
+      case "rank":
+        return rank ? `Rank #${rank}` : null;
+      case "moon-phase":
+        return moonPhaseLabel ?? null;
+      case "time-of-day":
+        return timeBucketLabel ? timeBucketLabel.replace(/^in the /, "") : null;
+      case "day-of-week":
+        return topDayOfWeek ? `${topDayOfWeek.day}s` : null;
+      case "longest-gap":
+        return longestGapDays !== null ? `Gap ${longestGapDays}d` : null;
+      case "avg-spacing":
+        return avgSpacingDays !== null ? `~${avgSpacingDays}d apart` : null;
+      case "tag-bias":
+        return topTag ? topTag.tag : null;
+      default:
+        return null;
+    }
+  };
+
+  // ── Slim / first-hover peek ──────────────────────────────────────────
+  if (variant === "slim") {
+    const chips = ALL_SLIM_IDS.filter((id) => slimVisible.has(id))
+      .map((id) => ({ id, value: slimValue(id) }))
+      .filter((c): c is { id: SlimId; value: string } => c.value !== null);
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onEscalate?.()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onEscalate?.();
+          }
+        }}
+        style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 8 }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: 16,
+            color: "var(--color-foreground)",
+            lineHeight: 1.15,
+          }}
+        >
+          {m.name}
+        </div>
+        {chips.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {chips.map((c) => (
+              <span
+                key={c.id}
+                style={{
+                  fontSize: 11,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                  color: "var(--color-foreground)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {c.value}
+              </span>
+            ))}
+          </div>
+        )}
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            color: "var(--accent, var(--gold))",
+            opacity: 0.6,
+          }}
+        >
+          click for details
+        </div>
+      </div>
+    );
+  }
+
+  // Left "first hover shows" editor pane + stage toggle (rich edit mode).
+  const editLeftPane = (
+    <div style={{ flex: "0 0 150px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          paddingBottom: 8,
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--color-foreground-muted, var(--color-foreground))",
+          }}
+        >
+          Hover
+        </span>
+        {(["2", "1"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStage(s)}
+            style={{
+              fontSize: 10,
+              padding: "2px 7px",
+              borderRadius: 999,
+              border: "none",
+              cursor: "pointer",
+              background:
+                hoverStage === s
+                  ? "color-mix(in oklab, var(--accent, var(--gold)) 16%, transparent)"
+                  : "transparent",
+              color:
+                hoverStage === s
+                  ? "var(--accent, var(--gold))"
+                  : "var(--color-foreground-muted, var(--color-foreground))",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s === "2" ? "Peek first" : "Show details"}
+          </button>
+        ))}
+      </div>
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.85,
+        }}
+      >
+        First hover shows
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {ALL_SLIM_IDS.map((id) => {
+          const on = slimVisible.has(id);
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => toggleSlim(id)}
+              aria-label={on ? `Hide ${SLIM_LABELS[id]} from first hover` : `Show ${SLIM_LABELS[id]} in first hover`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 12,
+                color: "var(--color-foreground)",
+                opacity: on ? 1 : 0.4,
+                textAlign: "left",
+              }}
+            >
+              {on ? (
+                <Eye size={13} style={{ color: "var(--accent, var(--gold))", flexShrink: 0 }} />
+              ) : (
+                <EyeOff size={13} style={{ flexShrink: 0 }} />
+              )}
+              {SLIM_LABELS[id]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   // Wraps each row/section with hide logic + the edit-mode eye in the gutter.
   const sec = (k: string, label: string, node: ReactNode, eyeTop = 1) => {
@@ -195,16 +478,7 @@ export function CardRichContent({
   };
 
   return (
-    <div
-      style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        paddingLeft: 22,
-        paddingTop: 2,
-      }}
-    >
+    <div style={{ position: "relative", paddingTop: 2 }}>
       {/* Gear — upper-left. Toggles edit mode (eyes per section). */}
       <button
         type="button"
@@ -237,6 +511,18 @@ export function CardRichContent({
         <Settings size={12} />
       </button>
 
+      <div style={{ display: "flex", gap: editing ? 16 : 0, alignItems: "flex-start" }}>
+        {editing && editLeftPane}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            paddingLeft: 22,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
       {/* Header — name + roman numeral, subtitle of arcana/sign */}
       {sec(
         "header",
@@ -836,6 +1122,8 @@ export function CardRichContent({
             </div>
           ),
         )}
+        </div>
+      </div>
     </div>
   );
 }
