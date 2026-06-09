@@ -517,7 +517,7 @@ export function CardRichPopoverContent({
         showConstellation={showConstellation}
         constellation={constellation}
         heroPick={heroPick}
-        pulls={pulls}
+        pulls={pulls ?? undefined}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />
