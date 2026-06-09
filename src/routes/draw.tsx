@@ -101,9 +101,32 @@ function DrawPage() {
 
   // Q19 Fix 8 — cache in-progress manual picks at the route level so
   // toggling Manual → Table → Manual preserves the seeker's selections.
+  // EK89 — also persist per spread to localStorage so the manual slots
+  // survive a reload / PWA restart (auto-restored on return).
   const [manualPicksCache, setManualPicksCache] = useState<(ManualPick | null)[] | undefined>(
-    undefined,
+    () => {
+      if (typeof window === "undefined") return undefined;
+      try {
+        const raw = window.localStorage.getItem(`tarotseed:manual:picks:${spread}`);
+        return raw ? (JSON.parse(raw) as (ManualPick | null)[]) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
   );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `tarotseed:manual:picks:${spread}`;
+    try {
+      if (manualPicksCache && manualPicksCache.some((p) => p)) {
+        window.localStorage.setItem(key, JSON.stringify(manualPicksCache));
+      } else {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      // best-effort persistence
+    }
+  }, [spread, manualPicksCache]);
 
   const viewport = useViewport();
 

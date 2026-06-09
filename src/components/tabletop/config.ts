@@ -240,13 +240,41 @@ export function adaptiveHitInset(
 }
 
 const tabletopSessions = new Map<string, TabletopSession>();
+// EK89 — persist the table session (card placement + undo/redo) to
+// localStorage, keyed by spread, so a half-finished draw survives a reload
+// / PWA restart. The in-memory Map stays as a fast same-session cache; it's
+// seeded from localStorage on first read.
+const SESSION_LS_PREFIX = "tarotseed:tabletop:session:";
 
 export function readTabletopSession(spread: string): TabletopSession | null {
-  return tabletopSessions.get(spread) ?? null;
+  const mem = tabletopSessions.get(spread);
+  if (mem) return mem;
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SESSION_LS_PREFIX + spread);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TabletopSession;
+    tabletopSessions.set(spread, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 export function writeTabletopSession(spread: string, snapshot: TabletopSession) {
   tabletopSessions.set(spread, snapshot);
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SESSION_LS_PREFIX + spread, JSON.stringify(snapshot));
+  } catch {
+    // best-effort persistence — localStorage may be unavailable / full.
+  }
 }
 export function clearTabletopSession(spread: string) {
   tabletopSessions.delete(spread);
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(SESSION_LS_PREFIX + spread);
+  } catch {
+    // ignore
+  }
 }
