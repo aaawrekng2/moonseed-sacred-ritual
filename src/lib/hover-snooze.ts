@@ -70,7 +70,8 @@ export function clearSnooze() {
   writeUntil(null);
 }
 
-/** Reactive snooze state — updates when changed from any surface. */
+/** Reactive snooze state — updates when changed from any surface, and
+ *  auto-flips back on when a timed snooze expires. */
 export function useHoverSnooze() {
   const [until, setUntil] = useState<number>(getSnoozeUntil());
   useEffect(() => {
@@ -82,5 +83,14 @@ export function useHoverSnooze() {
       window.removeEventListener("storage", h);
     };
   }, []);
+  // When a timed snooze is active, re-render the moment it lapses so any
+  // on/off switch flips back on by itself.
+  useEffect(() => {
+    if (!until || until >= SNOOZE_INDEFINITE) return;
+    const ms = until - Date.now();
+    if (ms <= 0) return;
+    const t = window.setTimeout(() => setUntil(getSnoozeUntil()), ms + 50);
+    return () => window.clearTimeout(t);
+  }, [until]);
   return { until, snoozed: Date.now() < until };
 }
