@@ -654,6 +654,7 @@ export function InsightsCardConstellation({
           heroDrawCount={heroBadgeValue}
           heroBadgeTooltip={heroBadgeTooltip}
           tealBadge={tealBadge}
+          emptyVariant="skeleton"
           onHeroBadgeClick={() => setReadingsModal({ kind: "hero" })}
           onTealBadgeClick={() => setReadingsModal({ kind: "teal" })}
           onTealBadgeHover={() => setAsterismBadgeHovered(true)}
