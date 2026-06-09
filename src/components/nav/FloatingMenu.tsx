@@ -9,6 +9,7 @@ import {
   UserRound,
   Wand2,
   Bell,
+  MoreHorizontal,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useSavedThemes } from "@/lib/use-saved-themes";
@@ -499,6 +500,41 @@ export function FloatingMenu() {
           </MenuButton>
         )}
       </div>
+
+      {/* EK81 — always-visible ··· trigger. The pill above renders at
+          opacity 0 until `open`, and nothing called openMenu() anymore, so
+          the menu was unreachable. This dots button opens it; it hides while
+          open (the pill takes over) and has its own pointerEvents so it stays
+          tappable even though the container is pointer-none at rest. */}
+      {!open && (
+        <button
+          type="button"
+          onClick={openMenu}
+          aria-label="Open menu"
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 34,
+            height: 34,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 999,
+            border: "1px solid color-mix(in oklch, var(--gold) 12%, transparent)",
+            background: "oklch(0.10 0.03 280 / 35%)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            boxShadow: "0 2px 16px oklch(0 0 0 / 0.25)",
+            color: "var(--color-foreground)",
+            cursor: "pointer",
+            pointerEvents: "auto",
+            opacity: "var(--ro-plus-20)",
+          }}
+        >
+          <MoreHorizontal size={18} strokeWidth={1.5} />
+        </button>
+      )}
 
       {tapLabel && (
         <div
