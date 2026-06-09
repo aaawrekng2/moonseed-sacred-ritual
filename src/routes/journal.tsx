@@ -66,7 +66,10 @@ import { EmptyNote } from "@/components/ui/empty-note";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import { EMPTY_GLOBAL_FILTERS, type GlobalFilters } from "@/lib/filters.types";
 import { useTimezone } from "@/lib/use-timezone";
-import { FloatingMenu } from "@/components/nav/FloatingMenu";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { useHoverSnooze, applySnooze, clearSnooze } from "@/lib/hover-snooze";
+import { Eye as EyeIcon } from "lucide-react";
 import {
   addDaysInTz,
   currentTzOrFallback,
@@ -251,6 +254,30 @@ function JournalPage() {
   const { user, loading: authLoading } = useAuth();
   const { effectiveTz } = useTimezone();
   const tz = currentTzOrFallback(effectiveTz);
+  // EK82 — left fly-out hamburger (same PageMenu as manual entry), holding
+  // the Hover-tips On/Off control wired to the shared popover snooze.
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  const { snoozed: hoverSnoozed } = useHoverSnooze();
+  const pageMenuSections: PageMenuSection[] = [
+    {
+      id: "display",
+      title: "Display",
+      items: [
+        {
+          id: "hover-tips",
+          label: "Hover tips",
+          description: "Rich popovers when you hover a card",
+          Icon: EyeIcon,
+          mode: "cycle",
+          cycleLabel: hoverSnoozed ? "Off" : "On",
+          onClick: () => {
+            if (hoverSnoozed) clearSnooze();
+            else applySnooze("indefinite");
+          },
+        },
+      ],
+    },
+  ];
   const { batch: batchParam } = Route.useSearch();
   const navigate = useNavigate();
   // FU-8 — iOS large-to-compact title collapse driven by main scroll.
@@ -636,8 +663,15 @@ function JournalPage() {
         height: "calc(100dvh - var(--topbar-pad))",
       }}
     >
-      {/* EK80 — the ··· hamburger (carries the Hide-hover-tips control). */}
-      <FloatingMenu />
+      {/* EK82 — hamburger (☰ PageMenu), same as manual entry. Holds the
+          Hover-tips On/Off control. Replaces the wrongly-used ··· menu. */}
+      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+      <PageMenu
+        open={pageMenuOpen}
+        onClose={() => setPageMenuOpen(false)}
+        sections={pageMenuSections}
+        title="Journal"
+      />
       {/* Sticky header — title, search, filter button, tab row.
           Sits OUTSIDE <main> so its glass blends with the route bg
           rather than scrolling content (FU-11). */}

@@ -1789,7 +1789,9 @@ button:focus-visible .moon-rung-glow {
      popover bounds; the text wraps to two or three lines for the
      longer chip explanations. */
   white-space: normal;
-  max-width: 200px;
+  min-width: 160px;
+  max-width: 300px;
+  width: max-content;
   margin-bottom: 6px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }

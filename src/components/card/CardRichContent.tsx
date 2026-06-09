@@ -85,6 +85,20 @@ const SLIM_LABELS: Record<SlimId, string> = {
 
 const SLIM_DEFAULT_VISIBLE: SlimId[] = ["count", "last-seen", "reversed"];
 
+// EK82 — one-line hover hints for the rich popover's sections. Stats tiles
+// (rank/pulls/reversed) carry their own per-tile hints; these cover the rest.
+const SECTION_HINTS: Record<string, string> = {
+  moon: "The moon phase this card most often shows up under in your readings",
+  time: "The time of day you most often draw this card",
+  dow: "The weekday this card lands on most often",
+  sparkline: "How often this card appeared each month over the last year",
+  meaning_upright: "What this card means when it appears upright",
+  meaning_reversed: "What this card means when it appears reversed",
+  companions: "Cards that most often show up alongside this one",
+  timeline: "When you first and last drew this card, and your draw streak",
+  tag: "The tag this card skews toward more than your average reading",
+};
+
 function loadHiddenSections(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
@@ -625,6 +639,15 @@ export function CardRichContent({
   const sec = (k: string, label: string, node: ReactNode, eyeTop = 1) => {
     const isHidden = hidden.has(k);
     if (!editing && isHidden) return null;
+    const hint = SECTION_HINTS[k];
+    const body =
+      hint && !editing ? (
+        <span className="tarotseed-mini-tip" data-tarotseed-tip={hint} style={{ display: "block" }}>
+          {node}
+        </span>
+      ) : (
+        node
+      );
     return (
       <div
         style={{
@@ -661,7 +684,7 @@ export function CardRichContent({
             {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         )}
-        {node}
+        {body}
       </div>
     );
   };
@@ -774,6 +797,8 @@ export function CardRichContent({
             }}
           >
             <div
+              className="tarotseed-mini-tip"
+              data-tarotseed-tip={slimTitle("rank")}
               style={{
                 background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
                 borderRadius: 6,
@@ -806,6 +831,8 @@ export function CardRichContent({
               </div>
             </div>
             <div
+              className="tarotseed-mini-tip"
+              data-tarotseed-tip={slimTitle("count")}
               style={{
                 background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
                 borderRadius: 6,
@@ -839,6 +866,8 @@ export function CardRichContent({
             </div>
             {reversedPct !== null && (
               <div
+                className="tarotseed-mini-tip"
+                data-tarotseed-tip={slimTitle("reversed")}
                 style={{
                   background: "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
                   borderRadius: 6,
