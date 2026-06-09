@@ -66,6 +66,7 @@ import { EmptyNote } from "@/components/ui/empty-note";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import { EMPTY_GLOBAL_FILTERS, type GlobalFilters } from "@/lib/filters.types";
 import { useTimezone } from "@/lib/use-timezone";
+import { FloatingMenu } from "@/components/nav/FloatingMenu";
 import {
   addDaysInTz,
   currentTzOrFallback,
@@ -635,6 +636,8 @@ function JournalPage() {
         height: "calc(100dvh - var(--topbar-pad))",
       }}
     >
+      {/* EK80 — the ··· hamburger (carries the Hide-hover-tips control). */}
+      <FloatingMenu />
       {/* Sticky header — title, search, filter button, tab row.
           Sits OUTSIDE <main> so its glass blends with the route bg
           rather than scrolling content (FU-11). */}

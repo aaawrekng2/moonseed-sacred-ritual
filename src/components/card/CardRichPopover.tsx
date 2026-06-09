@@ -533,6 +533,8 @@ export function CardRichPopoverContent({
             onMouseLeave={() => {
               nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
             }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <CardRichPopoverContent
               cardId={nested.cardId}
@@ -610,7 +612,11 @@ function PinnedCard({
     (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
   };
   return (
-    <div style={{ position: "fixed", left: p.left, top: p.top, zIndex: 201 }}>
+    <div
+      style={{ position: "fixed", left: p.left, top: p.top, zIndex: 201 }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div style={{ position: "relative" }}>
         <div
           onPointerDown={onPointerDown}
@@ -773,6 +779,8 @@ export function CardHoverTip({
             }}
             onMouseEnter={() => window.clearTimeout(closeTimer.current)}
             onMouseLeave={hide}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <CardRichPopoverContent
               cardId={cardId}

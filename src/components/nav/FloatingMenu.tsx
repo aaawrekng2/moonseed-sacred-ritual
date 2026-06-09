@@ -366,30 +366,74 @@ export function FloatingMenu() {
                 zIndex: 60,
               }}
             >
+              {/* On/off switch — on = tips showing; flip off = hidden until
+                  turned back on. A timed choice below flips it off for a while
+                  and it returns by itself. */}
+              <button
+                type="button"
+                onClick={() => {
+                  resetTimer();
+                  if (tipsSnoozed) clearSnooze();
+                  else applySnooze("indefinite");
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "6px 8px",
+                  border: "none",
+                  borderRadius: "var(--radius-sm, 6px)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                }}
+                aria-label={tipsSnoozed ? "Turn hover tips on" : "Turn hover tips off"}
+              >
+                <span>Hover tips</span>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 32,
+                    height: 18,
+                    borderRadius: 999,
+                    background: !tipsSnoozed
+                      ? "var(--accent, var(--gold))"
+                      : "var(--border-strong, var(--border-default))",
+                    position: "relative",
+                    transition: "background 140ms ease-out",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      left: !tipsSnoozed ? 16 : 2,
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      background: "var(--surface-card)",
+                      transition: "left 140ms ease-out",
+                    }}
+                  />
+                </span>
+              </button>
               <div
                 style={{
                   fontSize: 10,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   color: "var(--color-foreground-muted, var(--color-foreground))",
-                  padding: "4px 8px 2px",
+                  padding: "6px 8px 2px",
+                  borderTop: "1px solid var(--border-subtle)",
+                  marginTop: 2,
                 }}
               >
-                Hide hover tips
+                Hide for
               </div>
-              {tipsSnoozed && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetTimer();
-                    clearSnooze();
-                    setTipsMenuOpen(false);
-                  }}
-                  style={tipsMenuItemStyle(true)}
-                >
-                  Show hover tips
-                </button>
-              )}
               {SNOOZE_OPTIONS.map((opt) => (
                 <button
                   key={String(opt.value)}
