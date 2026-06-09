@@ -27,7 +27,7 @@ import { getCardName, cardType } from "@/lib/tarot";
 import { getCardMeaning } from "@/lib/tarot-meanings";
 import { formatDateLong, formatTimeAgo } from "@/lib/dates";
 import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
-import { CardRichContent } from "@/components/card/CardRichContent";
+import { CardRichContent, loadHoverStage } from "@/components/card/CardRichContent";
 import { useAnyDeckCardName } from "@/lib/active-deck";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
@@ -140,6 +140,8 @@ export function CardRichPopoverContent({
   filters,
   showConstellation = true,
   preload,
+  variant = "rich",
+  onEscalate,
 }: {
   cardId: number;
   filters: InsightsFilters;
@@ -152,6 +154,10 @@ export function CardRichPopoverContent({
    *  don't trigger a redundant round-trip. Omit it to let the component
    *  fetch for itself (Insights, and future surfaces). */
   preload?: CardRichPreload;
+  /** EK74 — "slim" = compact first-hover peek; "rich" = full body (default). */
+  variant?: "slim" | "rich";
+  /** EK74 — clicking the slim peek escalates to rich. */
+  onEscalate?: () => void;
 }) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
@@ -231,6 +237,35 @@ export function CardRichPopoverContent({
     stats?.monthCounts?.reduce((a, n) => a + n, 0) ??
     (constellation ? constellation.matches.length : 0);
 
+  if (variant === "slim") {
+    return (
+      <div
+        style={{
+          width: 240,
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-lg)",
+          padding: "10px 12px",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+        }}
+      >
+        <CardRichContent
+          cardId={cardId}
+          stats={stats}
+          rank={rank?.rank ?? null}
+          universeSize={rank?.universe ?? 0}
+          count={count}
+          firstSeenIso={firstSeen}
+          lastSeenIso={lastSeen}
+          resolveCardName={resolveCardName}
+          tz={tz}
+          variant="slim"
+          onEscalate={onEscalate}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
     <div
@@ -257,6 +292,7 @@ export function CardRichPopoverContent({
             onCardClick={() => {}}
             tealSelectedIds={[]}
             heroDrawCount={pulls}
+            emptyVariant="skeleton"
             onCardHover={(cid, x, y) =>
               setWebHover(cid != null ? { name: resolveCardName(cid), x, y } : null)
             }
@@ -327,7 +363,7 @@ export function CardHoverTip({
   showConstellation?: boolean;
   preload?: CardRichPreload;
 }) {
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"slim" | "rich" | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const ref = useRef<HTMLSpanElement | null>(null);
   const openTimer = useRef<number>(0);
@@ -348,12 +384,19 @@ export function CardHoverTip({
       // as much of itself as possible (it grows up to full window height).
       const top = 8;
       setPos({ left, top });
-      setOpen(true);
+      // EK74 — 1-stage jumps straight to rich; 2-stage shows the slim peek.
+      setMode(loadHoverStage() === "1" ? "rich" : "slim");
     }, 220);
   };
   const hide = () => {
     window.clearTimeout(openTimer.current);
-    closeTimer.current = window.setTimeout(() => setOpen(false), 160);
+    closeTimer.current = window.setTimeout(() => setMode(null), 160);
+  };
+  // EK74 — clicking the slim peek expands to the rich body in place. The
+  // cursor is inside the portal, so the close timer is already paused.
+  const escalate = () => {
+    window.clearTimeout(closeTimer.current);
+    setMode("rich");
   };
 
   useEffect(() => {
@@ -372,7 +415,7 @@ export function CardHoverTip({
       style={{ display: "block" }}
     >
       {children}
-      {open &&
+      {mode &&
         pos &&
         typeof document !== "undefined" &&
         createPortal(
@@ -389,8 +432,10 @@ export function CardHoverTip({
             <CardRichPopoverContent
               cardId={cardId}
               filters={filters}
-              showConstellation={showConstellation}
+              showConstellation={mode === "rich" && showConstellation}
               preload={preload}
+              variant={mode}
+              onEscalate={escalate}
             />
           </div>,
           document.body,

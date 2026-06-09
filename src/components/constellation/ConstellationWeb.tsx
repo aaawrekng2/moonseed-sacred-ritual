@@ -7,6 +7,7 @@
  */
 import { useMemo } from "react";
 import { CardImage } from "@/components/card/CardImage";
+import { ConstellationGhostSkeleton } from "@/components/constellation/ConstellationGhostSkeleton";
 import { useAnyDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
@@ -118,6 +119,10 @@ type Props = {
    * constellation cardId on `dragover`, null on `dragleave`. The
    * parent tracks this in state to drive the highlight. */
   onConstellationDragOver?: (cardId: number | null) => void;
+  /** EK74 — what to show when there is no hero/constellation yet.
+   *  "prompt" (default) = "add a card to begin" text (manual-entry page).
+   *  "skeleton" = the constellation-shaped ghost (popover, Insights). */
+  emptyVariant?: "prompt" | "skeleton";
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -174,6 +179,7 @@ export function ConstellationWeb({
   onConstellationDrop = undefined,
   dragOverTargetId = null,
   onConstellationDragOver = undefined,
+  emptyVariant = "prompt",
 }: Props) {
   // EJ35 — resolve oracle card names through the active deck's
   // card_name overrides so the pair-line tooltip and any other
@@ -193,26 +199,40 @@ export function ConstellationWeb({
     >
       {/* Phase 20 Fix 3 — inner title block deleted; page H1 carries the name. */}
       {!heroPick || !constellation ? (
-        <div
-          style={{
-            width: "100%",
-            aspectRatio: `${SVG_W} / ${SVG_H}`,
-            border: "1px dashed var(--border-default)",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--color-foreground-muted, var(--color-foreground))",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 13,
-            opacity: 0.7,
-            padding: 24,
-            textAlign: "center",
-          }}
-        >
-          add a card to begin
-        </div>
+        emptyVariant === "skeleton" ? (
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: `${SVG_W} / ${SVG_H}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ConstellationGhostSkeleton />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: `${SVG_W} / ${SVG_H}`,
+              border: "1px dashed var(--border-default)",
+              borderRadius: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-foreground-muted, var(--color-foreground))",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              opacity: 0.7,
+              padding: 24,
+              textAlign: "center",
+            }}
+          >
+            add a card to begin
+          </div>
+        )
       ) : (
         <ConstellationSvg
           constellation={constellation}
