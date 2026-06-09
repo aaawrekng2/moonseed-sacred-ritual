@@ -168,6 +168,7 @@ export function CardRichPopoverContent({
   onPin,
   pinnable = false,
   initialEditing = false,
+  headerInfo,
 }: {
   cardId: number;
   filters: InsightsFilters;
@@ -191,6 +192,10 @@ export function CardRichPopoverContent({
   pinnable?: boolean;
   /** EK87 — seed edit mode on open (used when escalated via the slim gear). */
   initialEditing?: boolean;
+  /** EK88 — optional content shown by an ⓘ next to the card name in the
+   *  rich header (e.g. the constellation legend on the manual-entry surface).
+   *  When omitted, no header ⓘ renders (Journal / Insights). */
+  headerInfo?: React.ReactNode;
 }) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
@@ -561,6 +566,7 @@ export function CardRichPopoverContent({
         pulls={pulls ?? undefined}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
+        headerInfo={headerInfo}
       />
     </div>
       {/* EK78 — nested dive popover for a constellation node. Recursive: the

@@ -2649,13 +2649,23 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     />
   );
 
-  const renderCardPopoverInner = (cardId: number, _opts: { editable: boolean }): React.ReactNode => (
+  const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => (
     <CardRichPopoverContent
       cardId={cardId}
       filters={popoverFilters}
       variant="rich"
-      showConstellation={false}
+      showConstellation={true}
       initialEditing={popoverEditStart}
+      headerInfo={<ConstellationLegend />}
+      pinnable={opts.editable}
+      onPin={
+        opts.editable
+          ? () => {
+              pinCard(cardId);
+              closeActivePopover("card-meaning");
+            }
+          : undefined
+      }
     />
   );
 
@@ -4014,6 +4024,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
               onClose={() => closeActivePopover("card-meaning")}
               onCancelDismiss={cancelPopoverDismiss}
               onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
+              bare
               maxWidth={300}
             >
               {/* Click anywhere on the slim body to escalate. The
@@ -4054,40 +4065,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             }}
             onCancelDismiss={cancelPopoverDismiss}
             onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
-            chainedContent={<ConstellationLegend />}
-            chainedTitle="How the constellation works"
-            extraTopRightControl={
-              <>
-                {/* EJ20 — pin to screen as a draggable modal */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    pinCard(cardId);
-                    closeActivePopover("card-meaning");
-                  }}
-                  aria-label="Pin to screen"
-                  title={
-                    isPinned(cardId) ? "Already pinned" : "Pin to screen — compare side-by-side"
-                  }
-                  disabled={isPinned(cardId)}
-                  style={{
-                    padding: 2,
-                    border: "none",
-                    background: "transparent",
-                    cursor: isPinned(cardId) ? "default" : "pointer",
-                    color: isPinned(cardId)
-                      ? "var(--accent, var(--gold))"
-                      : "var(--color-foreground-muted, var(--color-foreground))",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    opacity: isPinned(cardId) ? 0.85 : 0.7,
-                  }}
-                >
-                  <Pin size={13} strokeWidth={1.5} />
-                </button>
-              </>
-            }
+            bare
             maxWidth={600}
           >
             {/* EJ22 — split view in edit mode. Left = slim preview,
