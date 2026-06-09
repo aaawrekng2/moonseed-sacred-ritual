@@ -13,7 +13,7 @@
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { X, GripHorizontal } from "lucide-react";
+import { X, GripHorizontal, Settings, Pin } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -398,7 +398,7 @@ export function CardRichPopoverContent({
         showConstellation={showConstellation}
         constellation={constellation}
         heroPick={heroPick}
-        pulls={pulls}
+        pulls={pulls ?? undefined}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />
