@@ -280,6 +280,7 @@ export function CardRichPopoverContent({
     <>
     <div
       style={{
+        position: "relative",
         width: editing ? 580 : 340,
         maxHeight: "calc(100vh - 16px)",
         overflowY: "auto",
@@ -293,24 +294,67 @@ export function CardRichPopoverContent({
         gap: 8,
       }}
     >
-      {/* Constellation on top — hidden where the host page already shows one. */}
-      {showConstellation && !editing && (
-        <div style={{ height: 200, marginBottom: 56, position: "relative" }}>
-          <ConstellationWeb
-            heroPick={heroPick}
-            constellation={constellation}
-            onCardClick={() => {}}
-            tealSelectedIds={[]}
-            heroDrawCount={pulls}
-            emptyVariant="skeleton"
-            onCardHover={(cid, x, y) =>
-              setWebHover(cid != null ? { name: resolveCardName(cid), x, y } : null)
-            }
-          />
-        </div>
+      {/* EK77 — gear at the box's true upper-left, above everything. */}
+      <button
+        type="button"
+        onClick={() => setEditing((v) => !v)}
+        aria-label={editing ? "Done editing" : "Edit which sections show"}
+        title={editing ? "Done" : "Show / hide sections"}
+        style={{
+          position: "absolute",
+          left: 10,
+          top: 10,
+          width: 20,
+          height: 20,
+          padding: 0,
+          border: editing
+            ? "1px solid var(--accent, var(--gold))"
+            : "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-sm, 6px)",
+          background: editing
+            ? "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)"
+            : "var(--surface-card)",
+          cursor: "pointer",
+          color: "var(--accent, var(--gold))",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: editing ? 1 : 0.85,
+          zIndex: 3,
+        }}
+      >
+        <Settings size={12} />
+      </button>
+      {/* EK77 — pin at the box's true upper-right. */}
+      {pinnable && onPin && !editing && (
+        <button
+          type="button"
+          onClick={onPin}
+          aria-label="Pin to screen"
+          title="Pin to screen — compare side by side"
+          style={{
+            position: "absolute",
+            right: 10,
+            top: 10,
+            width: 20,
+            height: 20,
+            padding: 0,
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-sm, 6px)",
+            background: "var(--surface-card)",
+            cursor: "pointer",
+            color: "var(--color-foreground-muted, var(--color-foreground))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.85,
+            zIndex: 3,
+          }}
+        >
+          <Pin size={12} strokeWidth={1.5} />
+        </button>
       )}
-      {/* EK64 — the real draw-table popover body, from the shared
-          CardRichContent so fonts/sizes/placement match exactly. */}
+      {/* EK77 — the body now owns the constellation as a toggleable section. */}
       <CardRichContent
         cardId={cardId}
         stats={stats}
@@ -321,9 +365,11 @@ export function CardRichPopoverContent({
         lastSeenIso={lastSeen}
         resolveCardName={resolveCardName}
         tz={tz}
-        onEditingChange={setEditing}
-        onPin={onPin}
-        pinnable={pinnable}
+        editing={editing}
+        showConstellation={showConstellation}
+        constellation={constellation}
+        heroPick={heroPick}
+        pulls={pulls}
       />
     </div>
       {webHover &&

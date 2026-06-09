@@ -25,6 +25,9 @@ import { getCardMeta } from "@/lib/card-astrology";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { isoDayInTz } from "@/lib/time";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
+import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
+import type { CardConstellation } from "@/lib/quicklog.functions";
+import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import type { CardPopoverData } from "@/lib/quicklog.functions";
 
 const ROMAN = [
@@ -129,9 +132,11 @@ export function CardRichContent({
   allowReversed = true,
   variant = "rich",
   onEscalate,
-  onEditingChange,
-  onPin,
-  pinnable = false,
+  editing = false,
+  showConstellation = false,
+  constellation = null,
+  heroPick = null,
+  pulls,
 }: {
   cardId: number;
   stats: CardPopoverData | null;
@@ -147,13 +152,14 @@ export function CardRichContent({
   variant?: "slim" | "rich";
   /** Called when the seeker clicks the slim peek to expand to rich. */
   onEscalate?: () => void;
-  /** EK75 — fires when edit mode toggles, so the host can widen the card
-   *  and hide its mini-constellation while the dual pane is open. */
-  onEditingChange?: (editing: boolean) => void;
-  /** EK75 — pin the card as a draggable floating copy (host-provided). */
-  onPin?: () => void;
-  /** EK75 — show the pin button (only where the host wires onPin). */
-  pinnable?: boolean;
+  /** EK77 — edit mode is owned by the host (gear lives on the card corner). */
+  editing?: boolean;
+  /** EK77 — the constellation is now a section in the body. The host passes
+   *  the data; whether the section exists at all is gated by showConstellation. */
+  showConstellation?: boolean;
+  constellation?: CardConstellation | null;
+  heroPick?: ManualPick | null;
+  pulls?: number;
 }) {
   const tarotMeaning = TAROT_MEANINGS[cardId];
   const isOracle = !tarotMeaning;
@@ -213,7 +219,6 @@ export function CardRichContent({
     }
   }
 
-  const [editing, setEditing] = useState(false);
   const [hidden, setHidden] = useState<Set<string>>(loadHiddenSections);
   const [slimVisible, setSlimVisible] = useState<Set<string>>(loadSlimVisible);
   const [hoverStage, setHoverStage] = useState<"1" | "2">(loadHoverStage);
@@ -254,10 +259,6 @@ export function CardRichContent({
       // best-effort persistence
     }
   };
-
-  useEffect(() => {
-    onEditingChange?.(editing);
-  }, [editing, onEditingChange]);
 
   // Value string for a slim item, or null when there's no data for it.
   const slimValue = (id: SlimId): string | null => {
@@ -348,6 +349,45 @@ export function CardRichContent({
     }
   };
 
+  const slimTitle = (id: SlimId): string => {
+    switch (id) {
+      case "count":
+        return `${count} ${count === 1 ? "time" : "times"} this card has appeared in your readings (within current filters)`;
+      case "last-seen":
+        return lastSeenIso ? `Last drawn ${formatTimeAgo(lastSeenIso)}` : "Last drawn";
+      case "reversed":
+        return reversedPct !== null
+          ? `Reversed ${Math.round(reversedPct * 100)}% of the time this card has appeared`
+          : "How often this card is reversed";
+      case "rank":
+        return rank
+          ? `Ranks #${rank}${universeSize ? ` of ${universeSize}` : ""} cards by how often you draw it`
+          : "How often you draw this card vs others";
+      case "moon-phase":
+        return moonPhaseLabel ? `Drawn most often under the ${moonPhaseLabel}` : "Most common moon phase";
+      case "time-of-day":
+        return topTimeBucket ? `Most often drawn in the ${topTimeBucket.bucket}` : "Most common time of day";
+      case "day-of-week":
+        return topDayOfWeek
+          ? `Most often on ${topDayOfWeek.day}s (${topDayOfWeek.count} of ${topDayOfWeek.total})`
+          : "Most common day of the week";
+      case "longest-gap":
+        return longestGapDays !== null
+          ? `Longest stretch without this card: ${longestGapDays} ${longestGapDays === 1 ? "day" : "days"}`
+          : "Longest stretch without this card";
+      case "avg-spacing":
+        return avgSpacingDays !== null
+          ? `Average ${avgSpacingDays} ${avgSpacingDays === 1 ? "day" : "days"} between appearances`
+          : "Average spacing between appearances";
+      case "tag-bias":
+        return topTag
+          ? `Tagged "${topTag.tag}" ${topTag.multiplier}× more often with this card than your average reading`
+          : "Tag this card skews toward";
+      default:
+        return "";
+    }
+  };
+
   const renderSlimStrip = (onInfo?: () => void): ReactNode => {
     const chips = ALL_SLIM_IDS.map((id) => ({ id, value: slimChipValue(id) })).filter(
       (c): c is { id: SlimId; value: string } => slimVisible.has(c.id) && c.value !== null,
@@ -379,6 +419,8 @@ export function CardRichContent({
                   </span>
                 )}
                 <span
+                  data-tarotseed-tip={slimTitle(c.id)}
+                  className="tarotseed-mini-tip"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -386,6 +428,8 @@ export function CardRichContent({
                     fontFamily: "var(--font-serif)",
                     fontSize: 11,
                     color: "var(--color-foreground)",
+                    cursor: "help",
+                    position: "relative",
                   }}
                 >
                   <span
@@ -617,68 +661,7 @@ export function CardRichContent({
   };
 
   return (
-    <div style={{ position: "relative", paddingTop: 2 }}>
-      {/* Gear — upper-left. Toggles edit mode (eyes per section). */}
-      <button
-        type="button"
-        onClick={() => setEditing((v) => !v)}
-        aria-label={editing ? "Done editing sections" : "Edit which sections show"}
-        title={editing ? "Done" : "Show / hide sections"}
-        style={{
-          position: "absolute",
-          left: 0,
-          top: -2,
-          width: 18,
-          height: 18,
-          padding: 0,
-          border: editing
-            ? "1px solid var(--accent, var(--gold))"
-            : "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-sm, 6px)",
-          background: editing
-            ? "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)"
-            : "transparent",
-          cursor: "pointer",
-          color: "var(--accent, var(--gold))",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: editing ? 1 : 0.7,
-          zIndex: 1,
-        }}
-      >
-        <Settings size={12} />
-      </button>
-
-      {/* Pin — upper-right. Drops a draggable floating copy (host-wired). */}
-      {pinnable && onPin && !editing && (
-        <button
-          type="button"
-          onClick={onPin}
-          aria-label="Pin to screen"
-          title="Pin to screen — compare side by side"
-          style={{
-            position: "absolute",
-            right: 0,
-            top: -2,
-            width: 18,
-            height: 18,
-            padding: 0,
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            color: "var(--color-foreground-muted, var(--color-foreground))",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: 0.7,
-            zIndex: 1,
-          }}
-        >
-          <Pin size={13} strokeWidth={1.5} />
-        </button>
-      )}
-
+    <div style={{ position: "relative", paddingTop: editing ? 24 : 2 }}>
       <div style={{ display: "flex", gap: editing ? 16 : 0, alignItems: "flex-start" }}>
         {editing && editLeftPane}
         <div
@@ -691,6 +674,25 @@ export function CardRichContent({
             gap: 8,
           }}
         >
+      {/* EK77 — Constellation is now a real section (toggle + persistence
+          come from the same hidden-set as every other section). */}
+      {showConstellation &&
+        sec(
+          "constellation",
+          "Constellation",
+          (
+            <div style={{ width: "100%", marginBottom: 8 }}>
+              <ConstellationWeb
+                heroPick={heroPick}
+                constellation={constellation}
+                onCardClick={() => {}}
+                tealSelectedIds={[]}
+                heroDrawCount={pulls}
+                emptyVariant="skeleton"
+              />
+            </div>
+          ),
+        )}
       {/* Header — name + roman numeral, subtitle of arcana/sign */}
       {sec(
         "header",
