@@ -508,7 +508,7 @@ export function CardRichPopoverContent({
         showConstellation={showConstellation}
         constellation={constellation}
         heroPick={heroPick}
-        pulls={pulls ?? undefined}
+        pulls={pulls}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
       />
@@ -722,8 +722,17 @@ export function CardHoverTip({
         setPos(richPos());
         setMode("rich");
       } else {
-        const left = Math.max(8, Math.min(cursor.current.x + 12, window.innerWidth - SLIM_W - 8));
-        const top = Math.max(8, cursor.current.y + 12);
+        // EK82 — anchor the peek to the CARD (not the cursor) so it holds
+        // still and the seeker can travel onto it to read the chip hints.
+        const el = ref.current;
+        const r = el?.getBoundingClientRect();
+        const cardLeft = r?.left ?? cursor.current.x;
+        const cardBottom = r?.bottom ?? cursor.current.y;
+        const cardTop = r?.top ?? cursor.current.y;
+        const left = Math.max(8, Math.min(cardLeft, window.innerWidth - SLIM_W - 8));
+        // Prefer below the card; if that would run off the bottom, place above.
+        const belowTop = cardBottom + 6;
+        const top = belowTop + 120 > window.innerHeight ? Math.max(8, cardTop - 6 - 120) : belowTop;
         setPos({ left, top });
         setMode("slim");
       }
