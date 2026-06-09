@@ -19,7 +19,7 @@
  * Pure presentational otherwise: all data comes in via props.
  */
 import { useState, useEffect, type ReactNode } from "react";
-import { Eye, EyeOff, Settings, Pin } from "lucide-react";
+import { Eye, EyeOff, Settings, Pin, Info } from "lucide-react";
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
@@ -153,6 +153,7 @@ export function CardRichContent({
   pulls,
   onNodeHover,
   onNodeClick,
+  headerInfo,
 }: {
   cardId: number;
   stats: CardPopoverData | null;
@@ -180,6 +181,8 @@ export function CardRichContent({
    *  the host can open a nested mini / big popover for that card (diving). */
   onNodeHover?: (cardId: number | null, x: number, y: number) => void;
   onNodeClick?: (cardId: number) => void;
+  /** EK88 — optional ⓘ content shown next to the card name in the header. */
+  headerInfo?: ReactNode;
 }) {
   const tarotMeaning = TAROT_MEANINGS[cardId];
   const isOracle = !tarotMeaning;
@@ -246,6 +249,8 @@ export function CardRichContent({
   // an open popover are always available; whether the popover shows on hover
   // at all is governed by the single global hover-snooze eye in the top cluster.
   const hintsOff = false;
+  // EK88 — header ⓘ panel (e.g. constellation legend on manual entry).
+  const [headerInfoOpen, setHeaderInfoOpen] = useState(false);
   // Hint attributes for an item — empty when hints are turned off.
   const hintAttrs = (tip: string) =>
     hintsOff ? {} : { className: "tarotseed-mini-tip", "data-tarotseed-tip": tip };
@@ -744,16 +749,47 @@ export function CardRichContent({
                 gap: 8,
               }}
             >
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontStyle: "italic",
-                  fontSize: 18,
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.15,
-                }}
-              >
-                {m.name}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: 18,
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.15,
+                  }}
+                >
+                  {m.name}
+                </div>
+                {headerInfo && (
+                  <button
+                    type="button"
+                    aria-label="What this view shows"
+                    title="What this view shows"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHeaderInfoOpen((v) => !v);
+                    }}
+                    style={{
+                      flexShrink: 0,
+                      width: 18,
+                      height: 18,
+                      padding: 0,
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: headerInfoOpen
+                        ? "var(--accent, var(--gold))"
+                        : "var(--color-foreground-muted, var(--color-foreground))",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: 0.85,
+                    }}
+                  >
+                    <Info size={14} strokeWidth={1.5} />
+                  </button>
+                )}
               </div>
               {numeralOrRank && (
                 <div
@@ -784,6 +820,19 @@ export function CardRichContent({
                 }}
               >
                 {subtitle}
+              </div>
+            )}
+            {headerInfo && headerInfoOpen && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: "8px 10px",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md, 8px)",
+                  background: "var(--surface-elevated, var(--surface-card))",
+                }}
+              >
+                {headerInfo}
               </div>
             )}
           </>

@@ -60,6 +60,13 @@ export type RichPopoverProps = {
    *  shown when chainedContent is provided). Used by the constellation
    *  surface to attach a gear menu for snoozing/disabling hover tips. */
   extraTopRightControl?: React.ReactNode;
+  /** EK88 — chromeless mode: drop the popover's own border/background/
+   *  shadow/padding and skip the chained-ⓘ + extraTopRightControl row.
+   *  Used when the child already renders a full popover frame of its own
+   *  (the master CardRichPopover on the manual-entry surface) so the two
+   *  frames don't nest into "two windows". RichPopover then acts purely
+   *  as a positioner + dismiss host. */
+  bare?: boolean;
 };
 
 export function RichPopover({
@@ -75,6 +82,7 @@ export function RichPopover({
   chainedTitle = "Color guide",
   maxWidth = 280,
   extraTopRightControl,
+  bare = false,
 }: RichPopoverProps) {
   // Lock position once the cursor enters the popover so the user can
   // travel to the ⓘ icon without the popover chasing them away.
@@ -267,11 +275,11 @@ export function RichPopover({
         zIndex: "var(--z-toast)" as unknown as number,
         pointerEvents: "auto",
         maxWidth,
-        padding: "12px 14px",
-        borderRadius: 10,
-        background: "var(--surface-card)",
-        border: "1px solid var(--border-default)",
-        boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
+        padding: bare ? 0 : "12px 14px",
+        borderRadius: bare ? 0 : 10,
+        background: bare ? "transparent" : "var(--surface-card)",
+        border: bare ? "none" : "1px solid var(--border-default)",
+        boxShadow: bare ? "none" : "0 6px 22px rgba(0,0,0,0.35)",
         display: "flex",
         flexDirection: "column",
         gap: 8,
@@ -343,7 +351,7 @@ export function RichPopover({
       ) : (
         <>
           {children}
-          {chainedContent && (
+          {!bare && chainedContent && (
             <div
               style={{
                 position: "absolute",
