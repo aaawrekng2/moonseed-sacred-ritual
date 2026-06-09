@@ -67,6 +67,11 @@ export type RichPopoverProps = {
    *  frames don't nest into "two windows". RichPopover then acts purely
    *  as a positioner + dismiss host. */
   bare?: boolean;
+  /** EK89 — when set, the popover's top is pinned to this CSS value (e.g.
+   *  docked just under the page's top menu) instead of the cursor/target
+   *  vertical placement. Horizontal placement still follows the anchor.
+   *  Reuses the topbar CSS vars so it stays notch-safe across devices. */
+  dockTopCss?: string;
 };
 
 export function RichPopover({
@@ -83,6 +88,7 @@ export function RichPopover({
   maxWidth = 280,
   extraTopRightControl,
   bare = false,
+  dockTopCss,
 }: RichPopoverProps) {
   // Lock position once the cursor enters the popover so the user can
   // travel to the ⓘ icon without the popover chasing them away.
@@ -271,7 +277,7 @@ export function RichPopover({
       style={{
         position: "fixed",
         left: finalLeft,
-        top: finalTop,
+        top: dockTopCss ?? finalTop,
         zIndex: "var(--z-toast)" as unknown as number,
         pointerEvents: "auto",
         maxWidth,

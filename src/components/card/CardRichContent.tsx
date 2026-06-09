@@ -526,7 +526,7 @@ export function CardRichContent({
         }}
         style={{ cursor: "pointer", padding: "4px 8px" }}
       >
-        {renderSlimStrip(() => onEscalate?.())}
+        {renderSlimStrip()}
       </div>
     );
   }

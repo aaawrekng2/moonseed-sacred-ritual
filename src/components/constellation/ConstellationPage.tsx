@@ -1924,19 +1924,49 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // EK57 — Days (YYYY-MM-DD) the currently-hovered constellation card
   // was drawn on, within the filtered universe. Passed to the calendar
   // so those days get a trace-color stroke while the card is hovered.
+  // EK89 — asterism ring hover-preview on the calendar.
+  //  • Nothing selected → hovering a card rings every day that card appears.
+  //  • One+ cards already selected → hovering an UNSELECTED card previews the
+  //    set (selection ∪ hovered): only days where ALL of them co-occur ring,
+  //    per the same-pull / same-day pill — i.e. what clicking it would commit.
+  //  • Hovering an already-selected card leaves the committed rings untouched
+  //    (no preview), since there's nothing to add. (EK89 decision b.)
   const hoverStrokeYmds = useMemo(() => {
     const s = new Set<string>();
     if (hoverCardId === null || !overlap?.readingsByDate) return s;
+    if (tealSelectedIds.includes(hoverCardId)) return s;
+    const previewSet = new Set<number>([...tealSelectedIds, hoverCardId]);
+    if (previewSet.size <= 1) {
+      // Nothing selected — ring every day the hovered card was drawn.
+      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+        if (readings.some((r) => r.cardIds.includes(hoverCardId))) s.add(date);
+      }
+      return s;
+    }
+    // Selection + hovered — ring days where the whole preview set co-occurs.
     for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-      for (const r of readings) {
-        if (r.cardIds.includes(hoverCardId)) {
-          s.add(date);
-          break;
+      if (overlapMode === "pull") {
+        const hit = readings.some((r) => {
+          const cardSet = new Set(r.cardIds);
+          for (const id of previewSet) if (!cardSet.has(id)) return false;
+          return true;
+        });
+        if (hit) s.add(date);
+      } else {
+        const sameDayCards = new Set<number>();
+        for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
+        let ok = true;
+        for (const id of previewSet) {
+          if (!sameDayCards.has(id)) {
+            ok = false;
+            break;
+          }
         }
+        if (ok) s.add(date);
       }
     }
     return s;
-  }, [overlap, hoverCardId]);
+  }, [overlap, hoverCardId, tealSelectedIds, overlapMode]);
 
   // EK58 — how many (most-recent) calendar months the grid12 strip
   // should show, driven by the active time range. Fixed windows show
@@ -2452,6 +2482,29 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // reference it. View swap + calendar cycler as before; "Clear all
   // picks" appears only when picks are placed.
   const pageMenuSections: PageMenuSection[] = [
+    // EK89 — Clear at the very top of the menu; empties the slots and the
+    // teal asterism picks (via handleClearAll). Shown only when slots hold cards.
+    ...(picks.length > 0
+      ? [
+          {
+            id: "clear",
+            title: "Clear",
+            items: [
+              {
+                id: "clear-all",
+                label: "Clear slots",
+                description: "Empty the slots and reset this reading",
+                Icon: Trash2,
+                mode: "navigate" as const,
+                onClick: () => {
+                  setPageMenuOpen(false);
+                  handleClearAll();
+                },
+              },
+            ],
+          },
+        ]
+      : []),
     {
       id: "view-swap",
       title: "View",
@@ -2532,27 +2585,6 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         },
       ],
     },
-    ...(picks.length > 0
-      ? [
-          {
-            id: "actions",
-            title: "Actions",
-            items: [
-              {
-                id: "clear-all",
-                label: "Clear all picks",
-                description: "Empty the slots and reset this reading",
-                Icon: Trash2,
-                mode: "navigate" as const,
-                onClick: () => {
-                  setPageMenuOpen(false);
-                  handleClearAll();
-                },
-              },
-            ],
-          },
-        ]
-      : []),
   ];
 
   const handleRemoveSlot = (slotIdx: number) => {
@@ -4067,6 +4099,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
             bare
             maxWidth={600}
+            dockTopCss="calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 52px)"
           >
             {/* EJ22 — split view in edit mode. Left = slim preview,
                 right = full popover body with section toggles. The
