@@ -13,7 +13,7 @@
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { X, GripHorizontal, Settings, Pin, Bell } from "lucide-react";
+import { X, GripHorizontal, Settings, Pin, Bell, Eye } from "lucide-react";
 import {
   isHoverSnoozed,
   applySnooze,
@@ -212,6 +212,12 @@ export function CardRichPopoverContent({
 
   const handleNodeHover = (cid: number | null, x: number, y: number) => {
     window.clearTimeout(nestedCloseTimer.current);
+    // EK83 — the hero node IS this card; hovering it must NOT spawn a
+    // duplicate popover of the same card. Companions still dive.
+    if (cid != null && cid === cardId) {
+      nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
+      return;
+    }
     if (cid == null) {
       nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
       return;
@@ -224,6 +230,7 @@ export function CardRichPopoverContent({
     );
   };
   const handleNodeClick = (cid: number) => {
+    if (cid === cardId) return; // EK83 — hero is self; no dive.
     window.clearTimeout(nestedCloseTimer.current);
     const { x, y } = lastNodePos.current;
     setNested({ cardId: cid, mode: "rich", x, y });
@@ -334,9 +341,11 @@ export function CardRichPopoverContent({
     <div
       style={{
         position: "relative",
-        width: editing ? 580 : 340,
+        width: editing ? "min(580px, calc(100vw - 16px))" : "min(340px, calc(100vw - 16px))",
+        maxWidth: "calc(100vw - 16px)",
         maxHeight: "calc(100vh - 16px)",
         overflowY: "auto",
+        overflowX: "hidden",
         background: "var(--surface-card)",
         border: "1px solid var(--border-subtle)",
         borderRadius: "var(--radius-lg)",
@@ -434,7 +443,7 @@ export function CardRichPopoverContent({
               opacity: 0.85,
             }}
           >
-            <Bell size={12} strokeWidth={1.5} />
+            <Eye size={12} strokeWidth={1.5} />
           </button>
           {bellOpen && (
             <div

@@ -68,8 +68,8 @@ import { EMPTY_GLOBAL_FILTERS, type GlobalFilters } from "@/lib/filters.types";
 import { useTimezone } from "@/lib/use-timezone";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
-import { useHoverSnooze, applySnooze, clearSnooze } from "@/lib/hover-snooze";
-import { Eye as EyeIcon } from "lucide-react";
+import { useHoverSnooze, applySnooze, clearSnooze, SNOOZE_OPTIONS } from "@/lib/hover-snooze";
+import { Eye as EyeIcon, EyeOff as EyeOffIcon, Clock as ClockIcon } from "lucide-react";
 import {
   addDaysInTz,
   currentTzOrFallback,
@@ -260,16 +260,23 @@ function JournalPage() {
   const { snoozed: hoverSnoozed } = useHoverSnooze();
   const pageMenuSections: PageMenuSection[] = [
     {
-      id: "display",
-      title: "Display",
+      id: "hover-tips",
+      title: "Hover tips",
       items: [
+        ...SNOOZE_OPTIONS.filter((o) => o.value !== "indefinite").map((o) => ({
+          id: `snooze-${String(o.value)}`,
+          label: `Hide for ${o.label.toLowerCase()}`,
+          Icon: ClockIcon,
+          mode: "navigate" as const,
+          onClick: () => applySnooze(o.value),
+        })),
         {
-          id: "hover-tips",
+          id: "hover-tips-toggle",
           label: "Hover tips",
-          description: "Rich popovers when you hover a card",
-          Icon: EyeIcon,
-          mode: "cycle",
-          cycleLabel: hoverSnoozed ? "Off" : "On",
+          description: hoverSnoozed ? "Currently off" : "Currently on",
+          Icon: hoverSnoozed ? EyeOffIcon : EyeIcon,
+          mode: "toggle" as const,
+          on: !hoverSnoozed,
           onClick: () => {
             if (hoverSnoozed) clearSnooze();
             else applySnooze("indefinite");
