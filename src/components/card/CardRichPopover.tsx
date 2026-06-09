@@ -13,7 +13,14 @@
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { X, GripHorizontal, Settings, Pin } from "lucide-react";
+import { X, GripHorizontal, Settings, Pin, Bell } from "lucide-react";
+import {
+  isHoverSnoozed,
+  applySnooze,
+  clearSnooze,
+  useHoverSnooze,
+  SNOOZE_OPTIONS,
+} from "@/lib/hover-snooze";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -136,6 +143,21 @@ export function allTimeFilters(tz: string): InsightsFilters {
   };
 }
 
+function menuItemStyle(highlight: boolean): React.CSSProperties {
+  return {
+    textAlign: "left",
+    fontFamily: "var(--font-serif)",
+    fontSize: 12,
+    padding: "6px 8px",
+    border: "none",
+    borderRadius: "var(--radius-sm, 6px)",
+    background: "transparent",
+    cursor: "pointer",
+    color: highlight ? "var(--accent, var(--gold))" : "var(--color-foreground)",
+    whiteSpace: "nowrap",
+  };
+}
+
 export function CardRichPopoverContent({
   cardId,
   filters,
@@ -175,6 +197,8 @@ export function CardRichPopoverContent({
   // EK75 — widen the card + hide the mini-constellation while the gear's
   // dual-pane edit is open.
   const [editing, setEditing] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const { snoozed } = useHoverSnooze();
   // EK78 — diving: hovering/clicking a node in THIS popover's constellation
   // opens a nested mini/big popover for that card. Each level manages its own.
   const [nested, setNested] = useState<{
@@ -383,6 +407,92 @@ export function CardRichPopoverContent({
           <Pin size={12} strokeWidth={1.5} />
         </button>
       )}
+      {/* EK79 — bell: snooze the hover popups for a chosen time. */}
+      {!editing && (
+        <div style={{ position: "absolute", right: 36, top: 10, zIndex: 4 }}>
+          <button
+            type="button"
+            onClick={() => setBellOpen((v) => !v)}
+            aria-label="Hide hover tips for a while"
+            title="Hide hover tips for a while"
+            style={{
+              width: 20,
+              height: 20,
+              padding: 0,
+              border: snoozed
+                ? "1px solid var(--accent, var(--gold))"
+                : "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-sm, 6px)",
+              background: snoozed
+                ? "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)"
+                : "var(--surface-card)",
+              cursor: "pointer",
+              color: snoozed ? "var(--accent, var(--gold))" : "var(--color-foreground-muted, var(--color-foreground))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 0.85,
+            }}
+          >
+            <Bell size={12} strokeWidth={1.5} />
+          </button>
+          {bellOpen && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 24,
+                minWidth: 170,
+                background: "var(--surface-elevated, var(--surface-card))",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md, 8px)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+                padding: 4,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--color-foreground-muted, var(--color-foreground))",
+                  padding: "4px 8px 2px",
+                }}
+              >
+                Hide hover tips
+              </div>
+              {snoozed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearSnooze();
+                    setBellOpen(false);
+                  }}
+                  style={menuItemStyle(true)}
+                >
+                  Turn back on
+                </button>
+              )}
+              {SNOOZE_OPTIONS.map((opt) => (
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  onClick={() => {
+                    applySnooze(opt.value);
+                    setBellOpen(false);
+                  }}
+                  style={menuItemStyle(false)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {/* EK77 — the body now owns the constellation as a toggleable section. */}
       <CardRichContent
         cardId={cardId}
@@ -512,8 +622,8 @@ function PinnedCard({
             top: -4,
             left: "50%",
             transform: "translateX(-50%)",
-            width: 56,
-            height: 20,
+            width: 120,
+            height: 22,
             cursor: "grab",
             zIndex: 4,
             display: "flex",
@@ -596,6 +706,7 @@ export function CardHoverTip({
   };
 
   const show = () => {
+    if (isHoverSnoozed()) return;
     window.clearTimeout(closeTimer.current);
     openTimer.current = window.setTimeout(() => {
       if (!ref.current) return;
