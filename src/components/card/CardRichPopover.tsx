@@ -167,6 +167,7 @@ export function CardRichPopoverContent({
   onEscalate,
   onPin,
   pinnable = false,
+  initialEditing = false,
 }: {
   cardId: number;
   filters: InsightsFilters;
@@ -181,11 +182,15 @@ export function CardRichPopoverContent({
   preload?: CardRichPreload;
   /** EK74 — "slim" = compact first-hover peek; "rich" = full body (default). */
   variant?: "slim" | "rich";
-  /** EK74 — clicking the slim peek escalates to rich. */
-  onEscalate?: () => void;
+  /** EK74 — clicking the slim peek escalates to rich. EK87 — the optional
+   *  openEdit flag (true when the slim peek's gear was tapped) opens the
+   *  rich popover straight into edit mode. */
+  onEscalate?: (openEdit?: boolean) => void;
   /** EK75 — pin button (host-wired draggable floating copy). */
   onPin?: () => void;
   pinnable?: boolean;
+  /** EK87 — seed edit mode on open (used when escalated via the slim gear). */
+  initialEditing?: boolean;
 }) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
@@ -196,7 +201,7 @@ export function CardRichPopoverContent({
   const [webHover, setWebHover] = useState<{ name: string; x: number; y: number } | null>(null);
   // EK75 — widen the card + hide the mini-constellation while the gear's
   // dual-pane edit is open.
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEditing);
   const [bellOpen, setBellOpen] = useState(false);
   const { snoozed } = useHoverSnooze();
   // EK78 — diving: hovering/clicking a node in THIS popover's constellation
@@ -206,6 +211,7 @@ export function CardRichPopoverContent({
     mode: "slim" | "rich";
     x: number;
     y: number;
+    editStart?: boolean;
   } | null>(null);
   const nestedCloseTimer = useRef<number>(0);
   const lastNodePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -310,6 +316,7 @@ export function CardRichPopoverContent({
     return (
       <div
         style={{
+          position: "relative",
           maxWidth: 360,
           width: "max-content",
           background: "var(--surface-card)",
@@ -319,6 +326,37 @@ export function CardRichPopoverContent({
           boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
         }}
       >
+        {/* EK87 — gear opens the full popover straight into edit mode. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEscalate?.(true);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          aria-label="Customize which sections show"
+          title="Customize sections"
+          style={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            width: 20,
+            height: 20,
+            padding: 0,
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-sm, 6px)",
+            background: "var(--surface-card)",
+            cursor: "pointer",
+            color: "var(--accent, var(--gold))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.85,
+            zIndex: 2,
+          }}
+        >
+          <Settings size={12} />
+        </button>
         <CardRichContent
           cardId={cardId}
           stats={stats}
@@ -553,7 +591,12 @@ export function CardRichPopoverContent({
               filters={filters}
               showConstellation
               variant={nested.mode}
-              onEscalate={() => setNested((n) => (n ? { ...n, mode: "rich" } : n))}
+              onEscalate={(openEdit) =>
+                setNested((n) =>
+                  n ? { ...n, mode: "rich", editStart: Boolean(openEdit) } : n,
+                )
+              }
+              initialEditing={nested.mode === "rich" && Boolean(nested.editStart)}
             />
           </div>,
           document.body,
@@ -703,6 +746,7 @@ export function CardHoverTip({
   preload?: CardRichPreload;
 }) {
   const [mode, setMode] = useState<"slim" | "rich" | null>(null);
+  const [escalateEdit, setEscalateEdit] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const [pinned, setPinned] = useState<{ left: number; top: number } | null>(null);
   const ref = useRef<HTMLSpanElement | null>(null);
@@ -756,8 +800,9 @@ export function CardHoverTip({
   };
   // EK75 — clicking the slim peek expands to the rich body, which jumps to
   // the top of the screen.
-  const escalate = () => {
+  const escalate = (openEdit?: boolean) => {
     window.clearTimeout(closeTimer.current);
+    setEscalateEdit(Boolean(openEdit));
     setPos(richPos());
     setMode("rich");
   };
@@ -812,6 +857,7 @@ export function CardHoverTip({
               onEscalate={escalate}
               onPin={pin}
               pinnable
+              initialEditing={mode === "rich" && escalateEdit}
             />
           </div>,
           document.body,

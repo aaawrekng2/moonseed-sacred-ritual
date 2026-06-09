@@ -1846,7 +1846,11 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // The activePopover state already carries the anchor; we just need
   // a second flag to switch between slim and rich rendering.
   const [popoverMode, setPopoverMode] = useState<"slim" | "rich">("slim");
-  const escalateToRich = useCallback(() => setPopoverMode("rich"), []);
+  const [popoverEditStart, setPopoverEditStart] = useState(false);
+  const escalateToRich = useCallback((openEdit?: boolean) => {
+    setPopoverEditStart(Boolean(openEdit));
+    setPopoverMode("rich");
+  }, []);
   // EJ23 — delay timer for opening the slim hover. 450ms matches
   // GitHub/Linear hover-card delay — long enough that an accidental
   // cursor pass-over doesn't fire, short enough that intentional
@@ -2651,6 +2655,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       filters={popoverFilters}
       variant="rich"
       showConstellation={false}
+      initialEditing={popoverEditStart}
     />
   );
 
