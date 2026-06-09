@@ -250,7 +250,8 @@ export function CardRichPopoverContent({
     return (
       <div
         style={{
-          width: 240,
+          maxWidth: 360,
+          width: "max-content",
           background: "var(--surface-card)",
           border: "1px solid var(--border-subtle)",
           borderRadius: "var(--radius-lg)",
@@ -475,17 +476,14 @@ export function CardHoverTip({
 
   const POP_W = 320;
   const SLIM_W = 240;
+  const RICH_W = 340;
 
-  // Rich popover anchors near the element and pins to the top of the screen
-  // so the full card has room to grow downward.
+  // EK76 — the rich popover sits at the top of the screen but offset so the
+  // cursor falls INSIDE its bounds (it's tall and extends down past the
+  // mouse). The mouse is therefore auto-hovering it, so the close timer
+  // never fires and it doesn't flash-then-disappear on escalate.
   const richPos = () => {
-    const el = ref.current;
-    const r = el?.getBoundingClientRect();
-    const rRight = r?.right ?? 0;
-    const rLeft = r?.left ?? 0;
-    const wantLeft = rRight + 10;
-    const left =
-      wantLeft + POP_W > window.innerWidth ? Math.max(8, rLeft - POP_W - 10) : wantLeft;
+    const left = Math.max(8, Math.min(cursor.current.x - 40, window.innerWidth - RICH_W - 8));
     return { left, top: 8 };
   };
 

@@ -287,11 +287,156 @@ export function CardRichContent({
     }
   };
 
-  // ── Slim / first-hover peek ──────────────────────────────────────────
+  // ── Slim / first-hover peek (EK76: cloned from the manual-entry slim) ──
+  // A compact horizontal strip: name + glyph-prefixed italic mini-chips
+  // separated by dots, plus an ⓘ that opens the rich body.
+  const slimGlyph = (id: SlimId): ReactNode => {
+    const s = { width: 10, height: 10, viewBox: "0 0 16 16" } as const;
+    switch (id) {
+      case "count":
+        return (<svg {...s} fill="currentColor" aria-hidden><circle cx="8" cy="8" r="3.5" /></svg>);
+      case "last-seen":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><circle cx="8" cy="8" r="6" /><line x1="8" y1="8" x2="8" y2="5" strokeLinecap="round" /><line x1="8" y1="8" x2="10.5" y2="8" strokeLinecap="round" /></svg>);
+      case "reversed":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><path d="M4 6 L8 2 L12 6" strokeLinecap="round" strokeLinejoin="round" /><path d="M12 10 L8 14 L4 10" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+      case "rank":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><path d="M3 14 L3 9 L7 9 L7 14 M7 14 L7 6 L11 6 L11 14 M11 14 L11 3 L15 3 L15 14" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+      case "moon-phase":
+        return (<svg {...s} fill="currentColor" aria-hidden><path d="M8 1 A 7 7 0 0 1 8 15 A 4 7 0 0 0 8 1" /></svg>);
+      case "time-of-day":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><circle cx="8" cy="8" r="6" /></svg>);
+      case "day-of-week":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><rect x="2" y="4" width="12" height="10" rx="1" /><line x1="2" y1="7" x2="14" y2="7" /></svg>);
+      case "longest-gap":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><line x1="2" y1="8" x2="14" y2="8" strokeLinecap="round" /><line x1="2" y1="5" x2="2" y2="11" strokeLinecap="round" /><line x1="14" y1="5" x2="14" y2="11" strokeLinecap="round" /></svg>);
+      case "avg-spacing":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><line x1="2" y1="8" x2="14" y2="8" strokeLinecap="round" strokeDasharray="2 2" /></svg>);
+      case "tag-bias":
+        return (<svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><path d="M2 7 L7 2 L14 2 L14 9 L9 14 L2 7Z" strokeLinejoin="round" /><circle cx="11" cy="5" r="0.8" fill="currentColor" /></svg>);
+      default:
+        return null;
+    }
+  };
+
+  // Manual-entry-style compact value for a slim chip (or null when no data).
+  const slimChipValue = (id: SlimId): string | null => {
+    switch (id) {
+      case "count":
+        return `${count}`;
+      case "last-seen":
+        return lastSeenIso ? formatTimeAgo(lastSeenIso) : null;
+      case "reversed":
+        return reversedPct !== null ? `${Math.round(reversedPct * 100)}%` : null;
+      case "rank":
+        return rank ? `#${rank}` : null;
+      case "moon-phase":
+        return moonPhaseLabel
+          ? moonPhaseLabel.split(" ").map((w) => w[0]).join("")
+          : null;
+      case "time-of-day":
+        return topTimeBucket ? topTimeBucket.bucket : null;
+      case "day-of-week":
+        return topDayOfWeek ? topDayOfWeek.day.slice(0, 3) : null;
+      case "longest-gap":
+        return longestGapDays !== null ? `${longestGapDays}d` : null;
+      case "avg-spacing":
+        return avgSpacingDays !== null ? `${avgSpacingDays}d` : null;
+      case "tag-bias":
+        return topTag ? `${topTag.tag} ${topTag.multiplier}×` : null;
+      default:
+        return null;
+    }
+  };
+
+  const renderSlimStrip = (onInfo?: () => void): ReactNode => {
+    const chips = ALL_SLIM_IDS.map((id) => ({ id, value: slimChipValue(id) })).filter(
+      (c): c is { id: SlimId; value: string } => slimVisible.has(c.id) && c.value !== null,
+    );
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: 12,
+            color: "var(--color-foreground)",
+            whiteSpace: "nowrap",
+            opacity: 0.9,
+          }}
+        >
+          {m.name}
+        </div>
+        {chips.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            {chips.map((c, i) => (
+              <span key={c.id} style={{ display: "inline-flex", alignItems: "center" }}>
+                {i > 0 && (
+                  <span
+                    aria-hidden
+                    style={{ color: "var(--color-foreground)", opacity: 0.25, marginRight: 8, fontSize: 10 }}
+                  >
+                    ·
+                  </span>
+                )}
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 11,
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{ color: "var(--accent, var(--gold))", opacity: 0.7, display: "inline-flex", alignItems: "center" }}
+                  >
+                    {slimGlyph(c.id)}
+                  </span>
+                  <span style={{ fontStyle: "italic" }}>{c.value}</span>
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
+        {onInfo && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInfo();
+            }}
+            aria-label="Open full card details"
+            title="Open full card details"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 18,
+              height: 18,
+              padding: 0,
+              background: "transparent",
+              border: "none",
+              color: "var(--accent, var(--gold))",
+              cursor: "pointer",
+              opacity: 0.75,
+              borderRadius: 9999,
+              flexShrink: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+              <circle cx="8" cy="8" r="6.5" />
+              <line x1="8" y1="7" x2="8" y2="11" strokeLinecap="round" />
+              <circle cx="8" cy="5" r="0.5" fill="currentColor" />
+            </svg>
+          </button>
+        )}
+      </div>
+    );
+  };
+
   if (variant === "slim") {
-    const chips = ALL_SLIM_IDS.filter((id) => slimVisible.has(id))
-      .map((id) => ({ id, value: slimValue(id) }))
-      .filter((c): c is { id: SlimId; value: string } => c.value !== null);
     return (
       <div
         role="button"
@@ -303,50 +448,9 @@ export function CardRichContent({
             onEscalate?.();
           }
         }}
-        style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 8 }}
+        style={{ cursor: "pointer", padding: "4px 8px" }}
       >
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 16,
-            color: "var(--color-foreground)",
-            lineHeight: 1.15,
-          }}
-        >
-          {m.name}
-        </div>
-        {chips.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {chips.map((c) => (
-              <span
-                key={c.id}
-                style={{
-                  fontSize: 11,
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  background: "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
-                  color: "var(--color-foreground)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {c.value}
-              </span>
-            ))}
-          </div>
-        )}
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 10,
-            letterSpacing: "0.08em",
-            color: "var(--accent, var(--gold))",
-            opacity: 0.6,
-          }}
-        >
-          click for details
-        </div>
+        {renderSlimStrip(() => onEscalate?.())}
       </div>
     );
   }
@@ -416,50 +520,9 @@ export function CardRichContent({
           borderRadius: 6,
           background: "color-mix(in oklab, var(--accent, var(--gold)) 4%, transparent)",
           padding: "8px 10px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
         }}
       >
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 14,
-            color: "var(--color-foreground)",
-            lineHeight: 1.15,
-          }}
-        >
-          {m.name}
-        </div>
-        {(() => {
-          const preview = ALL_SLIM_IDS.filter((id) => slimVisible.has(id))
-            .map((id) => slimValue(id))
-            .filter((v): v is string => v !== null);
-          return preview.length > 0 ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {preview.map((v, i) => (
-                <span
-                  key={i}
-                  style={{
-                    fontSize: 10,
-                    padding: "2px 7px",
-                    borderRadius: 999,
-                    background: "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
-                    color: "var(--color-foreground)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {v}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: 10, fontStyle: "italic", color: "var(--color-foreground-muted, var(--color-foreground))", opacity: 0.6 }}>
-              Name only
-            </div>
-          );
-        })()}
+        {renderSlimStrip()}
       </div>
       <div
         style={{
