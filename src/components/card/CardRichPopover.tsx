@@ -13,6 +13,7 @@
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
+import { X, GripHorizontal } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -142,6 +143,8 @@ export function CardRichPopoverContent({
   preload,
   variant = "rich",
   onEscalate,
+  onPin,
+  pinnable = false,
 }: {
   cardId: number;
   filters: InsightsFilters;
@@ -158,6 +161,9 @@ export function CardRichPopoverContent({
   variant?: "slim" | "rich";
   /** EK74 — clicking the slim peek escalates to rich. */
   onEscalate?: () => void;
+  /** EK75 — pin button (host-wired draggable floating copy). */
+  onPin?: () => void;
+  pinnable?: boolean;
 }) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
@@ -166,6 +172,9 @@ export function CardRichPopoverContent({
   // EK65 — name of the constellation card currently hovered inside this
   // popup, shown as a small label near the cursor.
   const [webHover, setWebHover] = useState<{ name: string; x: number; y: number } | null>(null);
+  // EK75 — widen the card + hide the mini-constellation while the gear's
+  // dual-pane edit is open.
+  const [editing, setEditing] = useState(false);
   // When preloaded, skip the fetch entirely and never re-run it.
   const hasPreload = preload !== undefined;
   const [constellation, setConstellation] = useState<CardConstellation | null>(
@@ -270,7 +279,7 @@ export function CardRichPopoverContent({
     <>
     <div
       style={{
-        width: 340,
+        width: editing ? 580 : 340,
         maxHeight: "calc(100vh - 16px)",
         overflowY: "auto",
         background: "var(--surface-card)",
@@ -284,7 +293,7 @@ export function CardRichPopoverContent({
       }}
     >
       {/* Constellation on top — hidden where the host page already shows one. */}
-      {showConstellation && (
+      {showConstellation && !editing && (
         <div style={{ height: 200, marginBottom: 56, position: "relative" }}>
           <ConstellationWeb
             heroPick={heroPick}
@@ -311,6 +320,9 @@ export function CardRichPopoverContent({
         lastSeenIso={lastSeen}
         resolveCardName={resolveCardName}
         tz={tz}
+        onEditingChange={setEditing}
+        onPin={onPin}
+        pinnable={pinnable}
       />
     </div>
       {webHover &&
@@ -348,6 +360,96 @@ export function CardRichPopoverContent({
  * popover to <body> and positions it next to the trigger, flipping to the
  * left if it would overflow the right edge.
  */
+/**
+ * EK75 — PinnedCard: a draggable floating copy of the rich popover. A small
+ * grip at top-center moves it (kept clear of the gear top-left and the close
+ * top-right so both stay clickable). Self-contained — no page dependency.
+ */
+function PinnedCard({
+  left,
+  top,
+  onClose,
+  children,
+}: {
+  left: number;
+  top: number;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const [p, setP] = useState({ left, top });
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    drag.current = { dx: e.clientX - p.left, dy: e.clientY - p.top };
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!drag.current) return;
+    setP({ left: e.clientX - drag.current.dx, top: e.clientY - drag.current.dy });
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    drag.current = null;
+    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+  };
+  return (
+    <div style={{ position: "fixed", left: p.left, top: p.top, zIndex: 201 }}>
+      <div style={{ position: "relative" }}>
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          aria-label="Drag to move"
+          style={{
+            position: "absolute",
+            top: -4,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 56,
+            height: 20,
+            cursor: "grab",
+            zIndex: 4,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            touchAction: "none",
+          }}
+        >
+          <GripHorizontal
+            size={14}
+            style={{ opacity: 0.5, color: "var(--color-foreground-muted, var(--color-foreground))" }}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close pinned card"
+          title="Close"
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -6,
+            zIndex: 5,
+            width: 20,
+            height: 20,
+            borderRadius: 999,
+            border: "1px solid var(--border-default)",
+            background: "var(--surface-card)",
+            color: "var(--color-foreground)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+          }}
+        >
+          <X size={12} strokeWidth={2} />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function CardHoverTip({
   cardId,
   filters,
@@ -365,38 +467,61 @@ export function CardHoverTip({
 }) {
   const [mode, setMode] = useState<"slim" | "rich" | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pinned, setPinned] = useState<{ left: number; top: number } | null>(null);
   const ref = useRef<HTMLSpanElement | null>(null);
+  const cursor = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const openTimer = useRef<number>(0);
   const closeTimer = useRef<number>(0);
 
   const POP_W = 320;
+  const SLIM_W = 240;
+
+  // Rich popover anchors near the element and pins to the top of the screen
+  // so the full card has room to grow downward.
+  const richPos = () => {
+    const el = ref.current;
+    const r = el?.getBoundingClientRect();
+    const rRight = r?.right ?? 0;
+    const rLeft = r?.left ?? 0;
+    const wantLeft = rRight + 10;
+    const left =
+      wantLeft + POP_W > window.innerWidth ? Math.max(8, rLeft - POP_W - 10) : wantLeft;
+    return { left, top: 8 };
+  };
 
   const show = () => {
     window.clearTimeout(closeTimer.current);
     openTimer.current = window.setTimeout(() => {
-      const el = ref.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const wantLeft = r.right + 10;
-      const left =
-        wantLeft + POP_W > window.innerWidth ? Math.max(8, r.left - POP_W - 10) : wantLeft;
-      // EK65 — pin the top near the top of the screen so the popup can show
-      // as much of itself as possible (it grows up to full window height).
-      const top = 8;
-      setPos({ left, top });
-      // EK74 — 1-stage jumps straight to rich; 2-stage shows the slim peek.
-      setMode(loadHoverStage() === "1" ? "rich" : "slim");
+      if (!ref.current) return;
+      // EK74/EK75 — 1-stage opens the rich at the top; 2-stage opens the slim
+      // peek at the cursor.
+      if (loadHoverStage() === "1") {
+        setPos(richPos());
+        setMode("rich");
+      } else {
+        const left = Math.max(8, Math.min(cursor.current.x + 12, window.innerWidth - SLIM_W - 8));
+        const top = Math.max(8, cursor.current.y + 12);
+        setPos({ left, top });
+        setMode("slim");
+      }
     }, 220);
   };
   const hide = () => {
     window.clearTimeout(openTimer.current);
     closeTimer.current = window.setTimeout(() => setMode(null), 160);
   };
-  // EK74 — clicking the slim peek expands to the rich body in place. The
-  // cursor is inside the portal, so the close timer is already paused.
+  // EK75 — clicking the slim peek expands to the rich body, which jumps to
+  // the top of the screen.
   const escalate = () => {
     window.clearTimeout(closeTimer.current);
+    setPos(richPos());
     setMode("rich");
+  };
+  // EK75 — pin a draggable floating copy; the hover popover closes.
+  const pin = () => {
+    window.clearTimeout(closeTimer.current);
+    setPinned({ left: 120, top: 80 });
+    setMode(null);
   };
 
   useEffect(() => {
@@ -411,6 +536,9 @@ export function CardHoverTip({
       ref={ref}
       className={className}
       onMouseEnter={show}
+      onMouseMove={(e) => {
+        cursor.current = { x: e.clientX, y: e.clientY };
+      }}
       onMouseLeave={hide}
       style={{ display: "block" }}
     >
@@ -436,8 +564,24 @@ export function CardHoverTip({
               preload={preload}
               variant={mode}
               onEscalate={escalate}
+              onPin={pin}
+              pinnable
             />
           </div>,
+          document.body,
+        )}
+      {pinned &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <PinnedCard left={pinned.left} top={pinned.top} onClose={() => setPinned(null)}>
+            <CardRichPopoverContent
+              cardId={cardId}
+              filters={filters}
+              showConstellation={showConstellation}
+              preload={preload}
+              variant="rich"
+            />
+          </PinnedCard>,
           document.body,
         )}
     </span>

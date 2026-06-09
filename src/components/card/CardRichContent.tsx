@@ -18,8 +18,8 @@
  *
  * Pure presentational otherwise: all data comes in via props.
  */
-import { useState, type ReactNode } from "react";
-import { Eye, EyeOff, Settings } from "lucide-react";
+import { useState, useEffect, type ReactNode } from "react";
+import { Eye, EyeOff, Settings, Pin } from "lucide-react";
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
@@ -129,6 +129,9 @@ export function CardRichContent({
   allowReversed = true,
   variant = "rich",
   onEscalate,
+  onEditingChange,
+  onPin,
+  pinnable = false,
 }: {
   cardId: number;
   stats: CardPopoverData | null;
@@ -144,6 +147,13 @@ export function CardRichContent({
   variant?: "slim" | "rich";
   /** Called when the seeker clicks the slim peek to expand to rich. */
   onEscalate?: () => void;
+  /** EK75 — fires when edit mode toggles, so the host can widen the card
+   *  and hide its mini-constellation while the dual pane is open. */
+  onEditingChange?: (editing: boolean) => void;
+  /** EK75 — pin the card as a draggable floating copy (host-provided). */
+  onPin?: () => void;
+  /** EK75 — show the pin button (only where the host wires onPin). */
+  pinnable?: boolean;
 }) {
   const tarotMeaning = TAROT_MEANINGS[cardId];
   const isOracle = !tarotMeaning;
@@ -245,6 +255,10 @@ export function CardRichContent({
     }
   };
 
+  useEffect(() => {
+    onEditingChange?.(editing);
+  }, [editing, onEditingChange]);
+
   // Value string for a slim item, or null when there's no data for it.
   const slimValue = (id: SlimId): string | null => {
     switch (id) {
@@ -339,7 +353,7 @@ export function CardRichContent({
 
   // Left "first hover shows" editor pane + stage toggle (rich edit mode).
   const editLeftPane = (
-    <div style={{ flex: "0 0 150px", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ flex: "0 0 190px", display: "flex", flexDirection: "column", gap: 10 }}>
       <div
         style={{
           display: "flex",
@@ -384,6 +398,68 @@ export function CardRichContent({
             {s === "2" ? "Peek first" : "Show details"}
           </button>
         ))}
+      </div>
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.85,
+        }}
+      >
+        Hover preview
+      </div>
+      <div
+        style={{
+          border: "1px dashed color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent)",
+          borderRadius: 6,
+          background: "color-mix(in oklab, var(--accent, var(--gold)) 4%, transparent)",
+          padding: "8px 10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: 14,
+            color: "var(--color-foreground)",
+            lineHeight: 1.15,
+          }}
+        >
+          {m.name}
+        </div>
+        {(() => {
+          const preview = ALL_SLIM_IDS.filter((id) => slimVisible.has(id))
+            .map((id) => slimValue(id))
+            .filter((v): v is string => v !== null);
+          return preview.length > 0 ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {preview.map((v, i) => (
+                <span
+                  key={i}
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 7px",
+                    borderRadius: 999,
+                    background: "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                    color: "var(--color-foreground)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {v}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 10, fontStyle: "italic", color: "var(--color-foreground-muted, var(--color-foreground))", opacity: 0.6 }}>
+              Name only
+            </div>
+          );
+        })()}
       </div>
       <div
         style={{
@@ -510,6 +586,35 @@ export function CardRichContent({
       >
         <Settings size={12} />
       </button>
+
+      {/* Pin — upper-right. Drops a draggable floating copy (host-wired). */}
+      {pinnable && onPin && !editing && (
+        <button
+          type="button"
+          onClick={onPin}
+          aria-label="Pin to screen"
+          title="Pin to screen — compare side by side"
+          style={{
+            position: "absolute",
+            right: 0,
+            top: -2,
+            width: 18,
+            height: 18,
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            color: "var(--color-foreground-muted, var(--color-foreground))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.7,
+            zIndex: 1,
+          }}
+        >
+          <Pin size={13} strokeWidth={1.5} />
+        </button>
+      )}
 
       <div style={{ display: "flex", gap: editing ? 16 : 0, alignItems: "flex-start" }}>
         {editing && editLeftPane}
