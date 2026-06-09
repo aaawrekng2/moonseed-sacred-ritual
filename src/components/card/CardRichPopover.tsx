@@ -13,7 +13,7 @@
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { X, GripHorizontal, Settings, Pin } from "lucide-react";
+import { X, GripHorizontal } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -175,6 +175,35 @@ export function CardRichPopoverContent({
   // EK75 — widen the card + hide the mini-constellation while the gear's
   // dual-pane edit is open.
   const [editing, setEditing] = useState(false);
+  // EK78 — diving: hovering/clicking a node in THIS popover's constellation
+  // opens a nested mini/big popover for that card. Each level manages its own.
+  const [nested, setNested] = useState<{
+    cardId: number;
+    mode: "slim" | "rich";
+    x: number;
+    y: number;
+  } | null>(null);
+  const nestedCloseTimer = useRef<number>(0);
+  const lastNodePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleNodeHover = (cid: number | null, x: number, y: number) => {
+    window.clearTimeout(nestedCloseTimer.current);
+    if (cid == null) {
+      nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
+      return;
+    }
+    lastNodePos.current = { x, y };
+    setNested((prev) =>
+      prev && prev.cardId === cid && prev.mode === "rich"
+        ? prev
+        : { cardId: cid, mode: "slim", x, y },
+    );
+  };
+  const handleNodeClick = (cid: number) => {
+    window.clearTimeout(nestedCloseTimer.current);
+    const { x, y } = lastNodePos.current;
+    setNested({ cardId: cid, mode: "rich", x, y });
+  };
   // When preloaded, skip the fetch entirely and never re-run it.
   const hasPreload = preload !== undefined;
   const [constellation, setConstellation] = useState<CardConstellation | null>(
@@ -369,9 +398,42 @@ export function CardRichPopoverContent({
         showConstellation={showConstellation}
         constellation={constellation}
         heroPick={heroPick}
-        pulls={pulls ?? undefined}
+        pulls={pulls}
+        onNodeHover={handleNodeHover}
+        onNodeClick={handleNodeClick}
       />
     </div>
+      {/* EK78 — nested dive popover for a constellation node. Recursive: the
+          nested popover keeps its own constellation, so the seeker can dive
+          card → card → card. */}
+      {nested &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left:
+                nested.mode === "slim"
+                  ? Math.max(8, Math.min(nested.x + 12, window.innerWidth - 240 - 8))
+                  : Math.max(8, Math.min(nested.x - 40, window.innerWidth - 340 - 8)),
+              top: nested.mode === "slim" ? Math.max(8, nested.y + 12) : 8,
+              zIndex: 210,
+            }}
+            onMouseEnter={() => window.clearTimeout(nestedCloseTimer.current)}
+            onMouseLeave={() => {
+              nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
+            }}
+          >
+            <CardRichPopoverContent
+              cardId={nested.cardId}
+              filters={filters}
+              showConstellation
+              variant={nested.mode}
+              onEscalate={() => setNested((n) => (n ? { ...n, mode: "rich" } : n))}
+            />
+          </div>,
+          document.body,
+        )}
       {webHover &&
         typeof document !== "undefined" &&
         createPortal(
