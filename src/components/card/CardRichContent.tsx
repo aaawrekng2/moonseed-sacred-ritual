@@ -167,7 +167,7 @@ export function CardRichContent({
   /** "slim" = compact first-hover peek; "rich" = full body (default). */
   variant?: "slim" | "rich";
   /** Called when the seeker clicks the slim peek to expand to rich. */
-  onEscalate?: () => void;
+  onEscalate?: (openEdit?: boolean) => void;
   /** EK77 — edit mode is owned by the host (gear lives on the card corner). */
   editing?: boolean;
   /** EK77 — the constellation is now a section in the body. The host passes
