@@ -41,7 +41,6 @@ const MONTH_NAMES = [
 ];
 
 const HIDDEN_LS_KEY = "tarotseed:cardpopover:hidden";
-const HINTS_OFF_LS_KEY = "tarotseed:cardpopover:hintsoff";
 const SLIM_LS_KEY = "tarotseed:cardpopover:slim";
 const STAGE_LS_KEY = "tarotseed:cardpopover:stage";
 
@@ -243,26 +242,10 @@ export function CardRichContent({
   const [hidden, setHidden] = useState<Set<string>>(loadHiddenSections);
   const [slimVisible, setSlimVisible] = useState<Set<string>>(loadSlimVisible);
   const [hoverStage, setHoverStage] = useState<"1" | "2">(loadHoverStage);
-  // EK83 — lower eyeball: turns the per-item hover hints off for everything
-  // below the constellation (stats, frequency, meanings, companions, …).
-  const [hintsOff, setHintsOff] = useState<boolean>(() => {
-    try {
-      return window.localStorage.getItem(HINTS_OFF_LS_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
-  const toggleHintsOff = () => {
-    setHintsOff((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(HINTS_OFF_LS_KEY, next ? "1" : "0");
-      } catch {
-        // best-effort persistence
-      }
-      return next;
-    });
-  };
+  // EK86 — the lower hints eyeball was retired. Per-item hover hints inside
+  // an open popover are always available; whether the popover shows on hover
+  // at all is governed by the single global hover-snooze eye in the top cluster.
+  const hintsOff = false;
   // Hint attributes for an item — empty when hints are turned off.
   const hintAttrs = (tip: string) =>
     hintsOff ? {} : { className: "tarotseed-mini-tip", "data-tarotseed-tip": tip };
@@ -747,35 +730,6 @@ export function CardRichContent({
             </div>
           ),
         )}
-      {/* EK83 — eyeball that turns the per-item hover hints below it on/off.
-          Hidden in edit mode (the gear owns editing there). */}
-      {!editing && (
-        <div style={{ display: "flex", justifyContent: "flex-start", marginLeft: -18, marginBottom: 2 }}>
-          <button
-            type="button"
-            onClick={toggleHintsOff}
-            aria-label={hintsOff ? "Turn hover hints on for the details below" : "Turn hover hints off for the details below"}
-            title={hintsOff ? "Hover hints off below — turn on" : "Hover hints on below — turn off"}
-            style={{
-              width: 18,
-              height: 18,
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              color: hintsOff
-                ? "var(--color-foreground-muted, var(--color-foreground))"
-                : "var(--accent, var(--gold))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: 0.85,
-            }}
-          >
-            {hintsOff ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </div>
-      )}
       {/* Header — name + roman numeral, subtitle of arcana/sign */}
       {sec(
         "header",
