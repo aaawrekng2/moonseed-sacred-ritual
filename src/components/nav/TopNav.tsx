@@ -57,7 +57,9 @@ const SCROLL_THRESHOLD = 8;
 // EJ69 — Tightened from 3000ms to 2000ms. Cori wants less hang-time
 // after seeker stops interacting; 2s is still industry-acceptable and
 // matches Stripe's collapse timing.
-const AUTO_COLLAPSE_MS = 2000;
+// EK81 — Cori finds 2s still too long; dropped to 1200ms (bottom of the
+// ~1.2–2s industry range for tap-to-expand auto-collapsing menus).
+const AUTO_COLLAPSE_MS = 1200;
 
 // EJ64 — Heights. Default = compact (icons only). Expanded = full
 // (icons + labels). Page content sits at the compact height via
