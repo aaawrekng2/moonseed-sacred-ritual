@@ -137,6 +137,8 @@ export function CardRichContent({
   constellation = null,
   heroPick = null,
   pulls,
+  onNodeHover,
+  onNodeClick,
 }: {
   cardId: number;
   stats: CardPopoverData | null;
@@ -160,6 +162,10 @@ export function CardRichContent({
   constellation?: CardConstellation | null;
   heroPick?: ManualPick | null;
   pulls?: number;
+  /** EK78 — a node in the popover's constellation was hovered / clicked, so
+   *  the host can open a nested mini / big popover for that card (diving). */
+  onNodeHover?: (cardId: number | null, x: number, y: number) => void;
+  onNodeClick?: (cardId: number) => void;
 }) {
   const tarotMeaning = TAROT_MEANINGS[cardId];
   const isOracle = !tarotMeaning;
@@ -685,10 +691,11 @@ export function CardRichContent({
               <ConstellationWeb
                 heroPick={heroPick}
                 constellation={constellation}
-                onCardClick={() => {}}
+                onCardClick={(cid) => onNodeClick?.(cid)}
                 tealSelectedIds={[]}
                 heroDrawCount={pulls}
                 emptyVariant="skeleton"
+                onCardHover={(cid, x, y) => onNodeHover?.(cid, x, y)}
               />
             </div>
           ),
