@@ -8,6 +8,7 @@ import {
   RotateCw,
   UserRound,
   Wand2,
+  Bell,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useSavedThemes } from "@/lib/use-saved-themes";
@@ -20,6 +21,12 @@ import { setDevMode } from "@/components/dev/DevOverlay";
 import { supabase } from "@/lib/supabase";
 import { emitMoonPrefsChanged, useMoonPrefs } from "@/lib/use-moon-prefs";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import {
+  useHoverSnooze,
+  applySnooze,
+  clearSnooze,
+  SNOOZE_OPTIONS,
+} from "@/lib/hover-snooze";
 
 /**
  * Global floating ··· menu. Mounted ONCE in __root.tsx, hovers above
@@ -34,6 +41,21 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
  * through `floating-menu-context` so the menu itself never needs to
  * know which route is active.
  */
+function tipsMenuItemStyle(highlight: boolean): React.CSSProperties {
+  return {
+    textAlign: "left",
+    fontFamily: "var(--font-serif)",
+    fontSize: 12,
+    padding: "6px 8px",
+    border: "none",
+    borderRadius: "var(--radius-sm, 6px)",
+    background: "transparent",
+    cursor: "pointer",
+    color: highlight ? "var(--accent, var(--gold))" : "var(--color-foreground)",
+    whiteSpace: "nowrap",
+  };
+}
+
 export function FloatingMenu() {
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } = useFloatingMenu();
@@ -90,6 +112,8 @@ export function FloatingMenu() {
     null;
 
   const [open, setOpen] = useState(false);
+  const [tipsMenuOpen, setTipsMenuOpen] = useState(false);
+  const { snoozed: tipsSnoozed } = useHoverSnooze();
   const [phase, setPhase] = useState<"closed" | "open-bright" | "open-dim">("closed");
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -311,6 +335,78 @@ export function FloatingMenu() {
             fill={moonPrefs.moon_show_carousel ? "currentColor" : "none"}
           />
         </MenuButton>
+
+        {/* EK79 — Hide hover tips: same snooze the popover bell sets. */}
+        <div style={{ position: "relative", display: "flex" }}>
+          <MenuButton
+            onClick={() => {
+              resetTimer();
+              setTipsMenuOpen((v) => !v);
+            }}
+            ariaLabel={tipsSnoozed ? "Hover tips hidden — change" : "Hide hover tips"}
+          >
+            <Bell size={17} strokeWidth={1.5} fill={tipsSnoozed ? "currentColor" : "none"} />
+          </MenuButton>
+          {tipsMenuOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                marginTop: 6,
+                minWidth: 180,
+                background: "var(--surface-elevated, var(--surface-card))",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md, 8px)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+                padding: 4,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                zIndex: 60,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--color-foreground-muted, var(--color-foreground))",
+                  padding: "4px 8px 2px",
+                }}
+              >
+                Hide hover tips
+              </div>
+              {tipsSnoozed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetTimer();
+                    clearSnooze();
+                    setTipsMenuOpen(false);
+                  }}
+                  style={tipsMenuItemStyle(true)}
+                >
+                  Show hover tips
+                </button>
+              )}
+              {SNOOZE_OPTIONS.map((opt) => (
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  onClick={() => {
+                    resetTimer();
+                    applySnooze(opt.value);
+                    setTipsMenuOpen(false);
+                  }}
+                  style={tipsMenuItemStyle(false)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {occupied.length > 0 && (
           <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle saved themes">
