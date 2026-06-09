@@ -91,7 +91,9 @@ import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { isoDayInTz } from "@/lib/time";
 import { getPhaseOccurrences } from "@/lib/moon";
-import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
+import { CardRichPopoverContent } from "@/components/card/CardRichPopover";
+import { useHoverSnooze, applySnooze, clearSnooze } from "@/lib/hover-snooze";
+import { DEFAULT_FILTERS, type InsightsFilters } from "@/lib/insights.types";
 import { SPREADS, SPREAD_STORAGE_KEY, getSpread, type SpreadKey } from "@/lib/spreads";
 import { EMPTY_GLOBAL_FILTERS, countActiveFilters, type GlobalFilters } from "@/lib/filters.types";
 import { useConfirm } from "@/hooks/use-confirm";
@@ -576,11 +578,21 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // EJ5 — master switch for hover tips on this surface. When
   // effectiveEnabled is false, all popovers (legend ⓘ, card, badge,
   // day-cell, line) are suppressed without removing their triggers.
-  const {
-    effectiveEnabled: hoverTipsOn,
-    enabled: hoverTipsEnabled,
-    toggle: toggleHoverTips,
-  } = useConstellationHoverTips();
+  // EK84 — unified onto the shared hover-snooze store (the same one the
+  // Journal popover + hamburger use), so hover tips are ONE setting app-wide.
+  const { snoozed } = useHoverSnooze();
+  const hoverTipsOn = !snoozed;
+  const hoverTipsEnabled = !snoozed;
+  const toggleHoverTips = () => {
+    if (snoozed) clearSnooze();
+    else applySnooze("indefinite");
+  };
+  // Filters the master popover body fetches its stats with on this surface.
+  const popoverFilters: InsightsFilters = {
+    ...DEFAULT_FILTERS,
+    timeRange: "all",
+    tz: effectiveTz,
+  };
 
   // EK68 — calendar number mode: day-of-month ("dates", default) vs the
   // seeker's personal day number ("numerology"). Cycled from the fly-out.
@@ -2629,6 +2641,18 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // visible on the slim. Clicking the slim escalates to the rich
   // popover at the same anchor.
   const renderSlimHoverInner = (cardId: number): React.ReactNode => {
+    // EK84 — the manual-entry hover now uses the master popover body. The
+    // original manual-entry slim is retained below as dead fallback and is
+    // removed in EK85 once this is confirmed live.
+    return (
+      <CardRichPopoverContent
+        cardId={cardId}
+        filters={popoverFilters}
+        variant="slim"
+        showConstellation={false}
+        onEscalate={escalateToRich}
+      />
+    );
     // EJ35 — oracle cards (cardId >= 1000) aren't in TAROT_MEANINGS.
     // Previously this returned null, leaving the hover popover empty.
     // Now we synthesize a minimal entry with the deck-resolved name so
@@ -3051,6 +3075,18 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   };
 
   const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => {
+    // EK84 — delegate to the master popover body (its own gear/eye/sections
+    // handle editing). Original manual-entry body retained below as dead
+    // fallback; removed in EK85 once confirmed live.
+    void opts;
+    return (
+      <CardRichPopoverContent
+        cardId={cardId}
+        filters={popoverFilters}
+        variant="rich"
+        showConstellation={false}
+      />
+    );
     // EJ35 — oracle cards get a synthesized minimal CardMeaning so the
     // popover still renders (name + stats only). Keyword/meaning blocks
     // are guarded with `isOracle` below so they skip cleanly when we
@@ -5518,40 +5554,12 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                 >
                   <Pin size={13} strokeWidth={1.5} />
                 </button>
-                {/* EJ19 — edit-mode gear */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (popoverEditMode) {
-                      commitPopoverEditMode();
-                    } else {
-                      setPopoverEditMode(true);
-                    }
-                  }}
-                  aria-label={
-                    popoverEditMode ? "Save section preferences" : "Edit visible sections"
-                  }
-                  title={popoverEditMode ? "Save and exit edit mode" : "Edit which sections show"}
-                  style={{
-                    padding: 2,
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    color: popoverEditMode
-                      ? "var(--gold, var(--accent))"
-                      : "var(--color-foreground-muted, var(--color-foreground))",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    opacity: 0.85,
-                  }}
-                >
-                  <Pencil size={13} strokeWidth={1.5} />
-                </button>
-                <HoverTipsGear />
+                {/* EK84 — the master popover body brings its own gear (edit)
+                    and eye (hide); the manual-entry pencil + HoverTipsGear are
+                    removed to avoid duplicate controls. Pin stays (docked). */}
               </>
             }
-            maxWidth={popoverEditMode ? 580 : 320}
+            maxWidth={600}
           >
             {/* EJ22 — split view in edit mode. Left = slim preview,
                 right = full popover body with section toggles. The
