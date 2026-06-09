@@ -13,7 +13,7 @@
  */
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { X, GripHorizontal, Settings, Pin, Bell, Eye } from "lucide-react";
+import { X, GripHorizontal, Settings, Pin, Eye, EyeOff } from "lucide-react";
 import {
   isHoverSnoozed,
   applySnooze,
@@ -356,7 +356,8 @@ export function CardRichPopoverContent({
         gap: 8,
       }}
     >
-      {/* EK77 — gear at the box's true upper-left, above everything. */}
+      {/* EK86 — gear joins the right cluster: gear · hover-tips eye · pin
+          (customize → toggle → pin), all on the right. */}
       <button
         type="button"
         onClick={() => setEditing((v) => !v)}
@@ -364,7 +365,7 @@ export function CardRichPopoverContent({
         title={editing ? "Done" : "Show / hide sections"}
         style={{
           position: "absolute",
-          left: 10,
+          right: 62,
           top: 10,
           width: 20,
           height: 20,
@@ -428,22 +429,24 @@ export function CardRichPopoverContent({
               width: 20,
               height: 20,
               padding: 0,
-              border: snoozed
-                ? "1px solid var(--accent, var(--gold))"
-                : "1px solid var(--border-subtle)",
+              border: "1px solid var(--border-subtle)",
               borderRadius: "var(--radius-sm, 6px)",
-              background: snoozed
-                ? "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)"
-                : "var(--surface-card)",
+              background: "var(--surface-card)",
               cursor: "pointer",
-              color: snoozed ? "var(--accent, var(--gold))" : "var(--color-foreground-muted, var(--color-foreground))",
+              color: snoozed
+                ? "var(--color-foreground-muted, var(--color-foreground))"
+                : "#7f77dd",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               opacity: 0.85,
             }}
           >
-            <Eye size={12} strokeWidth={1.5} />
+            {snoozed ? (
+              <EyeOff size={12} strokeWidth={1.5} />
+            ) : (
+              <Eye size={12} strokeWidth={1.5} />
+            )}
           </button>
           {bellOpen && (
             <div
