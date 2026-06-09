@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Feather, Pencil, Pin, RotateCw, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, Feather, Pin, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -85,8 +85,6 @@ import {
   type ConstellationTagStat,
 } from "@/components/filters/ConstellationTagsPanel";
 import { getTagFilterStats } from "@/lib/insights.functions";
-import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
-import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
 import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { isoDayInTz } from "@/lib/time";
@@ -575,11 +573,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // appearing as raw IDs.
   const resolveCardName = useAnyDeckCardName();
 
-  // EJ5 — master switch for hover tips on this surface. When
-  // effectiveEnabled is false, all popovers (legend ⓘ, card, badge,
-  // day-cell, line) are suppressed without removing their triggers.
-  // EK84 — unified onto the shared hover-snooze store (the same one the
-  // Journal popover + hamburger use), so hover tips are ONE setting app-wide.
+  // EK85 — hover tips on this surface now read the unified hover-snooze
+  // store (System B retired). The manual-entry hover renders the master
+  // CardRichPopover popover; popoverFilters feeds it an all-time window.
   const { snoozed } = useHoverSnooze();
   const hoverTipsOn = !snoozed;
   const hoverTipsEnabled = !snoozed;
@@ -587,7 +583,6 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     if (snoozed) clearSnooze();
     else applySnooze("indefinite");
   };
-  // Filters the master popover body fetches its stats with on this surface.
   const popoverFilters: InsightsFilters = {
     ...DEFAULT_FILTERS,
     timeRange: "all",
@@ -2640,35 +2635,24 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // overlap) but renders only the items the seeker has flagged
   // visible on the slim. Clicking the slim escalates to the rich
   // popover at the same anchor.
-  const renderSlimHoverInner = (cardId: number): React.ReactNode => {
-    // EK84 — the manual-entry hover now uses the master popover body. The
-    // original manual-entry slim is retained below as dead fallback and is
-    // removed in EK85 once this is confirmed live.
-    return (
-      <CardRichPopoverContent
-        cardId={cardId}
-        filters={popoverFilters}
-        variant="slim"
-        showConstellation={false}
-        onEscalate={escalateToRich}
-      />
-    );
-  };
+  const renderSlimHoverInner = (cardId: number): React.ReactNode => (
+    <CardRichPopoverContent
+      cardId={cardId}
+      filters={popoverFilters}
+      variant="slim"
+      showConstellation={false}
+      onEscalate={escalateToRich}
+    />
+  );
 
-  const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => {
-    // EK84 — delegate to the master popover body (its own gear/eye/sections
-    // handle editing). Original manual-entry body retained below as dead
-    // fallback; removed in EK85 once confirmed live.
-    void opts;
-    return (
-      <CardRichPopoverContent
-        cardId={cardId}
-        filters={popoverFilters}
-        variant="rich"
-        showConstellation={false}
-      />
-    );
-  };
+  const renderCardPopoverInner = (cardId: number, _opts: { editable: boolean }): React.ReactNode => (
+    <CardRichPopoverContent
+      cardId={cardId}
+      filters={popoverFilters}
+      variant="rich"
+      showConstellation={false}
+    />
+  );
 
   return (
     <div
@@ -4097,9 +4081,6 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                 >
                   <Pin size={13} strokeWidth={1.5} />
                 </button>
-                {/* EK84 — the master popover body brings its own gear (edit)
-                    and eye (hide); the manual-entry pencil + HoverTipsGear are
-                    removed to avoid duplicate controls. Pin stays (docked). */}
               </>
             }
             maxWidth={600}
