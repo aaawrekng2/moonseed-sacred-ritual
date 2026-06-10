@@ -523,11 +523,11 @@ function Index() {
             onClick={() =>
               navigate({
                 to: "/draw",
-                // EJ63 — `entry: "table"` forces the scatter-table
-                // surface as the canonical landing for fresh draws
-                // from Home. The seeker can flip to manual entry
-                // via the Log toggle once on the page.
-                search: { spread: "single", entry: "table" },
+                // EK90 — Home no longer forces the scatter-table; a spread
+                // you've used before restores its last-used mode (manual or
+                // table). A spread you've never opened still defaults to the
+                // table (defaultModeFor), so fresh draws land on the table.
+                search: { spread: "single" },
               })
             }
             ariaLabel="Begin today's draw"
@@ -672,14 +672,14 @@ function Index() {
                 navigate({
                   to: "/draw",
                   // EJ63 — Force scatter-table surface from Home.
-                  search: { spread: "custom", n, entry: "table" },
+                  search: { spread: "custom", n },
                 });
                 return;
               }
               navigate({
                 to: "/draw",
                 // EJ63 — Force scatter-table surface from Home.
-                search: { spread, entry: "table" },
+                search: { spread },
               });
             }}
           />
@@ -760,7 +760,7 @@ function Index() {
               navigate({
                 to: "/draw",
                 // EJ63 — Force scatter-table surface from Home.
-                search: { spread: "custom", n: customCount, entry: "table" },
+                search: { spread: "custom", n: customCount },
               });
             }}
             className="px-6 py-2 italic"

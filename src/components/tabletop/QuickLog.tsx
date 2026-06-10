@@ -2762,70 +2762,91 @@ function OverlapStrip({
                           }
                           return <div style={shared}>{inner}</div>;
                         })()}
-                        {(isPerfectMatch || isBestAvailable) && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              inset: -2,
-                              borderRadius: 5,
-                              border: isPerfectMatch
-                                ? "2px solid var(--accent, var(--gold))"
-                                : "1.5px dashed var(--accent, var(--gold))",
-                              pointerEvents: "none",
-                            }}
-                          />
-                        )}
-                        {tealTraceHit && opacity <= 0.5 && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontFamily: "var(--font-serif)",
-                              fontStyle: "italic",
-                              fontSize: 11,
-                              lineHeight: 1,
-                              color: "var(--color-foreground)",
-                              pointerEvents: "none",
-                              zIndex: 2,
-                            }}
-                          >
-                            {displayNumber}
-                          </div>
-                        )}
-                        {tealTraceHit && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              inset: -1,
-                              borderRadius: 5,
-                              border: `2px solid ${traceColor}`,
-                              pointerEvents: "none",
-                              zIndex: 3,
-                            }}
-                          />
-                        )}
-                        {/* EK57 — hover stroke for the hovered card's
-                            drawn days. Skipped when tealTraceHit already
-                            drew the identical stroke. */}
-                        {hoverStrokeHit && !tealTraceHit && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              inset: -1,
-                              borderRadius: 5,
-                              border: `2px solid ${traceColor}`,
-                              pointerEvents: "none",
-                              zIndex: 3,
-                            }}
-                          />
-                        )}
+                        {(isPerfectMatch ||
+                          isBestAvailable ||
+                          tealTraceHit ||
+                          hoverStrokeHit) &&
+                          opacity <= 0.5 && (
+                            <div
+                              aria-hidden
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontFamily: "var(--font-serif)",
+                                fontStyle: "italic",
+                                fontSize: 11,
+                                lineHeight: 1,
+                                color: "var(--color-foreground)",
+                                pointerEvents: "none",
+                                zIndex: 2,
+                              }}
+                            >
+                              {displayNumber}
+                            </div>
+                          )}
+                        {/* EK90 — day strokes nest INWARD as inset rings: no
+                            outward room, flush to the fill, no gap. Slot model:
+                            present rings fill slots outermost-in by priority —
+                            perfect (solid accent) > best (dashed accent) >
+                            asterism (solid teal; hover preview = lighter teal).
+                            Each +1px over the prior design; full opacity so they
+                            read on dim days. Absent rings reserve no slot. */}
+                        {(() => {
+                          const rings: {
+                            thickness: number;
+                            style: string;
+                            color: string;
+                          }[] = [];
+                          if (isPerfectMatch) {
+                            rings.push({
+                              thickness: 3,
+                              style: "solid",
+                              color: "var(--accent, var(--gold))",
+                            });
+                          } else if (isBestAvailable) {
+                            rings.push({
+                              thickness: 2.5,
+                              style: "dashed",
+                              color: "var(--accent, var(--gold))",
+                            });
+                          }
+                          if (tealTraceHit) {
+                            rings.push({
+                              thickness: 3,
+                              style: "solid",
+                              color: traceColor,
+                            });
+                          } else if (hoverStrokeHit) {
+                            rings.push({
+                              thickness: 3,
+                              style: "solid",
+                              color: `color-mix(in oklab, ${traceColor} 55%, transparent)`,
+                            });
+                          }
+                          let off = 0;
+                          return rings.map((r, i) => {
+                            const node = (
+                              <div
+                                key={i}
+                                aria-hidden
+                                style={{
+                                  position: "absolute",
+                                  inset: off,
+                                  borderRadius: Math.max(2, 3 - off),
+                                  border: `${r.thickness}px ${r.style} ${r.color}`,
+                                  boxSizing: "border-box" as const,
+                                  pointerEvents: "none",
+                                  zIndex: 3,
+                                }}
+                              />
+                            );
+                            off += r.thickness;
+                            return node;
+                          });
+                        })()}
                         {/* EK59 — full/new moon indicator, top-right
                             corner, non-interactive, above fills + strokes.
                             A day is never both, so two guards are fine. */}
