@@ -2706,7 +2706,8 @@ function OverlapStrip({
                           ...(layout === "grid12"
                             ? { width: "100%", aspectRatio: "1 / 1" }
                             : { width: 20, height: 20 }),
-                          ...(pulseHoverDays && hoverStrokeHit
+                          ...(pulseHoverDays &&
+                          (asterismBadgeHovered ? tealTraceHit : hoverStrokeHit)
                             ? {
                                 animation:
                                   "tarotseed-day-pulse 1.4s ease-in-out infinite",
