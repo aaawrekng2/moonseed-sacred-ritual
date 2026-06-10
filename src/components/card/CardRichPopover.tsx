@@ -350,13 +350,15 @@ export function CardRichPopoverContent({
           title="Customize sections"
           style={{
             position: "absolute",
-            right: 8,
-            top: 8,
+            // EK99 — float at the top-right corner (offset outside) like the
+            // slot X / rotate controls, so it no longer covers the chip text.
+            right: -6,
+            top: -6,
             width: 20,
             height: 20,
             padding: 0,
             border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-sm, 6px)",
+            borderRadius: 9999,
             background: "var(--surface-card)",
             cursor: "pointer",
             color: "var(--accent, var(--gold))",
@@ -592,7 +594,9 @@ export function CardRichPopoverContent({
               top: nested.mode === "slim" ? Math.max(8, nested.y + 12) : 8,
               // EK96 — above the parent rich popover (--z-toast = 300) so the
               // nested dive tip is no longer hidden behind it.
-              zIndex: 320,
+              // EK99 — above the pinned popover (z 1100) and the slot
+              // controls (z 1000) so hover tips don't fall behind a pinned card.
+              zIndex: 1200,
             }}
             onMouseEnter={() => window.clearTimeout(nestedCloseTimer.current)}
             onMouseLeave={() => {
@@ -626,7 +630,9 @@ export function CardRichPopoverContent({
               top: webHover.y + 12,
               // EK96 — match the dive popover so the node name label isn't
               // hidden behind the rich popover either.
-              zIndex: 320,
+              // EK99 — above the pinned popover (z 1100) and the slot
+              // controls (z 1000) so hover tips don't fall behind a pinned card.
+              zIndex: 1200,
               pointerEvents: "none",
               fontFamily: "var(--font-display)",
               fontStyle: "italic",
