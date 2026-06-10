@@ -1242,6 +1242,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // tooltip position (offset slightly so it doesn't sit under the cursor).
   // Mobile is skipped — hover events don't fire on touch devices.
   const [hoverCardId, setHoverCardId] = useState<number | null>(null);
+  // EK91 — a connecting line (pair of cards) being hovered. While set, the
+  // calendar rings the days those two cards co-occurred (per the pill),
+  // taking precedence over single-card hover.
+  const [hoveredPair, setHoveredPair] = useState<{ a: number; b: number } | null>(null);
   const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -1933,7 +1937,35 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   //    (no preview), since there's nothing to add. (EK89 decision b.)
   const hoverStrokeYmds = useMemo(() => {
     const s = new Set<string>();
-    if (hoverCardId === null || !overlap?.readingsByDate) return s;
+    if (!overlap?.readingsByDate) return s;
+    // EK91 — a hovered connecting line takes precedence: ring the days where
+    // its two cards co-occurred, per the same-spread / same-day pill.
+    if (hoveredPair) {
+      const pairSet = new Set<number>([hoveredPair.a, hoveredPair.b]);
+      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+        if (overlapMode === "pull") {
+          const hit = readings.some((r) => {
+            const cardSet = new Set(r.cardIds);
+            for (const id of pairSet) if (!cardSet.has(id)) return false;
+            return true;
+          });
+          if (hit) s.add(date);
+        } else {
+          const sameDayCards = new Set<number>();
+          for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
+          let ok = true;
+          for (const id of pairSet) {
+            if (!sameDayCards.has(id)) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) s.add(date);
+        }
+      }
+      return s;
+    }
+    if (hoverCardId === null) return s;
     if (tealSelectedIds.includes(hoverCardId)) return s;
     const previewSet = new Set<number>([...tealSelectedIds, hoverCardId]);
     if (previewSet.size <= 1) {
@@ -1966,7 +1998,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       }
     }
     return s;
-  }, [overlap, hoverCardId, tealSelectedIds, overlapMode]);
+  }, [overlap, hoverCardId, tealSelectedIds, overlapMode, hoveredPair]);
 
   // EK58 — how many (most-recent) calendar months the grid12 strip
   // should show, driven by the active time range. Fixed windows show
@@ -3541,6 +3573,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             }
             onCardDragStart={(cardId) => setDraggingCardId(cardId)}
             onCardHover={handleConstellationHover}
+            onLineHover={(a, b) =>
+              setHoveredPair(a !== null && b !== undefined ? { a, b } : null)
+            }
             onConstellationDrop={handleConstellationDrop}
             dragOverTargetId={dragOverConstellationCardId}
             onConstellationDragOver={setDragOverConstellationCardId}

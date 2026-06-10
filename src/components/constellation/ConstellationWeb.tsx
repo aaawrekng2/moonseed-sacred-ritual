@@ -69,6 +69,10 @@ type Props = {
     clientY: number,
     targetRect?: DOMRect | null,
   ) => void;
+  /** EK91 — hover lifecycle for a connecting LINE between two cards.
+   *  Called with (a, b) on enter, (null) on leave. Parent rings the
+   *  calendar days where those two cards co-occurred. */
+  onLineHover?: (a: number | null, b?: number) => void;
   /** DZ — click the gold draw-count badge on the hero card.
    *  Parent opens the readings modal scoped to all hero readings. */
   onHeroBadgeClick?: () => void;
@@ -167,6 +171,7 @@ export function ConstellationWeb({
   heroDrawCount = null,
   onCardDragStart = undefined,
   onCardHover = undefined,
+  onLineHover = undefined,
   onHeroBadgeClick = undefined,
   heroBadgeTooltip = undefined,
   tealBadge = null,
@@ -243,6 +248,7 @@ export function ConstellationWeb({
           heroDrawCount={heroDrawCount}
           onCardDragStart={onCardDragStart}
           onCardHover={onCardHover}
+          onLineHover={onLineHover}
           onHeroBadgeClick={onHeroBadgeClick}
           heroBadgeTooltip={heroBadgeTooltip}
           tealBadge={tealBadge}
@@ -270,6 +276,7 @@ function ConstellationSvg({
   heroDrawCount,
   onCardDragStart,
   onCardHover,
+  onLineHover,
   onHeroBadgeClick,
   heroBadgeTooltip,
   tealBadge,
@@ -296,6 +303,7 @@ function ConstellationSvg({
     clientY: number,
     targetRect?: DOMRect | null,
   ) => void;
+  onLineHover?: (a: number | null, b?: number) => void;
   onHeroBadgeClick?: () => void;
   heroBadgeTooltip?: string;
   tealBadge?: {
@@ -452,19 +460,34 @@ function ConstellationSvg({
         const opacity = isTealLine ? 0.95 : 0.2 + weight * 0.7;
         const stroke = isTealLine ? TRACE_VAR : "var(--accent, var(--gold))";
         return (
-          <line
-            key={`${pair.a}-${pair.b}-${i}`}
-            x1={ca.cx}
-            y1={ca.cy}
-            x2={cb.cx}
-            y2={cb.cy}
-            stroke={stroke}
-            strokeWidth={strokeWidth}
-            opacity={opacity}
-            style={{ cursor: "help" }}
-          >
-            <title>{`${resolveCardName(pair.a)} + ${resolveCardName(pair.b)} — co-occurred in ${pair.count} ${pair.count === 1 ? "spread" : "spreads"} (matching your filters)`}</title>
-          </line>
+          <g key={`pairline-${pair.a}-${pair.b}-${i}`}>
+            <line
+              x1={ca.cx}
+              y1={ca.cy}
+              x2={cb.cx}
+              y2={cb.cy}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              opacity={opacity}
+              style={{ pointerEvents: "none" }}
+            />
+            {/* EK91 — transparent wide hit-area so the thin line is easy to
+                hover; on hover the parent rings the calendar days where these
+                two cards co-occurred. */}
+            <line
+              x1={ca.cx}
+              y1={ca.cy}
+              x2={cb.cx}
+              y2={cb.cy}
+              stroke="transparent"
+              strokeWidth={Math.max(12, strokeWidth + 8)}
+              style={{ cursor: "help", pointerEvents: "stroke" }}
+              onMouseEnter={() => onLineHover?.(pair.a, pair.b)}
+              onMouseLeave={() => onLineHover?.(null)}
+            >
+              <title>{`${resolveCardName(pair.a)} + ${resolveCardName(pair.b)} — co-occurred in ${pair.count} ${pair.count === 1 ? "spread" : "spreads"} (matching your filters)`}</title>
+            </line>
+          </g>
         );
       })}
 
