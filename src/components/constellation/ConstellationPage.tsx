@@ -44,6 +44,7 @@ import {
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
+import { AtlasWeb } from "@/components/constellation/AtlasWeb";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
@@ -541,9 +542,15 @@ function BadgeLegend() {
  */
 type ConstellationPageProps = {
   onSwitchToTable?: () => void;
+  /** EK101 — render the full 78-card clock (Atlas) in place of the
+   *  hero+companions web. Everything else on the page is identical. */
+  atlasMode?: boolean;
 };
 
-export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = {}) {
+export function ConstellationPage({
+  onSwitchToTable,
+  atlasMode = false,
+}: ConstellationPageProps = {}) {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
@@ -1158,6 +1165,38 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
           : constellationData.pairCounts,
     };
   }, [constellationData, companionOverrides, overlap]);
+
+  // EK101 — Atlas all-pairs co-occurrence. Only computed in atlas mode
+  // (the 78-card clock). Scans the filtered universe (overlap.readingsByDate)
+  // and counts, for every unordered pair of standard (0..77) cards, how
+  // many readings the two share. This is the line data for the clock web.
+  // The server-side pairCounts on constellationData is hero-scoped, so it
+  // can't feed an all-cards view — but the calendar already loads the full
+  // reading history, so we derive the pairs here without a new server call.
+  const atlasPairs = useMemo(() => {
+    if (!atlasMode || !overlap?.readingsByDate)
+      return [] as Array<{ a: number; b: number; count: number }>;
+    const counts = new Map<string, number>();
+    for (const readings of Object.values(overlap.readingsByDate)) {
+      for (const r of readings) {
+        const ids = Array.from(
+          new Set(r.cardIds.filter((id) => id >= 0 && id <= 77)),
+        ).sort((a, b) => a - b);
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const k = `${ids[i]}-${ids[j]}`;
+            counts.set(k, (counts.get(k) ?? 0) + 1);
+          }
+        }
+      }
+    }
+    const out: Array<{ a: number; b: number; count: number }> = [];
+    for (const [k, count] of counts) {
+      const [a, b] = k.split("-").map(Number);
+      out.push({ a, b, count });
+    }
+    return out;
+  }, [atlasMode, overlap]);
 
   // EJ9 — handler invoked when a slot card is dropped onto a constellation
   // card (hero or companion). `targetCardId` identifies the constellation
@@ -2552,6 +2591,23 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             }
           },
         },
+        // EK101 — link to the full 78-card Atlas. Hidden when we ARE the
+        // atlas page so it never links to itself.
+        ...(!atlasMode
+          ? [
+              {
+                id: "atlas",
+                label: "Full Constellation",
+                description: "See all 78 cards in one clock",
+                Icon: Sparkles,
+                mode: "navigate" as const,
+                onClick: () => {
+                  setPageMenuOpen(false);
+                  requestNavigate(() => navigate({ to: "/atlas" }));
+                },
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -3580,6 +3636,23 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
         >
           {/* EK68 — the hover-tips toggle moved into the fly-out menu
               (Display → Hover tips), freeing this space over the web. */}
+          {/* EK101 — atlas mode swaps the hero+companions web for the
+              78-card clock (all cards, Fool at 12 o'clock, clockwise).
+              Everything else on the page is unchanged. */}
+          {atlasMode ? (
+            <AtlasWeb
+              pairs={atlasPairs}
+              tealSelectedIds={tealSelectedIds}
+              onCardClick={(cardId) =>
+                setTealSelectedIds((prev) =>
+                  prev.includes(cardId)
+                    ? prev.filter((x) => x !== cardId)
+                    : [...prev, cardId],
+                )
+              }
+              onCardHover={handleConstellationHover}
+            />
+          ) : (
           <ConstellationWeb
             heroPick={heroPick}
             constellation={displayedConstellation}
@@ -3715,6 +3788,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             }}
             onPopoverDismissImmediate={() => closeActivePopover("card-meaning")}
           />
+          )}
         </div>
       </div>
 

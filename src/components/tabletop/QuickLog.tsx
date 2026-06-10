@@ -2741,8 +2741,13 @@ function OverlapStrip({
                               "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
                             boxSizing: "border-box" as const,
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
+                            // EK101 — day number sits in the bottom-left
+                            // corner of the cell (was centered, which read
+                            // as up-and-right). Small padding keeps it off
+                            // the very edge.
+                            alignItems: "flex-end",
+                            justifyContent: "flex-start",
+                            padding: "0 0 1px 2px",
                             fontFamily: "var(--font-serif)",
                             fontSize: 11,
                             fontStyle: "italic",
@@ -2760,7 +2765,6 @@ function OverlapStrip({
                                 aria-label={`Show ${dayReadingIds.length} readings on ${day.date}`}
                                 style={{
                                   ...shared,
-                                  padding: 0,
                                   cursor: "pointer",
                                 }}
                               >
@@ -2781,8 +2785,10 @@ function OverlapStrip({
                                 position: "absolute",
                                 inset: 0,
                                 display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
+                                // EK101 — match the base cell: bottom-left.
+                                alignItems: "flex-end",
+                                justifyContent: "flex-start",
+                                padding: "0 0 1px 2px",
                                 fontFamily: "var(--font-serif)",
                                 fontStyle: "italic",
                                 fontSize: 11,
