@@ -134,7 +134,12 @@ export function AtlasWeb({
         style={{
           position: "relative",
           width: STAGE,
-          height: STAGE,
+          // EK103 — square at ANY rendered width. Previously height was
+          // pinned to STAGE while width clamped via maxWidth, so on a
+          // narrow column the stage went non-square: cards (raw px) ran
+          // off the right edge and the SVG lines (which scale to fit)
+          // shrank into a smaller circle that no longer reached them.
+          aspectRatio: "1 / 1",
           maxWidth: "100%",
         }}
         onMouseMove={onMove}
@@ -205,8 +210,12 @@ export function AtlasWeb({
               onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
               style={{
                 position: "absolute",
-                left: x,
-                top: y,
+                // EK103 — percentage of the stage (not raw px) so cards
+                // scale in lockstep with the SVG line layer and with the
+                // cursor→logical mapping the magnify uses. Keeps the
+                // focused card directly under the cursor at every angle.
+                left: `${(x / STAGE) * 100}%`,
+                top: `${(y / STAGE) * 100}%`,
                 width: CARD_W,
                 transform: "translate(-50%, -50%) scale(1)",
                 transformOrigin: "center center",
@@ -232,8 +241,9 @@ export function AtlasWeb({
         <div
           style={{
             position: "absolute",
-            left: CX,
-            top: CY - R - 24,
+            // EK103 — percentage like the cards so it tracks the ring.
+            left: `${(CX / STAGE) * 100}%`,
+            top: `${((CY - R - 24) / STAGE) * 100}%`,
             transform: "translateX(-50%)",
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
