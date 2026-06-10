@@ -709,17 +709,19 @@ export function CardRichContent({
           style={{
             flex: 1,
             minWidth: 0,
-            paddingLeft: 22,
+            // EK97 — the 22px reserves room for the edit-mode section eye
+            // toggles (left:-21). Only needed while editing; in normal view
+            // it was dead space on the left.
+            paddingLeft: editing ? 22 : 0,
             display: "flex",
             flexDirection: "column",
             gap: 8,
           }}
         >
-      {/* Header — name + roman numeral, subtitle of arcana/sign */}
-      {sec(
-        "header",
-        "Header",
-        (
+      {/* EK97 — card name/header is a PERMANENT top block, never hideable.
+          The card's identity always shows at the very top, above the
+          constellation, regardless of the section toggles. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <>
             <div
               style={{
@@ -816,11 +818,9 @@ export function CardRichContent({
               </div>
             )}
           </>
-        ),
-        20,
-      )}
+      </div>
 
-      {/* EK96 — card name/header now renders ABOVE the constellation. */}
+      {/* Constellation section (renders below the permanent name header). */}
       {/* EK77 — Constellation is now a real section (toggle + persistence
           come from the same hidden-set as every other section). */}
       {showConstellation &&
