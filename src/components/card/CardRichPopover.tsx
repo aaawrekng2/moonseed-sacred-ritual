@@ -223,12 +223,10 @@ export function CardRichPopoverContent({
 
   const handleNodeHover = (cid: number | null, x: number, y: number) => {
     window.clearTimeout(nestedCloseTimer.current);
-    // EK83 — the hero node IS this card; hovering it must NOT spawn a
-    // duplicate popover of the same card. Companions still dive.
-    if (cid != null && cid === cardId) {
-      nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
-      return;
-    }
+    // EK96 — the hero node IS this card, but the seeker asked for it to get a
+    // hover tip like every other node, so it now dives too (a slim tip of the
+    // same card). (Reverses EK83, which suppressed the hero to avoid a
+    // duplicate popover of the same card.)
     if (cid == null) {
       nestedCloseTimer.current = window.setTimeout(() => setNested(null), 160);
       return;
@@ -583,7 +581,9 @@ export function CardRichPopoverContent({
                   ? Math.max(8, Math.min(nested.x + 12, window.innerWidth - 240 - 8))
                   : Math.max(8, Math.min(nested.x - 40, window.innerWidth - 340 - 8)),
               top: nested.mode === "slim" ? Math.max(8, nested.y + 12) : 8,
-              zIndex: 210,
+              // EK96 — above the parent rich popover (--z-toast = 300) so the
+              // nested dive tip is no longer hidden behind it.
+              zIndex: 320,
             }}
             onMouseEnter={() => window.clearTimeout(nestedCloseTimer.current)}
             onMouseLeave={() => {
@@ -615,7 +615,9 @@ export function CardRichPopoverContent({
               position: "fixed",
               left: webHover.x + 12,
               top: webHover.y + 12,
-              zIndex: 210,
+              // EK96 — match the dive popover so the node name label isn't
+              // hidden behind the rich popover either.
+              zIndex: 320,
               pointerEvents: "none",
               fontFamily: "var(--font-display)",
               fontStyle: "italic",

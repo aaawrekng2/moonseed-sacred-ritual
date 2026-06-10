@@ -4149,7 +4149,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
             bare
             maxWidth={600}
-            dockTopCss="calc(env(safe-area-inset-top, 0px) + var(--topbar-height) + 52px)"
+            dockTopCss="calc(env(safe-area-inset-top, 0px) + var(--topbar-height))"
           >
             {/* EJ22 — split view in edit mode. Left = slim preview,
                 right = full popover body with section toggles. The
