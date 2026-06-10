@@ -3696,6 +3696,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                 modeOrPullsLabel: unit,
                 cardLabel: names,
               });
+              // EK100 — badge takes hover priority over the card it sits on:
+              // clear the card hover so the calendar breathes only the
+              // asterism's co-occurrence days, not all of this card's days.
+              setHoverCardId(null);
               // EJ25 — signal the calendar to swap qualifying-day fills
               // from gold heatmap to solid trace color.
               setAsterismBadgeHovered(true);
@@ -3705,6 +3709,9 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
               schedulePopoverDismiss("constellation-badge");
               // EJ25 — revert calendar fills on leave.
               setAsterismBadgeHovered(false);
+              // EK100 — also clear the card hover so the breathing stops on
+              // leave instead of persisting until something else is hovered.
+              setHoverCardId(null);
             }}
             onPopoverDismissImmediate={() => closeActivePopover("card-meaning")}
           />
