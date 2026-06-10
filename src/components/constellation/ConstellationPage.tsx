@@ -1979,39 +1979,16 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       return s;
     }
     if (hoverCardId === null) return s;
-    if (tealSelectedIds.includes(hoverCardId)) return s;
-    const previewSet = new Set<number>([...tealSelectedIds, hoverCardId]);
-    if (previewSet.size <= 1) {
-      // Nothing selected — ring every day the hovered card was drawn.
-      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-        if (readings.some((r) => r.cardIds.includes(hoverCardId))) s.add(date);
-      }
-      return s;
-    }
-    // Selection + hovered — ring days where the whole preview set co-occurs.
+    // EK95 — asterism-independent hover: always ring the hovered card's OWN
+    // days, regardless of any asterism in progress. Previously the card branch
+    // previewed (selection ∪ card) and a card already in the asterism breathed
+    // nothing, so hover behavior changed once an asterism started. The link
+    // branch above is already asterism-independent; this matches it.
     for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-      if (overlapMode === "pull") {
-        const hit = readings.some((r) => {
-          const cardSet = new Set(r.cardIds);
-          for (const id of previewSet) if (!cardSet.has(id)) return false;
-          return true;
-        });
-        if (hit) s.add(date);
-      } else {
-        const sameDayCards = new Set<number>();
-        for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
-        let ok = true;
-        for (const id of previewSet) {
-          if (!sameDayCards.has(id)) {
-            ok = false;
-            break;
-          }
-        }
-        if (ok) s.add(date);
-      }
+      if (readings.some((r) => r.cardIds.includes(hoverCardId))) s.add(date);
     }
     return s;
-  }, [overlap, hoverCardId, tealSelectedIds, overlapMode, hoveredPair]);
+  }, [overlap, hoverCardId, overlapMode, hoveredPair]);
 
   // EK58 — how many (most-recent) calendar months the grid12 strip
   // should show, driven by the active time range. Fixed windows show
