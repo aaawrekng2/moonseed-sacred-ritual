@@ -715,26 +715,6 @@ export function CardRichContent({
             gap: 8,
           }}
         >
-      {/* EK77 — Constellation is now a real section (toggle + persistence
-          come from the same hidden-set as every other section). */}
-      {showConstellation &&
-        sec(
-          "constellation",
-          "Constellation",
-          (
-            <div style={{ width: "100%", marginBottom: 8 }}>
-              <ConstellationWeb
-                heroPick={heroPick}
-                constellation={constellation}
-                onCardClick={(cid) => onNodeClick?.(cid)}
-                tealSelectedIds={[]}
-                heroDrawCount={pulls}
-                emptyVariant="skeleton"
-                onCardHover={(cid, x, y) => onNodeHover?.(cid, x, y)}
-              />
-            </div>
-          ),
-        )}
       {/* Header — name + roman numeral, subtitle of arcana/sign */}
       {sec(
         "header",
@@ -839,6 +819,28 @@ export function CardRichContent({
         ),
         20,
       )}
+
+      {/* EK96 — card name/header now renders ABOVE the constellation. */}
+      {/* EK77 — Constellation is now a real section (toggle + persistence
+          come from the same hidden-set as every other section). */}
+      {showConstellation &&
+        sec(
+          "constellation",
+          "Constellation",
+          (
+            <div style={{ width: "100%", marginBottom: 8 }}>
+              <ConstellationWeb
+                heroPick={heroPick}
+                constellation={constellation}
+                onCardClick={(cid) => onNodeClick?.(cid)}
+                tealSelectedIds={[]}
+                heroDrawCount={pulls}
+                emptyVariant="skeleton"
+                onCardHover={(cid, x, y) => onNodeHover?.(cid, x, y)}
+              />
+            </div>
+          ),
+        )}
 
       {/* Stat strip — rank + pull count + reversed % */}
       {sec(
