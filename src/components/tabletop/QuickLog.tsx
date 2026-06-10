@@ -2001,6 +2001,7 @@ function OverlapStrip({
   // constellation card is hovered (the hovered card's drawn days).
   // Additive to the teal-selection trace; defaults to none.
   hoverStrokeYmds,
+  pulseHoverDays = true,
   // EK58 — grid12 month count override. When provided, the calendar
   // shows this many months (most recent first). Defaults to the legacy
   // fixed 12. Drives the responsive "months follow the time-range"
@@ -2063,6 +2064,9 @@ function OverlapStrip({
    *  constellation card. Stroked in traceColor, additive to the teal
    *  trace. Optional; absent = no hover stroke. */
   hoverStrokeYmds?: Set<string>;
+  /** EK93 — when true (default), the hovered card/line's calendar days pulse
+   *  the whole cell 20%↔100%. Toggled off from the manual-entry hamburger. */
+  pulseHoverDays?: boolean;
   /** EK58 — number of (most-recent) months to show in the grid12
    *  calendar. Optional; absent = legacy fixed 12. */
   monthsToShow?: number;
@@ -2697,15 +2701,18 @@ function OverlapStrip({
                               }
                             : undefined
                         }
-                        style={
-                          layout === "grid12"
+                        style={{
+                          position: "relative",
+                          ...(layout === "grid12"
+                            ? { width: "100%", aspectRatio: "1 / 1" }
+                            : { width: 20, height: 20 }),
+                          ...(pulseHoverDays && hoverStrokeHit
                             ? {
-                                position: "relative",
-                                width: "100%",
-                                aspectRatio: "1 / 1",
+                                animation:
+                                  "tarotseed-day-pulse 1.4s ease-in-out infinite",
                               }
-                            : { position: "relative", width: 20, height: 20 }
-                        }
+                            : null),
+                        }}
                       >
                         {(() => {
                           // DZ — collect reading ids for this day. When the

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Feather, Pin, RotateCw, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, Feather, Pin, RotateCw, Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -594,6 +594,19 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   const [calendarNumberMode, setCalendarNumberMode] = useState<"dates" | "numerology">(
     "dates",
   );
+  // EK93 — pulse the hovered card/line's calendar days (whole cell, 20%↔100%).
+  // SSR-safe default ON; hydrated from localStorage after mount. Toggled from
+  // the manual-entry hamburger (Display section).
+  const [pulseHoverDays, setPulseHoverDays] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("tarotseed:calendar:pulse") === "0") {
+        setPulseHoverDays(false);
+      }
+    } catch {
+      // ignore — default ON
+    }
+  }, []);
 
   // Phase 18 Fix 6 — hide the global BottomNav on /constellation.
   useRegisterTabletopActive(true);
@@ -2598,6 +2611,25 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             toggleHoverTips();
           },
         },
+        {
+          id: "pulse-days",
+          label: "Pulse hovered days",
+          description: "Pulse a card's calendar days when you hover it",
+          Icon: Sparkles,
+          mode: "toggle" as const,
+          on: pulseHoverDays,
+          onClick: () => {
+            setPulseHoverDays((v) => {
+              const next = !v;
+              try {
+                window.localStorage.setItem("tarotseed:calendar:pulse", next ? "1" : "0");
+              } catch {
+                // best-effort persistence
+              }
+              return next;
+            });
+          },
+        },
       ],
     },
     {
@@ -3127,6 +3159,11 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                     <button
                       type="button"
                       onClick={() => setFocusedSlotIdx(idx)}
+                      // EK94 — hovering a slot card pulses its calendar days,
+                      // same path as constellation-card hover (hoverCardId only
+                      // feeds the calendar's hoverStrokeYmds; no other effect).
+                      onMouseEnter={() => setHoverCardId(pick.cardIndex)}
+                      onMouseLeave={() => setHoverCardId(null)}
                       style={{
                         // EJ59 — Dropped the `outline: 2px solid accent;
                         // outline-offset: 2px; border-radius: 5` ring.
@@ -3728,6 +3765,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
             onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
             asterismBadgeHovered={asterismBadgeHovered}
             hoverStrokeYmds={hoverStrokeYmds}
+            pulseHoverDays={pulseHoverDays}
             monthsToShow={calendarMonthsToShow}
             calendarNumberMode={calendarNumberMode}
             birthDate={birthDate}

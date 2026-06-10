@@ -1730,6 +1730,14 @@ button:focus-visible .moon-rung-glow {
   animation: tarotseed-breathe 2.8s ease-in-out infinite;
 }
 
+/* EK92 — hovered card/line's calendar days pulse the whole cell from 20%
+   to 100% opacity so the days that card was drawn on announce themselves
+   through the rest of the calendar's marking-up. */
+@keyframes tarotseed-day-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
 /* Q122 Phase 9 — slot controls (delete + reverse) visibility */
 .tarotseed-slot-wrapper .tarotseed-slot-controls {
   opacity: 0;
