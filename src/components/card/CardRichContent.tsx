@@ -203,7 +203,10 @@ export function CardRichContent({
   const meta = getCardMeta(cardId);
 
   const isMajor = cardId >= 0 && cardId <= 21;
-  const numeralOrRank = isMajor ? ROMAN[cardId] : (meta?.rankLabel ?? null);
+  // EK99 — the purple top-right text only shows the roman numeral on Major
+  // Arcana. On pip/court cards the rank label ("SIX", "KING") just duplicated
+  // the card name's first word, so it's dropped there.
+  const numeralOrRank = isMajor ? ROMAN[cardId] : null;
 
   const subtitleParts: string[] = [];
   if (isMajor) subtitleParts.push("Major");
