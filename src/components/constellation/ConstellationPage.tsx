@@ -1864,6 +1864,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
   // a second flag to switch between slim and rich rendering.
   const [popoverMode, setPopoverMode] = useState<"slim" | "rich">("slim");
   const [popoverEditStart, setPopoverEditStart] = useState(false);
+  // EK97 — live edit state of the open card popover, reported by
+  // CardRichPopoverContent. Drives the popover's maxWidth so the frame doubles
+  // to fit the edit column while editing and snaps back when done.
+  const [popoverEditingLive, setPopoverEditingLive] = useState(false);
   const escalateToRich = useCallback((openEdit?: boolean) => {
     setPopoverEditStart(Boolean(openEdit));
     setPopoverMode("rich");
@@ -2722,7 +2726,10 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
     />
   );
 
-  const renderCardPopoverInner = (cardId: number, opts: { editable: boolean }): React.ReactNode => (
+  const renderCardPopoverInner = (
+    cardId: number,
+    opts: { editable: boolean; onEditingChange?: (editing: boolean) => void },
+  ): React.ReactNode => (
     <CardRichPopoverContent
       cardId={cardId}
       filters={popoverFilters}
@@ -2731,6 +2738,7 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
       initialEditing={popoverEditStart}
       headerInfo={<ConstellationLegend />}
       pinnable={opts.editable}
+      onEditingChange={opts.onEditingChange}
       onPin={
         opts.editable
           ? () => {
@@ -4143,12 +4151,13 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
               if (popoverEditMode) {
                 commitPopoverEditMode();
               }
+              setPopoverEditingLive(false);
               closeActivePopover("card-meaning");
             }}
             onCancelDismiss={cancelPopoverDismiss}
             onScheduleDismiss={() => schedulePopoverDismiss("card-meaning")}
             bare
-            maxWidth={600}
+            maxWidth={popoverEditingLive ? 680 : 340}
             dockTopCss="calc(env(safe-area-inset-top, 0px) + var(--topbar-height))"
           >
             {/* EJ22 — split view in edit mode. Left = slim preview,
@@ -4313,11 +4322,11 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
                 </div>
                 {/* Right: full popover body. */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {renderCardPopoverInner(cardId, { editable: true })}
+                  {renderCardPopoverInner(cardId, { editable: true, onEditingChange: setPopoverEditingLive })}
                 </div>
               </div>
             ) : (
-              renderCardPopoverInner(cardId, { editable: true })
+              renderCardPopoverInner(cardId, { editable: true, onEditingChange: setPopoverEditingLive })
             )}
           </RichPopover>
         );

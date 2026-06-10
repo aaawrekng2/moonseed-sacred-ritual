@@ -124,7 +124,7 @@ export function PinnedCardModal({
         border: "1px solid var(--border-subtle)",
         borderRadius: 8,
         boxShadow: "0 10px 32px rgba(0,0,0,0.45)",
-        zIndex: "var(--z-modal-nested, 200)" as unknown as number,
+        zIndex: 1100 as unknown as number,
         display: "flex",
         flexDirection: "column",
         maxHeight: "85vh",
@@ -202,6 +202,7 @@ export function PinnedCardModal({
           flexDirection: "column",
           gap: 8,
           overflowY: "auto",
+          overflowX: "hidden",
         }}
       >
         {children}

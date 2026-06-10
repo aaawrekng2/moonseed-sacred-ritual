@@ -169,6 +169,7 @@ export function CardRichPopoverContent({
   pinnable = false,
   initialEditing = false,
   headerInfo,
+  onEditingChange,
 }: {
   cardId: number;
   filters: InsightsFilters;
@@ -196,6 +197,9 @@ export function CardRichPopoverContent({
    *  rich header (e.g. the constellation legend on the manual-entry surface).
    *  When omitted, no header ⓘ renders (Journal / Insights). */
   headerInfo?: React.ReactNode;
+  /** EK97 — fires whenever the internal edit state toggles (gear), so the host
+   *  can widen the popover frame to fit the extra edit column. */
+  onEditingChange?: (editing: boolean) => void;
 }) {
   const constFn = useServerFn(getCardConstellation);
   const dataFn = useServerFn(getCardPopoverData);
@@ -207,6 +211,11 @@ export function CardRichPopoverContent({
   // EK75 — widen the card + hide the mini-constellation while the gear's
   // dual-pane edit is open.
   const [editing, setEditing] = useState(initialEditing);
+  // EK97 — surface the live edit state so the host (manual-entry popover) can
+  // widen its frame to fit the extra edit column, then snap back.
+  useEffect(() => {
+    onEditingChange?.(editing);
+  }, [editing, onEditingChange]);
   const [bellOpen, setBellOpen] = useState(false);
   const { snoozed } = useHoverSnooze();
   // EK78 — diving: hovering/clicking a node in THIS popover's constellation
@@ -382,7 +391,7 @@ export function CardRichPopoverContent({
     <div
       style={{
         position: "relative",
-        width: editing ? "min(580px, calc(100vw - 16px))" : "min(340px, calc(100vw - 16px))",
+        width: editing ? "min(680px, calc(100vw - 16px))" : "min(340px, calc(100vw - 16px))",
         maxWidth: "calc(100vw - 16px)",
         maxHeight: "calc(100vh - 16px)",
         overflowY: "auto",
