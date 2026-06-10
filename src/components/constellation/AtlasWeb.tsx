@@ -60,6 +60,13 @@ export function AtlasWeb({
   onCardHover,
   onCardDragStart,
   onCardDragEnd,
+  candidateIds,
+  heroCardId,
+  heroDrawCount,
+  heroBadgeTooltip,
+  onHeroBadgeClick,
+  tealBadge,
+  onTealBadgeClick,
 }: {
   pairs: AtlasPair[];
   tealSelectedIds: number[];
@@ -72,6 +79,17 @@ export function AtlasWeb({
   ) => void;
   onCardDragStart?: (cardId: number) => void;
   onCardDragEnd?: () => void;
+  /** EK104 — cards that co-occurred with the whole teal set; the lines
+   *  from a teal card out to these render in the trace color. */
+  candidateIds?: number[];
+  /** EK104 — hero (first slot) card + its spread count, for the gold badge. */
+  heroCardId?: number | null;
+  heroDrawCount?: number | null;
+  heroBadgeTooltip?: string;
+  onHeroBadgeClick?: () => void;
+  /** EK104 — asterism badge on the first-selected card when 2+ are picked. */
+  tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
+  onTealBadgeClick?: () => void;
 }) {
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const rafRef = useRef<number | null>(null);
@@ -82,6 +100,11 @@ export function AtlasWeb({
   const maxCount = pairs.reduce((m, p) => Math.max(m, p.count), 1);
   const tealSet = new Set(tealSelectedIds);
   const traceColor = "var(--trace-color, #5cead4)";
+  // EK104 — teal-discovery: when 2+ cards are selected, a co-occurrence
+  // line whose one end is selected and whose other end co-occurred with
+  // the whole set (a candidate) renders in the trace color.
+  const candidateSet = new Set(candidateIds ?? []);
+  const showTeal = tealSelectedIds.length >= 2;
 
   // Write each card's scale + z-index directly. mx/my are in STAGE-logical
   // pixels (the same space POS lives in), so REACH is honoured at any
@@ -162,6 +185,12 @@ export function AtlasWeb({
             const B = POS[p.b];
             if (!A || !B) return null;
             const t = p.count / maxCount;
+            // EK104 — a line is a teal discovery hint when one end is in
+            // the selection and the other co-occurred with the whole set.
+            const isTealLine =
+              showTeal &&
+              ((tealSet.has(p.a) && candidateSet.has(p.b)) ||
+                (tealSet.has(p.b) && candidateSet.has(p.a)));
             return (
               <line
                 key={`${p.a}-${p.b}`}
@@ -169,9 +198,9 @@ export function AtlasWeb({
                 y1={A.y}
                 x2={B.x}
                 y2={B.y}
-                stroke="var(--accent)"
-                strokeWidth={0.5 + t * 1.6}
-                opacity={0.1 + t * 0.45}
+                stroke={isTealLine ? traceColor : "var(--accent)"}
+                strokeWidth={isTealLine ? Math.max(1.4, 0.5 + t * 1.6) : 0.5 + t * 1.6}
+                opacity={isTealLine ? 0.9 : 0.1 + t * 0.45}
               />
             );
           })}
@@ -236,6 +265,108 @@ export function AtlasWeb({
             </div>
           );
         })}
+
+        {/* EK104 — hero gold badge, anchored just OUTSIDE the ring at the
+            hero card's angle so it's always legible (a 32px badge on a
+            ~20px ring card would bury its neighbours). */}
+        {heroCardId != null &&
+          heroDrawCount != null &&
+          (() => {
+            const a = ((-90 + heroCardId * (360 / N)) * Math.PI) / 180;
+            const bx = CX + (R + 30) * Math.cos(a);
+            const by = CY + (R + 30) * Math.sin(a);
+            return (
+              <div
+                role={onHeroBadgeClick ? "button" : undefined}
+                onClick={
+                  onHeroBadgeClick
+                    ? (e) => {
+                        e.stopPropagation();
+                        onHeroBadgeClick();
+                      }
+                    : undefined
+                }
+                title={heroBadgeTooltip}
+                style={{
+                  position: "absolute",
+                  left: `${(bx / STAGE) * 100}%`,
+                  top: `${(by / STAGE) * 100}%`,
+                  transform: "translate(-50%, -50%)",
+                  width: 26,
+                  height: 26,
+                  borderRadius: 9999,
+                  background:
+                    "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--background)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  lineHeight: 1,
+                  cursor: onHeroBadgeClick ? "pointer" : "default",
+                  zIndex: 300,
+                }}
+              >
+                {heroDrawCount}
+              </div>
+            );
+          })()}
+
+        {/* EK104 — teal asterism badge on the first-selected card, also
+            anchored outside the ring. Sits a little further out if it
+            lands on the same card as the hero badge. */}
+        {tealBadge &&
+          tealBadge.count > 0 &&
+          (() => {
+            const a = ((-90 + tealBadge.cardId * (360 / N)) * Math.PI) / 180;
+            const extra = tealBadge.cardId === heroCardId ? 30 : 0;
+            const bx = CX + (R + 30 + extra) * Math.cos(a);
+            const by = CY + (R + 30 + extra) * Math.sin(a);
+            return (
+              <div
+                role={onTealBadgeClick ? "button" : undefined}
+                onClick={
+                  onTealBadgeClick
+                    ? (e) => {
+                        e.stopPropagation();
+                        onTealBadgeClick();
+                      }
+                    : undefined
+                }
+                title={tealBadge.tooltip}
+                style={{
+                  position: "absolute",
+                  left: `${(bx / STAGE) * 100}%`,
+                  top: `${(by / STAGE) * 100}%`,
+                  transform: "translate(-50%, -50%)",
+                  width: 26,
+                  height: 26,
+                  borderRadius: 9999,
+                  background: traceColor,
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#04342c",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  lineHeight: 1,
+                  cursor: onTealBadgeClick ? "pointer" : "default",
+                  zIndex: 300,
+                }}
+              >
+                {tealBadge.count}
+              </div>
+            );
+          })()}
 
         {/* Marker naming the card at 12 o'clock. */}
         <div

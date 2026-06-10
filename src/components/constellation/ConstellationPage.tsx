@@ -1198,6 +1198,56 @@ export function ConstellationPage({
     return out;
   }, [atlasMode, overlap]);
 
+  // EK104 — Atlas teal-discovery candidates. Same co-occurrence test as
+  // `candidateIds` (below) but the pool is ALL 78 cards, not just the
+  // hero + 7 companions — so on the full ring the teal lines can reach
+  // any card that co-occurred with the whole selected set. Only runs in
+  // atlas mode with 2+ cards selected.
+  const atlasCandidateIds = useMemo<number[]>(() => {
+    if (!atlasMode || tealSelectedIds.length < 2 || !overlap) return [];
+    const tealSet = new Set(tealSelectedIds);
+    const result: number[] = [];
+    for (let cardId = 0; cardId <= 77; cardId++) {
+      if (tealSet.has(cardId)) continue;
+      let hit = false;
+      outer: for (const m of overlap.months) {
+        for (const day of m.days) {
+          if (day == null) continue;
+          if (overlapMode === "day") {
+            const sameDay = new Set(day.sameDayCardIds);
+            let ok = true;
+            for (const id of tealSet)
+              if (!sameDay.has(id)) {
+                ok = false;
+                break;
+              }
+            if (ok && sameDay.has(cardId)) {
+              hit = true;
+              break outer;
+            }
+          } else {
+            const readings = overlap.readingsByDate?.[day.date] ?? [];
+            for (const r of readings) {
+              const ids = new Set(r.cardIds);
+              let ok = true;
+              for (const id of tealSet)
+                if (!ids.has(id)) {
+                  ok = false;
+                  break;
+                }
+              if (ok && ids.has(cardId)) {
+                hit = true;
+                break outer;
+              }
+            }
+          }
+        }
+      }
+      if (hit) result.push(cardId);
+    }
+    return result;
+  }, [atlasMode, tealSelectedIds, overlap, overlapMode]);
+
   // EJ9 — handler invoked when a slot card is dropped onto a constellation
   // card (hero or companion). `targetCardId` identifies the constellation
   // position (cardId at that position); `droppedCardId` is the card from
@@ -3653,6 +3703,51 @@ export function ConstellationPage({
               onCardHover={handleConstellationHover}
               onCardDragStart={(cardId) => setDraggingCardId(cardId)}
               onCardDragEnd={() => setDraggingCardId(null)}
+              candidateIds={atlasCandidateIds}
+              heroCardId={heroPick ? heroPick.cardIndex : null}
+              heroDrawCount={
+                heroPick && drawCounts
+                  ? (drawCounts.perCard[heroPick.cardIndex] ?? null)
+                  : null
+              }
+              heroBadgeTooltip={(() => {
+                if (!heroPick) return undefined;
+                const heroName =
+                  heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card";
+                const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
+                const unit = count === 1 ? "SPREAD" : "SPREADS";
+                return `${count} ${unit} · ${heroName}`;
+              })()}
+              onHeroBadgeClick={() => {
+                setModalMode("hero");
+                setReadingsModalOpen(true);
+              }}
+              tealBadge={
+                tealSelectedIds.length >= 2
+                  ? {
+                      cardId: tealSelectedIds[0],
+                      count: tealCount,
+                      tooltip: (() => {
+                        const unit =
+                          overlapMode === "pull"
+                            ? tealCount === 1
+                              ? "SPREAD"
+                              : "SPREADS"
+                            : tealCount === 1
+                              ? "DAY"
+                              : "DAYS";
+                        const names = tealSelectedIds
+                          .map((id) => TAROT_DECK[id] ?? "Card")
+                          .join(", ");
+                        return `${tealCount} ${unit} · ${names}`;
+                      })(),
+                    }
+                  : null
+              }
+              onTealBadgeClick={() => {
+                setModalMode("teal");
+                setReadingsModalOpen(true);
+              }}
             />
           ) : (
           <ConstellationWeb
