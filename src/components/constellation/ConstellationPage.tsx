@@ -3651,6 +3651,8 @@ export function ConstellationPage({
                 )
               }
               onCardHover={handleConstellationHover}
+              onCardDragStart={(cardId) => setDraggingCardId(cardId)}
+              onCardDragEnd={() => setDraggingCardId(null)}
             />
           ) : (
           <ConstellationWeb
