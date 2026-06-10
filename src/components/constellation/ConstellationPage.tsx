@@ -4409,8 +4409,6 @@ export function ConstellationPage({ onSwitchToTable }: ConstellationPageProps = 
               onClose={() => closeActivePopover("day-cell")}
               onCancelDismiss={cancelPopoverDismiss}
               onScheduleDismiss={() => schedulePopoverDismiss("day-cell")}
-              chainedContent={<ColorLegend />}
-              chainedTitle="What the colors mean"
               maxWidth={300}
             >
               <div
