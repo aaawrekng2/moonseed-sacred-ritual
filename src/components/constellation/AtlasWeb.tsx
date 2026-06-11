@@ -30,10 +30,6 @@
  */
 import { useRef, useState, useLayoutEffect } from "react";
 import { CardImage } from "@/components/card/CardImage";
-import { TAROT_DECK } from "@/lib/tarot";
-
-// EK107 — card display name for the builder-panel chips.
-const CARD_NAME = (id: number): string => TAROT_DECK[id] ?? "Card";
 
 type AtlasPair = { a: number; b: number; count: number };
 
@@ -77,32 +73,9 @@ const INSET_POS: Array<{ x: number; y: number }> = Array.from(
   },
 );
 
-// EK106 — suit arcs around the rim. Contiguous index ranges in the
-// canonical deck, so each suit is one clean arc. Colours are a fixed
-// elemental palette (fire / water / air / earth, gold for the Majors) —
-// the one thing on this surface not drawn from theme tokens.
-const SUIT_ARCS: Array<{
-  key: string;
-  label: string;
-  from: number;
-  to: number;
-  color: string;
-}> = [
-  { key: "major", label: "Major Arcana", from: 0, to: 21, color: "#C6A24A" },
-  { key: "wands", label: "Wands", from: 22, to: 35, color: "#C2552E" },
-  { key: "cups", label: "Cups", from: 36, to: 49, color: "#3E6FA3" },
-  { key: "swords", label: "Swords", from: 50, to: 63, color: "#9AA0B5" },
-  { key: "pentacles", label: "Pentacles", from: 64, to: 77, color: "#4E7A4A" },
-];
-
-// EK107 — compact rank glyphs for the rank shelf (Ace … King).
-const RANK_LABELS = [
-  "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Pg", "Kn", "Qn", "Kg",
-];
-const RANK_FULL = [
-  "Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
-  "Nine", "Ten", "Page", "Knight", "Queen", "King",
-];
+// EK106 — suit metadata moved to ConstellationPage; the atlas rim arcs
+// were removed in EK108 and the chip controls live in the left column as
+// of EK109.
 
 export function AtlasWeb({
   pairs,
@@ -119,15 +92,6 @@ export function AtlasWeb({
   tealBadge,
   onTealBadgeClick,
   cardGroupColor,
-  onRankChip,
-  onSuitChip,
-  onChipHover,
-  customGroups,
-  looseSingletons,
-  canGroup,
-  onGroup,
-  onUngroup,
-  onRemoveCard,
 }: {
   pairs: AtlasPair[];
   tealSelectedIds: number[];
@@ -154,21 +118,6 @@ export function AtlasWeb({
   /** EK107 — per-card ring color for custom-group membership (singletons
    *  fall through to teal). */
   cardGroupColor?: Record<number, string>;
-  /** EK108 — bulk-select handlers: a rank/suit chip selects all its cards
-   *  as loose singletons (toggles off if already all selected). */
-  onRankChip?: (rank: number) => void;
-  onSuitChip?: (suit: string) => void;
-  /** EK108 — chip hover → calendar preview stroke (target card ids, or
-   *  null on mouse-out). */
-  onChipHover?: (ids: number[] | null) => void;
-  /** EK107 — custom OR-groups + the loose singletons, for the builder
-   *  panel, plus group/ungroup/remove handlers. */
-  customGroups?: number[][];
-  looseSingletons?: number[];
-  canGroup?: boolean;
-  onGroup?: () => void;
-  onUngroup?: (groupIndex: number) => void;
-  onRemoveCard?: (cardId: number) => void;
 }) {
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const rafRef = useRef<number | null>(null);
@@ -258,22 +207,12 @@ export function AtlasWeb({
   };
 
   return (
-    <div
-      style={{
-        width: "100%",
-        display: "flex",
-        flexDirection: "row-reverse",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        gap: 16,
-      }}
-    >
+    <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
       <div
         style={{
           position: "relative",
-          flex: "1 1 0",
-          minWidth: 0,
-          maxWidth: STAGE,
+          width: STAGE,
+          maxWidth: "100%",
           // EK103 — square at ANY rendered width. Previously height was
           // pinned to STAGE while width clamped via maxWidth, so on a
           // narrow column the stage went non-square: cards (raw px) ran
@@ -519,280 +458,6 @@ export function AtlasWeb({
         </div>
       </div>
 
-      {/* EK108 — left controls: rank line, suit line, group builder. */}
-      <div
-        style={{
-          flex: "0 0 300px",
-          maxWidth: "46%",
-          minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
-        {(() => {
-          const selSet = new Set(tealSelectedIds);
-          const rankIds = (r: number): number[] => [
-            22 + r,
-            36 + r,
-            50 + r,
-            64 + r,
-          ];
-          const suitIds = (s: { from: number; to: number }): number[] =>
-            Array.from({ length: s.to - s.from + 1 }, (_, i) => s.from + i);
-          const rankActive = (r: number) =>
-            rankIds(r).every((id) => selSet.has(id));
-          const suitActive = (s: { from: number; to: number }) =>
-            suitIds(s).every((id) => selSet.has(id));
-          const shelfLabel = (t: string) => (
-            <div
-              style={{
-                fontSize: "var(--text-caption)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--color-foreground-muted)",
-                fontFamily: "var(--font-sans)",
-                marginBottom: 6,
-              }}
-            >
-              {t}
-            </div>
-          );
-          return (
-            <>
-              {/* Rank line — bulk-selects all four of that rank. */}
-              <div>
-                {shelfLabel("Ranks")}
-                <div style={{ display: "flex", gap: 3 }}>
-                  {RANK_LABELS.map((label, r) => {
-                    const on = rankActive(r);
-                    return (
-                      <button
-                        key={r}
-                        type="button"
-                        title={`Select all four ${RANK_FULL[r]}s`}
-                        onClick={() => onRankChip?.(r)}
-                        onMouseEnter={() => onChipHover?.(rankIds(r))}
-                        onMouseLeave={() => onChipHover?.(null)}
-                        style={{
-                          flex: "1 1 0",
-                          minWidth: 0,
-                          textAlign: "center",
-                          padding: "4px 0",
-                          borderRadius: "var(--radius-md, 6px)",
-                          border: on
-                            ? `1px solid ${traceColor}`
-                            : "0.5px solid var(--border-default)",
-                          background: on ? traceColor : "var(--surface-card)",
-                          color: on
-                            ? "var(--background)"
-                            : "var(--color-foreground)",
-                          fontFamily: "var(--font-display)",
-                          fontStyle: "italic",
-                          fontSize: "var(--text-body-sm)",
-                          fontWeight: on ? 600 : 400,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Suit line — bulk-selects all cards of that suit. */}
-              <div>
-                {shelfLabel("Suits")}
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                  {SUIT_ARCS.map((s) => {
-                    const on = suitActive(s);
-                    const label = s.key === "major" ? "Majors" : s.label;
-                    return (
-                      <button
-                        key={s.key}
-                        type="button"
-                        title={`Select all ${label}`}
-                        onClick={() => onSuitChip?.(s.key)}
-                        onMouseEnter={() => onChipHover?.(suitIds(s))}
-                        onMouseLeave={() => onChipHover?.(null)}
-                        style={{
-                          padding: "4px 9px",
-                          borderRadius: "var(--radius-md, 6px)",
-                          border: on
-                            ? `1px solid ${traceColor}`
-                            : "0.5px solid var(--border-default)",
-                          background: on ? traceColor : "var(--surface-card)",
-                          color: on
-                            ? "var(--background)"
-                            : "var(--color-foreground)",
-                          fontFamily: "var(--font-display)",
-                          fontStyle: "italic",
-                          fontSize: "var(--text-body-sm)",
-                          fontWeight: on ? 600 : 400,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Group builder — the active asterism as removable chips,
-                  with a "Group" action that folds the loose singletons into
-                  one custom OR-group. */}
-              {(() => {
-                const singles = looseSingletons ?? [];
-                const groups = customGroups ?? [];
-                const empty = singles.length + groups.length === 0;
-                const PALETTE = [
-                  "#5cead4",
-                  "#e0a3ff",
-                  "#ffd27d",
-                  "#86c5ff",
-                  "#ff9eb5",
-                ];
-                const chip = (
-                  key: string,
-                  label: string,
-                  onX: () => void,
-                  color?: string,
-                ) => (
-                  <span
-                    key={key}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "3px 8px",
-                      borderRadius: "var(--radius-md, 7px)",
-                      border: `1px solid ${color ?? "var(--border-default)"}`,
-                      background: "var(--surface-card)",
-                      color: "var(--color-foreground)",
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: "var(--text-body-sm)",
-                    }}
-                  >
-                    {label}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${label}`}
-                      onClick={onX}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--color-foreground-muted)",
-                        fontSize: 13,
-                        lineHeight: 1,
-                        padding: 0,
-                      }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                );
-                return (
-                  <div
-                    style={{
-                      border: "0.5px solid var(--border-subtle)",
-                      borderRadius: "var(--radius-md, 8px)",
-                      background: "var(--surface-card)",
-                      padding: "10px 12px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "var(--text-caption)",
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          color: "var(--color-foreground-muted)",
-                          fontFamily: "var(--font-sans)",
-                        }}
-                      >
-                        Asterism
-                      </span>
-                      <button
-                        type="button"
-                        disabled={!canGroup}
-                        onClick={() => onGroup?.()}
-                        style={{
-                          padding: "3px 10px",
-                          borderRadius: "var(--radius-md, 7px)",
-                          border: "0.5px solid var(--border-default)",
-                          background: "transparent",
-                          color: canGroup
-                            ? "var(--color-foreground)"
-                            : "var(--color-foreground-muted)",
-                          fontFamily: "var(--font-sans)",
-                          fontSize: "var(--text-body-sm)",
-                          cursor: canGroup ? "pointer" : "default",
-                          opacity: canGroup ? 1 : 0.5,
-                        }}
-                      >
-                        Group selected
-                      </button>
-                    </div>
-
-                    {empty ? (
-                      <span
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: "var(--text-body-sm)",
-                          color: "var(--color-foreground-muted)",
-                        }}
-                      >
-                        Tap cards on the clock, or a rank/suit chip, to select.
-                        Then Group them into an &ldquo;any of these&rdquo; set.
-                      </span>
-                    ) : (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 6,
-                          alignItems: "center",
-                        }}
-                      >
-                        {singles.map((id) =>
-                          chip(`s-${id}`, CARD_NAME(id), () =>
-                            onRemoveCard?.(id),
-                          ),
-                        )}
-                        {groups.map((g, gi) =>
-                          chip(
-                            `g-${gi}`,
-                            "(" +
-                              g.map((id) => CARD_NAME(id)).join(" / ") +
-                              ")",
-                            () => onUngroup?.(gi),
-                            PALETTE[gi % PALETTE.length],
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </>
-          );
-        })()}
-      </div>
     </div>
   );
 }
