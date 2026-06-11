@@ -584,6 +584,23 @@ function rankCardIds(rank: number): number[] {
   return [22 + rank, 36 + rank, 50 + rank, 64 + rank];
 }
 
+// EK109 — labels for the left-column atlas controls.
+const ATLAS_RANK_GLYPHS = [
+  "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Pg", "Kn", "Qn", "Kg",
+];
+const ATLAS_RANK_FULL = [
+  "Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
+  "Nine", "Ten", "Page", "Knight", "Queen", "King",
+];
+const ATLAS_SUIT_LIST: Array<{ key: string; label: string }> = [
+  { key: "major", label: "Majors" },
+  { key: "wands", label: "Wands" },
+  { key: "cups", label: "Cups" },
+  { key: "swords", label: "Swords" },
+  { key: "pentacles", label: "Pentacles" },
+];
+const ATLAS_TRACE_COLOR = "var(--trace-color, #5cead4)";
+
 function groupsSatisfied(groups: number[][], present: Set<number>): boolean {
   for (const g of groups) {
     let any = false;
@@ -3787,6 +3804,276 @@ export function ConstellationPage({
               </div>
             </div>
           </div>
+          {/* EK109 — atlas asterism controls: rank line, suit line, and
+              group builder. Live in the LEFT column, directly under the
+              card-name input; atlas mode only. */}
+          {atlasMode && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {(() => {
+                const selSet = new Set(atlasSelectedCardIds);
+                const rankActive = (r: number) =>
+                  rankCardIds(r).every((id) => selSet.has(id));
+                const suitActive = (key: string) =>
+                  suitCardIds(key).every((id) => selSet.has(id));
+                const shelfLabel = (t: string) => (
+                  <div
+                    style={{
+                      fontSize: "var(--text-caption)",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--color-foreground-muted)",
+                      fontFamily: "var(--font-sans)",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t}
+                  </div>
+                );
+                const singles = tealSelectedIds;
+                const groups = atlasCustomGroups;
+                const empty = singles.length + groups.length === 0;
+                const PALETTE = [
+                  "#5cead4",
+                  "#e0a3ff",
+                  "#ffd27d",
+                  "#86c5ff",
+                  "#ff9eb5",
+                ];
+                const chip = (
+                  key: string,
+                  label: string,
+                  onX: () => void,
+                  color?: string,
+                ) => (
+                  <span
+                    key={key}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "3px 8px",
+                      borderRadius: "var(--radius-md, 7px)",
+                      border: `1px solid ${color ?? "var(--border-default)"}`,
+                      background: "var(--surface-card)",
+                      color: "var(--color-foreground)",
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-body-sm)",
+                    }}
+                  >
+                    {label}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${label}`}
+                      onClick={onX}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--color-foreground-muted)",
+                        fontSize: 13,
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+                return (
+                  <>
+                    {/* Rank line — bulk-selects all four of that rank. */}
+                    <div>
+                      {shelfLabel("Ranks")}
+                      <div style={{ display: "flex", gap: 3 }}>
+                        {ATLAS_RANK_GLYPHS.map((label, r) => {
+                          const on = rankActive(r);
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              title={`Select all four ${ATLAS_RANK_FULL[r]}s`}
+                              onClick={() => toggleAtlasChip(rankCardIds(r))}
+                              onMouseEnter={() =>
+                                setAtlasHoverChip(rankCardIds(r))
+                              }
+                              onMouseLeave={() => setAtlasHoverChip(null)}
+                              style={{
+                                flex: "1 1 0",
+                                minWidth: 0,
+                                textAlign: "center",
+                                padding: "4px 0",
+                                borderRadius: "var(--radius-md, 6px)",
+                                border: on
+                                  ? `1px solid ${ATLAS_TRACE_COLOR}`
+                                  : "0.5px solid var(--border-default)",
+                                background: on
+                                  ? ATLAS_TRACE_COLOR
+                                  : "var(--surface-card)",
+                                color: on
+                                  ? "var(--background)"
+                                  : "var(--color-foreground)",
+                                fontFamily: "var(--font-display)",
+                                fontStyle: "italic",
+                                fontSize: "var(--text-body-sm)",
+                                fontWeight: on ? 600 : 400,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Suit line — bulk-selects all cards of that suit. */}
+                    <div>
+                      {shelfLabel("Suits")}
+                      <div
+                        style={{ display: "flex", gap: 5, flexWrap: "wrap" }}
+                      >
+                        {ATLAS_SUIT_LIST.map((s) => {
+                          const on = suitActive(s.key);
+                          return (
+                            <button
+                              key={s.key}
+                              type="button"
+                              title={`Select all ${s.label}`}
+                              onClick={() => toggleAtlasChip(suitCardIds(s.key))}
+                              onMouseEnter={() =>
+                                setAtlasHoverChip(suitCardIds(s.key))
+                              }
+                              onMouseLeave={() => setAtlasHoverChip(null)}
+                              style={{
+                                padding: "4px 9px",
+                                borderRadius: "var(--radius-md, 6px)",
+                                border: on
+                                  ? `1px solid ${ATLAS_TRACE_COLOR}`
+                                  : "0.5px solid var(--border-default)",
+                                background: on
+                                  ? ATLAS_TRACE_COLOR
+                                  : "var(--surface-card)",
+                                color: on
+                                  ? "var(--background)"
+                                  : "var(--color-foreground)",
+                                fontFamily: "var(--font-display)",
+                                fontStyle: "italic",
+                                fontSize: "var(--text-body-sm)",
+                                fontWeight: on ? 600 : 400,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {s.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Group builder. */}
+                    <div
+                      style={{
+                        border: "0.5px solid var(--border-subtle)",
+                        borderRadius: "var(--radius-md, 8px)",
+                        background: "var(--surface-card)",
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "var(--text-caption)",
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: "var(--color-foreground-muted)",
+                            fontFamily: "var(--font-sans)",
+                          }}
+                        >
+                          Asterism
+                        </span>
+                        <button
+                          type="button"
+                          disabled={tealSelectedIds.length < 2}
+                          onClick={() => handleAtlasGroup()}
+                          style={{
+                            padding: "3px 10px",
+                            borderRadius: "var(--radius-md, 7px)",
+                            border: "0.5px solid var(--border-default)",
+                            background: "transparent",
+                            color:
+                              tealSelectedIds.length >= 2
+                                ? "var(--color-foreground)"
+                                : "var(--color-foreground-muted)",
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "var(--text-body-sm)",
+                            cursor:
+                              tealSelectedIds.length >= 2 ? "pointer" : "default",
+                            opacity: tealSelectedIds.length >= 2 ? 1 : 0.5,
+                          }}
+                        >
+                          Group selected
+                        </button>
+                      </div>
+                      {empty ? (
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: "var(--text-body-sm)",
+                            color: "var(--color-foreground-muted)",
+                          }}
+                        >
+                          Tap cards on the clock, or a rank/suit chip, to
+                          select. Then Group them into an &ldquo;any of
+                          these&rdquo; set.
+                        </span>
+                      ) : (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 6,
+                            alignItems: "center",
+                          }}
+                        >
+                          {singles.map((id) =>
+                            chip(`s-${id}`, TAROT_DECK[id] ?? "Card", () =>
+                              setTealSelectedIds((prev) =>
+                                prev.filter((x) => x !== id),
+                              ),
+                            ),
+                          )}
+                          {groups.map((g, gi) =>
+                            chip(
+                              `g-${gi}`,
+                              "(" +
+                                g.map((id) => TAROT_DECK[id] ?? "Card").join(
+                                  " / ",
+                                ) +
+                                ")",
+                              () => handleAtlasUngroup(gi),
+                              PALETTE[gi % PALETTE.length],
+                            ),
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
           {/* DY — bottom of right column: question + prompts trigger,
               notes textarea, Save to Journal button. Hides entirely
               when no picks. */}
@@ -3970,17 +4257,6 @@ export function ConstellationPage({
                 setModalMode("teal");
                 setReadingsModalOpen(true);
               }}
-              onRankChip={(r) => toggleAtlasChip(rankCardIds(r))}
-              onSuitChip={(suit) => toggleAtlasChip(suitCardIds(suit))}
-              onChipHover={(ids) => setAtlasHoverChip(ids)}
-              customGroups={atlasCustomGroups}
-              looseSingletons={tealSelectedIds}
-              canGroup={tealSelectedIds.length >= 2}
-              onGroup={handleAtlasGroup}
-              onUngroup={handleAtlasUngroup}
-              onRemoveCard={(id) =>
-                setTealSelectedIds((prev) => prev.filter((x) => x !== id))
-              }
             />
           ) : (
           <ConstellationWeb
