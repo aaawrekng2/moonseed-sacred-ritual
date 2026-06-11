@@ -68,6 +68,35 @@ const INSET_POS: Array<{ x: number; y: number }> = Array.from(
   },
 );
 
+// EK106 — suit arcs around the rim. Contiguous index ranges in the
+// canonical deck, so each suit is one clean arc. Colours are a fixed
+// elemental palette (fire / water / air / earth, gold for the Majors) —
+// the one thing on this surface not drawn from theme tokens.
+const SUIT_ARCS: Array<{
+  key: string;
+  label: string;
+  from: number;
+  to: number;
+  color: string;
+}> = [
+  { key: "major", label: "Major Arcana", from: 0, to: 21, color: "#C6A24A" },
+  { key: "wands", label: "Wands", from: 22, to: 35, color: "#C2552E" },
+  { key: "cups", label: "Cups", from: 36, to: 49, color: "#3E6FA3" },
+  { key: "swords", label: "Swords", from: 50, to: 63, color: "#9AA0B5" },
+  { key: "pentacles", label: "Pentacles", from: 64, to: 77, color: "#4E7A4A" },
+];
+const ARC_R = R + 30; // band radius, just outside the cards
+
+// SVG arc path spanning a card-index range at radius r.
+function arcPath(from: number, to: number, r: number): string {
+  const a0 = ((-90 + (from - 0.5) * (360 / N)) * Math.PI) / 180;
+  const a1 = ((-90 + (to + 0.5) * (360 / N)) * Math.PI) / 180;
+  const p0 = { x: CX + r * Math.cos(a0), y: CY + r * Math.sin(a0) };
+  const p1 = { x: CX + r * Math.cos(a1), y: CY + r * Math.sin(a1) };
+  const large = (to + 0.5 - (from - 0.5)) * (360 / N) > 180 ? 1 : 0;
+  return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} 1 ${p1.x} ${p1.y}`;
+}
+
 export function AtlasWeb({
   pairs,
   tealSelectedIds,
@@ -82,6 +111,8 @@ export function AtlasWeb({
   onHeroBadgeClick,
   tealBadge,
   onTealBadgeClick,
+  selectedSuits,
+  onSuitToggle,
 }: {
   pairs: AtlasPair[];
   tealSelectedIds: number[];
@@ -105,6 +136,10 @@ export function AtlasWeb({
   /** EK104 — asterism badge on the first-selected card when 2+ are picked. */
   tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
   onTealBadgeClick?: () => void;
+  /** EK106 — toggled suit groups + the toggle handler. Each selected suit
+   *  is one OR-group ("any card of this suit") in the asterism. */
+  selectedSuits?: Set<string>;
+  onSuitToggle?: (suit: string) => void;
 }) {
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const rafRef = useRef<number | null>(null);
@@ -422,6 +457,69 @@ export function AtlasWeb({
               </div>
             );
           })()}
+
+        {/* EK106 — suit arcs around the rim. Each is clickable: tapping
+            toggles the whole suit into the asterism as one OR-group. */}
+        <svg
+          viewBox={`0 0 ${STAGE} ${STAGE}`}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            overflow: "visible",
+          }}
+          aria-hidden
+        >
+          {SUIT_ARCS.map((s) => {
+            const sel = selectedSuits?.has(s.key) ?? false;
+            const midDeg = -90 + ((s.from + s.to) / 2) * (360 / N);
+            const midA = (midDeg * Math.PI) / 180;
+            const lx = CX + (ARC_R + 22) * Math.cos(midA);
+            const ly = CY + (ARC_R + 22) * Math.sin(midA);
+            return (
+              <g
+                key={s.key}
+                style={{ cursor: onSuitToggle ? "pointer" : "default" }}
+                onClick={() => onSuitToggle?.(s.key)}
+              >
+                {/* wide transparent hit-area */}
+                <path
+                  d={arcPath(s.from, s.to, ARC_R)}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={20}
+                  style={{ pointerEvents: "stroke" }}
+                />
+                {/* visible band */}
+                <path
+                  d={arcPath(s.from, s.to, ARC_R)}
+                  fill="none"
+                  stroke={sel ? traceColor : s.color}
+                  strokeWidth={sel ? 9 : 6}
+                  opacity={sel ? 1 : 0.85}
+                  style={{ pointerEvents: "none" }}
+                />
+                <text
+                  x={lx}
+                  y={ly}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{
+                    pointerEvents: "none",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fill: sel ? traceColor : s.color,
+                  }}
+                >
+                  {s.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
 
         {/* Marker naming the card at 12 o'clock. */}
         <div
