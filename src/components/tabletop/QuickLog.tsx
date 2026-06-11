@@ -1966,6 +1966,12 @@ function OverlapStrip({
   mode,
   onModeChange,
   tealSelectedIds = [],
+  // EK106 — atlas group mode supplies a precomputed set of matching day
+  // keys (YYYY-MM-DD). When present it OVERRIDES the per-card tealSet
+  // match below, so the stroke reflects the full group asterism (cards +
+  // suit groups). The regular page never passes this, so its path is
+  // untouched.
+  asterismYmds,
   // EC — read from --trace-color CSS variable so per-theme overrides
   // (Cups Tide, Pentacles & Moss) flow through automatically. Default
   // to the canonical teal hex when no theme override is set.
@@ -2021,6 +2027,9 @@ function OverlapStrip({
    * appeared together (per the same-pull/same-day mode) with a stroke in
    * traceColor. Optional; defaults to empty (no trace overlay). */
   tealSelectedIds?: number[];
+  /** EK106 — atlas group mode: precomputed matching day keys that
+   *  override the per-card tealSet match. Undefined on the regular page. */
+  asterismYmds?: Set<string>;
   traceColor?: string;
   /** DP — "scroll" (default) renders the legacy horizontal-scroll strip used
    * by QuickLog at /draw/classic. "grid12" renders a 12-month two-row × six-
@@ -2485,8 +2494,13 @@ function OverlapStrip({
                     }
                     // Phase 24 — teal trace: this day qualifies if ALL teal-
                     // selected cards appeared together per the current mode.
+                    // EK106 — in atlas group mode the parent supplies the
+                    // matching day keys directly (group-aware), overriding
+                    // the per-card computation.
                     let tealTraceHit = false;
-                    if (tealSet.size > 0) {
+                    if (asterismYmds) {
+                      tealTraceHit = asterismYmds.has(day.date);
+                    } else if (tealSet.size > 0) {
                       if (mode === "day") {
                         const sameDaySet = new Set(day.sameDayCardIds);
                         let ok = true;

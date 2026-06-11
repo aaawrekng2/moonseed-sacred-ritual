@@ -636,6 +636,12 @@ export function ConstellationPage({
   // the constellation web (hero or companion) to toggle membership. Drives
   // calendar stroke + readings panel filter. Resets when hero changes.
   const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
+  // EK106 — atlas group mode: which suit groups are toggled into the
+  // asterism. Each is one OR-group ("any card of this suit"). Only used
+  // in atlas mode; the regular page ignores it entirely.
+  const [atlasSuitGroups, setAtlasSuitGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
@@ -1247,6 +1253,63 @@ export function ConstellationPage({
     }
     return result;
   }, [atlasMode, tealSelectedIds, overlap, overlapMode]);
+
+  // EK106 — the atlas asterism as a list of GROUPS. Each selected card is
+  // a one-card group; each toggled suit is a 14-card (or 22 for Majors)
+  // group. The match rule is: every group must have at least one member
+  // present. Today's flat behavior is just the all-singletons case.
+  const atlasGroups = useMemo<number[][]>(() => {
+    if (!atlasMode) return [];
+    const range = (a: number, b: number) =>
+      Array.from({ length: b - a + 1 }, (_, i) => a + i);
+    const SUIT_IDS: Record<string, number[]> = {
+      major: range(0, 21),
+      wands: range(22, 35),
+      cups: range(36, 49),
+      swords: range(50, 63),
+      pentacles: range(64, 77),
+    };
+    const groups: number[][] = tealSelectedIds.map((id) => [id]);
+    for (const suit of atlasSuitGroups) {
+      const ids = SUIT_IDS[suit];
+      if (ids) groups.push(ids);
+    }
+    return groups;
+  }, [atlasMode, tealSelectedIds, atlasSuitGroups]);
+
+  // EK106 — group-aware match across the filtered universe. Returns the
+  // set of matching day keys (for the calendar stroke) and a count (pulls
+  // in same-pull mode, days in same-day mode) for the badge.
+  const atlasMatch = useMemo<{ ymds: Set<string>; count: number }>(() => {
+    if (!atlasMode || atlasGroups.length === 0 || !overlap)
+      return { ymds: new Set<string>(), count: 0 };
+    const ymds = new Set<string>();
+    let count = 0;
+    for (const m of overlap.months) {
+      for (const day of m.days) {
+        if (day == null) continue;
+        if (overlapMode === "day") {
+          const sameDay = new Set(day.sameDayCardIds);
+          if (atlasGroups.every((g) => g.some((id) => sameDay.has(id)))) {
+            ymds.add(day.date);
+            count++;
+          }
+        } else {
+          const readings = overlap.readingsByDate?.[day.date] ?? [];
+          let dayHit = false;
+          for (const r of readings) {
+            const ids = new Set(r.cardIds);
+            if (atlasGroups.every((g) => g.some((id) => ids.has(id)))) {
+              count++;
+              dayHit = true;
+            }
+          }
+          if (dayHit) ymds.add(day.date);
+        }
+      }
+    }
+    return { ymds, count };
+  }, [atlasMode, atlasGroups, overlap, overlapMode]);
 
   // EJ9 — handler invoked when a slot card is dropped onto a constellation
   // card (hero or companion). `targetCardId` identifies the constellation
@@ -3723,23 +3786,34 @@ export function ConstellationPage({
                 setReadingsModalOpen(true);
               }}
               tealBadge={
-                tealSelectedIds.length >= 2
+                tealSelectedIds.length >= 1 &&
+                (tealSelectedIds.length >= 2 || atlasSuitGroups.size >= 1)
                   ? {
                       cardId: tealSelectedIds[0],
-                      count: tealCount,
+                      count: atlasMatch.count,
                       tooltip: (() => {
                         const unit =
                           overlapMode === "pull"
-                            ? tealCount === 1
+                            ? atlasMatch.count === 1
                               ? "SPREAD"
                               : "SPREADS"
-                            : tealCount === 1
+                            : atlasMatch.count === 1
                               ? "DAY"
                               : "DAYS";
-                        const names = tealSelectedIds
-                          .map((id) => TAROT_DECK[id] ?? "Card")
-                          .join(", ");
-                        return `${tealCount} ${unit} · ${names}`;
+                        const suitLabel: Record<string, string> = {
+                          major: "Major Arcana",
+                          wands: "Wands",
+                          cups: "Cups",
+                          swords: "Swords",
+                          pentacles: "Pentacles",
+                        };
+                        const names = [
+                          ...tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card"),
+                          ...[...atlasSuitGroups].map(
+                            (s) => `any ${suitLabel[s] ?? s}`,
+                          ),
+                        ].join(", ");
+                        return `${atlasMatch.count} ${unit} · ${names}`;
                       })(),
                     }
                   : null
@@ -3748,6 +3822,15 @@ export function ConstellationPage({
                 setModalMode("teal");
                 setReadingsModalOpen(true);
               }}
+              selectedSuits={atlasSuitGroups}
+              onSuitToggle={(suit) =>
+                setAtlasSuitGroups((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(suit)) next.delete(suit);
+                  else next.add(suit);
+                  return next;
+                })
+              }
             />
           ) : (
           <ConstellationWeb
@@ -3904,6 +3987,7 @@ export function ConstellationPage({
             mode={overlapMode}
             onModeChange={setOverlapMode}
             tealSelectedIds={tealSelectedIds}
+            asterismYmds={atlasMode ? atlasMatch.ymds : undefined}
             layout="grid12"
             onDayClick={(date) => setDayPopover({ open: true, date })}
             showOlder={showOlder}
