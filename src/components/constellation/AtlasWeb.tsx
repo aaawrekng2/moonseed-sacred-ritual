@@ -30,6 +30,10 @@
  */
 import { useRef, useState, useLayoutEffect } from "react";
 import { CardImage } from "@/components/card/CardImage";
+import { TAROT_DECK } from "@/lib/tarot";
+
+// EK107 — card display name for the builder-panel chips.
+const CARD_NAME = (id: number): string => TAROT_DECK[id] ?? "Card";
 
 type AtlasPair = { a: number; b: number; count: number };
 
@@ -56,14 +60,19 @@ const POS: Array<{ x: number; y: number }> = Array.from({ length: N }, (_, i) =>
 // EK105 — line endpoints stop just INSIDE each card (radius R - inset)
 // instead of at the card centre, so on the small ring it's obvious which
 // card a line is reaching toward rather than the line vanishing behind it.
-const LINE_INSET = 16;
+const LINE_INSET = 16; // horizontal inset (sides) — unchanged
+// EK107 — the line-ends ride a slightly squashed ellipse: sides come in
+// LINE_INSET (16), top/bottom come in LINE_INSET_V (23) so they clear the
+// taller card edges with the same visual gap as the sides. The CARDS do
+// not move — only where the connecting lines terminate.
+const LINE_INSET_V = 23;
 const INSET_POS: Array<{ x: number; y: number }> = Array.from(
   { length: N },
   (_, i) => {
     const a = ((-90 + i * (360 / N)) * Math.PI) / 180;
     return {
       x: CX + (R - LINE_INSET) * Math.cos(a),
-      y: CY + (R - LINE_INSET) * Math.sin(a),
+      y: CY + (R - LINE_INSET_V) * Math.sin(a),
     };
   },
 );
@@ -86,6 +95,15 @@ const SUIT_ARCS: Array<{
   { key: "pentacles", label: "Pentacles", from: 64, to: 77, color: "#4E7A4A" },
 ];
 const ARC_R = R + 30; // band radius, just outside the cards
+
+// EK107 — compact rank glyphs for the rank shelf (Ace … King).
+const RANK_LABELS = [
+  "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Pg", "Kn", "Qn", "Kg",
+];
+const RANK_FULL = [
+  "Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
+  "Nine", "Ten", "Page", "Knight", "Queen", "King",
+];
 
 // SVG arc path spanning a card-index range at radius r.
 function arcPath(from: number, to: number, r: number): string {
@@ -113,6 +131,19 @@ export function AtlasWeb({
   onTealBadgeClick,
   selectedSuits,
   onSuitToggle,
+  cardGroupColor,
+  selectedRanks,
+  onRankToggle,
+  customGroups,
+  looseSingletons,
+  canGroup,
+  onGroup,
+  onUngroup,
+  onRemoveCard,
+  onRemoveSuit,
+  onRemoveRank,
+  asterismCount,
+  asterismNames,
 }: {
   pairs: AtlasPair[];
   tealSelectedIds: number[];
@@ -140,6 +171,26 @@ export function AtlasWeb({
    *  is one OR-group ("any card of this suit") in the asterism. */
   selectedSuits?: Set<string>;
   onSuitToggle?: (suit: string) => void;
+  /** EK107 — per-card ring color for custom-group membership (singletons
+   *  fall through to teal). */
+  cardGroupColor?: Record<number, string>;
+  /** EK107 — toggled rank groups (0=Ace … 13=King) + toggle handler. */
+  selectedRanks?: Set<number>;
+  onRankToggle?: (rank: number) => void;
+  /** EK107 — custom OR-groups + the loose singletons, for the builder
+   *  panel, plus group/ungroup/remove handlers. */
+  customGroups?: number[][];
+  looseSingletons?: number[];
+  canGroup?: boolean;
+  onGroup?: () => void;
+  onUngroup?: (groupIndex: number) => void;
+  onRemoveCard?: (cardId: number) => void;
+  onRemoveSuit?: (suit: string) => void;
+  onRemoveRank?: (rank: number) => void;
+  /** EK107 — standalone asterism count + label, shown near the atlas when
+   *  the asterism is suit/rank-only (no specific card to anchor a badge). */
+  asterismCount?: number;
+  asterismNames?: string;
 }) {
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const rafRef = useRef<number | null>(null);
@@ -229,7 +280,15 @@ export function AtlasWeb({
   };
 
   return (
-    <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+    <div
+      style={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
       <div
         style={{
           position: "relative",
@@ -343,7 +402,9 @@ export function AtlasWeb({
                 willChange: "transform",
                 borderRadius: 3,
                 lineHeight: 0,
-                boxShadow: selected ? `0 0 0 2px ${traceColor}` : "none",
+                boxShadow: selected
+                  ? `0 0 0 2px ${(cardGroupColor && cardGroupColor[i]) ?? traceColor}`
+                  : "none",
               }}
             >
               <CardImage
@@ -539,6 +600,257 @@ export function AtlasWeb({
         >
           00 · The Fool
         </div>
+      </div>
+
+      {/* EK107 — rank shelf + group builder, below the atlas. */}
+      <div
+        style={{
+          width: STAGE,
+          maxWidth: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        {/* Rank shelf — each rank is one OR-group across the four suits. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "var(--color-foreground-muted)",
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            Ranks
+          </span>
+          {RANK_LABELS.map((label, r) => {
+            const sel = selectedRanks?.has(r) ?? false;
+            return (
+              <button
+                key={r}
+                type="button"
+                title={`any ${RANK_FULL[r]}`}
+                onClick={() => onRankToggle?.(r)}
+                style={{
+                  minWidth: 26,
+                  textAlign: "center",
+                  padding: "4px 8px",
+                  borderRadius: "var(--radius-md, 7px)",
+                  border: sel
+                    ? `1px solid ${traceColor}`
+                    : "0.5px solid var(--border-default)",
+                  background: sel ? traceColor : "var(--surface-card)",
+                  color: sel ? "var(--background)" : "var(--color-foreground)",
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  fontWeight: sel ? 600 : 400,
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Group builder — the active asterism as removable chips, with a
+            "Group" action that folds the loose singletons into one custom
+            OR-group. */}
+        {(() => {
+          const singles = looseSingletons ?? [];
+          const groups = customGroups ?? [];
+          const suits = selectedSuits ? [...selectedSuits] : [];
+          const ranks = selectedRanks ? [...selectedRanks] : [];
+          const hasSpecific = singles.length + groups.flat().length > 0;
+          const empty =
+            singles.length + groups.length + suits.length + ranks.length === 0;
+          const PALETTE = ["#5cead4", "#e0a3ff", "#ffd27d", "#86c5ff", "#ff9eb5"];
+          const chip = (
+            key: string,
+            label: string,
+            onX: () => void,
+            color?: string,
+          ) => (
+            <span
+              key={key}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "3px 8px",
+                borderRadius: "var(--radius-md, 7px)",
+                border: `1px solid ${color ?? "var(--border-default)"}`,
+                background: "var(--surface-card)",
+                color: "var(--color-foreground)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+              <button
+                type="button"
+                aria-label={`Remove ${label}`}
+                onClick={onX}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-foreground-muted)",
+                  fontSize: 13,
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </span>
+          );
+          const suitLabel: Record<string, string> = {
+            major: "Major Arcana", wands: "Wands", cups: "Cups",
+            swords: "Swords", pentacles: "Pentacles",
+          };
+          return (
+            <div
+              style={{
+                border: "0.5px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md, 8px)",
+                background: "var(--surface-card)",
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--color-foreground-muted)",
+                    fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  Asterism
+                </span>
+                <button
+                  type="button"
+                  disabled={!canGroup}
+                  onClick={() => onGroup?.()}
+                  style={{
+                    padding: "3px 10px",
+                    borderRadius: "var(--radius-md, 7px)",
+                    border: "0.5px solid var(--border-default)",
+                    background: "transparent",
+                    color: canGroup
+                      ? "var(--color-foreground)"
+                      : "var(--color-foreground-muted)",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "var(--text-body-sm)",
+                    cursor: canGroup ? "pointer" : "default",
+                    opacity: canGroup ? 1 : 0.5,
+                  }}
+                >
+                  Group selected
+                </button>
+              </div>
+
+              {empty ? (
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--color-foreground-muted)",
+                  }}
+                >
+                  Tap cards, suit arcs, or ranks to build an asterism. Select
+                  2+ cards and Group them into an “any of these” set.
+                </span>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    alignItems: "center",
+                  }}
+                >
+                  {singles.map((id) =>
+                    chip(`s-${id}`, CARD_NAME(id), () => onRemoveCard?.(id)),
+                  )}
+                  {groups.map((g, gi) =>
+                    chip(
+                      `g-${gi}`,
+                      "(" + g.map((id) => CARD_NAME(id)).join(" / ") + ")",
+                      () => onUngroup?.(gi),
+                      PALETTE[gi % PALETTE.length],
+                    ),
+                  )}
+                  {suits.map((s) =>
+                    chip(
+                      `suit-${s}`,
+                      `any ${suitLabel[s] ?? s}`,
+                      () => onRemoveSuit?.(s),
+                    ),
+                  )}
+                  {ranks.map((r) =>
+                    chip(
+                      `rank-${r}`,
+                      `any ${RANK_FULL[r]}`,
+                      () => onRemoveRank?.(r),
+                    ),
+                  )}
+                </div>
+              )}
+
+              {/* Suit/rank-only: no card to anchor a badge, so show the
+                  match count here and let it open the readings modal. */}
+              {!hasSpecific &&
+                (suits.length + ranks.length >= 1) &&
+                (asterismCount ?? 0) >= 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onTealBadgeClick?.()}
+                    style={{
+                      alignSelf: "flex-start",
+                      padding: "3px 10px",
+                      borderRadius: "var(--radius-md, 7px)",
+                      border: `1px solid ${traceColor}`,
+                      background: "transparent",
+                      color: traceColor,
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "var(--text-body-sm)",
+                      cursor: "pointer",
+                    }}
+                    title={asterismNames}
+                  >
+                    {asterismCount} matching
+                  </button>
+                )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

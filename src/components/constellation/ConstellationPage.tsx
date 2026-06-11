@@ -547,6 +547,51 @@ type ConstellationPageProps = {
   atlasMode?: boolean;
 };
 
+// EK107 — atlas group helpers. An asterism is a list of OR-groups; a day
+// or pull matches when EVERY group has at least one member present.
+// Centralized here so the calendar stroke, badge count, candidate lines,
+// and readings modal all compute the match identically.
+function buildAtlasGroups(
+  singletons: number[],
+  customGroups: number[][],
+  suitSet: Set<string>,
+  rankSet: Set<number>,
+): number[][] {
+  const range = (a: number, b: number) =>
+    Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  const SUIT_IDS: Record<string, number[]> = {
+    major: range(0, 21),
+    wands: range(22, 35),
+    cups: range(36, 49),
+    swords: range(50, 63),
+    pentacles: range(64, 77),
+  };
+  const grouped = new Set(customGroups.flat());
+  const groups: number[][] = singletons
+    .filter((id) => !grouped.has(id))
+    .map((id) => [id]);
+  for (const g of customGroups) if (g.length) groups.push([...g]);
+  for (const suit of suitSet) {
+    const ids = SUIT_IDS[suit];
+    if (ids) groups.push(ids);
+  }
+  for (const r of rankSet) groups.push([22 + r, 36 + r, 50 + r, 64 + r]);
+  return groups;
+}
+
+function groupsSatisfied(groups: number[][], present: Set<number>): boolean {
+  for (const g of groups) {
+    let any = false;
+    for (const id of g)
+      if (present.has(id)) {
+        any = true;
+        break;
+      }
+    if (!any) return false;
+  }
+  return true;
+}
+
 export function ConstellationPage({
   onSwitchToTable,
   atlasMode = false,
@@ -642,6 +687,15 @@ export function ConstellationPage({
   const [atlasSuitGroups, setAtlasSuitGroups] = useState<Set<string>>(
     () => new Set(),
   );
+  // EK107 — rank OR-groups (0=Ace … 13=King). Each selected rank is the
+  // four suit cards at that rank ("any 3" = the four 3s). Majors have no
+  // rank, so they're never touched by rank chips.
+  const [atlasRankGroups, setAtlasRankGroups] = useState<Set<number>>(
+    () => new Set(),
+  );
+  // EK107 — custom OR-groups built by select-then-Group. Each is a list of
+  // specific card ids the seeker merged into one "any of these" group.
+  const [atlasCustomGroups, setAtlasCustomGroups] = useState<number[][]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
@@ -1210,24 +1264,29 @@ export function ConstellationPage({
   // any card that co-occurred with the whole selected set. Only runs in
   // atlas mode with 2+ cards selected.
   const atlasCandidateIds = useMemo<number[]>(() => {
-    if (!atlasMode || tealSelectedIds.length < 2 || !overlap) return [];
-    const tealSet = new Set(tealSelectedIds);
+    if (!atlasMode || !overlap) return [];
+    const groups = buildAtlasGroups(
+      tealSelectedIds,
+      atlasCustomGroups,
+      atlasSuitGroups,
+      atlasRankGroups,
+    );
+    if (groups.length < 1) return [];
+    // Cards already part of a specific-card group don't get suggested.
+    const inUse = new Set<number>([
+      ...tealSelectedIds,
+      ...atlasCustomGroups.flat(),
+    ]);
     const result: number[] = [];
     for (let cardId = 0; cardId <= 77; cardId++) {
-      if (tealSet.has(cardId)) continue;
+      if (inUse.has(cardId)) continue;
       let hit = false;
       outer: for (const m of overlap.months) {
         for (const day of m.days) {
           if (day == null) continue;
           if (overlapMode === "day") {
             const sameDay = new Set(day.sameDayCardIds);
-            let ok = true;
-            for (const id of tealSet)
-              if (!sameDay.has(id)) {
-                ok = false;
-                break;
-              }
-            if (ok && sameDay.has(cardId)) {
+            if (groupsSatisfied(groups, sameDay) && sameDay.has(cardId)) {
               hit = true;
               break outer;
             }
@@ -1235,13 +1294,7 @@ export function ConstellationPage({
             const readings = overlap.readingsByDate?.[day.date] ?? [];
             for (const r of readings) {
               const ids = new Set(r.cardIds);
-              let ok = true;
-              for (const id of tealSet)
-                if (!ids.has(id)) {
-                  ok = false;
-                  break;
-                }
-              if (ok && ids.has(cardId)) {
+              if (groupsSatisfied(groups, ids) && ids.has(cardId)) {
                 hit = true;
                 break outer;
               }
@@ -1252,7 +1305,15 @@ export function ConstellationPage({
       if (hit) result.push(cardId);
     }
     return result;
-  }, [atlasMode, tealSelectedIds, overlap, overlapMode]);
+  }, [
+    atlasMode,
+    tealSelectedIds,
+    atlasCustomGroups,
+    atlasSuitGroups,
+    atlasRankGroups,
+    overlap,
+    overlapMode,
+  ]);
 
   // EK106 — the atlas asterism as a list of GROUPS. Each selected card is
   // a one-card group; each toggled suit is a 14-card (or 22 for Majors)
@@ -1260,22 +1321,43 @@ export function ConstellationPage({
   // present. Today's flat behavior is just the all-singletons case.
   const atlasGroups = useMemo<number[][]>(() => {
     if (!atlasMode) return [];
-    const range = (a: number, b: number) =>
-      Array.from({ length: b - a + 1 }, (_, i) => a + i);
-    const SUIT_IDS: Record<string, number[]> = {
-      major: range(0, 21),
-      wands: range(22, 35),
-      cups: range(36, 49),
-      swords: range(50, 63),
-      pentacles: range(64, 77),
-    };
-    const groups: number[][] = tealSelectedIds.map((id) => [id]);
-    for (const suit of atlasSuitGroups) {
-      const ids = SUIT_IDS[suit];
-      if (ids) groups.push(ids);
-    }
-    return groups;
-  }, [atlasMode, tealSelectedIds, atlasSuitGroups]);
+    return buildAtlasGroups(
+      tealSelectedIds,
+      atlasCustomGroups,
+      atlasSuitGroups,
+      atlasRankGroups,
+    );
+  }, [
+    atlasMode,
+    tealSelectedIds,
+    atlasSuitGroups,
+    atlasRankGroups,
+    atlasCustomGroups,
+  ]);
+
+  // EK107 — every specific card that's part of the asterism (loose
+  // singletons + custom-group members). Drives the teal rings + line
+  // anchors on the clock. Suits/ranks are abstract groups, not specific
+  // cards, so they don't appear here.
+  const atlasSelectedCardIds = useMemo<number[]>(() => {
+    if (!atlasMode) return [];
+    const out = new Set<number>(tealSelectedIds);
+    for (const g of atlasCustomGroups) for (const id of g) out.add(id);
+    return [...out];
+  }, [atlasMode, tealSelectedIds, atlasCustomGroups]);
+
+  // EK107 — per-card ring color for custom-group membership. Loose
+  // singletons fall through to the default teal; each custom group gets a
+  // distinct hue so the clock shows the grouping at a glance.
+  const atlasCardGroupColor = useMemo<Record<number, string>>(() => {
+    const PALETTE = ["#5cead4", "#e0a3ff", "#ffd27d", "#86c5ff", "#ff9eb5"];
+    const map: Record<number, string> = {};
+    atlasCustomGroups.forEach((g, gi) => {
+      const col = PALETTE[gi % PALETTE.length];
+      for (const id of g) map[id] = col;
+    });
+    return map;
+  }, [atlasCustomGroups]);
 
   // EK106 — group-aware match across the filtered universe. Returns the
   // set of matching day keys (for the calendar stroke) and a count (pulls
@@ -1290,7 +1372,7 @@ export function ConstellationPage({
         if (day == null) continue;
         if (overlapMode === "day") {
           const sameDay = new Set(day.sameDayCardIds);
-          if (atlasGroups.every((g) => g.some((id) => sameDay.has(id)))) {
+          if (groupsSatisfied(atlasGroups, sameDay)) {
             ymds.add(day.date);
             count++;
           }
@@ -1299,7 +1381,7 @@ export function ConstellationPage({
           let dayHit = false;
           for (const r of readings) {
             const ids = new Set(r.cardIds);
-            if (atlasGroups.every((g) => g.some((id) => ids.has(id)))) {
+            if (groupsSatisfied(atlasGroups, ids)) {
               count++;
               dayHit = true;
             }
@@ -1310,6 +1392,83 @@ export function ConstellationPage({
     }
     return { ymds, count };
   }, [atlasMode, atlasGroups, overlap, overlapMode]);
+
+  // EK107 — readings that match the full group asterism, for the badge's
+  // readings modal in atlas mode. Same shape as tealMatchedReadings but
+  // group-aware (every group satisfied), per the active pill.
+  const atlasMatchedReadings = useMemo(() => {
+    if (!atlasMode || atlasGroups.length === 0 || !overlap) return [];
+    const all = Object.values(overlap.readingsByDate).flat();
+    if (overlapMode === "pull") {
+      return all.filter((r) => groupsSatisfied(atlasGroups, new Set(r.cardIds)));
+    }
+    const out: typeof all = [];
+    for (const readings of Object.values(overlap.readingsByDate)) {
+      const sameDayCards = new Set<number>();
+      for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
+      if (groupsSatisfied(atlasGroups, sameDayCards)) out.push(...readings);
+    }
+    return out;
+  }, [atlasMode, atlasGroups, overlap, overlapMode]);
+
+  // EK107 — human-readable description of the current group asterism,
+  // shared by the badge tooltip and the readings-modal title.
+  const atlasAsterismNames = useMemo(() => {
+    const rankLabel = [
+      "Ace", "Two", "Three", "Four", "Five", "Six", "Seven",
+      "Eight", "Nine", "Ten", "Page", "Knight", "Queen", "King",
+    ];
+    const suitLabel: Record<string, string> = {
+      major: "Major Arcana", wands: "Wands", cups: "Cups",
+      swords: "Swords", pentacles: "Pentacles",
+    };
+    const grouped = new Set(atlasCustomGroups.flat());
+    const parts: string[] = [];
+    for (const id of tealSelectedIds)
+      if (!grouped.has(id)) parts.push(TAROT_DECK[id] ?? "Card");
+    for (const g of atlasCustomGroups)
+      parts.push("(" + g.map((id) => TAROT_DECK[id] ?? "Card").join(" / ") + ")");
+    for (const s of atlasSuitGroups) parts.push("any " + (suitLabel[s] ?? s));
+    for (const r of atlasRankGroups) parts.push("any " + rankLabel[r]);
+    return parts.join(", ");
+  }, [tealSelectedIds, atlasCustomGroups, atlasSuitGroups, atlasRankGroups]);
+
+  // EK107 — clock click in atlas mode. A card already inside a custom
+  // group is removed from that group (the group dissolves to a loose
+  // singleton if only one member remains); otherwise it toggles as a
+  // loose singleton.
+  const handleAtlasCardClick = (cardId: number) => {
+    const gi = atlasCustomGroups.findIndex((g) => g.includes(cardId));
+    if (gi !== -1) {
+      const remaining = atlasCustomGroups[gi].filter((x) => x !== cardId);
+      let nextGroups = atlasCustomGroups.filter((_, i) => i !== gi);
+      const promote: number[] = [];
+      if (remaining.length >= 2) nextGroups = [...nextGroups, remaining];
+      else if (remaining.length === 1) promote.push(remaining[0]);
+      setAtlasCustomGroups(nextGroups);
+      if (promote.length)
+        setTealSelectedIds((s) => Array.from(new Set([...s, ...promote])));
+      return;
+    }
+    setTealSelectedIds((prev) =>
+      prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
+    );
+  };
+
+  // EK107 — merge the loose singletons into one custom OR-group.
+  const handleAtlasGroup = () => {
+    if (tealSelectedIds.length < 2) return;
+    setAtlasCustomGroups((prev) => [...prev, [...tealSelectedIds]]);
+    setTealSelectedIds([]);
+  };
+
+  // EK107 — break a custom group back into loose singletons.
+  const handleAtlasUngroup = (gi: number) => {
+    const g = atlasCustomGroups[gi];
+    if (!g) return;
+    setAtlasCustomGroups((prev) => prev.filter((_, i) => i !== gi));
+    setTealSelectedIds((s) => Array.from(new Set([...s, ...g])));
+  };
 
   // EJ9 — handler invoked when a slot card is dropped onto a constellation
   // card (hero or companion). `targetCardId` identifies the constellation
@@ -3755,14 +3914,9 @@ export function ConstellationPage({
           {atlasMode ? (
             <AtlasWeb
               pairs={atlasPairs}
-              tealSelectedIds={tealSelectedIds}
-              onCardClick={(cardId) =>
-                setTealSelectedIds((prev) =>
-                  prev.includes(cardId)
-                    ? prev.filter((x) => x !== cardId)
-                    : [...prev, cardId],
-                )
-              }
+              tealSelectedIds={atlasSelectedCardIds}
+              cardGroupColor={atlasCardGroupColor}
+              onCardClick={handleAtlasCardClick}
               onCardHover={handleConstellationHover}
               onCardDragStart={(cardId) => setDraggingCardId(cardId)}
               onCardDragEnd={() => setDraggingCardId(null)}
@@ -3786,10 +3940,13 @@ export function ConstellationPage({
                 setReadingsModalOpen(true);
               }}
               tealBadge={
-                tealSelectedIds.length >= 1 &&
-                (tealSelectedIds.length >= 2 || atlasSuitGroups.size >= 1)
+                atlasSelectedCardIds.length >= 1 &&
+                (atlasGroups.length >= 2 ||
+                  atlasCustomGroups.length >= 1 ||
+                  atlasSuitGroups.size >= 1 ||
+                  atlasRankGroups.size >= 1)
                   ? {
-                      cardId: tealSelectedIds[0],
+                      cardId: atlasSelectedCardIds[0],
                       count: atlasMatch.count,
                       tooltip: (() => {
                         const unit =
@@ -3800,20 +3957,7 @@ export function ConstellationPage({
                             : atlasMatch.count === 1
                               ? "DAY"
                               : "DAYS";
-                        const suitLabel: Record<string, string> = {
-                          major: "Major Arcana",
-                          wands: "Wands",
-                          cups: "Cups",
-                          swords: "Swords",
-                          pentacles: "Pentacles",
-                        };
-                        const names = [
-                          ...tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card"),
-                          ...[...atlasSuitGroups].map(
-                            (s) => `any ${suitLabel[s] ?? s}`,
-                          ),
-                        ].join(", ");
-                        return `${atlasMatch.count} ${unit} · ${names}`;
+                        return `${atlasMatch.count} ${unit} · ${atlasAsterismNames}`;
                       })(),
                     }
                   : null
@@ -3831,6 +3975,39 @@ export function ConstellationPage({
                   return next;
                 })
               }
+              selectedRanks={atlasRankGroups}
+              onRankToggle={(r) =>
+                setAtlasRankGroups((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(r)) next.delete(r);
+                  else next.add(r);
+                  return next;
+                })
+              }
+              customGroups={atlasCustomGroups}
+              looseSingletons={tealSelectedIds}
+              canGroup={tealSelectedIds.length >= 2}
+              onGroup={handleAtlasGroup}
+              onUngroup={handleAtlasUngroup}
+              onRemoveCard={(id) =>
+                setTealSelectedIds((prev) => prev.filter((x) => x !== id))
+              }
+              onRemoveSuit={(s) =>
+                setAtlasSuitGroups((prev) => {
+                  const next = new Set(prev);
+                  next.delete(s);
+                  return next;
+                })
+              }
+              onRemoveRank={(r) =>
+                setAtlasRankGroups((prev) => {
+                  const next = new Set(prev);
+                  next.delete(r);
+                  return next;
+                })
+              }
+              asterismCount={atlasMatch.count}
+              asterismNames={atlasAsterismNames}
             />
           ) : (
           <ConstellationWeb
@@ -4270,10 +4447,12 @@ export function ConstellationPage({
           // hero is itself teal-selected — it's just one of the cards).
           // Card-name list wraps; no truncation, no "+ N more".
           if (modalMode === "teal") {
-            const n = tealCount;
+            const n = atlasMode ? atlasMatch.count : tealCount;
             const unit =
               overlapMode === "pull" ? (n === 1 ? "SPREAD" : "SPREADS") : n === 1 ? "DAY" : "DAYS";
-            const tealNames = tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
+            const tealNames = atlasMode
+              ? atlasAsterismNames
+              : tealSelectedIds.map((id) => TAROT_DECK[id] ?? "Card").join(", ");
             return `${n} ${unit} with ${tealNames}`;
           }
           if (modalMode === "slot-card") {
@@ -4294,7 +4473,9 @@ export function ConstellationPage({
         })()}
         matches={
           modalMode === "teal"
-            ? tealMatchedReadings
+            ? atlasMode
+              ? atlasMatchedReadings
+              : tealMatchedReadings
             : modalMode === "slot-card"
               ? slotCardMatchedReadings
               : heroMatchedReadings
