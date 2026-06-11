@@ -1972,6 +1972,9 @@ function OverlapStrip({
   // suit groups). The regular page never passes this, so its path is
   // untouched.
   asterismYmds,
+  // EK108 — atlas chip-hover preview: extra day keys to stroke transiently
+  // while a rank/suit chip is hovered. Unioned with the committed stroke.
+  previewYmds,
   // EC — read from --trace-color CSS variable so per-theme overrides
   // (Cups Tide, Pentacles & Moss) flow through automatically. Default
   // to the canonical teal hex when no theme override is set.
@@ -2030,6 +2033,8 @@ function OverlapStrip({
   /** EK106 — atlas group mode: precomputed matching day keys that
    *  override the per-card tealSet match. Undefined on the regular page. */
   asterismYmds?: Set<string>;
+  /** EK108 — atlas chip-hover preview day keys, unioned with the stroke. */
+  previewYmds?: Set<string>;
   traceColor?: string;
   /** DP — "scroll" (default) renders the legacy horizontal-scroll strip used
    * by QuickLog at /draw/classic. "grid12" renders a 12-month two-row × six-
@@ -2529,6 +2534,9 @@ function OverlapStrip({
                         }
                       }
                     }
+                    // EK108 — chip-hover preview adds its days on top of
+                    // whatever's committed.
+                    if (previewYmds?.has(day.date)) tealTraceHit = true;
                     // EJ25 — asterism badge hover override. When the parent
                     // signals the asterism badge is being hovered, every
                     // qualifying day-cell (tealTraceHit) swaps to solid
