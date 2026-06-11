@@ -28,7 +28,7 @@
  * boxes; rendering 78 nodes through it would destabilise every other
  * surface it draws on. Atlas owns its own layout path.
  */
-import { useRef } from "react";
+import { useRef, useState, useLayoutEffect } from "react";
 import { CardImage } from "@/components/card/CardImage";
 
 type AtlasPair = { a: number; b: number; count: number };
@@ -51,6 +51,21 @@ function anglePos(i: number): { x: number; y: number } {
 
 const POS: Array<{ x: number; y: number }> = Array.from({ length: N }, (_, i) =>
   anglePos(i),
+);
+
+// EK105 — line endpoints stop just INSIDE each card (radius R - inset)
+// instead of at the card centre, so on the small ring it's obvious which
+// card a line is reaching toward rather than the line vanishing behind it.
+const LINE_INSET = 16;
+const INSET_POS: Array<{ x: number; y: number }> = Array.from(
+  { length: N },
+  (_, i) => {
+    const a = ((-90 + i * (360 / N)) * Math.PI) / 180;
+    return {
+      x: CX + (R - LINE_INSET) * Math.cos(a),
+      y: CY + (R - LINE_INSET) * Math.sin(a),
+    };
+  },
 );
 
 export function AtlasWeb({
@@ -95,6 +110,25 @@ export function AtlasWeb({
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{ x: number; y: number } | null>(null);
 
+  // EK105 — which card the cursor is currently over. Drives the
+  // hover-preview: while an asterism is active, hovering another card
+  // lights its connections to the selection in the trace color. Kept as
+  // state (it must re-render the line layer), separate from the magnify,
+  // which writes transforms directly to the DOM (see below).
+  const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
+
+  // EK105 — own the cards' transform OUTSIDE the React style prop. The
+  // magnify writes el.style.transform directly every frame; if transform
+  // also lived in the inline style, a hover-driven re-render would reset
+  // it to scale(1) and fight the magnify. We set the centred resting
+  // transform once, before paint, and let the magnify own it thereafter.
+  useLayoutEffect(() => {
+    for (let i = 0; i < N; i++) {
+      const el = cardRefs.current[i];
+      if (el) el.style.transform = "translate(-50%, -50%) scale(1)";
+    }
+  }, []);
+
   // Max co-occurrence count, for line-weight scaling. Floor at 1 so an
   // empty history (no pairs) doesn't divide by zero.
   const maxCount = pairs.reduce((m, p) => Math.max(m, p.count), 1);
@@ -105,6 +139,14 @@ export function AtlasWeb({
   // the whole set (a candidate) renders in the trace color.
   const candidateSet = new Set(candidateIds ?? []);
   const showTeal = tealSelectedIds.length >= 2;
+  // EK105 — hover preview: with 1+ cards selected, hovering a DIFFERENT
+  // card lights the co-occurrence lines between it and the selection.
+  const previewCardId =
+    tealSelectedIds.length >= 1 &&
+    hoveredCardId != null &&
+    !tealSet.has(hoveredCardId)
+      ? hoveredCardId
+      : null;
 
   // Write each card's scale + z-index directly. mx/my are in STAGE-logical
   // pixels (the same space POS lives in), so REACH is honoured at any
@@ -181,8 +223,8 @@ export function AtlasWeb({
           aria-hidden
         >
           {pairs.map((p) => {
-            const A = POS[p.a];
-            const B = POS[p.b];
+            const A = INSET_POS[p.a];
+            const B = INSET_POS[p.b];
             if (!A || !B) return null;
             const t = p.count / maxCount;
             // EK104 — a line is a teal discovery hint when one end is in
@@ -191,6 +233,13 @@ export function AtlasWeb({
               showTeal &&
               ((tealSet.has(p.a) && candidateSet.has(p.b)) ||
                 (tealSet.has(p.b) && candidateSet.has(p.a)));
+            // EK105 — hover preview: a line between the hovered card and a
+            // selected card lights up in the trace color while hovering.
+            const isPreviewLine =
+              previewCardId != null &&
+              ((p.a === previewCardId && tealSet.has(p.b)) ||
+                (p.b === previewCardId && tealSet.has(p.a)));
+            const teal = isTealLine || isPreviewLine;
             return (
               <line
                 key={`${p.a}-${p.b}`}
@@ -198,9 +247,9 @@ export function AtlasWeb({
                 y1={A.y}
                 x2={B.x}
                 y2={B.y}
-                stroke={isTealLine ? traceColor : "var(--accent)"}
-                strokeWidth={isTealLine ? Math.max(1.4, 0.5 + t * 1.6) : 0.5 + t * 1.6}
-                opacity={isTealLine ? 0.9 : 0.1 + t * 0.45}
+                stroke={teal ? traceColor : "var(--accent)"}
+                strokeWidth={teal ? Math.max(1.4, 0.5 + t * 1.6) : 0.5 + t * 1.6}
+                opacity={teal ? 0.9 : 0.1 + t * 0.45}
               />
             );
           })}
@@ -228,15 +277,19 @@ export function AtlasWeb({
               }}
               onDragEnd={() => onCardDragEnd?.()}
               onClick={() => onCardClick(i)}
-              onMouseEnter={(e) =>
+              onMouseEnter={(e) => {
+                setHoveredCardId(i);
                 onCardHover?.(
                   i,
                   e.clientX,
                   e.clientY,
                   e.currentTarget.getBoundingClientRect(),
-                )
-              }
-              onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
+                );
+              }}
+              onMouseLeave={(e) => {
+                setHoveredCardId((cur) => (cur === i ? null : cur));
+                onCardHover?.(null, e.clientX, e.clientY);
+              }}
               style={{
                 position: "absolute",
                 // EK103 — percentage of the stage (not raw px) so cards
@@ -246,7 +299,9 @@ export function AtlasWeb({
                 left: `${(x / STAGE) * 100}%`,
                 top: `${(y / STAGE) * 100}%`,
                 width: CARD_W,
-                transform: "translate(-50%, -50%) scale(1)",
+                // EK105 — transform is NOT set here; the magnify owns it
+                // via direct DOM writes (see the useLayoutEffect above), so
+                // hover-driven re-renders can't reset it.
                 transformOrigin: "center center",
                 transition: "transform 90ms ease-out",
                 cursor: "grab",
