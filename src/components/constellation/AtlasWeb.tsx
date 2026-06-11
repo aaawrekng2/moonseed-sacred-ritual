@@ -272,6 +272,16 @@ export function AtlasWeb({
         {Array.from({ length: N }, (_, i) => {
           const { x, y } = POS[i];
           const selected = tealSet.has(i);
+          // EK110 — magnify grows the card OUTWARD from the point where its
+          // lines meet it (the inner edge facing the clock centre), not
+          // symmetrically from the card centre. The transform-origin is the
+          // box point in the direction of the hub; since the magnify keeps
+          // translate(-50%,-50%) and only scales, that point stays fixed at
+          // every scale — so the card expands away from the hub AND the line
+          // endpoints (which sit on that same radial) stay connected.
+          const oa = ((-90 + i * (360 / N)) * Math.PI) / 180;
+          const originX = 50 * (1 - Math.cos(oa));
+          const originY = 50 * (1 - Math.sin(oa));
           return (
             <div
               key={i}
@@ -315,7 +325,10 @@ export function AtlasWeb({
                 // EK105 — transform is NOT set here; the magnify owns it
                 // via direct DOM writes (see the useLayoutEffect above), so
                 // hover-driven re-renders can't reset it.
-                transformOrigin: "center center",
+                // EK110 — origin at the inner edge (toward the hub) so the
+                // card expands outward from where the lines meet it, and the
+                // line connection point stays put as it grows.
+                transformOrigin: `${originX}% ${originY}%`,
                 transition: "transform 90ms ease-out",
                 cursor: "grab",
                 willChange: "transform",
