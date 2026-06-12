@@ -43,6 +43,7 @@ import { AuthScreen } from "@/components/auth/AuthScreen";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { setDevMode } from "@/components/dev/DevOverlay";
+import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import {
   AlertDialog,
@@ -965,6 +966,16 @@ function ReadingPreferencesSection({
   const [saving, setSaving] = useState(false);
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [savingReversed, setSavingReversed] = useState(false);
+  // EK126 — entry-card (splash) on/off. Local preference (resets with the
+  // master reset); mirrors the "Don't show again" line on the splash itself.
+  const [splashOn, setSplashOn] = useState(true);
+  useEffect(() => {
+    setSplashOn(!isSplashDisabled());
+  }, []);
+  const toggleSplash = (on: boolean) => {
+    setSplashOn(on);
+    setSplashDisabled(!on);
+  };
   const [savingTrackReversals, setSavingTrackReversals] = useState(false);
   // EJ47 — local working value for the reversal-chance input. Mirror
   // of the stored pref; persisted on blur or Enter so we don't spam
@@ -1130,6 +1141,26 @@ function ReadingPreferencesSection({
             checked={prefs.allow_reversed_cards}
             disabled={savingReversed}
             onCheckedChange={toggleReversed}
+          />
+        </div>
+
+        {/* EK126 — Entry card (home splash) on/off. */}
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="show-entry-card" className="text-sm">
+              Show entry card on load
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              The TarotSeed gate that opens the app — the full-size card that
+              breathes, then shrinks into your home card. When off, you go
+              straight to home.
+            </p>
+          </div>
+          <Switch
+            id="show-entry-card"
+            checked={splashOn}
+            onCheckedChange={toggleSplash}
+            aria-label="Show entry card on load"
           />
         </div>
 
