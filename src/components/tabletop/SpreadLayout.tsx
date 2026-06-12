@@ -543,6 +543,7 @@ function SpreadContent({
                         cardIndex={pick.cardIndex}
                         isReversed={!!pick.isReversed}
                         cardWidth={displayW}
+                        fadeInDelayMs={1100}
                       />
                     )}
                   </div>
@@ -628,6 +629,7 @@ function SpreadContent({
                   cardIndex={pick.cardIndex}
                   isReversed={!!pick.isReversed}
                   cardWidth={sizing.w}
+                  fadeInDelayMs={1100}
                 />
               )}
             </div>
@@ -995,17 +997,41 @@ function CardNameLabel({
   isReversed,
   cardWidth,
   nameOverride,
+  fadeInDelayMs,
 }: {
   cardIndex: number;
   isReversed: boolean;
   cardWidth: number;
   nameOverride?: string;
+  /**
+   * EK119 — when set, the label stays hidden for this many ms after mount
+   * (i.e. while the card is mid-flip), then fades in. Used on the flip
+   * screen so the name never shows through a turning card — it appears
+   * only once the card is fully face-up. Omitted elsewhere → instant.
+   */
+  fadeInDelayMs?: number;
 }) {
   // EJ35 — resolve oracle card names via active deck so the label
   // under each card reads "Hurricane Lamp" not "Card 1000".
   const resolveCardName = useActiveDeckCardName();
+  const delayed = typeof fadeInDelayMs === "number" && fadeInDelayMs > 0;
+  const [shown, setShown] = useState(!delayed);
+  useEffect(() => {
+    if (!delayed) return;
+    setShown(false);
+    const t = window.setTimeout(() => setShown(true), fadeInDelayMs);
+    return () => window.clearTimeout(t);
+  }, [delayed, fadeInDelayMs]);
   return (
-    <div className="flex flex-col items-center" style={{ width: cardWidth, maxWidth: cardWidth }}>
+    <div
+      className="flex flex-col items-center"
+      style={{
+        width: cardWidth,
+        maxWidth: cardWidth,
+        opacity: shown ? 1 : 0,
+        transition: delayed ? "opacity 360ms ease-out" : undefined,
+      }}
+    >
       <span
         style={{
           fontSize: "var(--text-body-sm)",
@@ -1109,6 +1135,7 @@ function SingleCard({
           cardIndex={pick.cardIndex}
           isReversed={!!pick.isReversed}
           cardWidth={sizing.w}
+          fadeInDelayMs={1100}
         />
       )}
       {spread === "yes_no" && revealed && saying && (
@@ -1266,6 +1293,7 @@ function ThreeRow({
                 cardIndex={pick.cardIndex}
                 isReversed={!!pick.isReversed}
                 cardWidth={sizing.w}
+                fadeInDelayMs={1100}
               />
             )}
           </div>
