@@ -751,6 +751,12 @@ export function ConstellationPage({
   // the constellation web (hero or companion) to toggle membership. Drives
   // calendar stroke + readings panel filter. Resets when hero changes.
   const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
+  // EK120 — atlas left-column tabs. "draw" = build the spread (paste +
+  // question + notes + save); "asterism" = the analysis tools (ranks,
+  // suits, moon, asterism box). Only one panel shows at a time, which
+  // shortens the column and lets the calendar strip below rise up.
+  // Atlas-only; /constellation never reads this.
+  const [atlasTab, setAtlasTab] = useState<"draw" | "asterism">("draw");
   // EK108 — custom OR-groups built by select-then-Group. Each is a list of
   // specific card ids the seeker merged into one "any of these" group.
   const [atlasCustomGroups, setAtlasCustomGroups] = useState<number[][]>([]);
@@ -4079,10 +4085,64 @@ export function ConstellationPage({
               </div>
             </div>
           </div>
+          {/* EK120 — atlas left-column tab strip: Draw | Asterism. Sits
+              directly under the slot row + paste. Switching collapses the
+              column so the calendar strip below rises. Atlas-only;
+              /constellation renders neither the strip nor the gating. */}
+          {atlasMode && (
+            <div
+              role="tablist"
+              aria-label="Atlas tools"
+              style={{
+                display: "flex",
+                gap: 24,
+                borderBottom: "1px solid var(--border-subtle)",
+                marginTop: 4,
+              }}
+            >
+              {(
+                [
+                  ["draw", "Draw"],
+                  ["asterism", "Asterism"],
+                ] as const
+              ).map(([key, label]) => {
+                const active = atlasTab === key;
+                return (
+                  <button
+                    key={key}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setAtlasTab(key)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: "0 0 8px",
+                      cursor: "pointer",
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: "var(--tab-font-size, 13px)",
+                      letterSpacing: "0.01em",
+                      color: active
+                        ? "var(--accent)"
+                        : "var(--color-foreground)",
+                      opacity: active ? 1 : "var(--ro-plus-10, 0.55)",
+                      borderBottom: active
+                        ? "2px solid var(--accent)"
+                        : "2px solid transparent",
+                      marginBottom: -1,
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* EK109 — atlas asterism controls: rank line, suit line, and
               group builder. Live in the LEFT column, directly under the
-              card-name input; atlas mode only. */}
-          {atlasMode && (
+              card-name input; atlas mode only.
+              EK120 — gated to the Asterism tab. */}
+          {atlasMode && atlasTab === "asterism" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {(() => {
                 const selSet = new Set(atlasSelectedCardIds);
@@ -4514,8 +4574,10 @@ export function ConstellationPage({
           )}
           {/* DY — bottom of right column: question + prompts trigger,
               notes textarea, Save to Journal button. Hides entirely
-              when no picks. */}
-          {picks.length > 0 && (
+              when no picks.
+              EK120 — on atlas, lives in the Draw tab. /constellation
+              (non-atlas) shows it unconditionally as before. */}
+          {picks.length > 0 && (!atlasMode || atlasTab === "draw") && (
             <div
               style={{
                 display: "flex",
