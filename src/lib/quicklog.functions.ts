@@ -243,7 +243,15 @@ export type QuickLogOverlap = {
   months: QuickLogMonthGroup[];
   readingsByDate: Record<
     string,
-    Array<{ id: string; createdAt: string; question: string | null; cardIds: number[] }>
+    Array<{
+      id: string;
+      createdAt: string;
+      question: string | null;
+      cardIds: number[];
+      // EK113 — recorded moon phase ("Full Moon" / "New Moon" / …), so the
+      // atlas can match moon group slots. Null for readings without one.
+      moonPhase: string | null;
+    }>
   >;
   /**
    * Most-recent ISO timestamp this seeker drew each card, within the
@@ -322,6 +330,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
         createdAt: row.created_at,
         question: row.question,
         cardIds: ids,
+        moonPhase: row.moon_phase ?? null,
       });
       const set = (sameDayCardIds[key] = sameDayCardIds[key] ?? new Set());
       for (const id of ids) set.add(id);

@@ -602,19 +602,33 @@ const ATLAS_SUIT_LIST: Array<{ key: string; label: string }> = [
 const ATLAS_TRACE_COLOR = "var(--trace-color, #5cead4)";
 
 // EK112 — a group slot dropped into the slot row (atlas only). Represents
-// "any card of this rank/suit" for the slot-row match. Kept PARALLEL to
-// ManualPick so the shared pick type (used across ~10 files) stays untouched.
-export type AtlasGroupSlot = {
-  uid: string;
-  kind: "rank" | "suit";
-  key: string;
-  label: string;
-  ids: number[];
-};
+// "any of" for the slot-row match. Kept PARALLEL to ManualPick so the shared
+// pick type (used across ~10 files) stays untouched. EK113 — a moon variant
+// joins: card groups (rank/suit) match by card membership; a moon group
+// matches by the reading's recorded phase.
+export type AtlasGroupSlot =
+  | {
+      uid: string;
+      kind: "rank" | "suit";
+      key: string;
+      label: string;
+      ids: number[];
+    }
+  | {
+      uid: string;
+      kind: "moon";
+      key: string;
+      label: string;
+      phase: "Full Moon" | "New Moon";
+    };
 function buildAtlasGroupSlot(
-  kind: "rank" | "suit",
+  kind: "rank" | "suit" | "moon",
   key: string,
 ): AtlasGroupSlot | null {
+  if (kind === "moon") {
+    if (key !== "Full Moon" && key !== "New Moon") return null;
+    return { uid: `moon-${key}`, kind, key, label: `under ${key}`, phase: key };
+  }
   if (kind === "rank") {
     const r = Number(key);
     if (!Number.isInteger(r) || r < 0 || r > 13) return null;
@@ -748,7 +762,7 @@ export function ConstellationPage({
   // no card id is being dragged).
   const [atlasGroupSlots, setAtlasGroupSlots] = useState<AtlasGroupSlot[]>([]);
   const [draggingGroup, setDraggingGroup] = useState(false);
-  const addAtlasGroupSlot = (kind: "rank" | "suit", key: string) => {
+  const addAtlasGroupSlot = (kind: "rank" | "suit" | "moon", key: string) => {
     const gs = buildAtlasGroupSlot(kind, key);
     if (!gs) return;
     setAtlasGroupSlots((prev) =>
@@ -757,6 +771,13 @@ export function ConstellationPage({
   };
   const removeAtlasGroupSlot = (uid: string) =>
     setAtlasGroupSlots((prev) => prev.filter((p) => p.uid !== uid));
+  // EK113 — moon chips have no cards to bulk-select, so a click toggles the
+  // moon group slot directly (drag still drops it into a slot like the rest).
+  const toggleAtlasMoonSlot = (phase: string) => {
+    const uid = `moon-${phase}`;
+    if (atlasGroupSlots.some((p) => p.uid === uid)) removeAtlasGroupSlot(uid);
+    else addAtlasGroupSlot("moon", phase);
+  };
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
@@ -3391,7 +3412,11 @@ export function ConstellationPage({
                   return (
                     <div
                       key={`group-${groupSlot.uid}`}
-                      title={`${groupSlot.label} — matches any card of this ${groupSlot.kind}`}
+                      title={
+                        groupSlot.kind === "moon"
+                          ? `${groupSlot.label} — matches readings drawn under this moon phase`
+                          : `${groupSlot.label} — matches any card of this ${groupSlot.kind}`
+                      }
                       style={{
                         position: "relative",
                         width: slotW,
@@ -3409,6 +3434,10 @@ export function ConstellationPage({
                     >
                       <span
                         style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 3,
                           fontFamily: "var(--font-display)",
                           fontStyle: "italic",
                           fontSize: "var(--text-body-sm)",
@@ -3416,6 +3445,9 @@ export function ConstellationPage({
                           color: "var(--color-foreground)",
                         }}
                       >
+                        {groupSlot.kind === "moon" && (
+                          <MoonPhaseIcon phase={groupSlot.phase} size={16} />
+                        )}
                         {groupSlot.label}
                       </span>
                       <button
@@ -3471,7 +3503,7 @@ export function ConstellationPage({
                         if (grp) {
                           try {
                             const o = JSON.parse(grp) as {
-                              kind: "rank" | "suit";
+                              kind: "rank" | "suit" | "moon";
                               key: string;
                             };
                             addAtlasGroupSlot(o.kind, o.key);
@@ -4134,6 +4166,61 @@ export function ConstellationPage({
                       </div>
                     </div>
 
+                    {/* EK113 — Moon line. A moon phase isn't a card group, so
+                        these match readings drawn under that phase. Click
+                        toggles the slot directly; drag drops it into a slot. */}
+                    <div>
+                      {shelfLabel("Moon")}
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {(["Full Moon", "New Moon"] as const).map((phase) => {
+                          const on = atlasGroupSlots.some(
+                            (g) => g.kind === "moon" && g.phase === phase,
+                          );
+                          return (
+                            <button
+                              key={phase}
+                              type="button"
+                              title={`Match readings drawn under a ${phase}`}
+                              onClick={() => toggleAtlasMoonSlot(phase)}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.effectAllowed = "copy";
+                                e.dataTransfer.setData(
+                                  "application/x-tarotseed-group",
+                                  JSON.stringify({ kind: "moon", key: phase }),
+                                );
+                                setDraggingGroup(true);
+                              }}
+                              onDragEnd={() => setDraggingGroup(false)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                padding: "4px 9px",
+                                borderRadius: "var(--radius-md, 6px)",
+                                border: on
+                                  ? `1px solid ${ATLAS_TRACE_COLOR}`
+                                  : "0.5px solid var(--border-default)",
+                                background: on
+                                  ? ATLAS_TRACE_COLOR
+                                  : "var(--surface-card)",
+                                color: on
+                                  ? "var(--background)"
+                                  : "var(--color-foreground)",
+                                fontFamily: "var(--font-display)",
+                                fontStyle: "italic",
+                                fontSize: "var(--text-body-sm)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <MoonPhaseIcon phase={phase} size={14} />
+                              {phase}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     {/* Group builder. */}
                     <div
                       style={{
@@ -4582,7 +4669,18 @@ export function ConstellationPage({
             heroCardId={heroPick?.cardIndex ?? null}
             pullCardIds={picks.map((p) => p.cardIndex)}
             pullGroups={
-              atlasMode ? atlasGroupSlots.map((g) => g.ids) : undefined
+              atlasMode
+                ? atlasGroupSlots.flatMap((g) =>
+                    g.kind === "moon" ? [] : [g.ids],
+                  )
+                : undefined
+            }
+            pullMoonGroups={
+              atlasMode
+                ? atlasGroupSlots.flatMap((g) =>
+                    g.kind === "moon" ? [g.phase] : [],
+                  )
+                : undefined
             }
             mode={overlapMode}
             onModeChange={setOverlapMode}
