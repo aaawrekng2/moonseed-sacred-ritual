@@ -18,6 +18,7 @@ import {
 } from "@/lib/use-spread-entry-modes";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
+import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
 import { useStreak } from "@/lib/use-streak";
 import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
@@ -65,6 +66,11 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+// EK125 — module-scoped so the splash shows once per full page load (every
+// fresh load / refresh) rather than re-popping on internal navigation back to
+// home. Resets naturally when the page is reloaded.
+let splashShownThisLoad = false;
+
 function Index() {
   // DC-2.2 — Theme tokens (including --bg-gradient-left/right) are
   // written ONLY by the pre-paint boot script in __root.tsx, by
@@ -75,25 +81,24 @@ function Index() {
   // BX — Home / moon carousel stays portrait.
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
-  // EK122 — splash entry. Once per session, the Signature card back shows
-  // full-size, back-lit + breathing, over the cosmos. Tapping it shrinks
-  // the card into the home gateway slot while the rest of home fades in.
-  // EK123 — decide in a layout effect, NOT the useState initializer. Under
-  // SSR the initializer ran with no `window`, decided "already seen", and
-  // the client hydrated to that — so the splash never fired. A client-only
-  // layout effect runs before paint, so first-visit shows the splash with
-  // no flash of the home screen behind it.
+  // EK122 — splash entry. The Signature card back shows full-size, back-lit
+  // + breathing, over the cosmos. Tapping it shrinks the card into the home
+  // gateway slot while the rest of home fades in.
+  // EK123 — decided in a layout effect (not the useState initializer) so it
+  // fires reliably after SSR, before paint, with no flash of home behind it.
+  // EK125 — shows on EVERY load (once per page load) unless the seeker turned
+  // it off ("Don't show again" / Settings toggle). Adds a "settling" phase so
+  // the shrunk card HOLDS in the slot until the real gateway card is painted,
+  // then fades out — no empty-gap flash.
   const [splashPhase, setSplashPhase] = useState<
-    "showing" | "transitioning" | "done"
+    "showing" | "transitioning" | "settling" | "done"
   >("done");
+  const [splashFading, setSplashFading] = useState(false);
   useLayoutEffect(() => {
-    try {
-      if (sessionStorage.getItem("tarotseed:splash-seen")) return;
-      sessionStorage.setItem("tarotseed:splash-seen", "1");
-      setSplashPhase("showing");
-    } catch {
-      /* sessionStorage unavailable — skip the splash. */
-    }
+    if (splashShownThisLoad) return;
+    if (isSplashDisabled()) return;
+    splashShownThisLoad = true;
+    setSplashPhase("showing");
   }, []);
   const [splashTransform, setSplashTransform] = useState("none");
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);
@@ -124,7 +129,9 @@ function Index() {
       setSplashTransform("scale(0.15)");
     }
     setSplashPhase("transitioning");
-    window.setTimeout(() => setSplashPhase("done"), 840);
+    // EK125 — after the shrink, HOLD in the slot ("settling"); the effect
+    // below fades the card out only once the gateway card is painted.
+    window.setTimeout(() => setSplashPhase("settling"), 800);
   }
   const [todayCard, setTodayCard] = useState<number | null>(null);
   // EW-2 — track today's draw orientation so the gateway face rotates
@@ -136,6 +143,20 @@ function Index() {
   // at least once, so we don't flash the card-back during the async
   // resolution on warm reopen.
   const [hasCheckedTodayDraw, setHasCheckedTodayDraw] = useState(false);
+  // EK125 — once the splash card has shrunk into the slot, hold it there
+  // until the real gateway card is actually ready to paint (the today-draw
+  // check has resolved — that gap was the empty flash), then cross-fade it
+  // out. A cap (1600ms) guarantees it never hangs if the check stalls.
+  useEffect(() => {
+    if (splashPhase !== "settling") return;
+    const holdMs = hasCheckedTodayDraw ? 140 : 1600;
+    const t1 = window.setTimeout(() => setSplashFading(true), holdMs);
+    const t2 = window.setTimeout(() => setSplashPhase("done"), holdMs + 380);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [splashPhase, hasCheckedTodayDraw]);
   // CE — propagate the active custom deck's photographed card back to
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
@@ -1040,7 +1061,9 @@ function Index() {
 
     {/* EK122 — Splash entry. Full-screen over the cosmos: the Signature
         card back, back-lit + breathing. Tapping it flies the card into
-        the gateway slot (measured live) while home fades in behind. */}
+        the gateway slot (measured live) while home fades in behind.
+        EK125 — card holds in the slot ("settling") then fades; a low-opacity
+        "Don't show again" line turns the splash off for good. */}
     {splashActive && (
       <div
         onClick={dismissSplash}
@@ -1059,10 +1082,8 @@ function Index() {
           justifyContent: "center",
           cursor: "pointer",
           background:
-            splashPhase === "transitioning"
-              ? "transparent"
-              : "var(--background)",
-          transition: "background 760ms ease-out",
+            splashPhase === "showing" ? "var(--background)" : "transparent",
+          transition: "background 620ms ease-out",
         }}
       >
         {/* Backlight — glow bleeding out from behind the card. */}
@@ -1080,22 +1101,21 @@ function Index() {
               "transparent 70%)",
             filter: "blur(26px)",
             pointerEvents: "none",
-            opacity: splashPhase === "transitioning" ? 0 : 1,
-            transition: "opacity 560ms ease-out",
+            opacity: splashPhase === "showing" ? 1 : 0,
+            transition: "opacity 520ms ease-out",
           }}
         />
         {/* The card — breathing glow (filter only, no transform) while
-            showing; flies to the gateway rect on dismiss. */}
+            showing; flies to the gateway rect on dismiss, then fades. */}
         <div
           ref={splashCardRef}
           style={{
             transform: splashTransform,
+            opacity: splashFading ? 0 : 1,
             transition:
-              splashPhase === "transitioning"
-                ? "transform 800ms cubic-bezier(0.4, 0, 0.2, 1)"
-                : "none",
+              "transform 800ms cubic-bezier(0.4, 0, 0.2, 1), opacity 380ms ease-out",
             transformOrigin: "center center",
-            willChange: "transform",
+            willChange: "transform, opacity",
           }}
         >
           {/* EK124 — breathing (scale + glow) on an inner element so it
@@ -1114,6 +1134,38 @@ function Index() {
             />
           </div>
         </div>
+        {/* EK125 — Don't show again. Low-opacity line at the bottom; sets the
+            persistent preference and dismisses. */}
+        {splashPhase === "showing" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSplashDisabled(true);
+              dismissSplash();
+            }}
+            style={{
+              position: "absolute",
+              bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px 12px",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.45,
+              transition: "opacity 200ms ease-out",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.45")}
+          >
+            Don&rsquo;t show again
+          </button>
+        )}
       </div>
     )}
     </>
