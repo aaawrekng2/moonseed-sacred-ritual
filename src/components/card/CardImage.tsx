@@ -176,6 +176,14 @@ export interface CardImageProps {
   loading?: boolean;
   /** Card back design — only used when variant="back". */
   cardBackId?: CardBackId;
+  /**
+   * EK129 — explicit back-image override (used by the home gateway so the
+   * "Entry & home card back" pick governs the back). When provided (even as
+   * null), it takes precedence over the active deck's back: a URL renders
+   * that image; `null` forces the procedural/signature `cardBackId`.
+   * `undefined` (the default) keeps the active-deck-back behavior.
+   */
+  backImageUrl?: string | null;
   /** Preset size or "custom". Default "thumbnail". */
   size?: CardImageSize;
   /** When size="custom", caller must provide widthPx. */
@@ -269,6 +277,7 @@ export function CardImage({
   reversed = false,
   loading = false,
   cardBackId,
+  backImageUrl,
   size = "thumbnail",
   widthPx,
   deckId,
@@ -304,6 +313,13 @@ export function CardImage({
   const anyResolve = useAnyDeckImage();
   const anyNameResolve = useAnyDeckCardName();
   const customBackUrl = useActiveCardBackUrl();
+  // EK129 — explicit override wins over the active deck back. `undefined`
+  // (not passed) keeps the active-deck behavior; a URL forces that image;
+  // `null` forces the procedural/signature back.
+  const effectiveBackImageUrl =
+    backImageUrl !== undefined
+      ? backImageUrl ?? undefined
+      : customBackUrl ?? undefined;
   const devMode = useDevMode();
 
   // Q29 Fix 4 — once we successfully load at a tier, lock it for the
@@ -558,7 +574,7 @@ export function CardImage({
           <div className="flip-face back" style={{ ...radiusStyle, overflow: "hidden" }}>
             <CardBack
               id={cardBackId}
-              imageUrl={customBackUrl ?? undefined}
+              imageUrl={effectiveBackImageUrl}
               width={width}
               cornerRadiusPercent={deckRadius}
               onAspectMeasured={(a) => dispatch({ type: "BACK_ASPECT_MEASURED", aspect: a })}
@@ -716,7 +732,7 @@ export function CardImage({
         <>
           <CardBack
             id={cardBackId}
-            imageUrl={customBackUrl ?? undefined}
+            imageUrl={effectiveBackImageUrl}
             width={width}
             cornerRadiusPercent={deckRadius}
           />

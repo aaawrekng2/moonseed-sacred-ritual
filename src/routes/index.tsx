@@ -19,6 +19,7 @@ import {
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
+import { useEntryBack } from "@/lib/entry-back";
 import { useStreak } from "@/lib/use-streak";
 import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
@@ -81,6 +82,9 @@ function Index() {
   // BX — Home / moon carousel stays portrait.
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
+  // EK129 — chosen entry/home back (Signature or a deck's back). Governs
+  // both the splash card and the home gateway back.
+  const entryBack = useEntryBack();
   // EK122 — splash entry. The Signature card back shows full-size, back-lit
   // + breathing, over the cosmos. Tapping it shrinks the card into the home
   // gateway slot while the rest of home fades in.
@@ -618,6 +622,7 @@ function Index() {
             loading={!hasCheckedTodayDraw || (todayCard === null && showSkeleton)}
             reversed={todayReversed}
             cardBackId={cardBack}
+            backImageUrl={entryBack.url}
             size="custom"
             widthPx={cardWidth}
             className="animate-breathe-glow"
@@ -1147,6 +1152,7 @@ function Index() {
           >
             <CardBack
               id="signature"
+              imageUrl={entryBack.url ?? undefined}
               width={splashCardWidth}
               ariaLabel="TarotSeed — tap to enter"
             />
