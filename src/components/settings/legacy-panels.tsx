@@ -10,6 +10,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, Moon, RotateCcw, Trash2, Upload } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
+import { Switch } from "@/components/ui/switch";
+import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
 import { Button } from "@/components/ui/button";
 import {
   CARD_BACKS,
@@ -303,6 +305,17 @@ export function ThemesPanel() {
     setStoredCardBack(id);
   };
 
+  // EK125 — entry-card (splash) on/off. Mirrors the "Don't show again" line
+  // on the splash. Persisted in localStorage; resets with the master reset.
+  const [splashOn, setSplashOn] = useState(true);
+  useEffect(() => {
+    setSplashOn(!isSplashDisabled());
+  }, []);
+  const toggleSplash = (on: boolean) => {
+    setSplashOn(on);
+    setSplashDisabled(!on);
+  };
+
   return (
     <div className="grid gap-4">
       <section className="panel grid gap-4">
@@ -327,6 +340,24 @@ export function ThemesPanel() {
               </span>
             </button>
           ))}
+        </div>
+      </section>
+      <section className="panel grid gap-4">
+        <SectionTitle>Entry Card</SectionTitle>
+        <div className="flex items-center justify-between gap-4">
+          <div className="grid gap-1">
+            <span className="text-sm text-foreground">
+              Show entry card on load
+            </span>
+            <span className="text-xs text-muted-foreground">
+              The TarotSeed gate that opens the app each visit.
+            </span>
+          </div>
+          <Switch
+            checked={splashOn}
+            onCheckedChange={toggleSplash}
+            aria-label="Show entry card on load"
+          />
         </div>
       </section>
       <section className="panel grid gap-4">
