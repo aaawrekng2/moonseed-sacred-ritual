@@ -99,14 +99,16 @@ function Index() {
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);
   const splashCardRef = useRef<HTMLDivElement | null>(null);
   const splashActive = splashPhase !== "done";
-  // EK123 — full-screen entry card: as large as fits the viewport without
-  // cropping the frame/branding (portrait aspect 1.743). On phones that's
-  // ~full width; on desktop it fills the height, centered.
+  // EK124 — the entry card is ~75% of the viewport height (portrait aspect
+  // 1.743), capped at ~96% width so it never overflows on narrow screens.
   const splashCardWidth =
     typeof window === "undefined"
-      ? 320
+      ? 300
       : Math.round(
-          Math.min(window.innerWidth, window.innerHeight / 1.743) * 0.98,
+          Math.min(
+            window.innerWidth * 0.96,
+            (window.innerHeight * 0.75) / 1.743,
+          ),
         );
   function dismissSplash() {
     if (splashPhase !== "showing") return;
@@ -526,8 +528,10 @@ function Index() {
         paddingBottom: "calc(160px + env(safe-area-inset-bottom, 0px))",
         // EK122 — hidden behind the splash, then fades in as the card
         // shrinks into the gateway slot.
+        // EK124 — faster (480ms) so the real gateway card is fully solid
+        // well before the splash unmounts — no flicker at handoff.
         opacity: splashPhase === "showing" ? 0 : 1,
-        transition: "opacity 760ms ease-out",
+        transition: "opacity 480ms ease-out",
       }}
     >
       {/* DH-1 Pane 1 — Carousel (auto-sized row). Empty when hidden. */}
@@ -544,7 +548,6 @@ function Index() {
         style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0 }}
       >
         <div
-          ref={gatewayCardRef}
           style={{
             position: "relative",
             display: "inline-flex",
@@ -556,6 +559,9 @@ function Index() {
               face / back / loading variants are all handled internally,
               and the bordered `gateway-card-frame` wrapper is dropped so
               the scanned card art reads as its own visual edge. */}
+          {/* EK124 — tight wrapper so the splash FLIP lands on the card
+              itself, not the column that also holds the streak marker. */}
+          <div ref={gatewayCardRef} style={{ display: "inline-flex" }}>
           <CardImage
             cardId={todayCard ?? undefined}
             deckId={todayCardDeckId}
@@ -589,6 +595,7 @@ function Index() {
             }
             ariaLabel="Begin today's draw"
           />
+          </div>
           {/* EE-8 — Streak Moon glyph. Replaces the prior Flame icon
               with today's actual moon phase, tying the streak marker
               to the sky. Tappable: opens a modal with detail. */}
@@ -1081,9 +1088,6 @@ function Index() {
             showing; flies to the gateway rect on dismiss. */}
         <div
           ref={splashCardRef}
-          className={
-            splashPhase === "showing" ? "animate-breathe-glow" : undefined
-          }
           style={{
             transform: splashTransform,
             transition:
@@ -1094,11 +1098,21 @@ function Index() {
             willChange: "transform",
           }}
         >
-          <CardBack
-            id="signature"
-            width={splashCardWidth}
-            ariaLabel="TarotSeed — tap to enter"
-          />
+          {/* EK124 — breathing (scale + glow) on an inner element so it
+              never conflicts with the FLIP transform on the wrapper. */}
+          <div
+            className={
+              splashPhase === "showing"
+                ? "tarotseed-splash-breathe"
+                : undefined
+            }
+          >
+            <CardBack
+              id="signature"
+              width={splashCardWidth}
+              ariaLabel="TarotSeed — tap to enter"
+            />
+          </div>
         </div>
       </div>
     )}
