@@ -1,4 +1,4 @@
-import type { CardBackId } from "@/lib/card-backs";
+import { signatureBackSrc, type CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -405,6 +405,7 @@ const STYLES: Record<
   CardBackId,
   { bg: string; borderColor: string; innerOuter: string; innerInner: string }
 > = {
+  signature: SHARED_STYLE,
   celestial: SHARED_STYLE,
   void: SHARED_STYLE,
   ember: SHARED_STYLE,
@@ -425,7 +426,12 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
       ? `${(cornerRadiusPercent / 100) * Math.min(width, height)}px`
       : `${m.radius}px`;
   // BX — custom deck back overrides procedural artwork.
-  if (imageUrl) {
+  // EK122 — the Signature default back is a bundled image too; resolve it
+  // by render width so small cards load the small file. A custom-deck
+  // imageUrl always wins over the Signature default.
+  const effectiveImageUrl =
+    imageUrl ?? (id === "signature" ? signatureBackSrc(width) : null);
+  if (effectiveImageUrl) {
     return (
       <div
         role="img"
@@ -438,7 +444,7 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
         }}
       >
         <img
-          src={imageUrl}
+          src={effectiveImageUrl}
           alt={ariaLabel ?? "Card back"}
           onLoad={(e) => {
             const img = e.currentTarget;
