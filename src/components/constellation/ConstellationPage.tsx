@@ -592,6 +592,12 @@ const ATLAS_RANK_FULL = [
   "Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
   "Nine", "Ten", "Page", "Knight", "Queen", "King",
 ];
+// EK130 — plural rank names for the named-set asterism chip (clicking a
+// rank/suit chip puts ONE named chip in the asterism, not card-by-card).
+const ATLAS_RANK_PLURAL = [
+  "Aces", "Twos", "Threes", "Fours", "Fives", "Sixes", "Sevens", "Eights",
+  "Nines", "Tens", "Pages", "Knights", "Queens", "Kings",
+];
 const ATLAS_SUIT_LIST: Array<{ key: string; label: string }> = [
   { key: "major", label: "Majors" },
   { key: "wands", label: "Wands" },
@@ -600,6 +606,22 @@ const ATLAS_SUIT_LIST: Array<{ key: string; label: string }> = [
   { key: "pentacles", label: "Pentacles" },
 ];
 const ATLAS_TRACE_COLOR = "var(--trace-color, #5cead4)";
+
+// EK130 — if an asterism group's card set EXACTLY matches a whole rank or
+// suit, show that name ("Cups", "Sixes") instead of listing the cards.
+// Returns null for hand-built groups so they keep their "(A / B / C)" list.
+function atlasGroupLabel(g: number[]): string | null {
+  const key = [...g].sort((a, b) => a - b).join(",");
+  for (const s of ATLAS_SUIT_LIST) {
+    if ([...suitCardIds(s.key)].sort((a, b) => a - b).join(",") === key)
+      return s.label;
+  }
+  for (let r = 0; r < ATLAS_RANK_PLURAL.length; r++) {
+    if ([...rankCardIds(r)].sort((a, b) => a - b).join(",") === key)
+      return ATLAS_RANK_PLURAL[r];
+  }
+  return null;
+}
 
 // EK112 — a group slot dropped into the slot row (atlas only). Represents
 // "any of" for the slot-row match. Kept PARALLEL to ManualPick so the shared
@@ -1595,6 +1617,24 @@ export function ConstellationPage({
       if (allOn) return prev.filter((id) => !free.includes(id));
       return Array.from(new Set([...prev, ...free]));
     });
+  };
+
+  // EK130 — clicking a rank/suit chip adds it to the asterism as ONE named
+  // set (rendered "Cups" / "Sixes" via atlasGroupLabel) rather than dumping
+  // its cards in as loose singles. Clicking the same chip again removes the
+  // set. Any of those cards that were sitting as loose singles are folded in
+  // so they don't double-show.
+  const toggleAtlasNamedSet = (ids: number[]) => {
+    const key = [...ids].sort((a, b) => a - b).join(",");
+    const idx = atlasCustomGroups.findIndex(
+      (g) => [...g].sort((a, b) => a - b).join(",") === key,
+    );
+    if (idx !== -1) {
+      setAtlasCustomGroups((prev) => prev.filter((_, i) => i !== idx));
+      return;
+    }
+    setAtlasCustomGroups((prev) => [...prev, [...ids]]);
+    setTealSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
   };
 
   // EK107 — clock click in atlas mode. A card already inside a custom
@@ -4228,7 +4268,7 @@ export function ConstellationPage({
                               key={r}
                               type="button"
                               title={`Select all four ${ATLAS_RANK_FULL[r]}s`}
-                              onClick={() => toggleAtlasChip(rankCardIds(r))}
+                              onClick={() => toggleAtlasNamedSet(rankCardIds(r))}
                               draggable
                               onDragStart={(e) => {
                                 // EK112 — drag this rank into a slot to make a
@@ -4277,7 +4317,7 @@ export function ConstellationPage({
                               key={s.key}
                               type="button"
                               title={`Select all ${s.label}`}
-                              onClick={() => toggleAtlasChip(suitCardIds(s.key))}
+                              onClick={() => toggleAtlasNamedSet(suitCardIds(s.key))}
                               draggable
                               onDragStart={(e) => {
                                 // EK112 — drag this suit into a slot to make a
@@ -4479,11 +4519,12 @@ export function ConstellationPage({
                           {groups.map((g, gi) =>
                             chip(
                               `g-${gi}`,
-                              "(" +
-                                g.map((id) => TAROT_DECK[id] ?? "Card").join(
-                                  " / ",
-                                ) +
-                                ")",
+                              atlasGroupLabel(g) ??
+                                "(" +
+                                  g.map((id) => TAROT_DECK[id] ?? "Card").join(
+                                    " / ",
+                                  ) +
+                                  ")",
                               () => handleAtlasDeleteGroup(gi),
                               PALETTE[gi % PALETTE.length],
                               g,
