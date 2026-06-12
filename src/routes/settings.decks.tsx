@@ -41,6 +41,12 @@ import {
 } from "@/lib/custom-decks";
 import { useActiveDeck } from "@/lib/active-deck";
 import { variantUrlFor } from "@/lib/active-deck";
+import { CardBack } from "@/components/cards/CardBack";
+import {
+  useEntryBack,
+  setEntryBack,
+  type EntryBack,
+} from "@/lib/entry-back";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
@@ -212,6 +218,8 @@ function DecksPage() {
       title="My Decks"
       description="Customize tarot decks with your own card images. The app uses Rider-Waite by default."
     >
+      <EntryBackPicker decks={decks} />
+
       <button
         type="button"
         disabled={overLimit}
@@ -321,6 +329,83 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         onClick: onCreate,
       }}
     />
+  );
+}
+
+/**
+ * EK129 — Entry & home card-back picker. Choose the Signature back or any
+ * deck's photographed back to show on the opening splash AND the home gateway
+ * card. Stored locally (resets with the master reset). Decks without a
+ * photographed back are skipped.
+ */
+function EntryBackPicker({ decks }: { decks: CustomDeck[] }) {
+  const current = useEntryBack();
+  const withBacks = decks.filter(
+    (d) => d.card_back_url || d.card_back_thumb_url,
+  );
+  const choose = (eb: EntryBack) => setEntryBack(eb);
+  return (
+    <div className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4">
+      <div className="space-y-0.5">
+        <div className="text-sm font-medium">Entry &amp; home card back</div>
+        <p className="text-xs text-muted-foreground">
+          The card shown on the opening splash and your home screen.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => choose({ id: "signature", url: null })}
+          className={cn(
+            "flex flex-col items-center gap-1.5 rounded-xl border p-2 transition",
+            current.id === "signature"
+              ? "border-gold shadow-glow"
+              : "border-border/60 hover:border-gold/50",
+          )}
+          aria-label="Use the Signature back"
+        >
+          <CardBack id="signature" width={44} />
+          <span
+            className="text-[11px] italic"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Signature
+          </span>
+        </button>
+        {withBacks.map((d) => {
+          const full =
+            (variantUrlFor(
+              d.card_back_url ?? d.card_back_thumb_url,
+              "full",
+            ) ??
+              d.card_back_url ??
+              d.card_back_thumb_url ??
+              "") as string;
+          return (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => choose({ id: d.id, url: full || null, name: d.name })}
+              className={cn(
+                "flex flex-col items-center gap-1.5 rounded-xl border p-2 transition",
+                current.id === d.id
+                  ? "border-gold shadow-glow"
+                  : "border-border/60 hover:border-gold/50",
+              )}
+              aria-label={`Use ${d.name} back`}
+            >
+              <CardBack imageUrl={full} width={44} />
+              <span
+                className="max-w-[60px] truncate text-[11px] italic"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {d.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
