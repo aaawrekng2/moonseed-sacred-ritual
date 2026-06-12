@@ -4150,20 +4150,6 @@ export function ConstellationPage({
                   rankCardIds(r).every((id) => selSet.has(id));
                 const suitActive = (key: string) =>
                   suitCardIds(key).every((id) => selSet.has(id));
-                const shelfLabel = (t: string) => (
-                  <div
-                    style={{
-                      fontSize: "var(--text-caption)",
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      color: "var(--color-foreground-muted)",
-                      fontFamily: "var(--font-sans)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {t}
-                  </div>
-                );
                 const singles = tealSelectedIds;
                 const groups = atlasCustomGroups;
                 const empty =
@@ -4224,10 +4210,17 @@ export function ConstellationPage({
                 );
                 return (
                   <>
-                    {/* Rank line — bulk-selects all four of that rank. */}
-                    <div>
-                      {shelfLabel("Ranks")}
-                      <div style={{ display: "flex", gap: 3 }}>
+                    {/* EK121 — Ranks + Suits + Moon flow on ONE wrapping
+                        line; the three section labels are dropped to
+                        recoup vertical space in the Asterism tab. */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 5,
+                        alignItems: "center",
+                      }}
+                    >
                         {ATLAS_RANK_GLYPHS.map((label, r) => {
                           const on = rankActive(r);
                           return (
@@ -4254,10 +4247,8 @@ export function ConstellationPage({
                               }
                               onMouseLeave={() => setAtlasHoverChip(null)}
                               style={{
-                                flex: "1 1 0",
-                                minWidth: 0,
                                 textAlign: "center",
-                                padding: "4px 0",
+                                padding: "4px 9px",
                                 borderRadius: "var(--radius-md, 6px)",
                                 border: on
                                   ? `1px solid ${ATLAS_TRACE_COLOR}`
@@ -4279,15 +4270,6 @@ export function ConstellationPage({
                             </button>
                           );
                         })}
-                      </div>
-                    </div>
-
-                    {/* Suit line — bulk-selects all cards of that suit. */}
-                    <div>
-                      {shelfLabel("Suits")}
-                      <div
-                        style={{ display: "flex", gap: 5, flexWrap: "wrap" }}
-                      >
                         {ATLAS_SUIT_LIST.map((s) => {
                           const on = suitActive(s.key);
                           return (
@@ -4336,15 +4318,6 @@ export function ConstellationPage({
                             </button>
                           );
                         })}
-                      </div>
-                    </div>
-
-                    {/* EK113 — Moon line. A moon phase isn't a card group, so
-                        these match readings drawn under that phase. Click
-                        toggles the slot directly; drag drops it into a slot. */}
-                    <div>
-                      {shelfLabel("Moon")}
-                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                         {(["Full Moon", "New Moon"] as const).map((phase) => {
                           const on = atlasMoonPhases.includes(phase);
                           return (
@@ -4391,7 +4364,6 @@ export function ConstellationPage({
                             </button>
                           );
                         })}
-                      </div>
                     </div>
 
                     {/* Group builder. */}

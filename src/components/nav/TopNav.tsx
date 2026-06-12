@@ -274,6 +274,10 @@ export const TOP_NAV_ROUTES = [
   "/settings",
   "/draw",
   "/card-numbering",
+  // EK121 — atlas joins the top-nav routes so its primary nav sits at
+  // the top like Home, and BottomNavGate suppresses the bottom bar —
+  // freeing the bottom of the atlas for the calendar strip.
+  "/atlas",
 ] as const;
 
 /** True when the current pathname is one of the TopNav routes. */
