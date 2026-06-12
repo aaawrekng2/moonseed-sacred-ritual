@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EK125";
+export const APP_VERSION_LETTER = "EK126";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
@@ -148,6 +148,29 @@ export function setDevMode(on: boolean): void {
   if (on) window.localStorage.setItem(DEV_MODE_KEY, "true");
   else window.localStorage.removeItem(DEV_MODE_KEY);
   window.dispatchEvent(new CustomEvent<boolean>(DEV_EVENT, { detail: on }));
+}
+
+// EK126 — reactive Dev Mode reader, so the top-menu version readout can
+// show/hide live as Dev Mode toggles. Mirrors useDevHideMenu.
+export function useDevMode(): boolean {
+  const [on, setOn] = useState<boolean>(() => readDevMode());
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setOn(typeof detail === "boolean" ? detail : readDevMode());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DEV_MODE_KEY) setOn(readDevMode());
+    };
+    window.addEventListener(DEV_EVENT, handler);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(DEV_EVENT, handler);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return on;
 }
 
 // EK28 — face-flip sub-toggle reader. Default OFF when no key set.
