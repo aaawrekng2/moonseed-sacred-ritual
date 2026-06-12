@@ -10,6 +10,7 @@ import {
 } from "@/lib/streak-phase";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { CardImage } from "@/components/card/CardImage";
+import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import {
   resolveCountFromMap,
@@ -74,6 +75,51 @@ function Index() {
   // BX — Home / moon carousel stays portrait.
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
+  // EK122 — splash entry. Once per session, the Signature card back shows
+  // full-size, back-lit + breathing, over the cosmos. Tapping it shrinks
+  // the card into the home gateway slot while the rest of home fades in.
+  const [splashPhase, setSplashPhase] = useState<
+    "showing" | "transitioning" | "done"
+  >(() => {
+    if (typeof window === "undefined") return "done";
+    try {
+      if (sessionStorage.getItem("tarotseed:splash-seen")) return "done";
+      sessionStorage.setItem("tarotseed:splash-seen", "1");
+      return "showing";
+    } catch {
+      return "done";
+    }
+  });
+  const [splashTransform, setSplashTransform] = useState("none");
+  const gatewayCardRef = useRef<HTMLDivElement | null>(null);
+  const splashCardRef = useRef<HTMLDivElement | null>(null);
+  const splashActive = splashPhase !== "done";
+  const splashCardWidth =
+    typeof window === "undefined"
+      ? 320
+      : Math.round(
+          Math.min(
+            380,
+            window.innerWidth * 0.82,
+            (window.innerHeight - 150) / 1.743,
+          ),
+        );
+  function dismissSplash() {
+    if (splashPhase !== "showing") return;
+    const from = splashCardRef.current?.getBoundingClientRect();
+    const to = gatewayCardRef.current?.getBoundingClientRect();
+    if (from && to && from.width > 0 && to.width > 0) {
+      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+      const scale = to.width / from.width;
+      setSplashTransform(`translate(${dx}px, ${dy}px) scale(${scale})`);
+    } else {
+      // Fallback if the gateway isn't measurable: shrink toward center.
+      setSplashTransform("scale(0.15)");
+    }
+    setSplashPhase("transitioning");
+    window.setTimeout(() => setSplashPhase("done"), 840);
+  }
   const [todayCard, setTodayCard] = useState<number | null>(null);
   // EW-2 — track today's draw orientation so the gateway face rotates
   // 180° when the seeker drew a reversed card.
@@ -472,6 +518,10 @@ function Index() {
         gridTemplateRows: "auto minmax(240px, 1fr)",
         paddingTop: 4,
         paddingBottom: "calc(160px + env(safe-area-inset-bottom, 0px))",
+        // EK122 — hidden behind the splash, then fades in as the card
+        // shrinks into the gateway slot.
+        opacity: splashPhase === "showing" ? 0 : 1,
+        transition: "opacity 760ms ease-out",
       }}
     >
       {/* DH-1 Pane 1 — Carousel (auto-sized row). Empty when hidden. */}
@@ -488,6 +538,7 @@ function Index() {
         style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0 }}
       >
         <div
+          ref={gatewayCardRef}
           style={{
             position: "relative",
             display: "inline-flex",
@@ -973,6 +1024,78 @@ function Index() {
         })()}
       </DialogContent>
     </Dialog>
+
+    {/* EK122 — Splash entry. Full-screen over the cosmos: the Signature
+        card back, back-lit + breathing. Tapping it flies the card into
+        the gateway slot (measured live) while home fades in behind. */}
+    {splashActive && (
+      <div
+        onClick={dismissSplash}
+        role="button"
+        aria-label="Enter"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") dismissSplash();
+        }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 200,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          background:
+            splashPhase === "transitioning"
+              ? "transparent"
+              : "var(--background)",
+          transition: "background 760ms ease-out",
+        }}
+      >
+        {/* Backlight — glow bleeding out from behind the card. */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            width: splashCardWidth * 1.7,
+            height: splashCardWidth * 1.7,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle at center, " +
+              "color-mix(in oklch, var(--gold) 40%, transparent) 0%, " +
+              "color-mix(in oklch, var(--gold) 16%, transparent) 38%, " +
+              "transparent 70%)",
+            filter: "blur(26px)",
+            pointerEvents: "none",
+            opacity: splashPhase === "transitioning" ? 0 : 1,
+            transition: "opacity 560ms ease-out",
+          }}
+        />
+        {/* The card — breathing glow (filter only, no transform) while
+            showing; flies to the gateway rect on dismiss. */}
+        <div
+          ref={splashCardRef}
+          className={
+            splashPhase === "showing" ? "animate-breathe-glow" : undefined
+          }
+          style={{
+            transform: splashTransform,
+            transition:
+              splashPhase === "transitioning"
+                ? "transform 800ms cubic-bezier(0.4, 0, 0.2, 1)"
+                : "none",
+            transformOrigin: "center center",
+            willChange: "transform",
+          }}
+        >
+          <CardBack
+            id="signature"
+            width={splashCardWidth}
+            ariaLabel="TarotSeed — tap to enter"
+          />
+        </div>
+      </div>
+    )}
     </>
   );
 }
