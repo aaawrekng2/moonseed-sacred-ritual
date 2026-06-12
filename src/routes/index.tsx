@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
@@ -78,31 +78,35 @@ function Index() {
   // EK122 — splash entry. Once per session, the Signature card back shows
   // full-size, back-lit + breathing, over the cosmos. Tapping it shrinks
   // the card into the home gateway slot while the rest of home fades in.
+  // EK123 — decide in a layout effect, NOT the useState initializer. Under
+  // SSR the initializer ran with no `window`, decided "already seen", and
+  // the client hydrated to that — so the splash never fired. A client-only
+  // layout effect runs before paint, so first-visit shows the splash with
+  // no flash of the home screen behind it.
   const [splashPhase, setSplashPhase] = useState<
     "showing" | "transitioning" | "done"
-  >(() => {
-    if (typeof window === "undefined") return "done";
+  >("done");
+  useLayoutEffect(() => {
     try {
-      if (sessionStorage.getItem("tarotseed:splash-seen")) return "done";
+      if (sessionStorage.getItem("tarotseed:splash-seen")) return;
       sessionStorage.setItem("tarotseed:splash-seen", "1");
-      return "showing";
+      setSplashPhase("showing");
     } catch {
-      return "done";
+      /* sessionStorage unavailable — skip the splash. */
     }
-  });
+  }, []);
   const [splashTransform, setSplashTransform] = useState("none");
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);
   const splashCardRef = useRef<HTMLDivElement | null>(null);
   const splashActive = splashPhase !== "done";
+  // EK123 — full-screen entry card: as large as fits the viewport without
+  // cropping the frame/branding (portrait aspect 1.743). On phones that's
+  // ~full width; on desktop it fills the height, centered.
   const splashCardWidth =
     typeof window === "undefined"
       ? 320
       : Math.round(
-          Math.min(
-            380,
-            window.innerWidth * 0.82,
-            (window.innerHeight - 150) / 1.743,
-          ),
+          Math.min(window.innerWidth, window.innerHeight / 1.743) * 0.98,
         );
   function dismissSplash() {
     if (splashPhase !== "showing") return;
@@ -499,7 +503,9 @@ function Index() {
     <>
     {/* EJ65 — Left fly-out page menu trigger + panel. Home's only
         config is the moon carousel hide toggle. */}
-    <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+    {!splashActive && (
+      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+    )}
     <PageMenu
       open={pageMenuOpen}
       onClose={() => setPageMenuOpen(false)}
@@ -1040,7 +1046,7 @@ function Index() {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 200,
+          zIndex: 9999,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
