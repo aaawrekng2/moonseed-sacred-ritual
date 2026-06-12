@@ -434,6 +434,29 @@ code, pre, kbd {
   animation: breathe-glow 4s ease-in-out infinite;
 }
 
+/* EK124 — splash entry card breathing: a gentle scale pulse paired with a
+   gold glow so the breath reads clearly on the full entry card. Lives on an
+   inner element so it never conflicts with the FLIP transform that flies the
+   card into the gateway slot on tap. */
+@keyframes tarotseed-splash-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter:
+      drop-shadow(0 0 10px color-mix(in oklab, var(--gold) 22%, transparent))
+      drop-shadow(0 0 24px color-mix(in oklab, var(--gold) 10%, transparent));
+  }
+  50% {
+    transform: scale(1.02);
+    filter:
+      drop-shadow(0 0 18px color-mix(in oklab, var(--gold) 42%, transparent))
+      drop-shadow(0 0 40px color-mix(in oklab, var(--gold) 22%, transparent));
+  }
+}
+.tarotseed-splash-breathe {
+  animation: tarotseed-splash-breathe 4s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
 /* Q13 Fix 5 — Used by the Ghost icon in journal rows when a reading
    is part of a stalker pattern. Subtle gold pulse. */
 @keyframes glow-breathe {
