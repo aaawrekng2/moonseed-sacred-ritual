@@ -2841,30 +2841,39 @@ function OverlapStrip({
                           }
                           return <div style={shared}>{inner}</div>;
                         })()}
-                        {/* EK116 — day number on its own top layer, ABOVE the
-                            rings (zIndex 3) and moon corner (4), with the
-                            contrast-aware color so it reads on any fill. */}
-                        <div
-                          aria-hidden
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            display: "flex",
-                            // EK101 — match the base cell: bottom-left.
-                            alignItems: "flex-end",
-                            justifyContent: "flex-start",
-                            padding: "0 0 1px 2px",
-                            fontFamily: "var(--font-serif)",
-                            fontStyle: "italic",
-                            fontSize: 11,
-                            lineHeight: 1,
-                            color: textColor,
-                            pointerEvents: "none",
-                            zIndex: 5,
-                          }}
-                        >
-                          {displayNumber}
-                        </div>
+                        {/* EK117 — the day number shows ONLY when the cell
+                            carries a real signal: filled (hero gold or a spread
+                            match) or stroked (asterism / hover trace; perfect &
+                            best rings imply matchCount > 0). Pulse flashing only
+                            fires on stroked days, so it's already covered. Empty
+                            cells (faint base wash) stay bare. Still on its top
+                            layer ABOVE the rings (EK116). */}
+                        {(day.heroDrawn ||
+                          matchCount > 0 ||
+                          tealTraceHit ||
+                          hoverStrokeHit) && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              display: "flex",
+                              // EK101 — match the base cell: bottom-left.
+                              alignItems: "flex-end",
+                              justifyContent: "flex-start",
+                              padding: "0 0 1px 2px",
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontSize: 11,
+                              lineHeight: 1,
+                              color: textColor,
+                              pointerEvents: "none",
+                              zIndex: 5,
+                            }}
+                          >
+                            {displayNumber}
+                          </div>
+                        )}
                         {/* EK90 — day strokes nest INWARD as inset rings: no
                             outward room, flush to the fill, no gap. Slot model:
                             present rings fill slots outermost-in by priority —
