@@ -2793,15 +2793,11 @@ function OverlapStrip({
                           const dayReadings = overlap?.readingsByDate?.[day.date] ?? [];
                           const dayReadingIds = dayReadings.map((r) => r.id);
                           const clickable = !!onDayClick && dayReadingIds.length > 0;
-                          const inner = (
-                            <>
-                              {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
-                                directly; `new Date("YYYY-MM-DD")` parses as UTC
-                                midnight and getDate() then drifts one day west of
-                                UTC, so every cell was mis-labeled. */}
-                              {displayNumber}
-                            </>
-                          );
+                          // EK116 — the day number no longer lives inside the
+                          // base cell (which sits under the ring layer). It is
+                          // rendered as a top overlay below, ABOVE the rings, so
+                          // ring strokes never cross the digit.
+                          const inner = null;
                           const shared = {
                             width: "100%",
                             height: "100%",
@@ -2845,33 +2841,30 @@ function OverlapStrip({
                           }
                           return <div style={shared}>{inner}</div>;
                         })()}
-                        {(isPerfectMatch ||
-                          isBestAvailable ||
-                          tealTraceHit ||
-                          hoverStrokeHit) &&
-                          opacity <= 0.5 && (
-                            <div
-                              aria-hidden
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                // EK101 — match the base cell: bottom-left.
-                                alignItems: "flex-end",
-                                justifyContent: "flex-start",
-                                padding: "0 0 1px 2px",
-                                fontFamily: "var(--font-serif)",
-                                fontStyle: "italic",
-                                fontSize: 11,
-                                lineHeight: 1,
-                                color: "var(--color-foreground)",
-                                pointerEvents: "none",
-                                zIndex: 2,
-                              }}
-                            >
-                              {displayNumber}
-                            </div>
-                          )}
+                        {/* EK116 — day number on its own top layer, ABOVE the
+                            rings (zIndex 3) and moon corner (4), with the
+                            contrast-aware color so it reads on any fill. */}
+                        <div
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            // EK101 — match the base cell: bottom-left.
+                            alignItems: "flex-end",
+                            justifyContent: "flex-start",
+                            padding: "0 0 1px 2px",
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 11,
+                            lineHeight: 1,
+                            color: textColor,
+                            pointerEvents: "none",
+                            zIndex: 5,
+                          }}
+                        >
+                          {displayNumber}
+                        </div>
                         {/* EK90 — day strokes nest INWARD as inset rings: no
                             outward room, flush to the fill, no gap. Slot model:
                             present rings fill slots outermost-in by priority —

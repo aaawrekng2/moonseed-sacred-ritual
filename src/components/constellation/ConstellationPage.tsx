@@ -4106,7 +4106,8 @@ export function ConstellationPage({
                 );
                 const singles = tealSelectedIds;
                 const groups = atlasCustomGroups;
-                const empty = singles.length + groups.length === 0;
+                const empty =
+                  singles.length + groups.length + atlasMoonPhases.length === 0;
                 const PALETTE = [
                   "#5cead4",
                   "#e0a3ff",
@@ -4456,6 +4457,53 @@ export function ConstellationPage({
                               g,
                             ),
                           )}
+                          {atlasMoonPhases.map((phase) => (
+                            <span
+                              key={`moon-${phase}`}
+                              onMouseEnter={() => setAtlasHoverMoonPhase(phase)}
+                              onMouseLeave={() => setAtlasHoverMoonPhase(null)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "3px 8px",
+                                borderRadius: "var(--radius-md, 7px)",
+                                border: `1px solid ${ATLAS_TRACE_COLOR}`,
+                                background: "var(--surface-card)",
+                                color: "var(--color-foreground)",
+                                fontFamily: "var(--font-serif)",
+                                fontStyle: "italic",
+                                fontSize: "var(--text-body-sm)",
+                                cursor: "default",
+                              }}
+                            >
+                              <MoonPhaseIcon
+                                phase={phase as "Full Moon" | "New Moon"}
+                                size={13}
+                              />
+                              {phase}
+                              <button
+                                type="button"
+                                aria-label={`Remove ${phase}`}
+                                onClick={() =>
+                                  setAtlasMoonPhases((prev) =>
+                                    prev.filter((p) => p !== phase),
+                                  )
+                                }
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "var(--color-foreground-muted)",
+                                  fontSize: 13,
+                                  lineHeight: 1,
+                                  padding: 0,
+                                }}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
