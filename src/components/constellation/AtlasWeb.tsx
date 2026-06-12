@@ -39,6 +39,11 @@ const CX = STAGE / 2;
 const CY = STAGE / 2 + 8; // nudge down slightly to leave room for the label
 const R = 272;
 const CARD_W = 20; // base card width; magnify scales this up on hover
+// EK111 — card height/width, for pinning the magnify origin to the real
+// inner edge along the radial. Cards are taller than wide; the EK110
+// square approximation left the pivot inside the box on the diagonals.
+// Tune if any creep remains on the in-between clock positions.
+const CARD_ASPECT = 1.55;
 const REACH = 120; // px — dock magnify influence radius (approved EK102)
 const MAX_SCALE = 2.6; // px — focused card grows to this multiple (approved)
 
@@ -253,6 +258,21 @@ export function AtlasWeb({
               ((p.a === previewCardId && tealSet.has(p.b)) ||
                 (p.b === previewCardId && tealSet.has(p.a)));
             const teal = isTealLine || isPreviewLine;
+            // EK111 — hover focus: when a card is hovered, its incident lines
+            // go full-strength (brighter + thicker) and every other line dims
+            // back to faint, so the hovered card's web reads at a glance.
+            const touches =
+              hoveredCardId != null &&
+              (p.a === hoveredCardId || p.b === hoveredCardId);
+            const dimmed = hoveredCardId != null && !touches;
+            let strokeOpacity = teal ? 0.9 : 0.1 + t * 0.45;
+            let strokeW = teal ? Math.max(1.4, 0.5 + t * 1.6) : 0.5 + t * 1.6;
+            if (touches) {
+              strokeOpacity = teal ? 1 : 0.95;
+              strokeW = strokeW + 0.9;
+            } else if (dimmed) {
+              strokeOpacity = teal ? 0.22 : 0.05;
+            }
             return (
               <line
                 key={`${p.a}-${p.b}`}
@@ -261,8 +281,12 @@ export function AtlasWeb({
                 x2={B.x}
                 y2={B.y}
                 stroke={teal ? traceColor : "var(--accent)"}
-                strokeWidth={teal ? Math.max(1.4, 0.5 + t * 1.6) : 0.5 + t * 1.6}
-                opacity={teal ? 0.9 : 0.1 + t * 0.45}
+                strokeWidth={strokeW}
+                opacity={strokeOpacity}
+                style={{
+                  transition:
+                    "opacity 90ms ease-out, stroke-width 90ms ease-out",
+                }}
               />
             );
           })}
@@ -280,8 +304,18 @@ export function AtlasWeb({
           // every scale — so the card expands away from the hub AND the line
           // endpoints (which sit on that same radial) stay connected.
           const oa = ((-90 + i * (360 / N)) * Math.PI) / 180;
-          const originX = 50 * (1 - Math.cos(oa));
-          const originY = 50 * (1 - Math.sin(oa));
+          // EK111 — pin the origin to the card's ACTUAL inner edge along the
+          // radial, using its real (taller-than-wide) proportions. The EK110
+          // square-box version left the pivot inside the box on the diagonal
+          // cards, so they crept over their line as they grew.
+          const ux = -Math.cos(oa);
+          const uy = -Math.sin(oa);
+          const tEdge = Math.min(
+            ux === 0 ? Infinity : CARD_W / 2 / Math.abs(ux),
+            uy === 0 ? Infinity : (CARD_W * CARD_ASPECT) / 2 / Math.abs(uy),
+          );
+          const originX = 50 + ((ux * tEdge) / CARD_W) * 100;
+          const originY = 50 + ((uy * tEdge) / (CARD_W * CARD_ASPECT)) * 100;
           return (
             <div
               key={i}
