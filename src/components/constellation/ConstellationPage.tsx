@@ -762,6 +762,25 @@ export function ConstellationPage({
   // no card id is being dragged).
   const [atlasGroupSlots, setAtlasGroupSlots] = useState<AtlasGroupSlot[]>([]);
   const [draggingGroup, setDraggingGroup] = useState(false);
+  // EK114 — moon phases selected into the asterism (the teal trace), the way
+  // rank/suit chip clicks select cards. AND with the card conditions; the
+  // phases OR among themselves.
+  const [atlasMoonPhases, setAtlasMoonPhases] = useState<string[]>([]);
+  // EK114 — which moon chip is hovered, for the calendar preview stroke.
+  const [atlasHoverMoonPhase, setAtlasHoverMoonPhase] = useState<string | null>(
+    null,
+  );
+  // EK114 — card ids of the hovered Asterism-panel chip, so its days breathe.
+  const [atlasAsterismHoverIds, setAtlasAsterismHoverIds] = useState<
+    number[] | null
+  >(null);
+  const toggleAtlasMoonPhase = (phase: string) => {
+    setAtlasMoonPhases((prev) =>
+      prev.includes(phase)
+        ? prev.filter((p) => p !== phase)
+        : [...prev, phase],
+    );
+  };
   const addAtlasGroupSlot = (kind: "rank" | "suit" | "moon", key: string) => {
     const gs = buildAtlasGroupSlot(kind, key);
     if (!gs) return;
@@ -771,13 +790,6 @@ export function ConstellationPage({
   };
   const removeAtlasGroupSlot = (uid: string) =>
     setAtlasGroupSlots((prev) => prev.filter((p) => p.uid !== uid));
-  // EK113 — moon chips have no cards to bulk-select, so a click toggles the
-  // moon group slot directly (drag still drops it into a slot like the rest).
-  const toggleAtlasMoonSlot = (phase: string) => {
-    const uid = `moon-${phase}`;
-    if (atlasGroupSlots.some((p) => p.uid === uid)) removeAtlasGroupSlot(uid);
-    else addAtlasGroupSlot("moon", phase);
-  };
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
@@ -1427,8 +1439,15 @@ export function ConstellationPage({
   // set of matching day keys (for the calendar stroke) and a count (pulls
   // in same-pull mode, days in same-day mode) for the badge.
   const atlasMatch = useMemo<{ ymds: Set<string>; count: number }>(() => {
-    if (!atlasMode || atlasGroups.length === 0 || !overlap)
+    const hasCards = atlasGroups.length > 0;
+    const hasMoon = atlasMoonPhases.length > 0;
+    if (!atlasMode || (!hasCards && !hasMoon) || !overlap)
       return { ymds: new Set<string>(), count: 0 };
+    const moonSel = new Set(atlasMoonPhases);
+    // A reading satisfies the asterism's moon condition if no phase is
+    // selected, or its recorded phase is one of the selected phases.
+    const readingMoonOk = (phase: string | null) =>
+      !hasMoon || (phase != null && moonSel.has(phase));
     const ymds = new Set<string>();
     let count = 0;
     for (const m of overlap.months) {
@@ -1436,7 +1455,13 @@ export function ConstellationPage({
         if (day == null) continue;
         if (overlapMode === "day") {
           const sameDay = new Set(day.sameDayCardIds);
-          if (groupsSatisfied(atlasGroups, sameDay)) {
+          const cardsOk = !hasCards || groupsSatisfied(atlasGroups, sameDay);
+          let moonOk = !hasMoon;
+          if (hasMoon) {
+            const readings = overlap.readingsByDate?.[day.date] ?? [];
+            moonOk = readings.some((r) => readingMoonOk(r.moonPhase));
+          }
+          if (cardsOk && moonOk) {
             ymds.add(day.date);
             count++;
           }
@@ -1445,7 +1470,8 @@ export function ConstellationPage({
           let dayHit = false;
           for (const r of readings) {
             const ids = new Set(r.cardIds);
-            if (groupsSatisfied(atlasGroups, ids)) {
+            const cardsOk = !hasCards || groupsSatisfied(atlasGroups, ids);
+            if (cardsOk && readingMoonOk(r.moonPhase)) {
               count++;
               dayHit = true;
             }
@@ -1455,25 +1481,37 @@ export function ConstellationPage({
       }
     }
     return { ymds, count };
-  }, [atlasMode, atlasGroups, overlap, overlapMode]);
+  }, [atlasMode, atlasGroups, atlasMoonPhases, overlap, overlapMode]);
 
   // EK107 — readings that match the full group asterism, for the badge's
   // readings modal in atlas mode. Same shape as tealMatchedReadings but
   // group-aware (every group satisfied), per the active pill.
   const atlasMatchedReadings = useMemo(() => {
-    if (!atlasMode || atlasGroups.length === 0 || !overlap) return [];
+    const hasCards = atlasGroups.length > 0;
+    const hasMoon = atlasMoonPhases.length > 0;
+    if (!atlasMode || (!hasCards && !hasMoon) || !overlap) return [];
+    const moonSel = new Set(atlasMoonPhases);
+    const readingMoonOk = (phase: string | null) =>
+      !hasMoon || (phase != null && moonSel.has(phase));
     const all = Object.values(overlap.readingsByDate).flat();
     if (overlapMode === "pull") {
-      return all.filter((r) => groupsSatisfied(atlasGroups, new Set(r.cardIds)));
+      return all.filter(
+        (r) =>
+          (!hasCards || groupsSatisfied(atlasGroups, new Set(r.cardIds))) &&
+          readingMoonOk(r.moonPhase),
+      );
     }
     const out: typeof all = [];
     for (const readings of Object.values(overlap.readingsByDate)) {
       const sameDayCards = new Set<number>();
       for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
-      if (groupsSatisfied(atlasGroups, sameDayCards)) out.push(...readings);
+      const cardsOk = !hasCards || groupsSatisfied(atlasGroups, sameDayCards);
+      const moonOk =
+        !hasMoon || readings.some((r) => readingMoonOk(r.moonPhase));
+      if (cardsOk && moonOk) out.push(...readings);
     }
     return out;
-  }, [atlasMode, atlasGroups, overlap, overlapMode]);
+  }, [atlasMode, atlasGroups, atlasMoonPhases, overlap, overlapMode]);
 
   // EK107 — human-readable description of the current group asterism,
   // shared by the badge tooltip and the readings-modal title.
@@ -1487,8 +1525,12 @@ export function ConstellationPage({
       if (!grouped.has(id)) parts.push(TAROT_DECK[id] ?? "Card");
     for (const g of atlasCustomGroups)
       parts.push("(" + g.map((id) => TAROT_DECK[id] ?? "Card").join(" / ") + ")");
+    // EK114 — the moon condition reads as one OR-group of phases.
+    if (atlasMoonPhases.length === 1) parts.push(atlasMoonPhases[0]);
+    else if (atlasMoonPhases.length > 1)
+      parts.push("(" + atlasMoonPhases.join(" / ") + ")");
     return parts.join(", ");
-  }, [tealSelectedIds, atlasCustomGroups]);
+  }, [tealSelectedIds, atlasCustomGroups, atlasMoonPhases]);
 
   // EK108 — calendar preview stroke days for the currently-hovered rank or
   // suit chip: every day any card of that rank/suit was drawn, per pill.
@@ -1510,6 +1552,27 @@ export function ConstellationPage({
     }
     return ymds;
   }, [atlasMode, atlasHoverChip, overlap, overlapMode]);
+
+  // EK114 — preview stroke for the currently-hovered moon chip: every day a
+  // reading was drawn under that phase, per pill (day = any reading that day).
+  const atlasHoverMoonYmds = useMemo<Set<string> | undefined>(() => {
+    if (!atlasMode || !atlasHoverMoonPhase || !overlap) return undefined;
+    const ymds = new Set<string>();
+    for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+      if (readings.some((r) => r.moonPhase === atlasHoverMoonPhase))
+        ymds.add(date);
+    }
+    return ymds;
+  }, [atlasMode, atlasHoverMoonPhase, overlap]);
+
+  // EK114 — union of the chip-preview strokes (rank/suit cards + moon phase),
+  // fed to the calendar as previewYmds.
+  const atlasPreviewYmds = useMemo<Set<string> | undefined>(() => {
+    if (!atlasHoverYmds && !atlasHoverMoonYmds) return undefined;
+    const s = new Set<string>(atlasHoverYmds ?? []);
+    if (atlasHoverMoonYmds) for (const d of atlasHoverMoonYmds) s.add(d);
+    return s;
+  }, [atlasHoverYmds, atlasHoverMoonYmds]);
 
   // EK108 — bulk-select the cards of a rank/suit chip as loose singletons.
   // If all its (ungrouped) cards are already selected, the chip deselects
@@ -2386,6 +2449,27 @@ export function ConstellationPage({
       }
       return s;
     }
+    // EK114 — a hovered Asterism-panel chip (loose single or OR-group) rings
+    // the days any of its cards were drawn, per pill, so those days breathe.
+    if (atlasAsterismHoverIds && atlasAsterismHoverIds.length > 0) {
+      const target = new Set(atlasAsterismHoverIds);
+      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+        if (overlapMode === "pull") {
+          if (readings.some((r) => r.cardIds.some((id) => target.has(id))))
+            s.add(date);
+        } else {
+          const sameDayCards = new Set<number>();
+          for (const r of readings)
+            for (const id of r.cardIds) sameDayCards.add(id);
+          for (const id of target)
+            if (sameDayCards.has(id)) {
+              s.add(date);
+              break;
+            }
+        }
+      }
+      return s;
+    }
     if (hoverCardId === null) return s;
     // EK95 — asterism-independent hover: always ring the hovered card's OWN
     // days, regardless of any asterism in progress. Previously the card branch
@@ -2396,7 +2480,7 @@ export function ConstellationPage({
       if (readings.some((r) => r.cardIds.includes(hoverCardId))) s.add(date);
     }
     return s;
-  }, [overlap, hoverCardId, overlapMode, hoveredPair]);
+  }, [overlap, hoverCardId, overlapMode, hoveredPair, atlasAsterismHoverIds]);
 
   // EK58 — how many (most-recent) calendar months the grid12 strip
   // should show, driven by the active time range. Fixed windows show
@@ -4013,9 +4097,14 @@ export function ConstellationPage({
                   label: string,
                   onX: () => void,
                   color?: string,
+                  ids?: number[],
                 ) => (
                   <span
                     key={key}
+                    onMouseEnter={() =>
+                      ids && ids.length > 0 && setAtlasAsterismHoverIds(ids)
+                    }
+                    onMouseLeave={() => setAtlasAsterismHoverIds(null)}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -4028,6 +4117,7 @@ export function ConstellationPage({
                       fontFamily: "var(--font-serif)",
                       fontStyle: "italic",
                       fontSize: "var(--text-body-sm)",
+                      cursor: "default",
                     }}
                   >
                     {label}
@@ -4173,15 +4263,15 @@ export function ConstellationPage({
                       {shelfLabel("Moon")}
                       <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                         {(["Full Moon", "New Moon"] as const).map((phase) => {
-                          const on = atlasGroupSlots.some(
-                            (g) => g.kind === "moon" && g.phase === phase,
-                          );
+                          const on = atlasMoonPhases.includes(phase);
                           return (
                             <button
                               key={phase}
                               type="button"
-                              title={`Match readings drawn under a ${phase}`}
-                              onClick={() => toggleAtlasMoonSlot(phase)}
+                              title={`Add a ${phase} to the asterism (drag into a slot to match it as a group)`}
+                              onClick={() => toggleAtlasMoonPhase(phase)}
+                              onMouseEnter={() => setAtlasHoverMoonPhase(phase)}
+                              onMouseLeave={() => setAtlasHoverMoonPhase(null)}
                               draggable
                               onDragStart={(e) => {
                                 e.dataTransfer.effectAllowed = "copy";
@@ -4298,10 +4388,15 @@ export function ConstellationPage({
                           }}
                         >
                           {singles.map((id) =>
-                            chip(`s-${id}`, TAROT_DECK[id] ?? "Card", () =>
-                              setTealSelectedIds((prev) =>
-                                prev.filter((x) => x !== id),
-                              ),
+                            chip(
+                              `s-${id}`,
+                              TAROT_DECK[id] ?? "Card",
+                              () =>
+                                setTealSelectedIds((prev) =>
+                                  prev.filter((x) => x !== id),
+                                ),
+                              undefined,
+                              [id],
                             ),
                           )}
                           {groups.map((g, gi) =>
@@ -4314,6 +4409,7 @@ export function ConstellationPage({
                                 ")",
                               () => handleAtlasUngroup(gi),
                               PALETTE[gi % PALETTE.length],
+                              g,
                             ),
                           )}
                         </div>
@@ -4493,7 +4589,10 @@ export function ConstellationPage({
               }}
               tealBadge={
                 atlasSelectedCardIds.length >= 1 &&
-                (atlasGroups.length >= 2 || atlasCustomGroups.length >= 1)
+                (atlasGroups.length +
+                  (atlasMoonPhases.length > 0 ? 1 : 0) >=
+                  2 ||
+                  atlasCustomGroups.length >= 1)
                   ? {
                       cardId: atlasSelectedCardIds[0],
                       count: atlasMatch.count,
@@ -4686,7 +4785,7 @@ export function ConstellationPage({
             onModeChange={setOverlapMode}
             tealSelectedIds={tealSelectedIds}
             asterismYmds={atlasMode ? atlasMatch.ymds : undefined}
-            previewYmds={atlasMode ? atlasHoverYmds : undefined}
+            previewYmds={atlasMode ? atlasPreviewYmds : undefined}
             layout="grid12"
             onDayClick={(date) => setDayPopover({ open: true, date })}
             showOlder={showOlder}
