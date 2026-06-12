@@ -1975,10 +1975,9 @@ function OverlapStrip({
   // satisfied on a day/pull if ANY member appeared. The regular page never
   // passes this, so its slot-row match is unchanged.
   pullGroups = [],
-  // EK113 — atlas moon group slots: each entry is a recorded moon-phase
-  // string ("Full Moon" / "New Moon"). Counts as one slot, satisfied on a
-  // day/spread when a reading was drawn under that phase. Card groups match
-  // by member presence; moon groups match by the reading's phase.
+  // EK113/EK115 — atlas moon group slots: each entry is the set of marked
+  // full/new moon DAY keys for that slot (the days the calendar icons mark).
+  // Counts as one slot, satisfied when the day is one of those marked days.
   pullMoonGroups = [],
   mode,
   onModeChange,
@@ -2044,9 +2043,10 @@ function OverlapStrip({
   /** EK112 — atlas group slots; each is the member-id list of a rank/suit
    *  slot. Counts as one slot, satisfied if any member appears. */
   pullGroups?: number[][];
-  /** EK113 — atlas moon group slots; each is a recorded moon-phase string.
-   *  Counts as one slot, satisfied when a reading under that phase exists. */
-  pullMoonGroups?: string[];
+  /** EK113/EK115 — atlas moon group slots; each is the set of marked
+   *  full/new moon day keys. Counts as one slot, satisfied when the day is
+   *  one of those marked days. */
+  pullMoonGroups?: Set<string>[];
   mode: "pull" | "day";
   onModeChange: (m: "pull" | "day") => void;
   /** Phase 24 — when non-empty, mark every day where ALL teal-selected cards
@@ -2138,8 +2138,12 @@ function OverlapStrip({
     sameDayCardIds?: number[];
   }): number => {
     if (effectivePullSize === 0) return 0;
-    const tally = (ids: Set<number>, phases: Set<string>): number => {
-      let n = 0;
+    // EK115 — moon groups are satisfied when this calendar day is one of the
+    // group's marked full/new moon days (independent of cards/readings).
+    let moonHits = 0;
+    for (const days of pullMoonGroups) if (days.has(day.date)) moonHits++;
+    const tally = (ids: Set<number>): number => {
+      let n = moonHits;
       for (const id of pullSet) if (ids.has(id)) n++;
       for (const g of pullGroupSets) {
         for (const id of g) {
@@ -2149,21 +2153,16 @@ function OverlapStrip({
           }
         }
       }
-      for (const ph of pullMoonGroups) if (phases.has(ph)) n++;
       return n;
     };
     const readings = overlap?.readingsByDate?.[day.date] ?? [];
     if (mode === "day") {
-      // Day-level: union of all cards + all phases across the day's readings.
-      const phases = new Set<string>();
-      for (const r of readings) if (r.moonPhase) phases.add(r.moonPhase);
-      return tally(new Set(day.sameDayCardIds ?? []), phases);
+      return tally(new Set(day.sameDayCardIds ?? []));
     }
-    // Pull-level: best single reading (its own cards + its own phase).
-    let best = 0;
+    // Pull-level: best single reading (its own cards) + day-level moon hits.
+    let best = moonHits;
     for (const r of readings) {
-      const phases = r.moonPhase ? new Set([r.moonPhase]) : new Set<string>();
-      const n = tally(new Set(r.cardIds), phases);
+      const n = tally(new Set(r.cardIds));
       if (n > best) best = n;
     }
     return best;
