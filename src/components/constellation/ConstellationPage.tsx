@@ -1435,6 +1435,31 @@ export function ConstellationPage({
     return map;
   }, [atlasCustomGroups]);
 
+  // EK115 — full/new moon day sets (UTC keys), the SAME source as the
+  // calendar's moon icons. Moon chips honor these marked days (the full 24h),
+  // not the rarely-recorded exact-milestone phase string.
+  const atlasMoonDays = useMemo(() => {
+    const full = new Set<string>();
+    const nw = new Set<string>();
+    if (!atlasMode) return { full, nw };
+    const DAY_MS = 86400000;
+    const from = new Date(Date.now() - 13 * 30 * DAY_MS);
+    for (const d of getPhaseOccurrences("Full Moon", from, 15))
+      full.add(isoDayInTz(d, "UTC"));
+    for (const d of getPhaseOccurrences("New Moon", from, 15))
+      nw.add(isoDayInTz(d, "UTC"));
+    return { full, nw };
+  }, [atlasMode]);
+  const daysForMoonPhase = (phase: string): Set<string> =>
+    phase === "Full Moon" ? atlasMoonDays.full : atlasMoonDays.nw;
+  // Union of marked days for the phases selected into the asterism.
+  const atlasSelectedMoonDays = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of atlasMoonPhases) for (const d of daysForMoonPhase(p)) s.add(d);
+    return s;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atlasMoonPhases, atlasMoonDays]);
+
   // EK106 — group-aware match across the filtered universe. Returns the
   // set of matching day keys (for the calendar stroke) and a count (pulls
   // in same-pull mode, days in same-day mode) for the badge.
@@ -1443,25 +1468,20 @@ export function ConstellationPage({
     const hasMoon = atlasMoonPhases.length > 0;
     if (!atlasMode || (!hasCards && !hasMoon) || !overlap)
       return { ymds: new Set<string>(), count: 0 };
-    const moonSel = new Set(atlasMoonPhases);
-    // A reading satisfies the asterism's moon condition if no phase is
-    // selected, or its recorded phase is one of the selected phases.
-    const readingMoonOk = (phase: string | null) =>
-      !hasMoon || (phase != null && moonSel.has(phase));
+    // EK115 — a day satisfies the moon condition if no phase is selected, or
+    // the day is a marked full/new moon day (matching the calendar icons).
+    const dayMoonOk = (date: string) =>
+      !hasMoon || atlasSelectedMoonDays.has(date);
     const ymds = new Set<string>();
     let count = 0;
     for (const m of overlap.months) {
       for (const day of m.days) {
         if (day == null) continue;
+        if (!dayMoonOk(day.date)) continue;
         if (overlapMode === "day") {
           const sameDay = new Set(day.sameDayCardIds);
           const cardsOk = !hasCards || groupsSatisfied(atlasGroups, sameDay);
-          let moonOk = !hasMoon;
-          if (hasMoon) {
-            const readings = overlap.readingsByDate?.[day.date] ?? [];
-            moonOk = readings.some((r) => readingMoonOk(r.moonPhase));
-          }
-          if (cardsOk && moonOk) {
+          if (cardsOk) {
             ymds.add(day.date);
             count++;
           }
@@ -1471,7 +1491,7 @@ export function ConstellationPage({
           for (const r of readings) {
             const ids = new Set(r.cardIds);
             const cardsOk = !hasCards || groupsSatisfied(atlasGroups, ids);
-            if (cardsOk && readingMoonOk(r.moonPhase)) {
+            if (cardsOk) {
               count++;
               dayHit = true;
             }
@@ -1481,7 +1501,7 @@ export function ConstellationPage({
       }
     }
     return { ymds, count };
-  }, [atlasMode, atlasGroups, atlasMoonPhases, overlap, overlapMode]);
+  }, [atlasMode, atlasGroups, atlasMoonPhases, atlasSelectedMoonDays, overlap, overlapMode]);
 
   // EK107 — readings that match the full group asterism, for the badge's
   // readings modal in atlas mode. Same shape as tealMatchedReadings but
@@ -1490,28 +1510,31 @@ export function ConstellationPage({
     const hasCards = atlasGroups.length > 0;
     const hasMoon = atlasMoonPhases.length > 0;
     if (!atlasMode || (!hasCards && !hasMoon) || !overlap) return [];
-    const moonSel = new Set(atlasMoonPhases);
-    const readingMoonOk = (phase: string | null) =>
-      !hasMoon || (phase != null && moonSel.has(phase));
-    const all = Object.values(overlap.readingsByDate).flat();
-    if (overlapMode === "pull") {
-      return all.filter(
-        (r) =>
-          (!hasCards || groupsSatisfied(atlasGroups, new Set(r.cardIds))) &&
-          readingMoonOk(r.moonPhase),
-      );
-    }
-    const out: typeof all = [];
-    for (const readings of Object.values(overlap.readingsByDate)) {
-      const sameDayCards = new Set<number>();
-      for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
-      const cardsOk = !hasCards || groupsSatisfied(atlasGroups, sameDayCards);
-      const moonOk =
-        !hasMoon || readings.some((r) => readingMoonOk(r.moonPhase));
-      if (cardsOk && moonOk) out.push(...readings);
+    const dayMoonOk = (date: string) =>
+      !hasMoon || atlasSelectedMoonDays.has(date);
+    const out: Array<{
+      id: string;
+      createdAt: string;
+      question: string | null;
+      cardIds: number[];
+      moonPhase: string | null;
+    }> = [];
+    for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+      if (!dayMoonOk(date)) continue;
+      if (overlapMode === "pull") {
+        for (const r of readings) {
+          if (!hasCards || groupsSatisfied(atlasGroups, new Set(r.cardIds)))
+            out.push(r);
+        }
+      } else {
+        const sameDayCards = new Set<number>();
+        for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
+        if (!hasCards || groupsSatisfied(atlasGroups, sameDayCards))
+          out.push(...readings);
+      }
     }
     return out;
-  }, [atlasMode, atlasGroups, atlasMoonPhases, overlap, overlapMode]);
+  }, [atlasMode, atlasGroups, atlasMoonPhases, atlasSelectedMoonDays, overlap, overlapMode]);
 
   // EK107 — human-readable description of the current group asterism,
   // shared by the badge tooltip and the readings-modal title.
@@ -1552,27 +1575,6 @@ export function ConstellationPage({
     }
     return ymds;
   }, [atlasMode, atlasHoverChip, overlap, overlapMode]);
-
-  // EK114 — preview stroke for the currently-hovered moon chip: every day a
-  // reading was drawn under that phase, per pill (day = any reading that day).
-  const atlasHoverMoonYmds = useMemo<Set<string> | undefined>(() => {
-    if (!atlasMode || !atlasHoverMoonPhase || !overlap) return undefined;
-    const ymds = new Set<string>();
-    for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-      if (readings.some((r) => r.moonPhase === atlasHoverMoonPhase))
-        ymds.add(date);
-    }
-    return ymds;
-  }, [atlasMode, atlasHoverMoonPhase, overlap]);
-
-  // EK114 — union of the chip-preview strokes (rank/suit cards + moon phase),
-  // fed to the calendar as previewYmds.
-  const atlasPreviewYmds = useMemo<Set<string> | undefined>(() => {
-    if (!atlasHoverYmds && !atlasHoverMoonYmds) return undefined;
-    const s = new Set<string>(atlasHoverYmds ?? []);
-    if (atlasHoverMoonYmds) for (const d of atlasHoverMoonYmds) s.add(d);
-    return s;
-  }, [atlasHoverYmds, atlasHoverMoonYmds]);
 
   // EK108 — bulk-select the cards of a rank/suit chip as loose singletons.
   // If all its (ungrouped) cards are already selected, the chip deselects
@@ -1619,11 +1621,16 @@ export function ConstellationPage({
   };
 
   // EK107 — break a custom group back into loose singletons.
-  const handleAtlasUngroup = (gi: number) => {
-    const g = atlasCustomGroups[gi];
-    if (!g) return;
+  // EK115 — the × on an asterism group DELETES it (removes its cards from the
+  // asterism entirely), matching what × does on a single chip. (Ungroup-and-
+  // keep was surprising — the cards reappeared as loose singles.)
+  const handleAtlasDeleteGroup = (gi: number) =>
     setAtlasCustomGroups((prev) => prev.filter((_, i) => i !== gi));
-    setTealSelectedIds((s) => Array.from(new Set([...s, ...g])));
+  // EK115 — empty the whole asterism: loose singles, custom groups, and moon.
+  const handleAtlasClear = () => {
+    setTealSelectedIds([]);
+    setAtlasCustomGroups([]);
+    setAtlasMoonPhases([]);
   };
 
   // EJ9 — handler invoked when a slot card is dropped onto a constellation
@@ -2449,6 +2456,13 @@ export function ConstellationPage({
       }
       return s;
     }
+    // EK115 — a hovered moon chip breathes that phase's marked full/new moon
+    // days (the same days the calendar icons mark), readings or not.
+    if (atlasHoverMoonPhase) {
+      const days = daysForMoonPhase(atlasHoverMoonPhase);
+      for (const d of days) s.add(d);
+      return s;
+    }
     // EK114 — a hovered Asterism-panel chip (loose single or OR-group) rings
     // the days any of its cards were drawn, per pill, so those days breathe.
     if (atlasAsterismHoverIds && atlasAsterismHoverIds.length > 0) {
@@ -2480,7 +2494,15 @@ export function ConstellationPage({
       if (readings.some((r) => r.cardIds.includes(hoverCardId))) s.add(date);
     }
     return s;
-  }, [overlap, hoverCardId, overlapMode, hoveredPair, atlasAsterismHoverIds]);
+  }, [
+    overlap,
+    hoverCardId,
+    overlapMode,
+    hoveredPair,
+    atlasAsterismHoverIds,
+    atlasHoverMoonPhase,
+    atlasMoonDays,
+  ]);
 
   // EK58 — how many (most-recent) calendar months the grid12 strip
   // should show, driven by the active time range. Fixed windows show
@@ -4342,28 +4364,50 @@ export function ConstellationPage({
                         >
                           Asterism
                         </span>
-                        <button
-                          type="button"
-                          disabled={tealSelectedIds.length < 2}
-                          onClick={() => handleAtlasGroup()}
-                          style={{
-                            padding: "3px 10px",
-                            borderRadius: "var(--radius-md, 7px)",
-                            border: "0.5px solid var(--border-default)",
-                            background: "transparent",
-                            color:
-                              tealSelectedIds.length >= 2
-                                ? "var(--color-foreground)"
-                                : "var(--color-foreground-muted)",
-                            fontFamily: "var(--font-sans)",
-                            fontSize: "var(--text-body-sm)",
-                            cursor:
-                              tealSelectedIds.length >= 2 ? "pointer" : "default",
-                            opacity: tealSelectedIds.length >= 2 ? 1 : 0.5,
-                          }}
-                        >
-                          Group selected
-                        </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {(tealSelectedIds.length > 0 ||
+                            atlasCustomGroups.length > 0 ||
+                            atlasMoonPhases.length > 0) && (
+                            <button
+                              type="button"
+                              onClick={handleAtlasClear}
+                              style={{
+                                padding: "3px 10px",
+                                borderRadius: "var(--radius-md, 7px)",
+                                border: "0.5px solid var(--border-default)",
+                                background: "transparent",
+                                color: "var(--color-foreground-muted)",
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "var(--text-body-sm)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={tealSelectedIds.length < 2}
+                            onClick={() => handleAtlasGroup()}
+                            style={{
+                              padding: "3px 10px",
+                              borderRadius: "var(--radius-md, 7px)",
+                              border: "0.5px solid var(--border-default)",
+                              background: "transparent",
+                              color:
+                                tealSelectedIds.length >= 2
+                                  ? "var(--color-foreground)"
+                                  : "var(--color-foreground-muted)",
+                              fontFamily: "var(--font-sans)",
+                              fontSize: "var(--text-body-sm)",
+                              cursor:
+                                tealSelectedIds.length >= 2 ? "pointer" : "default",
+                              opacity: tealSelectedIds.length >= 2 ? 1 : 0.5,
+                            }}
+                          >
+                            Group selected
+                          </button>
+                        </div>
                       </div>
                       {empty ? (
                         <span
@@ -4407,7 +4451,7 @@ export function ConstellationPage({
                                   " / ",
                                 ) +
                                 ")",
-                              () => handleAtlasUngroup(gi),
+                              () => handleAtlasDeleteGroup(gi),
                               PALETTE[gi % PALETTE.length],
                               g,
                             ),
@@ -4777,7 +4821,7 @@ export function ConstellationPage({
             pullMoonGroups={
               atlasMode
                 ? atlasGroupSlots.flatMap((g) =>
-                    g.kind === "moon" ? [g.phase] : [],
+                    g.kind === "moon" ? [daysForMoonPhase(g.phase)] : [],
                   )
                 : undefined
             }
@@ -4785,7 +4829,7 @@ export function ConstellationPage({
             onModeChange={setOverlapMode}
             tealSelectedIds={tealSelectedIds}
             asterismYmds={atlasMode ? atlasMatch.ymds : undefined}
-            previewYmds={atlasMode ? atlasPreviewYmds : undefined}
+            previewYmds={atlasMode ? atlasHoverYmds : undefined}
             layout="grid12"
             onDayClick={(date) => setDayPopover({ open: true, date })}
             showOlder={showOlder}
