@@ -1737,8 +1737,11 @@ export function Tabletop({
         for (const [id, t] of newTargets) merged.set(id, t);
         return merged;
       });
-      // After the transition window, commit the new positions to
-      // cards.x/y and remove the committed entries from releaseTargets.
+      // EK118 — commit fires at 880ms. With the per-card stagger gone
+      // the flight is a flat 800ms for every card, so 880ms guarantees
+      // every transition has finished (+80ms buffer) before we snap the
+      // logical coords. Previously 1100ms (padding for the 0..219ms
+      // stagger that no longer exists).
       window.setTimeout(() => {
         // EK29 — Suppress transform transition for the committed ids
         // FOR ONE RENDER, batched into the same React update as the
@@ -1772,40 +1775,37 @@ export function Tabletop({
         // effect to regenerate so the next Copy reflects the
         // post-shuffle state of the table.
         setSnapshotRegenTrigger((t) => t + 1);
-        // EK29 — Restore transitions after the browser has painted
-        // the commit. Double-rAF guarantees one full paint pass at
-        // the suppressed state, then the next paint runs with
-        // transitions re-enabled for future re-clustering.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setSuppressTransitionFor((prev) => {
-              if (prev.size === 0) return prev;
-              const merged = new Set(prev);
-              for (const id of committedIds) merged.delete(id);
-              return merged;
-            });
+        // EK118 — Restore transitions after the browser has DEFINITELY
+        // painted the suppressed (transition:none) commit. The old
+        // double-rAF could clear before the snap painted on some
+        // frames, letting the swap interpolate — a visible secondary
+        // slide ~1.1s after release (the "rubber band"). A short
+        // timeout guarantees a paint at the suppressed state first.
+        window.setTimeout(() => {
+          setSuppressTransitionFor((prev) => {
+            if (prev.size === 0) return prev;
+            const merged = new Set(prev);
+            for (const id of committedIds) merged.delete(id);
+            return merged;
           });
-        });
-      }, 1100);
+        }, 90);
+      }, 880);
     }
     gatheredOriginsRef.current = new Map();
     currentlyClusteredRef.current = new Set();
     // EK18 — Keep gather-center alive at off-screen coords briefly so
     // CardSlot's "outside radius" branch runs the smooth release
-    // transition. After 1100ms, clear gatherCenter — by then all
-    // committed cards have settled at their new spots.
+    // transition. Clear gatherCenter only AFTER the commit (880ms) and
+    // its suppress-clear (~970ms) have painted, so the card never falls
+    // to the idle branch (which has its own live transition) mid-swap.
     //
-    // EK27 — Bumped 900 → 1100 to cover CardSlot's 800ms transition
-    // PLUS the per-card stagger (up to 219ms based on card.id). At
-    // 900 the highest-stagger cards were still ~120ms into their
-    // 800ms transition when the commit fired, so the card.x/y change
-    // would snap the visual the final 15% of the way — visible as a
-    // "pop in" from outside the placed position. 1100ms guarantees
-    // every card's transition has run to completion before commit.
+    // EK118 — 1100 → 1000. The per-card stagger is gone, so the flight
+    // is a flat 800ms; 1000ms sits safely past the commit + suppress
+    // paint while trimming dead gather-tail time.
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
-    }, 1100);
+    }, 1000);
   }, [gatherCenter, gridParams, cards, cellIndexForPosition, placeCardInFreeCell]);
 
   // EK25 — On-the-fly cluster transition tracking. Every time

@@ -102,13 +102,13 @@ export function JournalBlock({
   const labels = voiceMode === "oracle"
     ? {
         caption: "The cards ask",
-        usePromptLink: "Speak with this prompt →",
+        usePromptLink: "Begin your note with this prompt →",
         respondingToPrefix: "Speaking to",
         emptyPlaceholder: placeholder ?? "Mark the page…",
       }
     : {
         caption: "The cards ask",
-        usePromptLink: "Use this prompt →",
+        usePromptLink: "Start your note with this prompt →",
         respondingToPrefix: "Responding to",
         emptyPlaceholder: placeholder ?? "Leave a note for yourself…",
       };

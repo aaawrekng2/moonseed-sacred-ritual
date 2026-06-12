@@ -1004,7 +1004,11 @@ export function CardSlot({
           // smoothly from its current cluster position to the new
           // spot — no jump caused by left/top snapping to a new
           // value mid-transition.
-          const releaseDelay = (card.id * 37) % 220; // 0..219ms
+          // EK118 — stagger removed. The per-card 0..219ms delay made
+          // cards land in a rippling wave; combined with the commit
+          // snap below it read as a "rubber band." All released cards
+          // now share identical timing so the commit is deterministic.
+          const releaseDelay = 0;
           if (releaseTarget) {
             const rdx = releaseTarget.x - card.x;
             const rdy = releaseTarget.y - card.y;
@@ -1013,7 +1017,9 @@ export function CardSlot({
               left: card.x,
               top: card.y,
               transform: `translate3d(${rdx}px, ${rdy}px, 0) rotate(${releaseTarget.rotation}deg)`,
-              transition: `transform 800ms cubic-bezier(0.4, 0, 0.2, 1) ${releaseDelay}ms`,
+              // EK118 — gentle ease-out (decelerate into the spot) so
+              // the card glides in and stops; no terminal acceleration.
+              transition: `transform 800ms cubic-bezier(0.22, 1, 0.36, 1) ${releaseDelay}ms`,
               willChange: "transform",
               animation: "none",
             };
@@ -1035,7 +1041,7 @@ export function CardSlot({
             // teleports by `(NEW - OLD)` and slides back over 800ms.
             transition: suppressTransition
               ? "none"
-              : `transform 800ms cubic-bezier(0.4, 0, 0.2, 1) ${releaseDelay}ms`,
+              : `transform 800ms cubic-bezier(0.22, 1, 0.36, 1) ${releaseDelay}ms`,
             willChange: "transform",
             animation: "none",
           };
