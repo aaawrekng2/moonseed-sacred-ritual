@@ -143,20 +143,6 @@ function Index() {
   // at least once, so we don't flash the card-back during the async
   // resolution on warm reopen.
   const [hasCheckedTodayDraw, setHasCheckedTodayDraw] = useState(false);
-  // EK125 — once the splash card has shrunk into the slot, hold it there
-  // until the real gateway card is actually ready to paint (the today-draw
-  // check has resolved — that gap was the empty flash), then cross-fade it
-  // out. A cap (1600ms) guarantees it never hangs if the check stalls.
-  useEffect(() => {
-    if (splashPhase !== "settling") return;
-    const holdMs = hasCheckedTodayDraw ? 140 : 1600;
-    const t1 = window.setTimeout(() => setSplashFading(true), holdMs);
-    const t2 = window.setTimeout(() => setSplashPhase("done"), holdMs + 380);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
-  }, [splashPhase, hasCheckedTodayDraw]);
   // CE — propagate the active custom deck's photographed card back to
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
@@ -513,6 +499,38 @@ function Index() {
   // CardBack fallback doesn't flash the default before we know whether
   // the seeker has a custom photographed back.
   const showSkeleton = deckLoading;
+
+  // EK128 — the splash card holds in the gateway slot until the REAL gateway
+  // card is actually painted, then cross-fades. The earlier gap was waiting
+  // only on the today-draw flag with a 1600ms cap — but for signed-in users
+  // that DB query can run longer, and the slot also needs the deck to finish
+  // loading. We now gate on the gateway's exact `loading` state (same
+  // expression the gateway CardImage uses), with a generous 6s safety cap so
+  // it can never hang. Because the splash IS the same Signature back sitting
+  // exactly over the slot, holding it covers the slot completely until the
+  // gateway is ready, then the fade is invisible.
+  const gatewayLoading =
+    !hasCheckedTodayDraw || (todayCard === null && showSkeleton);
+  useEffect(() => {
+    if (splashPhase !== "settling") return;
+    if (gatewayLoading) {
+      // Gateway not painted yet — keep the splash covering the slot, but
+      // never hang: hard cap at 6s.
+      const cap = window.setTimeout(() => setSplashFading(true), 6000);
+      const capDone = window.setTimeout(() => setSplashPhase("done"), 6420);
+      return () => {
+        window.clearTimeout(cap);
+        window.clearTimeout(capDone);
+      };
+    }
+    // Gateway is ready — give its image one beat to paint, then fade out.
+    const t1 = window.setTimeout(() => setSplashFading(true), 220);
+    const t2 = window.setTimeout(() => setSplashPhase("done"), 640);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [splashPhase, gatewayLoading]);
 
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
   // so the spread icons aren't pushed past the bottom nav. The page also
