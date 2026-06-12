@@ -38,6 +38,36 @@ const STAGE = 660; // square logical stage; scales to fit via maxWidth
 const CX = STAGE / 2;
 const CY = STAGE / 2 + 8; // nudge down slightly to leave room for the label
 const R = 272;
+
+// EK112 — faint, non-interactive suit guide arcs on the rim. The 78 cards
+// sit in contiguous index ranges by suit; each arc spans its range just
+// outside the card ring in the suit's elemental color. The whole SVG is
+// pointer-events:none, so these never intercept hover/clicks — pure
+// orientation. Selecting/dragging suits still happens on the chip line.
+const SUIT_ARCS: Array<{
+  a: number;
+  b: number;
+  color: string;
+  label: string;
+}> = [
+  { a: 0, b: 21, color: "#C6A24A", label: "Majors" },
+  { a: 22, b: 35, color: "#C2552E", label: "Wands" },
+  { a: 36, b: 49, color: "#3E6FA3", label: "Cups" },
+  { a: 50, b: 63, color: "#9AA0B5", label: "Swords" },
+  { a: 64, b: 77, color: "#4E7A4A", label: "Pentacles" },
+];
+const ARC_BAND_R = R + 24; // band radius, just outside the card ring
+const ARC_LABEL_R = R + 42; // label radius, outside the band
+function atlasArcPath(r: number, a0deg: number, a1deg: number): string {
+  const a0 = (a0deg * Math.PI) / 180;
+  const a1 = (a1deg * Math.PI) / 180;
+  const x0 = CX + r * Math.cos(a0);
+  const y0 = CY + r * Math.sin(a0);
+  const x1 = CX + r * Math.cos(a1);
+  const y1 = CY + r * Math.sin(a1);
+  const large = a1deg - a0deg > 180 ? 1 : 0;
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
+}
 const CARD_W = 20; // base card width; magnify scales this up on hover
 // EK111 — card height/width, for pinning the magnify origin to the real
 // inner edge along the radial. Cards are taller than wide; the EK110
@@ -240,6 +270,44 @@ export function AtlasWeb({
           }}
           aria-hidden
         >
+          {/* EK112 — faint suit guide arcs (behind the lines, non-interactive). */}
+          <g>
+            {SUIT_ARCS.map((s) => {
+              const step = 360 / N;
+              const a0 = -90 + (s.a - 0.42) * step;
+              const a1 = -90 + (s.b + 0.42) * step;
+              const mid = ((a0 + a1) / 2) * (Math.PI / 180);
+              const lx = CX + ARC_LABEL_R * Math.cos(mid);
+              const ly = CY + ARC_LABEL_R * Math.sin(mid);
+              return (
+                <g key={s.label}>
+                  <path
+                    d={atlasArcPath(ARC_BAND_R, a0, a1)}
+                    fill="none"
+                    stroke={s.color}
+                    strokeWidth={6}
+                    strokeLinecap="round"
+                    opacity={0.4}
+                  />
+                  <text
+                    x={lx}
+                    y={ly}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill={s.color}
+                    opacity={0.58}
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 13,
+                    }}
+                  >
+                    {s.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
           {pairs.map((p) => {
             const A = INSET_POS[p.a];
             const B = INSET_POS[p.b];

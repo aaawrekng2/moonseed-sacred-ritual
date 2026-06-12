@@ -601,6 +601,40 @@ const ATLAS_SUIT_LIST: Array<{ key: string; label: string }> = [
 ];
 const ATLAS_TRACE_COLOR = "var(--trace-color, #5cead4)";
 
+// EK112 — a group slot dropped into the slot row (atlas only). Represents
+// "any card of this rank/suit" for the slot-row match. Kept PARALLEL to
+// ManualPick so the shared pick type (used across ~10 files) stays untouched.
+export type AtlasGroupSlot = {
+  uid: string;
+  kind: "rank" | "suit";
+  key: string;
+  label: string;
+  ids: number[];
+};
+function buildAtlasGroupSlot(
+  kind: "rank" | "suit",
+  key: string,
+): AtlasGroupSlot | null {
+  if (kind === "rank") {
+    const r = Number(key);
+    if (!Number.isInteger(r) || r < 0 || r > 13) return null;
+    return {
+      uid: `rank-${r}`,
+      kind,
+      key: String(r),
+      label: `any ${ATLAS_RANK_FULL[r]}`,
+      ids: rankCardIds(r),
+    };
+  }
+  const ids = suitCardIds(key);
+  if (ids.length === 0) return null;
+  const label =
+    key === "major"
+      ? "any Major"
+      : `any ${ATLAS_SUIT_LIST.find((s) => s.key === key)?.label ?? key}`;
+  return { uid: `suit-${key}`, kind, key, label, ids };
+}
+
 function groupsSatisfied(groups: number[][], present: Set<number>): boolean {
   for (const g of groups) {
     let any = false;
@@ -709,6 +743,20 @@ export function ConstellationPage({
   // EK108 — which rank/suit chip is being hovered, for the calendar
   // preview stroke. Holds the chip's target card ids.
   const [atlasHoverChip, setAtlasHoverChip] = useState<number[] | null>(null);
+  // EK112 — group slots dropped into the slot row, and a flag that a group
+  // chip is mid-drag (so empty slots can light up as drop targets even though
+  // no card id is being dragged).
+  const [atlasGroupSlots, setAtlasGroupSlots] = useState<AtlasGroupSlot[]>([]);
+  const [draggingGroup, setDraggingGroup] = useState(false);
+  const addAtlasGroupSlot = (kind: "rank" | "suit", key: string) => {
+    const gs = buildAtlasGroupSlot(kind, key);
+    if (!gs) return;
+    setAtlasGroupSlots((prev) =>
+      prev.some((p) => p.uid === gs.uid) ? prev : [...prev, gs],
+    );
+  };
+  const removeAtlasGroupSlot = (uid: string) =>
+    setAtlasGroupSlots((prev) => prev.filter((p) => p.uid !== uid));
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
@@ -2659,6 +2707,8 @@ export function ConstellationPage({
   // the seeker can start a new pull.
   const handleSaveToJournal = async () => {
     if (!canSubmit || saveStatus === "saving") return;
+    // EK112 — a group slot ("any of") isn't a concrete spread; never save it.
+    if (atlasMode && atlasGroupSlots.length > 0) return;
     setSaveStatus("saving");
     setSaveError(null);
     try {
@@ -3326,7 +3376,75 @@ export function ConstellationPage({
             >
               {Array.from({ length: 12 }).map((_, idx) => {
                 const pick = picks[idx];
+                // EK112 — group slots occupy the positions right after the
+                // concrete picks; empties follow them.
+                const groupIdx = idx - picks.length;
+                const groupSlot =
+                  !pick &&
+                  atlasMode &&
+                  groupIdx >= 0 &&
+                  groupIdx < atlasGroupSlots.length
+                    ? atlasGroupSlots[groupIdx]
+                    : null;
                 const isDropTarget = dragOverSlotIdx === idx;
+                if (groupSlot) {
+                  return (
+                    <div
+                      key={`group-${groupSlot.uid}`}
+                      title={`${groupSlot.label} — matches any card of this ${groupSlot.kind}`}
+                      style={{
+                        position: "relative",
+                        width: slotW,
+                        height: slotH,
+                        flexShrink: 0,
+                        borderRadius: 6,
+                        border: `1.5px solid ${ATLAS_TRACE_COLOR}`,
+                        background: `color-mix(in oklab, ${ATLAS_TRACE_COLOR} 16%, transparent)`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 4,
+                        textAlign: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontStyle: "italic",
+                          fontSize: "var(--text-body-sm)",
+                          lineHeight: 1.15,
+                          color: "var(--color-foreground)",
+                        }}
+                      >
+                        {groupSlot.label}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`remove ${groupSlot.label}`}
+                        onClick={() => removeAtlasGroupSlot(groupSlot.uid)}
+                        style={{
+                          position: "absolute",
+                          top: -7,
+                          right: -7,
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9999,
+                          border: "1px solid var(--border-subtle)",
+                          background: "var(--surface-elevated, var(--surface-card))",
+                          color: "var(--color-foreground)",
+                          fontSize: 11,
+                          lineHeight: 1,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                }
                 if (!pick) {
                   return (
                     <button
@@ -3335,7 +3453,7 @@ export function ConstellationPage({
                       onClick={() => setPickerOpen(true)}
                       aria-label="add a card"
                       onDragOver={(e) => {
-                        if (draggingCardId === null) return;
+                        if (draggingCardId === null && !draggingGroup) return;
                         e.preventDefault();
                         e.dataTransfer.dropEffect = "copy";
                         if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
@@ -3345,6 +3463,25 @@ export function ConstellationPage({
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
+                        // EK112 — a rank/suit group chip dropped here becomes a
+                        // group slot ("any of"). Card drops keep their path.
+                        const grp = atlasMode
+                          ? e.dataTransfer.getData("application/x-tarotseed-group")
+                          : "";
+                        if (grp) {
+                          try {
+                            const o = JSON.parse(grp) as {
+                              kind: "rank" | "suit";
+                              key: string;
+                            };
+                            addAtlasGroupSlot(o.kind, o.key);
+                          } catch {
+                            /* ignore malformed payload */
+                          }
+                          setDraggingGroup(false);
+                          setDragOverSlotIdx(null);
+                          return;
+                        }
                         const raw = e.dataTransfer.getData("application/x-tarotseed-cardid");
                         const id = raw ? Number(raw) : draggingCardId;
                         if (id !== null && Number.isFinite(id)) {
@@ -3894,6 +4031,19 @@ export function ConstellationPage({
                               type="button"
                               title={`Select all four ${ATLAS_RANK_FULL[r]}s`}
                               onClick={() => toggleAtlasChip(rankCardIds(r))}
+                              draggable
+                              onDragStart={(e) => {
+                                // EK112 — drag this rank into a slot to make a
+                                // group slot ("any Six"). Click still bulk-
+                                // selects. Distinct payload from card drags.
+                                e.dataTransfer.effectAllowed = "copy";
+                                e.dataTransfer.setData(
+                                  "application/x-tarotseed-group",
+                                  JSON.stringify({ kind: "rank", key: String(r) }),
+                                );
+                                setDraggingGroup(true);
+                              }}
+                              onDragEnd={() => setDraggingGroup(false)}
                               onMouseEnter={() =>
                                 setAtlasHoverChip(rankCardIds(r))
                               }
@@ -3941,6 +4091,19 @@ export function ConstellationPage({
                               type="button"
                               title={`Select all ${s.label}`}
                               onClick={() => toggleAtlasChip(suitCardIds(s.key))}
+                              draggable
+                              onDragStart={(e) => {
+                                // EK112 — drag this suit into a slot to make a
+                                // group slot ("any Cups"). Click still bulk-
+                                // selects.
+                                e.dataTransfer.effectAllowed = "copy";
+                                e.dataTransfer.setData(
+                                  "application/x-tarotseed-group",
+                                  JSON.stringify({ kind: "suit", key: s.key }),
+                                );
+                                setDraggingGroup(true);
+                              }}
+                              onDragEnd={() => setDraggingGroup(false)}
                               onMouseEnter={() =>
                                 setAtlasHoverChip(suitCardIds(s.key))
                               }
@@ -4181,7 +4344,15 @@ export function ConstellationPage({
                   onSaveToJournal={() => void handleSaveToJournal()}
                   saveStatus={saveStatus}
                   saveError={saveError}
-                  saveDisabled={!canSubmit}
+                  saveDisabled={
+                    !canSubmit ||
+                    (atlasMode && atlasGroupSlots.length > 0)
+                  }
+                  saveDisabledReason={
+                    atlasMode && atlasGroupSlots.length > 0
+                      ? "A rank or suit slot matches any card, so there's no single spread to save. Swap it for a specific card to save this reading."
+                      : undefined
+                  }
                   align="flex-start"
                   // EK68 — same-spread/day and Hide-older moved into the
                   // fly-out menu; this row now shows only Save to journal.
@@ -4410,6 +4581,9 @@ export function ConstellationPage({
             overlap={overlap}
             heroCardId={heroPick?.cardIndex ?? null}
             pullCardIds={picks.map((p) => p.cardIndex)}
+            pullGroups={
+              atlasMode ? atlasGroupSlots.map((g) => g.ids) : undefined
+            }
             mode={overlapMode}
             onModeChange={setOverlapMode}
             tealSelectedIds={tealSelectedIds}

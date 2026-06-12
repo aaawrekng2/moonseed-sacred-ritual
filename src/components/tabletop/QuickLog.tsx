@@ -1823,6 +1823,9 @@ export function OverlapPills({
   saveStatus = "idle",
   saveError = null,
   saveDisabled = false,
+  // EK112 — when the Save button is disabled for a specific reason (e.g. a
+  // rank/suit group slot is present), this string shows as the hover tooltip.
+  saveDisabledReason,
   saveOnly = false,
   align = "flex-end",
 }: {
@@ -1836,6 +1839,8 @@ export function OverlapPills({
   saveStatus?: "idle" | "saving" | "saved" | "error";
   saveError?: string | null;
   saveDisabled?: boolean;
+  /** EK112 — hover tooltip shown when the button is disabled for a reason. */
+  saveDisabledReason?: string;
   /** EK68 — render only the Save button; the mode + older controls now
    *  live in the fly-out menu. */
   saveOnly?: boolean;
@@ -1924,11 +1929,13 @@ export function OverlapPills({
           onClick={onSaveToJournal}
           disabled={saveStatus === "saving" || saveDisabled}
           title={
-            saveStatus === "error" && saveError
-              ? saveError
-              : saveStatus === "saved"
-                ? "Saved to journal ✓"
-                : undefined
+            saveDisabled && saveDisabledReason
+              ? saveDisabledReason
+              : saveStatus === "error" && saveError
+                ? saveError
+                : saveStatus === "saved"
+                  ? "Saved to journal ✓"
+                  : undefined
           }
           style={{
             height: 22,
@@ -1963,6 +1970,11 @@ function OverlapStrip({
   overlap,
   heroCardId,
   pullCardIds,
+  // EK112 — atlas group slots: each entry is the member-id list of a
+  // rank/suit slot dropped into the slot row. A group counts as ONE slot,
+  // satisfied on a day/pull if ANY member appeared. The regular page never
+  // passes this, so its slot-row match is unchanged.
+  pullGroups = [],
   mode,
   onModeChange,
   tealSelectedIds = [],
@@ -2024,6 +2036,9 @@ function OverlapStrip({
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
   pullCardIds: number[];
+  /** EK112 — atlas group slots; each is the member-id list of a rank/suit
+   *  slot. Counts as one slot, satisfied if any member appears. */
+  pullGroups?: number[][];
   mode: "pull" | "day";
   onModeChange: (m: "pull" | "day") => void;
   /** Phase 24 — when non-empty, mark every day where ALL teal-selected cards
@@ -2097,6 +2112,46 @@ function OverlapStrip({
   const resolveCardName = useActiveDeckCardName();
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
+  // EK112 — group slots as sets; one satisfied slot if any member appears.
+  const pullGroupSets = useMemo(
+    () => pullGroups.map((g) => new Set(g)),
+    [pullGroups],
+  );
+  // Effective pull size = concrete cards + group slots. Drives the accent-
+  // tint denominator, the perfect-match ring, and the best-available ring.
+  const effectivePullSize = pullSet.size + pullGroupSets.length;
+  // Count satisfied slots on a given day, per the active mode. A concrete
+  // card counts when present; a group counts when ANY of its members is
+  // present. In pull mode we take the best single reading.
+  const countDayMatches = (day: {
+    date: string;
+    sameDayCardIds?: number[];
+  }): number => {
+    if (effectivePullSize === 0) return 0;
+    const tally = (ids: Set<number>): number => {
+      let n = 0;
+      for (const id of pullSet) if (ids.has(id)) n++;
+      for (const g of pullGroupSets) {
+        for (const id of g) {
+          if (ids.has(id)) {
+            n++;
+            break;
+          }
+        }
+      }
+      return n;
+    };
+    if (mode === "day") {
+      return tally(new Set(day.sameDayCardIds ?? []));
+    }
+    const readings = overlap?.readingsByDate?.[day.date] ?? [];
+    let best = 0;
+    for (const r of readings) {
+      const n = tally(new Set(r.cardIds));
+      if (n > best) best = n;
+    }
+    return best;
+  };
   const tealSet = useMemo(() => new Set(tealSelectedIds), [tealSelectedIds]);
   // EG — long-press tracking for touch devices. Pointerdown starts a
   // 500ms timer; if pointerup fires before, it's a tap (let
@@ -2168,21 +2223,11 @@ function OverlapStrip({
   // ring. Only meaningful when more than one card is pulled; with a single
   // card every match would tie at max and ring every cell.
   let maxMatchInCalendar = 0;
-  if (pullSet.size > 1) {
+  if (effectivePullSize > 1) {
     for (const m of months) {
       for (const day of m.days) {
         if (day == null) continue;
-        let matches = 0;
-        if (mode === "day") {
-          for (const id of day.sameDayCardIds ?? []) if (pullSet.has(id)) matches++;
-        } else {
-          const readings = overlap?.readingsByDate?.[day.date] ?? [];
-          for (const r of readings) {
-            let n = 0;
-            for (const id of r.cardIds) if (pullSet.has(id)) n++;
-            if (n > matches) matches = n;
-          }
-        }
+        const matches = countDayMatches(day);
         if (matches > maxMatchInCalendar) maxMatchInCalendar = matches;
       }
     }
@@ -2447,28 +2492,15 @@ function OverlapStrip({
                     // short-circuit left matchCount=0, suppressing the perfect-
                     // match ring even when all pulled cards were on this day.
                     let matchCount = 0;
-                    if (pullSet.size > 0) {
-                      let matches = 0;
-                      if (mode === "day") {
-                        for (const id of day.sameDayCardIds) if (pullSet.has(id)) matches++;
-                      } else {
-                        const readings = overlap?.readingsByDate?.[day.date] ?? [];
-                        let best = 0;
-                        for (const r of readings) {
-                          let n = 0;
-                          for (const id of r.cardIds) if (pullSet.has(id)) n++;
-                          if (n > best) best = n;
-                        }
-                        matches = best;
-                      }
-                      matchCount = matches;
+                    if (effectivePullSize > 0) {
+                      matchCount = countDayMatches(day);
                     }
                     // Apply visual on top of matchCount.
                     if (day.heroDrawn && heroCardId != null) {
                       bg = "var(--gold, var(--accent))";
                       opacity = 0.9;
                     } else if (matchCount > 0) {
-                      const op = matchOpacity(matchCount, pullSet.size);
+                      const op = matchOpacity(matchCount, effectivePullSize);
                       if (op > 0) {
                         bg = "var(--accent, var(--gold))";
                         opacity = op;
@@ -2560,7 +2592,9 @@ function OverlapStrip({
                     // gold-badge day for no meaning. Rings need a real
                     // multi-card pull to compare against.
                     const isPerfectMatch =
-                      matchCount > 0 && matchCount === pullSet.size && pullSet.size >= 2;
+                      matchCount > 0 &&
+                      matchCount === effectivePullSize &&
+                      effectivePullSize >= 2;
                     const isBestAvailable =
                       !isPerfectMatch &&
                       // EK58 — a stroke means "2+ of your spread cards
@@ -2568,7 +2602,7 @@ function OverlapStrip({
                       // any day can do is 1 of N, no dashed rings show.
                       matchCount >= 2 &&
                       matchCount === maxMatchInCalendar &&
-                      pullSet.size > 1;
+                      effectivePullSize > 1;
                     const dateLabel = formatDateLong(`${day.date}T00:00:00`);
                     // EK68 — numerology mode shows the seeker's personal day
                     // number on every cell; otherwise the day of the month.
@@ -2649,7 +2683,7 @@ function OverlapStrip({
                                     heroDrawn: !!day.heroDrawn,
                                     heroName,
                                     matchCount,
-                                    pullSize: pullCardIds.length,
+                                    pullSize: effectivePullSize,
                                     isPerfectMatch,
                                     isBestAvailable,
                                     tealTraceHit,
@@ -2688,7 +2722,7 @@ function OverlapStrip({
                                       heroDrawn: !!day.heroDrawn,
                                       heroName,
                                       matchCount,
-                                      pullSize: pullCardIds.length,
+                                      pullSize: effectivePullSize,
                                       isPerfectMatch,
                                       isBestAvailable,
                                       tealTraceHit,
