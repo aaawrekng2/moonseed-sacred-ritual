@@ -30,7 +30,6 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useDevHideMenu,
-  useDevMode,
   APP_VERSION_LETTER,
 } from "@/components/dev/DevOverlay";
 
@@ -74,7 +73,6 @@ const EXPANDED_HEIGHT = 56;
 export function TopNav() {
   const location = useLocation();
   const hideMenu = useDevHideMenu();
-  const devMode = useDevMode();
   const [visible, setVisible] = useState(true);
   const [expanded, setExpanded] = useState(false);
   // EJ68 — Track mobile breakpoint so we can tighten icon spacing.
@@ -204,31 +202,28 @@ export function TopNav() {
           overflow: "hidden",
         }}
       >
-        {/* EK126 — version readout pinned to the left of the menu bar,
-            shown only when Dev Mode is on. The DevChip still carries the
-            dev toggles; this is an at-a-glance build marker. */}
-        {devMode && (
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: 12,
-              top: 0,
-              height: COMPACT_HEIGHT,
-              display: "flex",
-              alignItems: "center",
-              fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
-              fontSize: 10,
-              letterSpacing: "0.08em",
-              fontWeight: 600,
-              color: "var(--color-foreground)",
-              opacity: 0.6,
-              pointerEvents: "none",
-            }}
-          >
-            v{APP_VERSION_LETTER}
-          </span>
-        )}
+        {/* EK127 — version readout pinned to the left of the menu bar,
+            always visible (no Dev Mode required). */}
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: 12,
+            top: 0,
+            height: COMPACT_HEIGHT,
+            display: "flex",
+            alignItems: "center",
+            fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            fontWeight: 600,
+            color: "var(--color-foreground)",
+            opacity: 0.6,
+            pointerEvents: "none",
+          }}
+        >
+          v{APP_VERSION_LETTER}
+        </span>
         {/* EJ65 — Pure centered nav. Removed the 80px left rail and
             80px right spacer that were squeezing the icons on narrow
             mobile viewports. The 5 icons now use the full available
