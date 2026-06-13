@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Feather, Pin, RotateCw, Sparkles, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, Feather, Pin, RotateCw, Sparkles, TrendingUp, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -88,8 +88,12 @@ import {
 import { getTagFilterStats } from "@/lib/insights.functions";
 import { PinnedCardModal } from "@/components/constellation/PinnedCardModal";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
-import { isoDayInTz } from "@/lib/time";
+import { isoDayInTz, calendarDaysBetween, parseIsoDay } from "@/lib/time";
 import { getPhaseOccurrences } from "@/lib/moon";
+import {
+  detectAtlasPatterns,
+  type AtlasPattern,
+} from "@/lib/atlas-patterns";
 import { CardRichPopoverContent } from "@/components/card/CardRichPopover";
 import { useHoverSnooze, applySnooze, clearSnooze } from "@/lib/hover-snooze";
 import { DEFAULT_FILTERS, type InsightsFilters } from "@/lib/insights.types";
@@ -1624,8 +1628,32 @@ export function ConstellationPage({
     return { ymds, count };
   }, [atlasMode, hasAtlasAsterism, atlasAsterismSatisfied, overlap, overlapMode]);
 
-  // EK131 — readings that match the full section asterism, for the badge's
-  // readings modal in atlas mode, per the active pill.
+  // EK134 — pattern detection on the matched (stroked) days. Pure + chance-
+  // gated in @/lib/atlas-patterns; recomputes live as the asterism or filters
+  // change. Returns [] when nothing beats chance, which hides the panel.
+  const atlasPatterns = useMemo<AtlasPattern[]>(() => {
+    if (!atlasMode || !hasAtlasAsterism) return [];
+    const tr = globalFilters.timeRange ?? DEFAULT_TIMEFRAME;
+    const m = /^(\d+)d$/.exec(tr);
+    const stroked = [...atlasMatch.ymds];
+    let windowDays = m ? Number(m[1]) : 365;
+    if (!m && stroked.length > 0) {
+      // "all time" — span from earliest matched day to today, min 365.
+      const earliest = stroked.slice().sort()[0];
+      const span = Math.abs(
+        calendarDaysBetween(parseIsoDay(earliest, "UTC"), new Date(), "UTC"),
+      );
+      windowDays = Math.max(365, span);
+    }
+    return detectAtlasPatterns({
+      strokedDays: stroked,
+      windowDays,
+      moonFullDays: atlasMoonDays.full,
+      moonNewDays: atlasMoonDays.nw,
+      todayYmd: isoDayInTz(new Date(), "UTC"),
+    });
+  }, [atlasMode, hasAtlasAsterism, atlasMatch.ymds, atlasMoonDays, globalFilters.timeRange]);
+
   const atlasMatchedReadings = useMemo(() => {
     if (!atlasMode || !hasAtlasAsterism || !overlap) return [];
     const out: Array<{
@@ -5034,8 +5062,100 @@ export function ConstellationPage({
               </div>
             </div>
           )}
-          {/* EK133 — patterns panel mounts here in EK134 (order 5, bottom of
-              both atlas tabs, computed off the active filter stack). */}
+          {/* EK134 — patterns panel (order 5, bottom of both atlas tabs).
+              Renders ONLY when at least one detector beats chance. */}
+          {atlasMode && atlasPatterns.length > 0 && (
+            <div
+              style={{
+                order: 5,
+                marginTop: 6,
+                border: "0.5px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md, 8px)",
+                background: "var(--surface-card)",
+                padding: "12px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  borderBottom: "0.5px solid var(--border-subtle)",
+                  paddingBottom: 10,
+                }}
+              >
+                <Sparkles size={14} aria-hidden style={{ color: ATLAS_TRACE_COLOR }} />
+                <span
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--color-foreground-muted)",
+                    fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  Patterns in these days
+                </span>
+              </div>
+              {atlasPatterns.map((pat, i) => (
+                <div
+                  key={`${pat.kind}-${i}`}
+                  style={{ display: "flex", gap: 11, alignItems: "flex-start" }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      color: ATLAS_TRACE_COLOR,
+                      flexShrink: 0,
+                      marginTop: 1,
+                      display: "inline-flex",
+                    }}
+                  >
+                    {pat.kind === "weekday" ? (
+                      <CalendarIcon size={16} />
+                    ) : pat.kind === "cadence" ? (
+                      <RotateCw size={16} />
+                    ) : pat.kind === "trend" ? (
+                      <TrendingUp size={16} />
+                    ) : pat.kind === "moon" ? (
+                      <MoonPhaseIcon
+                        phase={pat.moonPhase ?? "Full Moon"}
+                        size={16}
+                      />
+                    ) : (
+                      <Sparkles size={16} />
+                    )}
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontFamily: "var(--font-serif)",
+                        fontSize: "var(--text-body-sm)",
+                        lineHeight: 1.5,
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      {pat.title}
+                    </p>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "var(--text-caption)",
+                        lineHeight: 1.5,
+                        color: "var(--color-foreground-muted)",
+                      }}
+                    >
+                      {pat.detail}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         {/* EJ25 — RIGHT column (was LEFT pre-EJ25): constellation web. */}
         <div
