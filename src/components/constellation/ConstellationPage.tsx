@@ -3545,10 +3545,78 @@ export function ConstellationPage({
               REVERSED) all moved into the card hover popover
               instead. Frequency dropped (unreliable data). */}
 
-          {/* DV — slot row + date + paste flow naturally below chips. No
-              longer pinned to bottom; the right column's natural height is
-              short and leaves consistent breathing room above the calendar. */}
-          <div>
+          {/* EK133 — days-selection pill, lifted out of the calendar to the
+              top of the controls column (atlas only; the calendar drops its
+              internal copy via showModeToggle={false}). Drives the same
+              overlapMode state. */}
+          {atlasMode && (
+            <div style={{ order: 1, display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  fontSize: "var(--text-caption)",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--color-foreground-muted)",
+                  fontFamily: "var(--font-sans)",
+                }}
+              >
+                Match by
+              </span>
+              <div
+                role="tablist"
+                aria-label="Match by spread or day"
+                style={{
+                  display: "inline-flex",
+                  height: 24,
+                  borderRadius: 9999,
+                  border: "1px solid var(--border-subtle)",
+                  background: "var(--surface-card)",
+                  overflow: "hidden",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                }}
+              >
+                {(["pull", "day"] as const).map((m) => {
+                  const active = overlapMode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setOverlapMode(m)}
+                      style={{
+                        padding: "0 14px",
+                        height: "100%",
+                        border: "none",
+                        background: active
+                          ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                          : "transparent",
+                        color: active
+                          ? "var(--color-foreground)"
+                          : "var(--color-foreground-muted, var(--color-foreground))",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {m === "pull" ? "same spread" : "same day"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* DV — slot row + date + paste flow naturally below chips.
+              EK133 — order 3 in the left column; on the atlas Asterism tab the
+              whole block hides (the EK131 box is the input there). */}
+          <div
+            style={{
+              order: 3,
+              display:
+                atlasMode && atlasTab === "asterism" ? "none" : undefined,
+            }}
+          >
             <div
               ref={slotRowRef}
               style={{
@@ -4151,6 +4219,7 @@ export function ConstellationPage({
               role="tablist"
               aria-label="Atlas tools"
               style={{
+                order: 2,
                 display: "flex",
                 gap: 24,
                 borderBottom: "1px solid var(--border-subtle)",
@@ -4200,7 +4269,7 @@ export function ConstellationPage({
               card-name input; atlas mode only.
               EK120 — gated to the Asterism tab. */}
           {atlasMode && atlasTab === "asterism" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ order: 3, display: "flex", flexDirection: "column", gap: 14 }}>
               {(() => {
                 const selSet = new Set(atlasSelectedCardIds);
                 const moonSet = new Set<string>(
@@ -4846,6 +4915,7 @@ export function ConstellationPage({
           {picks.length > 0 && (!atlasMode || atlasTab === "draw") && (
             <div
               style={{
+                order: 4,
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
@@ -4964,6 +5034,8 @@ export function ConstellationPage({
               </div>
             </div>
           )}
+          {/* EK133 — patterns panel mounts here in EK134 (order 5, bottom of
+              both atlas tabs, computed off the active filter stack). */}
         </div>
         {/* EJ25 — RIGHT column (was LEFT pre-EJ25): constellation web. */}
         <div
@@ -5199,6 +5271,7 @@ export function ConstellationPage({
             }
             mode={overlapMode}
             onModeChange={setOverlapMode}
+            showModeToggle={!atlasMode}
             tealSelectedIds={tealSelectedIds}
             asterismYmds={atlasMode ? atlasMatch.ymds : undefined}
             previewYmds={atlasMode ? atlasHoverYmds : undefined}

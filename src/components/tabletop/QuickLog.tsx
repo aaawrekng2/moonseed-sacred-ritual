@@ -1981,6 +1981,9 @@ function OverlapStrip({
   pullMoonGroups = [],
   mode,
   onModeChange,
+  // EK133 — when false, OverlapStrip drops its internal same-spread/same-day
+  // pill (the atlas surface lifts it up into the left controls column).
+  showModeToggle = true,
   tealSelectedIds = [],
   // EK106 — atlas group mode supplies a precomputed set of matching day
   // keys (YYYY-MM-DD). When present it OVERRIDES the per-card tealSet
@@ -2114,6 +2117,8 @@ function OverlapStrip({
    *  so this prop is currently a no-op here; kept so ConstellationPage can
    *  pass the same flag through without a type error. */
   showOlderToggle?: boolean;
+  /** EK133 — hide the internal same-spread/same-day pill (atlas lifts it). */
+  showModeToggle?: boolean;
 }) {
   // EJ35 — resolver for oracle card_ids in day-cell tooltips that
   // surface matched-card lists.
@@ -2288,6 +2293,7 @@ function OverlapStrip({
               {showOlder ? "Hide older ←" : "Show older →"}
             </button>
           )}
+          {showModeToggle && (
           <div
             role="tablist"
             style={{
@@ -2329,6 +2335,7 @@ function OverlapStrip({
               );
             })}
           </div>
+          )}
           {/* EF2 — Save to journal pill, optional. Same height/font-size
             as the other pills so all three look consistent in the row.
             Rendered only when onSaveToJournal is provided. */}
