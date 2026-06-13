@@ -14,8 +14,17 @@
 export type EntryBack = {
   /** Deck id, or the sentinel "signature" for the bundled default. */
   id: string;
-  /** Resolved full-size back image URL, or null for the Signature default. */
+  /**
+   * EK136 — Raw ORIGINAL back image URL (the uploaded file itself), or
+   * null for the Signature default. Previously this stored the
+   * `-full.webp` variant, which a freshly-uploaded deck has not generated
+   * yet, leaving entry/home with a dead URL while the picker (reading live
+   * deck data) still looked correct. Storing the original guarantees a
+   * servable URL the moment a deck has a back.
+   */
   url: string | null;
+  /** EK136 — Thumb-size fallback URL, used by CardBack on image error. */
+  thumbUrl?: string | null;
   /** Display label for the picker (e.g. deck name). */
   name?: string;
 };
@@ -31,7 +40,12 @@ export function getEntryBack(): EntryBack {
     if (!raw) return SIGNATURE_ENTRY_BACK;
     const parsed = JSON.parse(raw) as EntryBack;
     if (parsed && typeof parsed.id === "string") {
-      return { id: parsed.id, url: parsed.url ?? null, name: parsed.name };
+      return {
+        id: parsed.id,
+        url: parsed.url ?? null,
+        thumbUrl: parsed.thumbUrl ?? null,
+        name: parsed.name,
+      };
     }
     return SIGNATURE_ENTRY_BACK;
   } catch {

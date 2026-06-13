@@ -385,7 +385,18 @@ function EntryBackPicker({ decks }: { decks: CustomDeck[] }) {
             <button
               key={d.id}
               type="button"
-              onClick={() => choose({ id: d.id, url: full || null, name: d.name })}
+              onClick={() =>
+                choose({
+                  id: d.id,
+                  // EK136 — store the RAW original (uploaded file), not the
+                  // `-full.webp` variant. New decks haven't generated that
+                  // variant yet, so the variant URL 404s on entry/home while
+                  // the original is servable the moment the back exists.
+                  url: (d.card_back_url ?? d.card_back_thumb_url) || null,
+                  thumbUrl: (d.card_back_thumb_url ?? d.card_back_url) || null,
+                  name: d.name,
+                })
+              }
               className={cn(
                 "flex flex-col items-center gap-1.5 rounded-xl border p-2 transition",
                 current.id === d.id

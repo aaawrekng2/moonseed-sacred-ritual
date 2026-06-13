@@ -1,6 +1,7 @@
 import { signatureBackSrc, type CardBackId } from "@/lib/card-backs";
+import { variantUrlFor, variantUrlPngFallback } from "@/lib/active-deck";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * Card-back palette.
@@ -431,7 +432,38 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
   // imageUrl always wins over the Signature default.
   const effectiveImageUrl =
     imageUrl ?? (id === "signature" ? signatureBackSrc(width) : null);
-  if (effectiveImageUrl) {
+
+  // EK136 — ordered fallback chain for the back image. A freshly uploaded
+  // deck may not have generated every size variant yet, so a single stored
+  // URL can 404. Try the primary first, then degrade through generated
+  // variant tiers / PNG fallbacks. Only after ALL candidates fail do we drop
+  // to procedural art — never on the first miss.
+  const [backSrcIdx, setBackSrcIdx] = useState(0);
+  const backCandidates = useMemo<string[]>(() => {
+    if (!effectiveImageUrl) return [];
+    const out: string[] = [];
+    const push = (u: string | null | undefined) => {
+      if (u && !out.includes(u)) out.push(u);
+    };
+    push(effectiveImageUrl);
+    push(variantUrlFor(effectiveImageUrl, "full"));
+    push(variantUrlPngFallback(effectiveImageUrl, "full"));
+    push(variantUrlFor(effectiveImageUrl, "md"));
+    push(variantUrlFor(effectiveImageUrl, "sm"));
+    push(variantUrlPngFallback(effectiveImageUrl, "sm"));
+    return out;
+  }, [effectiveImageUrl]);
+  // Reset to the primary whenever the source set changes (e.g. deck switch).
+  useEffect(() => {
+    setBackSrcIdx(0);
+  }, [effectiveImageUrl]);
+  const backExhausted =
+    backCandidates.length > 0 && backSrcIdx >= backCandidates.length;
+  const activeBackSrc = backExhausted
+    ? null
+    : (backCandidates[backSrcIdx] ?? backCandidates[0] ?? null);
+
+  if (effectiveImageUrl && !backExhausted && activeBackSrc) {
     return (
       <div
         role="img"
@@ -444,7 +476,7 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
         }}
       >
         <img
-          src={effectiveImageUrl}
+          src={activeBackSrc}
           alt={ariaLabel ?? "Card back"}
           onLoad={(e) => {
             const img = e.currentTarget;
@@ -454,6 +486,10 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
               onAspectMeasured?.(a);
             }
           }}
+          // EK136 — on a failed load, advance to the next fallback candidate;
+          // when the chain is exhausted backExhausted flips and we render the
+          // procedural back instead of a broken image.
+          onError={() => setBackSrcIdx((i) => i + 1)}
           // 9-6-T — never crop card-back art.
           style={{
             width: "100%",
