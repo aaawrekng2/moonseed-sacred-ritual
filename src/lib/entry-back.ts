@@ -52,12 +52,25 @@ export function setEntryBack(value: EntryBack): void {
   }
 }
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+
+// EK135 — apply the saved entry back BEFORE first paint, the same way the
+// theme/opacity hooks do (use-resting-opacity, use-theme-color-sync). A plain
+// useEffect runs AFTER paint, so the first frame always showed the Signature
+// default and the splash's flip animation could freeze on that frame —
+// producing the "sometimes my back, sometimes the default" flicker. The
+// useLayoutEffect runs before paint; on the server it's a no-op, so fall back
+// to useEffect there to avoid the SSR warning.
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /** Reactive reader — re-renders when the entry back changes anywhere. */
 export function useEntryBack(): EntryBack {
-  const [value, setValue] = useState<EntryBack>(SIGNATURE_ENTRY_BACK);
-  useEffect(() => {
+  // Lazy initializer: on the client, the very first render already reads the
+  // saved value (no default-then-swap). On the server, window is undefined so
+  // getEntryBack() returns the Signature default.
+  const [value, setValue] = useState<EntryBack>(() => getEntryBack());
+  useIsoLayoutEffect(() => {
     setValue(getEntryBack());
     const onChange = (e: Event) => {
       const detail = (e as CustomEvent<EntryBack>).detail;
