@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
@@ -22,6 +22,7 @@ import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
 import { useEntryBack } from "@/lib/entry-back";
 import { useStreak } from "@/lib/use-streak";
 import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
+import { useDevMode } from "@/components/dev/DevOverlay";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { supabase } from "@/lib/supabase";
 import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
@@ -71,6 +72,64 @@ export const Route = createFileRoute("/")({
 // fresh load / refresh) rather than re-popping on internal navigation back to
 // home. Resets naturally when the page is reloaded.
 let splashShownThisLoad = false;
+
+// EK137 — Dev-only diagnostic for the entry/home back. Renders nothing in
+// production (gated by the dev-mode flag at the call site). Shows the saved
+// selection's id, the resolution SOURCE (live deck map / stored snapshot /
+// thumb / none), the resolved URL's length + head…tail, and a hidden test-load
+// reporting whether that URL actually serves (OK / FAIL). One screenshot of
+// this line says exactly where the back breaks.
+function EntryBackDebug({
+  id,
+  name,
+  source,
+  url,
+}: {
+  id: string;
+  name?: string;
+  source: string;
+  url: string | null;
+}) {
+  const [load, setLoad] = useState<"…" | "OK" | "FAIL" | "—">(url ? "…" : "—");
+  useEffect(() => {
+    if (!url) {
+      setLoad("—");
+      return;
+    }
+    setLoad("…");
+    const img = new Image();
+    img.onload = () => setLoad("OK");
+    img.onerror = () => setLoad("FAIL");
+    img.src = url;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [url]);
+  const head = url ? url.slice(0, 36) : "";
+  const tail = url && url.length > 50 ? url.slice(-14) : "";
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: 8,
+        bottom: 8,
+        zIndex: 99999,
+        maxWidth: "92vw",
+        padding: "6px 8px",
+        borderRadius: 6,
+        background: "rgba(0,0,0,0.82)",
+        color: "#9fe",
+        font: "11px/1.4 ui-monospace, monospace",
+        pointerEvents: "none",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-all",
+      }}
+    >
+      {`EK137 entry-back\nid: ${id}${name ? ` (${name})` : ""}\nsource: ${source}   load: ${load}   len: ${url ? url.length : 0}\n${url ? `${head}…${tail}` : "(no url)"}`}
+    </div>
+  );
+}
 
 function Index() {
   // DC-2.2 — Theme tokens (including --bg-gradient-left/right) are
@@ -154,7 +213,31 @@ function Index() {
   // EW-2 — image / radius / loading are now handled inside CardImage.
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
-  const { activeDeck, loading: deckLoading } = useActiveDeck();
+  const { activeDeck, loading: deckLoading, allDeckMaps } = useActiveDeck();
+
+  // EK137 — Resolve the entry/home back image LIVE by deck id instead of
+  // trusting the snapshot URL saved in the entry-back preference. That snapshot
+  // is a Supabase *signed* URL; signed URLs expire/break, so a back that worked
+  // when first selected later falls back to the default (the "zombie deck works,
+  // my new one doesn't" symptom). allDeckMaps re-signs every deck's back into a
+  // FRESH URL, so prefer that; fall back to the stored URL only as a first-paint
+  // hint before allDeckMaps loads. null = Signature default.
+  const devMode = useDevMode();
+  const entryBackUrl = useMemo<string | null>(() => {
+    if (!entryBack || entryBack.id === "signature") return null;
+    const live = allDeckMaps[entryBack.id]?.back ?? null;
+    return live ?? entryBack.url ?? entryBack.thumbUrl ?? null;
+  }, [entryBack, allDeckMaps]);
+  const entryBackSource =
+    entryBack.id === "signature"
+      ? "signature"
+      : allDeckMaps[entryBack.id]?.back
+        ? "live"
+        : entryBack.url
+          ? "stored"
+          : entryBack.thumbUrl
+            ? "thumb"
+            : "none";
   // EW-2 — heroImageLoaded state lives inside CardImage now.
   // Q66 — show the skeleton only while the deck query is actively
   // loading. Once it resolves (custom deck OR null), CardBack renders
@@ -622,7 +705,7 @@ function Index() {
             loading={!hasCheckedTodayDraw || (todayCard === null && showSkeleton)}
             reversed={todayReversed}
             cardBackId={cardBack}
-            backImageUrl={entryBack.url}
+            backImageUrl={entryBackUrl}
             size="custom"
             widthPx={cardWidth}
             className="animate-breathe-glow"
@@ -640,6 +723,14 @@ function Index() {
             ariaLabel="Begin today's draw"
           />
           </div>
+          {devMode && (
+            <EntryBackDebug
+              id={entryBack.id}
+              name={entryBack.name}
+              source={entryBackSource}
+              url={entryBackUrl}
+            />
+          )}
           {/* EE-8 — Streak Moon glyph. Replaces the prior Flame icon
               with today's actual moon phase, tying the streak marker
               to the sky. Tappable: opens a modal with detail. */}
@@ -1152,7 +1243,7 @@ function Index() {
           >
             <CardBack
               id="signature"
-              imageUrl={entryBack.url ?? undefined}
+              imageUrl={entryBackUrl ?? undefined}
               width={splashCardWidth}
               ariaLabel="TarotSeed — tap to enter"
             />
