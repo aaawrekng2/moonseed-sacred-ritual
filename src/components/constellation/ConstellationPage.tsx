@@ -551,22 +551,6 @@ type ConstellationPageProps = {
 // or pull matches when EVERY group has at least one member present.
 // Centralized here so the calendar stroke, badge count, candidate lines,
 // and readings modal all compute the match identically.
-// EK108 — suits and ranks are no longer group constructs; their chips
-// bulk-select cards as loose singletons, then "Group selected" folds them
-// into a custom OR-group. So a group is either a loose singleton or a
-// custom OR-group.
-function buildAtlasGroups(
-  singletons: number[],
-  customGroups: number[][],
-): number[][] {
-  const grouped = new Set(customGroups.flat());
-  const groups: number[][] = singletons
-    .filter((id) => !grouped.has(id))
-    .map((id) => [id]);
-  for (const g of customGroups) if (g.length) groups.push([...g]);
-  return groups;
-}
-
 // EK108 — suit/rank → card ids, for the bulk-select chips.
 const ATLAS_SUIT_RANGES: Record<string, [number, number]> = {
   major: [0, 21],
@@ -607,20 +591,55 @@ const ATLAS_SUIT_LIST: Array<{ key: string; label: string }> = [
 ];
 const ATLAS_TRACE_COLOR = "var(--trace-color, #5cead4)";
 
-// EK130 — if an asterism group's card set EXACTLY matches a whole rank or
-// suit, show that name ("Cups", "Sixes") instead of listing the cards.
-// Returns null for hand-built groups so they keep their "(A / B / C)" list.
-function atlasGroupLabel(g: number[]): string | null {
-  const key = [...g].sort((a, b) => a - b).join(",");
-  for (const s of ATLAS_SUIT_LIST) {
-    if ([...suitCardIds(s.key)].sort((a, b) => a - b).join(",") === key)
-      return s.label;
-  }
-  for (let r = 0; r < ATLAS_RANK_PLURAL.length; r++) {
-    if ([...rankCardIds(r)].sort((a, b) => a - b).join(",") === key)
-      return ATLAS_RANK_PLURAL[r];
-  }
-  return null;
+// EK131 — Asterism v2 token/section model. A SECTION is a "matches any" (OR)
+// or "matches all" (AND) set of TOKENS; a token is a single card, a whole
+// suit, a whole rank, or a moon phase. The asterism is every committed
+// section ANDed together, PLUS the live tray (treated as one "matches all"
+// section). This replaces the old loose-singles + custom-groups + global-
+// moon split so anything can be combined either way.
+type AtlasToken =
+  | { t: "card"; cardId: number }
+  | { t: "suit"; key: string }
+  | { t: "rank"; r: number }
+  | { t: "moon"; phase: "Full Moon" | "New Moon" };
+type AtlasSection = { uid: string; mode: "any" | "all"; tokens: AtlasToken[] };
+
+function atlasTokenCardIds(tk: AtlasToken): number[] {
+  if (tk.t === "card") return [tk.cardId];
+  if (tk.t === "suit") return suitCardIds(tk.key);
+  if (tk.t === "rank") return rankCardIds(tk.r);
+  return [];
+}
+function atlasTokenLabel(tk: AtlasToken): string {
+  if (tk.t === "card") return TAROT_DECK[tk.cardId] ?? "Card";
+  if (tk.t === "suit")
+    return ATLAS_SUIT_LIST.find((s) => s.key === tk.key)?.label ?? tk.key;
+  if (tk.t === "rank") return ATLAS_RANK_PLURAL[tk.r] ?? "Cards";
+  return tk.phase;
+}
+function atlasTokenKey(tk: AtlasToken): string {
+  if (tk.t === "card") return `card:${tk.cardId}`;
+  if (tk.t === "suit") return `suit:${tk.key}`;
+  if (tk.t === "rank") return `rank:${tk.r}`;
+  return `moon:${tk.phase}`;
+}
+function atlasSectionCardIds(sec: { tokens: AtlasToken[] }): number[] {
+  const out = new Set<number>();
+  for (const tk of sec.tokens)
+    for (const id of atlasTokenCardIds(tk)) out.add(id);
+  return [...out];
+}
+// Human-readable name for a section (badge tooltip + modal title).
+function atlasSectionLabel(sec: {
+  mode: "any" | "all";
+  tokens: AtlasToken[];
+}): string {
+  const names = sec.tokens.map(atlasTokenLabel);
+  if (names.length <= 1) return names[0] ?? "";
+  return (
+    (sec.mode === "all" ? "matches all — " : "matches any — ") +
+    names.join(sec.mode === "all" ? " + " : " · ")
+  );
 }
 
 // EK112 — a group slot dropped into the slot row (atlas only). Represents
@@ -669,19 +688,6 @@ function buildAtlasGroupSlot(
       ? "any Major"
       : `any ${ATLAS_SUIT_LIST.find((s) => s.key === key)?.label ?? key}`;
   return { uid: `suit-${key}`, kind, key, label, ids };
-}
-
-function groupsSatisfied(groups: number[][], present: Set<number>): boolean {
-  for (const g of groups) {
-    let any = false;
-    for (const id of g)
-      if (present.has(id)) {
-        any = true;
-        break;
-      }
-    if (!any) return false;
-  }
-  return true;
 }
 
 export function ConstellationPage({
@@ -779,9 +785,12 @@ export function ConstellationPage({
   // shortens the column and lets the calendar strip below rise up.
   // Atlas-only; /constellation never reads this.
   const [atlasTab, setAtlasTab] = useState<"draw" | "asterism">("draw");
-  // EK108 — custom OR-groups built by select-then-Group. Each is a list of
-  // specific card ids the seeker merged into one "any of these" group.
-  const [atlasCustomGroups, setAtlasCustomGroups] = useState<number[][]>([]);
+  // EK131 — Asterism v2 state. atlasTray = the live section being built
+  // (treated as one "matches all" section so a single tapped card matches
+  // instantly); atlasSections = committed chips, each a "matches any" (OR)
+  // or "matches all" (AND) set. Replaces atlasCustomGroups + atlasMoonPhases.
+  const [atlasTray, setAtlasTray] = useState<AtlasToken[]>([]);
+  const [atlasSections, setAtlasSections] = useState<AtlasSection[]>([]);
   // EK108 — which rank/suit chip is being hovered, for the calendar
   // preview stroke. Holds the chip's target card ids.
   const [atlasHoverChip, setAtlasHoverChip] = useState<number[] | null>(null);
@@ -790,10 +799,6 @@ export function ConstellationPage({
   // no card id is being dragged).
   const [atlasGroupSlots, setAtlasGroupSlots] = useState<AtlasGroupSlot[]>([]);
   const [draggingGroup, setDraggingGroup] = useState(false);
-  // EK114 — moon phases selected into the asterism (the teal trace), the way
-  // rank/suit chip clicks select cards. AND with the card conditions; the
-  // phases OR among themselves.
-  const [atlasMoonPhases, setAtlasMoonPhases] = useState<string[]>([]);
   // EK114 — which moon chip is hovered, for the calendar preview stroke.
   const [atlasHoverMoonPhase, setAtlasHoverMoonPhase] = useState<string | null>(
     null,
@@ -802,12 +807,29 @@ export function ConstellationPage({
   const [atlasAsterismHoverIds, setAtlasAsterismHoverIds] = useState<
     number[] | null
   >(null);
-  const toggleAtlasMoonPhase = (phase: string) => {
-    setAtlasMoonPhases((prev) =>
-      prev.includes(phase)
-        ? prev.filter((p) => p !== phase)
-        : [...prev, phase],
+  // EK131 — tray token add/remove (de-duped by token identity).
+  const addAtlasToken = (tk: AtlasToken) =>
+    setAtlasTray((prev) =>
+      prev.some((p) => atlasTokenKey(p) === atlasTokenKey(tk))
+        ? prev
+        : [...prev, tk],
     );
+  const removeAtlasToken = (key: string) =>
+    setAtlasTray((prev) => prev.filter((p) => atlasTokenKey(p) !== key));
+  // EK131 — commit the live tray as one chip with the chosen match mode.
+  const commitAtlasSection = (mode: "any" | "all") => {
+    if (atlasTray.length === 0) return;
+    const uid = `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setAtlasSections((prev) => [...prev, { uid, mode, tokens: atlasTray }]);
+    setAtlasTray([]);
+  };
+  const removeAtlasSection = (uid: string) =>
+    setAtlasSections((prev) => prev.filter((s) => s.uid !== uid));
+  // EK131 — moon chip toggles into/out of the live tray.
+  const toggleAtlasMoonPhase = (phase: "Full Moon" | "New Moon") => {
+    const key = `moon:${phase}`;
+    if (atlasTray.some((p) => atlasTokenKey(p) === key)) removeAtlasToken(key);
+    else addAtlasToken({ t: "moon", phase });
   };
   const addAtlasGroupSlot = (kind: "rank" | "suit" | "moon", key: string) => {
     const gs = buildAtlasGroupSlot(kind, key);
@@ -1385,87 +1407,8 @@ export function ConstellationPage({
   // hero + 7 companions — so on the full ring the teal lines can reach
   // any card that co-occurred with the whole selected set. Only runs in
   // atlas mode with 2+ cards selected.
-  const atlasCandidateIds = useMemo<number[]>(() => {
-    if (!atlasMode || !overlap) return [];
-    const groups = buildAtlasGroups(tealSelectedIds, atlasCustomGroups);
-    if (groups.length < 1) return [];
-    // Cards already part of a specific-card group don't get suggested.
-    const inUse = new Set<number>([
-      ...tealSelectedIds,
-      ...atlasCustomGroups.flat(),
-    ]);
-    const result: number[] = [];
-    for (let cardId = 0; cardId <= 77; cardId++) {
-      if (inUse.has(cardId)) continue;
-      let hit = false;
-      outer: for (const m of overlap.months) {
-        for (const day of m.days) {
-          if (day == null) continue;
-          if (overlapMode === "day") {
-            const sameDay = new Set(day.sameDayCardIds);
-            if (groupsSatisfied(groups, sameDay) && sameDay.has(cardId)) {
-              hit = true;
-              break outer;
-            }
-          } else {
-            const readings = overlap.readingsByDate?.[day.date] ?? [];
-            for (const r of readings) {
-              const ids = new Set(r.cardIds);
-              if (groupsSatisfied(groups, ids) && ids.has(cardId)) {
-                hit = true;
-                break outer;
-              }
-            }
-          }
-        }
-      }
-      if (hit) result.push(cardId);
-    }
-    return result;
-  }, [
-    atlasMode,
-    tealSelectedIds,
-    atlasCustomGroups,
-    overlap,
-    overlapMode,
-  ]);
-
-  // EK106 — the atlas asterism as a list of GROUPS. Each selected card is
-  // a one-card group; each toggled suit is a 14-card (or 22 for Majors)
-  // group. The match rule is: every group must have at least one member
-  // present. Today's flat behavior is just the all-singletons case.
-  const atlasGroups = useMemo<number[][]>(() => {
-    if (!atlasMode) return [];
-    return buildAtlasGroups(tealSelectedIds, atlasCustomGroups);
-  }, [atlasMode, tealSelectedIds, atlasCustomGroups]);
-
-  // EK107 — every specific card that's part of the asterism (loose
-  // singletons + custom-group members). Drives the teal rings + line
-  // anchors on the clock. Suits/ranks are abstract groups, not specific
-  // cards, so they don't appear here.
-  const atlasSelectedCardIds = useMemo<number[]>(() => {
-    if (!atlasMode) return [];
-    const out = new Set<number>(tealSelectedIds);
-    for (const g of atlasCustomGroups) for (const id of g) out.add(id);
-    return [...out];
-  }, [atlasMode, tealSelectedIds, atlasCustomGroups]);
-
-  // EK107 — per-card ring color for custom-group membership. Loose
-  // singletons fall through to the default teal; each custom group gets a
-  // distinct hue so the clock shows the grouping at a glance.
-  const atlasCardGroupColor = useMemo<Record<number, string>>(() => {
-    const PALETTE = ["#5cead4", "#e0a3ff", "#ffd27d", "#86c5ff", "#ff9eb5"];
-    const map: Record<number, string> = {};
-    atlasCustomGroups.forEach((g, gi) => {
-      const col = PALETTE[gi % PALETTE.length];
-      for (const id of g) map[id] = col;
-    });
-    return map;
-  }, [atlasCustomGroups]);
-
-  // EK115 — full/new moon day sets (UTC keys), the SAME source as the
-  // calendar's moon icons. Moon chips honor these marked days (the full 24h),
-  // not the rarely-recorded exact-milestone phase string.
+  // EK131 — full/new moon day sets (UTC keys), same source as the calendar's
+  // moon icons. Moon tokens honor these marked days (the full 24h).
   const atlasMoonDays = useMemo(() => {
     const full = new Set<string>();
     const nw = new Set<string>();
@@ -1480,36 +1423,129 @@ export function ConstellationPage({
   }, [atlasMode]);
   const daysForMoonPhase = (phase: string): Set<string> =>
     phase === "Full Moon" ? atlasMoonDays.full : atlasMoonDays.nw;
-  // Union of marked days for the phases selected into the asterism.
-  const atlasSelectedMoonDays = useMemo(() => {
-    const s = new Set<string>();
-    for (const p of atlasMoonPhases) for (const d of daysForMoonPhase(p)) s.add(d);
-    return s;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atlasMoonPhases, atlasMoonDays]);
 
-  // EK106 — group-aware match across the filtered universe. Returns the
+  // EK131 — the live tray is one "matches all" section; committed sections
+  // follow. The asterism matches a reading/day when EVERY section is met.
+  const allAtlasSections = useMemo<AtlasSection[]>(() => {
+    const out: AtlasSection[] = [];
+    if (atlasTray.length > 0)
+      out.push({ uid: "__tray", mode: "all", tokens: atlasTray });
+    for (const s of atlasSections) out.push(s);
+    return out;
+  }, [atlasTray, atlasSections]);
+  const hasAtlasAsterism = allAtlasSections.length > 0;
+
+  const atlasTokenSatisfied = useCallback(
+    (tk: AtlasToken, cards: Set<number>, dayDate: string): boolean => {
+      if (tk.t === "moon") return daysForMoonPhase(tk.phase).has(dayDate);
+      return atlasTokenCardIds(tk).some((id) => cards.has(id));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [atlasMoonDays],
+  );
+  const atlasSectionSatisfied = useCallback(
+    (sec: AtlasSection, cards: Set<number>, dayDate: string): boolean => {
+      if (sec.tokens.length === 0) return true;
+      return sec.mode === "all"
+        ? sec.tokens.every((tk) => atlasTokenSatisfied(tk, cards, dayDate))
+        : sec.tokens.some((tk) => atlasTokenSatisfied(tk, cards, dayDate));
+    },
+    [atlasTokenSatisfied],
+  );
+  const atlasAsterismSatisfied = useCallback(
+    (cards: Set<number>, dayDate: string): boolean =>
+      allAtlasSections.every((sec) =>
+        atlasSectionSatisfied(sec, cards, dayDate),
+      ),
+    [allAtlasSections, atlasSectionSatisfied],
+  );
+
+  // EK131 — discovery-hint candidates: cards that, if dropped into the tray,
+  // the asterism still co-occurs with somewhere in the filtered universe.
+  const atlasCandidateIds = useMemo<number[]>(() => {
+    if (!atlasMode || !overlap || !hasAtlasAsterism) return [];
+    const inUse = new Set<number>();
+    for (const sec of allAtlasSections)
+      for (const id of atlasSectionCardIds(sec)) inUse.add(id);
+    const result: number[] = [];
+    for (let cardId = 0; cardId <= 77; cardId++) {
+      if (inUse.has(cardId)) continue;
+      let hit = false;
+      outer: for (const m of overlap.months) {
+        for (const day of m.days) {
+          if (day == null) continue;
+          if (overlapMode === "day") {
+            const sameDay = new Set(day.sameDayCardIds);
+            if (
+              atlasAsterismSatisfied(sameDay, day.date) &&
+              sameDay.has(cardId)
+            ) {
+              hit = true;
+              break outer;
+            }
+          } else {
+            const readings = overlap.readingsByDate?.[day.date] ?? [];
+            for (const r of readings) {
+              const ids = new Set(r.cardIds);
+              if (atlasAsterismSatisfied(ids, day.date) && ids.has(cardId)) {
+                hit = true;
+                break outer;
+              }
+            }
+          }
+        }
+      }
+      if (hit) result.push(cardId);
+    }
+    return result;
+  }, [
+    atlasMode,
+    overlap,
+    overlapMode,
+    hasAtlasAsterism,
+    allAtlasSections,
+    atlasAsterismSatisfied,
+  ]);
+
+  // EK131 — every specific card that's part of the asterism (tray + committed
+  // section tokens, cards/suits/ranks expanded). Drives the teal rings + line
+  // anchors on the clock. Moon tokens are day-level, not cards, so excluded.
+  const atlasSelectedCardIds = useMemo<number[]>(() => {
+    if (!atlasMode) return [];
+    const out = new Set<number>();
+    for (const sec of allAtlasSections)
+      for (const id of atlasSectionCardIds(sec)) out.add(id);
+    return [...out];
+  }, [atlasMode, allAtlasSections]);
+
+  // EK131 — per-card ring color by section membership. Tray cards fall
+  // through to the default teal; each committed section gets a distinct hue
+  // so the clock shows the grouping at a glance.
+  const atlasCardGroupColor = useMemo<Record<number, string>>(() => {
+    const PALETTE = ["#5cead4", "#e0a3ff", "#ffd27d", "#86c5ff", "#ff9eb5"];
+    const map: Record<number, string> = {};
+    atlasSections.forEach((sec, si) => {
+      const col = PALETTE[si % PALETTE.length];
+      for (const id of atlasSectionCardIds(sec)) map[id] = col;
+    });
+    return map;
+  }, [atlasSections]);
+
+  // EK131 — section-aware match across the filtered universe. Returns the
   // set of matching day keys (for the calendar stroke) and a count (pulls
-  // in same-pull mode, days in same-day mode) for the badge.
+  // in same-pull mode, days in same-day mode) for the badge. Every section
+  // (live tray + committed chips) must be satisfied.
   const atlasMatch = useMemo<{ ymds: Set<string>; count: number }>(() => {
-    const hasCards = atlasGroups.length > 0;
-    const hasMoon = atlasMoonPhases.length > 0;
-    if (!atlasMode || (!hasCards && !hasMoon) || !overlap)
+    if (!atlasMode || !hasAtlasAsterism || !overlap)
       return { ymds: new Set<string>(), count: 0 };
-    // EK115 — a day satisfies the moon condition if no phase is selected, or
-    // the day is a marked full/new moon day (matching the calendar icons).
-    const dayMoonOk = (date: string) =>
-      !hasMoon || atlasSelectedMoonDays.has(date);
     const ymds = new Set<string>();
     let count = 0;
     for (const m of overlap.months) {
       for (const day of m.days) {
         if (day == null) continue;
-        if (!dayMoonOk(day.date)) continue;
         if (overlapMode === "day") {
           const sameDay = new Set(day.sameDayCardIds);
-          const cardsOk = !hasCards || groupsSatisfied(atlasGroups, sameDay);
-          if (cardsOk) {
+          if (atlasAsterismSatisfied(sameDay, day.date)) {
             ymds.add(day.date);
             count++;
           }
@@ -1517,9 +1553,7 @@ export function ConstellationPage({
           const readings = overlap.readingsByDate?.[day.date] ?? [];
           let dayHit = false;
           for (const r of readings) {
-            const ids = new Set(r.cardIds);
-            const cardsOk = !hasCards || groupsSatisfied(atlasGroups, ids);
-            if (cardsOk) {
+            if (atlasAsterismSatisfied(new Set(r.cardIds), day.date)) {
               count++;
               dayHit = true;
             }
@@ -1529,17 +1563,12 @@ export function ConstellationPage({
       }
     }
     return { ymds, count };
-  }, [atlasMode, atlasGroups, atlasMoonPhases, atlasSelectedMoonDays, overlap, overlapMode]);
+  }, [atlasMode, hasAtlasAsterism, atlasAsterismSatisfied, overlap, overlapMode]);
 
-  // EK107 — readings that match the full group asterism, for the badge's
-  // readings modal in atlas mode. Same shape as tealMatchedReadings but
-  // group-aware (every group satisfied), per the active pill.
+  // EK131 — readings that match the full section asterism, for the badge's
+  // readings modal in atlas mode, per the active pill.
   const atlasMatchedReadings = useMemo(() => {
-    const hasCards = atlasGroups.length > 0;
-    const hasMoon = atlasMoonPhases.length > 0;
-    if (!atlasMode || (!hasCards && !hasMoon) || !overlap) return [];
-    const dayMoonOk = (date: string) =>
-      !hasMoon || atlasSelectedMoonDays.has(date);
+    if (!atlasMode || !hasAtlasAsterism || !overlap) return [];
     const out: Array<{
       id: string;
       createdAt: string;
@@ -1548,40 +1577,27 @@ export function ConstellationPage({
       moonPhase: string | null;
     }> = [];
     for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-      if (!dayMoonOk(date)) continue;
       if (overlapMode === "pull") {
         for (const r of readings) {
-          if (!hasCards || groupsSatisfied(atlasGroups, new Set(r.cardIds)))
-            out.push(r);
+          if (atlasAsterismSatisfied(new Set(r.cardIds), date)) out.push(r);
         }
       } else {
         const sameDayCards = new Set<number>();
         for (const r of readings) for (const id of r.cardIds) sameDayCards.add(id);
-        if (!hasCards || groupsSatisfied(atlasGroups, sameDayCards))
-          out.push(...readings);
+        if (atlasAsterismSatisfied(sameDayCards, date)) out.push(...readings);
       }
     }
     return out;
-  }, [atlasMode, atlasGroups, atlasMoonPhases, atlasSelectedMoonDays, overlap, overlapMode]);
+  }, [atlasMode, hasAtlasAsterism, atlasAsterismSatisfied, overlap, overlapMode]);
 
-  // EK107 — human-readable description of the current group asterism,
-  // shared by the badge tooltip and the readings-modal title.
-  // EK108 — suits/ranks are no longer groups; the asterism is loose
-  // singletons + custom OR-groups (a grouped suit/rank shows as its
-  // members joined by " / ").
+  // EK131 — human-readable description of the asterism (tray + committed
+  // sections), shared by the badge tooltip and the readings-modal title.
   const atlasAsterismNames = useMemo(() => {
-    const grouped = new Set(atlasCustomGroups.flat());
-    const parts: string[] = [];
-    for (const id of tealSelectedIds)
-      if (!grouped.has(id)) parts.push(TAROT_DECK[id] ?? "Card");
-    for (const g of atlasCustomGroups)
-      parts.push("(" + g.map((id) => TAROT_DECK[id] ?? "Card").join(" / ") + ")");
-    // EK114 — the moon condition reads as one OR-group of phases.
-    if (atlasMoonPhases.length === 1) parts.push(atlasMoonPhases[0]);
-    else if (atlasMoonPhases.length > 1)
-      parts.push("(" + atlasMoonPhases.join(" / ") + ")");
-    return parts.join(", ");
-  }, [tealSelectedIds, atlasCustomGroups, atlasMoonPhases]);
+    return allAtlasSections
+      .map((sec) => atlasSectionLabel(sec))
+      .filter(Boolean)
+      .join(", ");
+  }, [allAtlasSections]);
 
   // EK108 — calendar preview stroke days for the currently-hovered rank or
   // suit chip: every day any card of that rank/suit was drawn, per pill.
@@ -1604,79 +1620,17 @@ export function ConstellationPage({
     return ymds;
   }, [atlasMode, atlasHoverChip, overlap, overlapMode]);
 
-  // EK108 — bulk-select the cards of a rank/suit chip as loose singletons.
-  // If all its (ungrouped) cards are already selected, the chip deselects
-  // them; otherwise it adds the missing ones. Cards already inside a custom
-  // group are left untouched.
-  const toggleAtlasChip = (ids: number[]) => {
-    const grouped = new Set(atlasCustomGroups.flat());
-    const free = ids.filter((id) => !grouped.has(id));
-    if (free.length === 0) return;
-    setTealSelectedIds((prev) => {
-      const allOn = free.every((id) => prev.includes(id));
-      if (allOn) return prev.filter((id) => !free.includes(id));
-      return Array.from(new Set([...prev, ...free]));
-    });
-  };
-
-  // EK130 — clicking a rank/suit chip adds it to the asterism as ONE named
-  // set (rendered "Cups" / "Sixes" via atlasGroupLabel) rather than dumping
-  // its cards in as loose singles. Clicking the same chip again removes the
-  // set. Any of those cards that were sitting as loose singles are folded in
-  // so they don't double-show.
-  const toggleAtlasNamedSet = (ids: number[]) => {
-    const key = [...ids].sort((a, b) => a - b).join(",");
-    const idx = atlasCustomGroups.findIndex(
-      (g) => [...g].sort((a, b) => a - b).join(",") === key,
-    );
-    if (idx !== -1) {
-      setAtlasCustomGroups((prev) => prev.filter((_, i) => i !== idx));
-      return;
-    }
-    setAtlasCustomGroups((prev) => [...prev, [...ids]]);
-    setTealSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
-  };
-
-  // EK107 — clock click in atlas mode. A card already inside a custom
-  // group is removed from that group (the group dissolves to a loose
-  // singleton if only one member remains); otherwise it toggles as a
-  // loose singleton.
+  // EK131 — clock click in atlas mode toggles a card token in the live tray.
   const handleAtlasCardClick = (cardId: number) => {
-    const gi = atlasCustomGroups.findIndex((g) => g.includes(cardId));
-    if (gi !== -1) {
-      const remaining = atlasCustomGroups[gi].filter((x) => x !== cardId);
-      let nextGroups = atlasCustomGroups.filter((_, i) => i !== gi);
-      const promote: number[] = [];
-      if (remaining.length >= 2) nextGroups = [...nextGroups, remaining];
-      else if (remaining.length === 1) promote.push(remaining[0]);
-      setAtlasCustomGroups(nextGroups);
-      if (promote.length)
-        setTealSelectedIds((s) => Array.from(new Set([...s, ...promote])));
-      return;
-    }
-    setTealSelectedIds((prev) =>
-      prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
-    );
+    const key = `card:${cardId}`;
+    if (atlasTray.some((p) => atlasTokenKey(p) === key)) removeAtlasToken(key);
+    else addAtlasToken({ t: "card", cardId });
   };
 
-  // EK107 — merge the loose singletons into one custom OR-group.
-  const handleAtlasGroup = () => {
-    if (tealSelectedIds.length < 2) return;
-    setAtlasCustomGroups((prev) => [...prev, [...tealSelectedIds]]);
-    setTealSelectedIds([]);
-  };
-
-  // EK107 — break a custom group back into loose singletons.
-  // EK115 — the × on an asterism group DELETES it (removes its cards from the
-  // asterism entirely), matching what × does on a single chip. (Ungroup-and-
-  // keep was surprising — the cards reappeared as loose singles.)
-  const handleAtlasDeleteGroup = (gi: number) =>
-    setAtlasCustomGroups((prev) => prev.filter((_, i) => i !== gi));
-  // EK115 — empty the whole asterism: loose singles, custom groups, and moon.
+  // EK131 — empty the whole asterism: live tray + committed sections.
   const handleAtlasClear = () => {
-    setTealSelectedIds([]);
-    setAtlasCustomGroups([]);
-    setAtlasMoonPhases([]);
+    setAtlasTray([]);
+    setAtlasSections([]);
   };
 
   // EJ9 — handler invoked when a slot card is dropped onto a constellation
@@ -4186,14 +4140,20 @@ export function ConstellationPage({
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {(() => {
                 const selSet = new Set(atlasSelectedCardIds);
+                const moonSet = new Set<string>(
+                  allAtlasSections.flatMap((s) =>
+                    s.tokens
+                      .filter((t) => t.t === "moon")
+                      .map((t) => (t.t === "moon" ? t.phase : "")),
+                  ),
+                );
                 const rankActive = (r: number) =>
                   rankCardIds(r).every((id) => selSet.has(id));
                 const suitActive = (key: string) =>
                   suitCardIds(key).every((id) => selSet.has(id));
-                const singles = tealSelectedIds;
-                const groups = atlasCustomGroups;
+                const moonActive = (phase: string) => moonSet.has(phase);
                 const empty =
-                  singles.length + groups.length + atlasMoonPhases.length === 0;
+                  atlasTray.length + atlasSections.length === 0;
                 const PALETTE = [
                   "#5cead4",
                   "#e0a3ff",
@@ -4201,39 +4161,100 @@ export function ConstellationPage({
                   "#86c5ff",
                   "#ff9eb5",
                 ];
-                const chip = (
-                  key: string,
-                  label: string,
-                  onX: () => void,
-                  color?: string,
-                  ids?: number[],
-                ) => (
+                // EK131 — small removable token pill (used in the tray).
+                const tokenPill = (tk: AtlasToken) => {
+                  const ids = atlasTokenCardIds(tk);
+                  return (
+                    <span
+                      key={atlasTokenKey(tk)}
+                      onMouseEnter={() => {
+                        if (tk.t === "moon") setAtlasHoverMoonPhase(tk.phase);
+                        else if (ids.length) setAtlasAsterismHoverIds(ids);
+                      }}
+                      onMouseLeave={() => {
+                        setAtlasHoverMoonPhase(null);
+                        setAtlasAsterismHoverIds(null);
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "3px 8px",
+                        borderRadius: "var(--radius-md, 7px)",
+                        border: `1px solid ${ATLAS_TRACE_COLOR}`,
+                        background: "var(--surface-card)",
+                        color: "var(--color-foreground)",
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-body-sm)",
+                        cursor: "default",
+                      }}
+                    >
+                      {tk.t === "moon" && (
+                        <MoonPhaseIcon phase={tk.phase} size={13} />
+                      )}
+                      {atlasTokenLabel(tk)}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${atlasTokenLabel(tk)}`}
+                        onClick={() => removeAtlasToken(atlasTokenKey(tk))}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--color-foreground-muted)",
+                          fontSize: 13,
+                          lineHeight: 1,
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                };
+                // EK131 — committed section chip (below the tray): a mode
+                // badge + member names + one × that removes the whole section.
+                const sectionChip = (sec: AtlasSection, color: string) => (
                   <span
-                    key={key}
+                    key={sec.uid}
                     onMouseEnter={() =>
-                      ids && ids.length > 0 && setAtlasAsterismHoverIds(ids)
+                      setAtlasAsterismHoverIds(atlasSectionCardIds(sec))
                     }
                     onMouseLeave={() => setAtlasAsterismHoverIds(null)}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: 6,
-                      padding: "3px 8px",
-                      borderRadius: "var(--radius-md, 7px)",
-                      border: `1px solid ${color ?? "var(--border-default)"}`,
+                      gap: 7,
+                      padding: "4px 9px",
+                      borderRadius: "var(--radius-md, 8px)",
+                      border: `1px solid ${color}`,
                       background: "var(--surface-card)",
                       color: "var(--color-foreground)",
                       fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
                       fontSize: "var(--text-body-sm)",
-                      cursor: "default",
                     }}
                   >
-                    {label}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "var(--text-caption)",
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color,
+                      }}
+                    >
+                      {sec.mode === "all" ? "matches all" : "matches any"}
+                    </span>
+                    <span style={{ fontStyle: "italic" }}>
+                      {sec.tokens
+                        .map(atlasTokenLabel)
+                        .join(sec.mode === "all" ? " + " : " · ")}
+                    </span>
                     <button
                       type="button"
-                      aria-label={`Remove ${label}`}
-                      onClick={onX}
+                      aria-label="Remove section"
+                      onClick={() => removeAtlasSection(sec.uid)}
                       style={{
                         background: "none",
                         border: "none",
@@ -4248,9 +4269,57 @@ export function ConstellationPage({
                     </button>
                   </span>
                 );
+                // EK131 — the tray accepts dropped clock cards and dragged
+                // rank/suit/moon chips.
+                const onTrayDragOver = (e: React.DragEvent) => {
+                  const t = e.dataTransfer.types;
+                  if (
+                    t.includes("application/x-tarotseed-cardid") ||
+                    t.includes("application/x-tarotseed-group")
+                  ) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }
+                };
+                const onTrayDrop = (e: React.DragEvent) => {
+                  e.preventDefault();
+                  setDraggingGroup(false);
+                  const cardRaw = e.dataTransfer.getData(
+                    "application/x-tarotseed-cardid",
+                  );
+                  if (cardRaw !== "") {
+                    const cid = Number(cardRaw);
+                    if (Number.isFinite(cid) && cid >= 0)
+                      addAtlasToken({ t: "card", cardId: cid });
+                    return;
+                  }
+                  const groupRaw = e.dataTransfer.getData(
+                    "application/x-tarotseed-group",
+                  );
+                  if (groupRaw !== "") {
+                    try {
+                      const g = JSON.parse(groupRaw) as {
+                        kind: string;
+                        key: string;
+                      };
+                      if (g.kind === "rank")
+                        addAtlasToken({ t: "rank", r: Number(g.key) });
+                      else if (g.kind === "suit")
+                        addAtlasToken({ t: "suit", key: g.key });
+                      else if (g.kind === "moon")
+                        addAtlasToken({
+                          t: "moon",
+                          phase: g.key as "Full Moon" | "New Moon",
+                        });
+                    } catch {
+                      /* ignore malformed payloads */
+                    }
+                  }
+                };
                 return (
                   <>
                     {/* EK121 — Ranks + Suits + Moon flow on ONE wrapping
+
                         line; the three section labels are dropped to
                         recoup vertical space in the Asterism tab. */}
                     <div
@@ -4268,7 +4337,7 @@ export function ConstellationPage({
                               key={r}
                               type="button"
                               title={`Select all four ${ATLAS_RANK_FULL[r]}s`}
-                              onClick={() => toggleAtlasNamedSet(rankCardIds(r))}
+                              onClick={() => addAtlasToken({ t: "rank", r })}
                               draggable
                               onDragStart={(e) => {
                                 // EK112 — drag this rank into a slot to make a
@@ -4317,7 +4386,7 @@ export function ConstellationPage({
                               key={s.key}
                               type="button"
                               title={`Select all ${s.label}`}
-                              onClick={() => toggleAtlasNamedSet(suitCardIds(s.key))}
+                              onClick={() => addAtlasToken({ t: "suit", key: s.key })}
                               draggable
                               onDragStart={(e) => {
                                 // EK112 — drag this suit into a slot to make a
@@ -4359,7 +4428,7 @@ export function ConstellationPage({
                           );
                         })}
                         {(["Full Moon", "New Moon"] as const).map((phase) => {
-                          const on = atlasMoonPhases.includes(phase);
+                          const on = moonActive(phase);
                           return (
                             <button
                               key={phase}
@@ -4406,8 +4475,13 @@ export function ConstellationPage({
                         })}
                     </div>
 
-                    {/* Group builder. */}
+                    {/* EK131 — Asterism builder: a live drop-target tray that
+                        accepts clock cards and rank/suit/moon chips, two
+                        commit buttons (matches any / matches all), and the
+                        committed section chips below. */}
                     <div
+                      onDragOver={onTrayDragOver}
+                      onDrop={onTrayDrop}
                       style={{
                         border: "0.5px solid var(--border-subtle)",
                         borderRadius: "var(--radius-md, 8px)",
@@ -4437,146 +4511,116 @@ export function ConstellationPage({
                         >
                           Asterism
                         </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          {(tealSelectedIds.length > 0 ||
-                            atlasCustomGroups.length > 0 ||
-                            atlasMoonPhases.length > 0) && (
-                            <button
-                              type="button"
-                              onClick={handleAtlasClear}
-                              style={{
-                                padding: "3px 10px",
-                                borderRadius: "var(--radius-md, 7px)",
-                                border: "0.5px solid var(--border-default)",
-                                background: "transparent",
-                                color: "var(--color-foreground-muted)",
-                                fontFamily: "var(--font-sans)",
-                                fontSize: "var(--text-body-sm)",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Clear
-                            </button>
-                          )}
+                        {!empty && (
                           <button
                             type="button"
-                            disabled={tealSelectedIds.length < 2}
-                            onClick={() => handleAtlasGroup()}
+                            onClick={handleAtlasClear}
                             style={{
                               padding: "3px 10px",
                               borderRadius: "var(--radius-md, 7px)",
                               border: "0.5px solid var(--border-default)",
                               background: "transparent",
-                              color:
-                                tealSelectedIds.length >= 2
-                                  ? "var(--color-foreground)"
-                                  : "var(--color-foreground-muted)",
+                              color: "var(--color-foreground-muted)",
                               fontFamily: "var(--font-sans)",
                               fontSize: "var(--text-body-sm)",
-                              cursor:
-                                tealSelectedIds.length >= 2 ? "pointer" : "default",
-                              opacity: tealSelectedIds.length >= 2 ? 1 : 0.5,
+                              cursor: "pointer",
                             }}
                           >
-                            Group selected
+                            Clear
                           </button>
-                        </div>
+                        )}
                       </div>
-                      {empty ? (
-                        <span
-                          style={{
-                            fontFamily: "var(--font-serif)",
-                            fontStyle: "italic",
-                            fontSize: "var(--text-body-sm)",
-                            color: "var(--color-foreground-muted)",
-                          }}
-                        >
-                          Tap cards on the clock, or a rank/suit chip, to
-                          select. Then Group them into an &ldquo;any of
-                          these&rdquo; set.
-                        </span>
-                      ) : (
+
+                      {/* Live tray (drop zone). */}
+                      <div
+                        style={{
+                          minHeight: 40,
+                          border: `1px dashed ${
+                            atlasTray.length
+                              ? ATLAS_TRACE_COLOR
+                              : "var(--border-default)"
+                          }`,
+                          borderRadius: "var(--radius-md, 7px)",
+                          padding: "8px 9px",
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          alignItems: "center",
+                        }}
+                      >
+                        {atlasTray.length === 0 ? (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontSize: "var(--text-body-sm)",
+                              color: "var(--color-foreground-muted)",
+                            }}
+                          >
+                            Drag a card here, or tap a card on the clock or a
+                            chip above — cards, suits, ranks, and moons all
+                            welcome.
+                          </span>
+                        ) : (
+                          atlasTray.map((tk) => tokenPill(tk))
+                        )}
+                      </div>
+
+                      {/* Commit buttons. */}
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        {(["any", "all"] as const).map((mode) => {
+                          const enabled = atlasTray.length > 0;
+                          return (
+                            <button
+                              key={mode}
+                              type="button"
+                              disabled={!enabled}
+                              onClick={() => commitAtlasSection(mode)}
+                              title={
+                                mode === "any"
+                                  ? "Match a spread that has ANY of these"
+                                  : "Match a spread that has ALL of these"
+                              }
+                              style={{
+                                padding: "3px 10px",
+                                borderRadius: "var(--radius-md, 7px)",
+                                border: "0.5px solid var(--border-default)",
+                                background: "transparent",
+                                color: enabled
+                                  ? "var(--color-foreground)"
+                                  : "var(--color-foreground-muted)",
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "var(--text-body-sm)",
+                                cursor: enabled ? "pointer" : "default",
+                                opacity: enabled ? 1 : 0.5,
+                              }}
+                            >
+                              {mode === "any" ? "Matches any" : "Matches all"}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Committed section chips. */}
+                      {atlasSections.length > 0 && (
                         <div
                           style={{
                             display: "flex",
                             flexWrap: "wrap",
-                            gap: 6,
+                            gap: 8,
                             alignItems: "center",
+                            paddingTop: 2,
                           }}
                         >
-                          {singles.map((id) =>
-                            chip(
-                              `s-${id}`,
-                              TAROT_DECK[id] ?? "Card",
-                              () =>
-                                setTealSelectedIds((prev) =>
-                                  prev.filter((x) => x !== id),
-                                ),
-                              undefined,
-                              [id],
-                            ),
+                          {atlasSections.map((sec, si) =>
+                            sectionChip(sec, PALETTE[si % PALETTE.length]),
                           )}
-                          {groups.map((g, gi) =>
-                            chip(
-                              `g-${gi}`,
-                              atlasGroupLabel(g) ??
-                                "(" +
-                                  g.map((id) => TAROT_DECK[id] ?? "Card").join(
-                                    " / ",
-                                  ) +
-                                  ")",
-                              () => handleAtlasDeleteGroup(gi),
-                              PALETTE[gi % PALETTE.length],
-                              g,
-                            ),
-                          )}
-                          {atlasMoonPhases.map((phase) => (
-                            <span
-                              key={`moon-${phase}`}
-                              onMouseEnter={() => setAtlasHoverMoonPhase(phase)}
-                              onMouseLeave={() => setAtlasHoverMoonPhase(null)}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                padding: "3px 8px",
-                                borderRadius: "var(--radius-md, 7px)",
-                                border: `1px solid ${ATLAS_TRACE_COLOR}`,
-                                background: "var(--surface-card)",
-                                color: "var(--color-foreground)",
-                                fontFamily: "var(--font-serif)",
-                                fontStyle: "italic",
-                                fontSize: "var(--text-body-sm)",
-                                cursor: "default",
-                              }}
-                            >
-                              <MoonPhaseIcon
-                                phase={phase as "Full Moon" | "New Moon"}
-                                size={13}
-                              />
-                              {phase}
-                              <button
-                                type="button"
-                                aria-label={`Remove ${phase}`}
-                                onClick={() =>
-                                  setAtlasMoonPhases((prev) =>
-                                    prev.filter((p) => p !== phase),
-                                  )
-                                }
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  color: "var(--color-foreground-muted)",
-                                  fontSize: 13,
-                                  lineHeight: 1,
-                                  padding: 0,
-                                }}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
                         </div>
                       )}
                     </div>
@@ -4755,11 +4799,7 @@ export function ConstellationPage({
                 setReadingsModalOpen(true);
               }}
               tealBadge={
-                atlasSelectedCardIds.length >= 1 &&
-                (atlasGroups.length +
-                  (atlasMoonPhases.length > 0 ? 1 : 0) >=
-                  2 ||
-                  atlasCustomGroups.length >= 1)
+                hasAtlasAsterism && atlasSelectedCardIds.length >= 1
                   ? {
                       cardId: atlasSelectedCardIds[0],
                       count: atlasMatch.count,
