@@ -642,6 +642,59 @@ function atlasSectionLabel(sec: {
   );
 }
 
+// EK132 — plain-language readout. Each token becomes a phrase the seeker can
+// read like a sentence; suits/ranks read as "any X" to convey the OR, moons
+// read as a day predicate. The readout mirrors the live asterism so the
+// abstract chips make sense at a glance.
+function atlasSuitSingular(key: string): string {
+  if (key === "major") return "Major Arcana";
+  const label = ATLAS_SUIT_LIST.find((s) => s.key === key)?.label ?? key;
+  return label.replace(/s$/, "");
+}
+function atlasTokenPhrase(tk: AtlasToken): string {
+  if (tk.t === "card") return TAROT_DECK[tk.cardId] ?? "a card";
+  if (tk.t === "suit") return `any ${atlasSuitSingular(tk.key)} card`;
+  if (tk.t === "rank") return `any ${ATLAS_RANK_FULL[tk.r] ?? "card"}`;
+  return tk.phase === "Full Moon"
+    ? "a full-moon day"
+    : "a new-moon day";
+}
+// One section as a predicate clause, e.g. "has any Wand or The Star" or
+// "was drawn on a full-moon day".
+function atlasSectionPredicate(sec: {
+  mode: "any" | "all";
+  tokens: AtlasToken[];
+}): string {
+  const conn = sec.mode === "all" ? " and " : " or ";
+  const cardish = sec.tokens.filter((t) => t.t !== "moon").map(atlasTokenPhrase);
+  const moons = sec.tokens
+    .filter((t): t is Extract<AtlasToken, { t: "moon" }> => t.t === "moon")
+    .map((t) =>
+      t.phase === "Full Moon"
+        ? "was drawn on a full-moon day"
+        : "was drawn on a new-moon day",
+    );
+  const parts: string[] = [];
+  if (cardish.length) parts.push("has " + cardish.join(conn));
+  for (const m of moons) parts.push(m);
+  return parts.join(conn);
+}
+// "Fully blown out" clarifier for suit/rank tokens, e.g.
+// "Pentacles = any one of the 14 Pentacle cards counts".
+function atlasTokenClarifier(tk: AtlasToken): string | null {
+  if (tk.t === "suit") {
+    const n = suitCardIds(tk.key).length;
+    const label = tk.key === "major" ? "Majors" : atlasSuitSingular(tk.key) + "s";
+    return `${label} = any one of the ${n} ${atlasSuitSingular(tk.key)} cards counts`;
+  }
+  if (tk.t === "rank") {
+    const n = rankCardIds(tk.r).length;
+    const plural = ATLAS_RANK_PLURAL[tk.r] ?? "those";
+    return `${plural} = any one of the ${n} ${ATLAS_RANK_FULL[tk.r] ?? "cards"} cards counts`;
+  }
+  return null;
+}
+
 // EK112 — a group slot dropped into the slot row (atlas only). Represents
 // "any of" for the slot-row match. Kept PARALLEL to ManualPick so the shared
 // pick type (used across ~10 files) stays untouched. EK113 — a moon variant
@@ -807,6 +860,12 @@ export function ConstellationPage({
   const [atlasAsterismHoverIds, setAtlasAsterismHoverIds] = useState<
     number[] | null
   >(null);
+  // EK132 — token tentatively previewed in the readout while the seeker hovers
+  // a clock card or a rank/suit/moon chip. It ANDs into the tray for the
+  // preview clause only; reverts on mouse-out. Never mutates the asterism.
+  const [atlasPreviewToken, setAtlasPreviewToken] = useState<AtlasToken | null>(
+    null,
+  );
   // EK131 — tray token add/remove (de-duped by token identity).
   const addAtlasToken = (tk: AtlasToken) =>
     setAtlasTray((prev) =>
@@ -1743,6 +1802,10 @@ export function ConstellationPage({
     clientY: number,
     targetRect?: DOMRect | null,
   ) => {
+    // EK132 — atlas readout preview: hovering a clock card tentatively ANDs
+    // it into the tray for the readout's faint preview clause only.
+    if (atlasMode)
+      setAtlasPreviewToken(cardId !== null ? { t: "card", cardId } : null);
     if (cardId !== null) {
       // EK57 — badge precedence. While a hero/asterism badge is hovered,
       // do NOT open the card-meaning popover, and cancel any pending
@@ -4316,6 +4379,53 @@ export function ConstellationPage({
                     }
                   }
                 };
+                // EK132 — live plain-language readout of the asterism, plus a
+                // faint preview clause when a card/chip is hovered.
+                const previewActive: AtlasToken | null = (() => {
+                  if (!atlasPreviewToken) return null;
+                  const k = atlasTokenKey(atlasPreviewToken);
+                  if (
+                    allAtlasSections.some((s) =>
+                      s.tokens.some((t) => atlasTokenKey(t) === k),
+                    )
+                  )
+                    return null;
+                  if (
+                    atlasPreviewToken.t === "card" &&
+                    selSet.has(atlasPreviewToken.cardId)
+                  )
+                    return null;
+                  return atlasPreviewToken;
+                })();
+                const readoutPreds = allAtlasSections
+                  .map(atlasSectionPredicate)
+                  .filter(Boolean);
+                const readoutBase =
+                  readoutPreds.length === 0
+                    ? ""
+                    : readoutPreds.length === 1
+                      ? `Matches a spread that ${readoutPreds[0]}`
+                      : readoutPreds.length === 2
+                        ? `Matches a spread when both hold: it ${readoutPreds[0]}, and it ${readoutPreds[1]}`
+                        : `Matches a spread when all of these hold: ${readoutPreds
+                            .map((p) => "it " + p)
+                            .join("; ")}`;
+                const previewPred = previewActive
+                  ? atlasSectionPredicate({
+                      mode: "all",
+                      tokens: [previewActive],
+                    })
+                  : "";
+                const clarifiers = Array.from(
+                  new Set(
+                    [
+                      ...allAtlasSections.flatMap((s) => s.tokens),
+                      ...(previewActive ? [previewActive] : []),
+                    ]
+                      .map(atlasTokenClarifier)
+                      .filter((c): c is string => Boolean(c)),
+                  ),
+                );
                 return (
                   <>
                     {/* EK121 — Ranks + Suits + Moon flow on ONE wrapping
@@ -4351,10 +4461,14 @@ export function ConstellationPage({
                                 setDraggingGroup(true);
                               }}
                               onDragEnd={() => setDraggingGroup(false)}
-                              onMouseEnter={() =>
-                                setAtlasHoverChip(rankCardIds(r))
-                              }
-                              onMouseLeave={() => setAtlasHoverChip(null)}
+                              onMouseEnter={() => {
+                                setAtlasHoverChip(rankCardIds(r));
+                                setAtlasPreviewToken({ t: "rank", r });
+                              }}
+                              onMouseLeave={() => {
+                                setAtlasHoverChip(null);
+                                setAtlasPreviewToken(null);
+                              }}
                               style={{
                                 textAlign: "center",
                                 padding: "4px 9px",
@@ -4400,10 +4514,14 @@ export function ConstellationPage({
                                 setDraggingGroup(true);
                               }}
                               onDragEnd={() => setDraggingGroup(false)}
-                              onMouseEnter={() =>
-                                setAtlasHoverChip(suitCardIds(s.key))
-                              }
-                              onMouseLeave={() => setAtlasHoverChip(null)}
+                              onMouseEnter={() => {
+                                setAtlasHoverChip(suitCardIds(s.key));
+                                setAtlasPreviewToken({ t: "suit", key: s.key });
+                              }}
+                              onMouseLeave={() => {
+                                setAtlasHoverChip(null);
+                                setAtlasPreviewToken(null);
+                              }}
                               style={{
                                 padding: "4px 9px",
                                 borderRadius: "var(--radius-md, 6px)",
@@ -4435,8 +4553,14 @@ export function ConstellationPage({
                               type="button"
                               title={`Add a ${phase} to the asterism (drag into a slot to match it as a group)`}
                               onClick={() => toggleAtlasMoonPhase(phase)}
-                              onMouseEnter={() => setAtlasHoverMoonPhase(phase)}
-                              onMouseLeave={() => setAtlasHoverMoonPhase(null)}
+                              onMouseEnter={() => {
+                                setAtlasHoverMoonPhase(phase);
+                                setAtlasPreviewToken({ t: "moon", phase });
+                              }}
+                              onMouseLeave={() => {
+                                setAtlasHoverMoonPhase(null);
+                                setAtlasPreviewToken(null);
+                              }}
                               draggable
                               onDragStart={(e) => {
                                 e.dataTransfer.effectAllowed = "copy";
@@ -4623,6 +4747,91 @@ export function ConstellationPage({
                           )}
                         </div>
                       )}
+
+                      {/* EK132 — always-visible plain-language readout. */}
+                      <div
+                        style={{
+                          borderTop: "0.5px solid var(--border-subtle)",
+                          paddingTop: 10,
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <Sparkles
+                          size={14}
+                          aria-hidden
+                          style={{
+                            color: ATLAS_TRACE_COLOR,
+                            flexShrink: 0,
+                            marginTop: 3,
+                          }}
+                        />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {readoutBase === "" && !previewActive ? (
+                            <span
+                              style={{
+                                fontFamily: "var(--font-serif)",
+                                fontStyle: "italic",
+                                fontSize: "var(--text-body-sm)",
+                                color: "var(--color-foreground-muted)",
+                              }}
+                            >
+                              Tap a card on the clock or a chip above to begin
+                              shaping the asterism — the meaning shows here as
+                              you build.
+                            </span>
+                          ) : (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontFamily: "var(--font-serif)",
+                                fontSize: "var(--text-body-sm)",
+                                lineHeight: 1.55,
+                                color: "var(--color-foreground)",
+                              }}
+                            >
+                              {readoutBase}
+                              {previewActive &&
+                                (readoutBase === "" ? (
+                                  <span
+                                    style={{
+                                      fontStyle: "italic",
+                                      color: "var(--color-foreground-muted)",
+                                    }}
+                                  >
+                                    If you add it: a spread that {previewPred}
+                                  </span>
+                                ) : (
+                                  <span
+                                    style={{
+                                      fontStyle: "italic",
+                                      color: "var(--color-foreground-muted)",
+                                    }}
+                                  >
+                                    {" "}
+                                    — and it {previewPred} (hovering)
+                                  </span>
+                                ))}
+                              .
+                            </p>
+                          )}
+                          {clarifiers.length > 0 && (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontFamily: "var(--font-serif)",
+                                fontStyle: "italic",
+                                fontSize: "var(--text-caption)",
+                                lineHeight: 1.5,
+                                color: "var(--color-foreground-muted)",
+                              }}
+                            >
+                              {clarifiers.join("; ")}.
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </>
                 );
