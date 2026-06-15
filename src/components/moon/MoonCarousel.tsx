@@ -105,20 +105,23 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
 
   const today = useMemo(() => getTodayInTz(effectiveTz), [effectiveTz]);
 
-  // EK138 — Moonrise / moonset for the TODAY card. Location-specific, so it
-  // needs an observer (stored per-device via useMoonLocation). Rendered only
-  // on the today cell, 24-hour, in the seeker's timezone. "—" when the moon
-  // doesn't rise or set within the day.
+  // EK138 — Moonrise / moonset. Location-specific, so it needs an observer
+  // (stored per-device via useMoonLocation). 24-hour, in the seeker's
+  // timezone. "—" when the moon doesn't rise or set within the day.
+  // EK139 — Now tracks the CENTERED day, not real-world today: as the seeker
+  // scrolls the carousel, the focused card shows that day's rise/set. The
+  // centered day is today + offset (same anchor as viewedDate below).
   const moonLoc = useMoonLocation();
   const navigate = useNavigate();
   const moonTimesText = useMemo<string | null>(() => {
     if (!moonLoc) return null;
-    const dayStart = startOfDayInTz(new Date(), effectiveTz);
+    const centeredDay = getDayInTz(today, offset, effectiveTz);
+    const dayStart = startOfDayInTz(centeredDay, effectiveTz);
     const { rise, set } = getMoonRiseSet(dayStart, moonLoc.lat, moonLoc.lon);
     const r = rise ? formatTime24InTz(rise, effectiveTz) : "—";
     const s = set ? formatTime24InTz(set, effectiveTz) : "—";
     return `\u2191 ${r}\u2002\u2002\u2193 ${s}`;
-  }, [moonLoc, effectiveTz]);
+  }, [moonLoc, effectiveTz, today, offset]);
   const handleSetMoonLocation = () => {
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -804,8 +807,8 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     maxWidth={centerMaxWidth}
                     carouselHeight={carouselHeight}
                     peakTimeText={peakTimeText}
-                    riseSetText={d.isToday ? moonTimesText : null}
-                    needsLocation={d.isToday && !moonLoc}
+                    riseSetText={moonTimesText}
+                    needsLocation={!moonLoc}
                     onSetLocation={handleSetMoonLocation}
                   />
                 ) : (
@@ -1094,7 +1097,7 @@ function CenterCard({
           >
             in {moonSign}
           </p>
-          {isToday && riseSetText && (
+          {riseSetText && (
             <p
               aria-label={`Moonrise and moonset: ${riseSetText
                 .replace("\u2191", "rise")
@@ -1114,7 +1117,7 @@ function CenterCard({
               {riseSetText}
             </p>
           )}
-          {isToday && needsLocation && (
+          {needsLocation && (
             <span
               role="button"
               tabIndex={0}
