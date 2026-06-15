@@ -67,6 +67,57 @@ export function setEntryBack(value: EntryBack): void {
 }
 
 import { useEffect, useLayoutEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
+
+/**
+ * EK140 — Clear the local cache without writing the Signature event. Used when
+ * the DB resolves with no saved entry back, so a stale local value (e.g. a
+ * deck cached from before this device's account synced) can't mask the true
+ * Signature default.
+ */
+function clearEntryBackCache(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* no-op */
+  }
+}
+
+/**
+ * EK140 — Persist the entry back to the DATABASE (user_preferences), not just
+ * localStorage. localStorage alone was wiped by Clear Data / hard refresh /
+ * PWA quit — every wipe dropped the seeker back to Signature, which read as
+ * "my pick keeps reverting." The DB is now the source of truth; localStorage
+ * is only a fast first-paint cache. Also writes the cache + fires the in-app
+ * event so the splash and home update instantly without a refetch.
+ *
+ * Best-effort and order-independent: if the columns don't exist yet (migration
+ * not applied), the upsert error is swallowed and the local write still stands.
+ */
+export async function persistEntryBackToDb(
+  userId: string,
+  value: EntryBack,
+): Promise<void> {
+  // Instant local update (cache + event) regardless of DB outcome.
+  setEntryBack(value);
+  if (!userId) return;
+  try {
+    await supabase.from("user_preferences").upsert(
+      {
+        user_id: userId,
+        entry_back_id: value.id,
+        entry_back_url: value.id === "signature" ? null : value.url ?? null,
+        entry_back_name: value.id === "signature" ? null : value.name ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+  } catch {
+    /* columns missing or offline — local write already applied. */
+  }
+}
 
 // EK135 — apply the saved entry back BEFORE first paint, the same way the
 // theme/opacity hooks do (use-resting-opacity, use-theme-color-sync). A plain
@@ -80,10 +131,13 @@ const useIsoLayoutEffect =
 
 /** Reactive reader — re-renders when the entry back changes anywhere. */
 export function useEntryBack(): EntryBack {
-  // Lazy initializer: on the client, the very first render already reads the
-  // saved value (no default-then-swap). On the server, window is undefined so
-  // getEntryBack() returns the Signature default.
+  const { user, loading } = useAuth();
+  // Lazy initializer: seed from the localStorage cache so the splash/home can
+  // paint instantly. The DB read below is authoritative and overrides this the
+  // moment it resolves. On the server, window is undefined → Signature default.
   const [value, setValue] = useState<EntryBack>(() => getEntryBack());
+
+  // In-session change propagation (picker taps, cross-tab storage events).
   useIsoLayoutEffect(() => {
     setValue(getEntryBack());
     const onChange = (e: Event) => {
@@ -100,5 +154,58 @@ export function useEntryBack(): EntryBack {
       window.removeEventListener("storage", onStorage);
     };
   }, []);
+
+  // EK140 — DB is the source of truth. Once auth resolves, read the saved
+  // entry back from user_preferences. A real saved value wins and refreshes
+  // the cache; NO saved value (or an explicit "signature") resolves to the
+  // Signature default AND clears any stale local cache, so a leftover deck
+  // value can't mask the default. Anonymous seekers keep the local-only value.
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      setValue(getEntryBack());
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from("user_preferences")
+          .select("entry_back_id, entry_back_url, entry_back_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        const row = (data ?? {}) as {
+          entry_back_id?: string | null;
+          entry_back_url?: string | null;
+          entry_back_name?: string | null;
+        };
+        if (
+          typeof row.entry_back_id === "string" &&
+          row.entry_back_id &&
+          row.entry_back_id !== "signature"
+        ) {
+          const eb: EntryBack = {
+            id: row.entry_back_id,
+            url: row.entry_back_url ?? null,
+            name: row.entry_back_name ?? undefined,
+          };
+          setEntryBack(eb); // refresh cache + notify
+          setValue(eb);
+        } else {
+          clearEntryBackCache();
+          setValue(SIGNATURE_ENTRY_BACK);
+        }
+      } catch {
+        // Columns missing (pre-migration) or read failed — fall back to the
+        // cached/local value rather than breaking the gateway.
+        if (!cancelled) setValue(getEntryBack());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, loading]);
+
   return value;
 }

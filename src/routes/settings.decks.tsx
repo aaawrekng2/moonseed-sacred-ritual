@@ -45,6 +45,7 @@ import { CardBack } from "@/components/cards/CardBack";
 import {
   useEntryBack,
   setEntryBack,
+  persistEntryBackToDb,
   type EntryBack,
 } from "@/lib/entry-back";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
@@ -340,10 +341,19 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
  */
 function EntryBackPicker({ decks }: { decks: CustomDeck[] }) {
   const current = useEntryBack();
+  const { user } = useAuth();
   const withBacks = decks.filter(
     (d) => d.card_back_url || d.card_back_thumb_url,
   );
-  const choose = (eb: EntryBack) => setEntryBack(eb);
+  // EK140 — persist to the DB (user_preferences) so the pick survives Clear
+  // Data / hard refresh / PWA quit and follows the seeker across devices.
+  // persistEntryBackToDb also writes the local cache + fires the in-app event,
+  // so the splash and home update instantly. Anonymous seekers fall back to
+  // the local-only writer.
+  const choose = (eb: EntryBack) => {
+    if (user) void persistEntryBackToDb(user.id, eb);
+    else setEntryBack(eb);
+  };
   return (
     <div className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4">
       <div className="space-y-0.5">
