@@ -81,6 +81,51 @@ export function getMoonSign(date: Date = new Date()): ZodiacSign {
   return ZODIAC_SIGNS[idx];
 }
 
+export type MoonRiseSet = { rise: Date | null; set: Date | null };
+
+/**
+ * EK138 — Moonrise / moonset for the calendar day beginning at `dayStart`,
+ * as seen from the given latitude / longitude.
+ *
+ * Unlike the full-moon peak (a single global instant rendered in local time),
+ * rise and set are LOCATION-specific — they depend on the observer's lat/long,
+ * not just timezone — so a location is required. Returns null for either event
+ * if the moon does not rise or set within the 24 hours after `dayStart` (can
+ * happen at high latitudes or around certain phases). `dayStart` should be the
+ * start of the day in the seeker's timezone so the search spans their calendar
+ * day, and the resulting Date is an absolute instant to be formatted with a
+ * tz-aware helper.
+ */
+export function getMoonRiseSet(
+  dayStart: Date,
+  latitude: number,
+  longitude: number,
+): MoonRiseSet {
+  try {
+    const observer = new Astronomy.Observer(latitude, longitude, 0);
+    const rise = Astronomy.SearchRiseSet(
+      Astronomy.Body.Moon,
+      observer,
+      +1,
+      dayStart,
+      1,
+    );
+    const set = Astronomy.SearchRiseSet(
+      Astronomy.Body.Moon,
+      observer,
+      -1,
+      dayStart,
+      1,
+    );
+    return {
+      rise: rise ? rise.date : null,
+      set: set ? set.date : null,
+    };
+  } catch {
+    return { rise: null, set: null };
+  }
+}
+
 /**
  * Find the offset (in days) from `fromDate` to the next/previous occurrence
  * of a given moon phase. If `fromDate` already matches the target phase, the
