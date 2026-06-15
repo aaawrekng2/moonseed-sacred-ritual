@@ -1,0 +1,1 @@
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS entry_back_id text, ADD COLUMN IF NOT EXISTS entry_back_url text, ADD COLUMN IF NOT EXISTS entry_back_name text;

@@ -17,7 +17,6 @@ import {
   type SpreadEntryModes,
 } from "@/lib/use-spread-entry-modes";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
-import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
 import { useEntryBack } from "@/lib/entry-back";
 import { useStreak } from "@/lib/use-streak";
@@ -126,7 +125,7 @@ function EntryBackDebug({
         wordBreak: "break-all",
       }}
     >
-      {`EK137 entry-back\nid: ${id}${name ? ` (${name})` : ""}\nsource: ${source}   load: ${load}   len: ${url ? url.length : 0}\n${url ? `${head}…${tail}` : "(no url)"}`}
+      {`EK140 entry-back\nid: ${id}${name ? ` (${name})` : ""}\nsource: ${source}   load: ${load}   len: ${url ? url.length : 0}\n${url ? `${head}…${tail}` : "(no url)"}`}
     </div>
   );
 }
@@ -140,7 +139,6 @@ function Index() {
   // active community theme. Removed.
   // BX — Home / moon carousel stays portrait.
   usePortraitOnly();
-  const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   // EK129 — chosen entry/home back (Signature or a deck's back). Governs
   // both the splash card and the home gateway back.
   const entryBack = useEntryBack();
@@ -492,10 +490,6 @@ function Index() {
   // route-agnostic.
   useRegisterRefresh(true);
 
-  useEffect(() => {
-    setCardBack(getStoredCardBack());
-  }, []);
-
   // If the user already pulled a single-card draw today, surface that
   // card face on the gateway instead of the card back. Re-runs at
   // midnight (day-epoch flip) so a tab left open overnight clears the
@@ -704,7 +698,13 @@ function Index() {
             }
             loading={!hasCheckedTodayDraw || (todayCard === null && showSkeleton)}
             reversed={todayReversed}
-            cardBackId={cardBack}
+            // EK140 — the entry/home gateway back is Signature-or-custom-deck,
+            // decoupled from the Veil card-back theme. When no custom deck back
+            // is chosen (backImageUrl null), render the Signature webp — the
+            // same image the splash shows — instead of falling through to the
+            // Veil procedural design (which was drawing the Celestial SVG and
+            // making home disagree with the splash).
+            cardBackId="signature"
             backImageUrl={entryBackUrl}
             size="custom"
             widthPx={cardWidth}
