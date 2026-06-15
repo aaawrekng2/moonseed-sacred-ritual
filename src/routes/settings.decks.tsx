@@ -2129,9 +2129,21 @@ async function uploadDeckBack(args: {
     .createSignedUrl(path, 60 * 60 * 24 * 365);
   const url = data?.signedUrl ?? null;
   if (url) {
+    // EK139 — ALSO persist the storage object path, not just the signed URL.
+    // buildDeckImageMap re-signs card_back_path into a FRESH url on every
+    // load; without the path it falls back to this stored signed-URL
+    // snapshot, which eventually expires and drops entry/home back to the
+    // Signature default (the "zombie deck works, my new one doesn't" bug).
+    // The per-card deck builder already writes these path columns; the quick
+    // photo-capture path did not, which is why captured backs went stale.
     await supabase
       .from("custom_decks")
-      .update({ card_back_url: url, card_back_thumb_url: url })
+      .update({
+        card_back_url: url,
+        card_back_thumb_url: url,
+        card_back_path: path,
+        card_back_thumb_path: path,
+      })
       .eq("id", deckId);
   }
   return url;

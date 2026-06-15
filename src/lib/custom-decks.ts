@@ -215,6 +215,36 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
   return (data ?? []) as CustomDeckCard[];
 }
 
+/**
+ * EK139 — Recover the bucket-relative object path from a Supabase signed URL
+ * for the `custom-deck-images` bucket. Used to self-heal legacy card backs
+ * that stored only a (now-stale) signed `card_back_url` and no
+ * `card_back_path`. Signed URLs look like:
+ *   https://<proj>.supabase.co/storage/v1/object/sign/custom-deck-images/<path>?token=...
+ * We return `<path>` (no query string), or null if this isn't a parseable
+ * signed URL for this bucket (e.g. already null, a data URI, or an SVG/data
+ * source we shouldn't re-sign).
+ */
+function deriveDeckBackPath(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  // Only object-storage signed/authenticated/public URLs carry a re-signable
+  // path. Anything else (data: URIs, external links) is left as-is.
+  const marker = "/custom-deck-images/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  let path = url.slice(idx + marker.length);
+  const q = path.indexOf("?");
+  if (q !== -1) path = path.slice(0, q);
+  path = path.trim();
+  if (!path) return null;
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    /* leave path as-is if it isn't percent-encoded */
+  }
+  return path;
+}
+
 async function buildDeckImageMapUncached(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
   const map: DeckImageMap = {
@@ -351,7 +381,33 @@ async function buildDeckImageMapUncached(deckId: string): Promise<DeckImageMap> 
       map.back = (deck?.card_back_url as string | null | undefined) ?? null;
     }
   } else {
-    map.back = (deck?.card_back_url as string | null | undefined) ?? null;
+    // EK139 — Legacy self-heal. Backs saved through the quick photo-capture
+    // path stored only card_back_url (a one-year signed-URL snapshot) and no
+    // card_back_path, so the fresh re-sign above never ran and the snapshot
+    // eventually went stale. Recover the bucket-relative object path out of
+    // that stored signed URL and re-sign it, so already-broken decks repair
+    // themselves with no DB migration and no re-upload. Falls back to the
+    // stored URL if the path can't be parsed or the re-sign fails.
+    const storedBackUrl = (deck?.card_back_url as string | null | undefined) ?? null;
+    const derivedPath = deriveDeckBackPath(storedBackUrl);
+    if (derivedPath) {
+      try {
+        const { data: signed, error } = await supabase.storage
+          .from("custom-deck-images")
+          .createSignedUrl(derivedPath, yearSecs);
+        if (error) {
+          console.warn("[buildDeckImageMap] legacy back re-sign failed", error);
+          map.back = storedBackUrl;
+        } else {
+          map.back = signed?.signedUrl ?? storedBackUrl;
+        }
+      } catch (err) {
+        console.warn("[buildDeckImageMap] legacy back re-sign threw", err);
+        map.back = storedBackUrl;
+      }
+    } else {
+      map.back = storedBackUrl;
+    }
   }
   // 26-05-08-M — Fix 6: if any per-card display/thumbnail URL matches
   // the deck's card_back_url, that card is being repurposed as the
