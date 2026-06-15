@@ -6,6 +6,8 @@ import { useSettings, type Prefs } from "./SettingsContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
+import { useMoonLocation, setMoonLocation } from "@/lib/moon-location";
+import { geocodeBirthPlace } from "@/lib/geocode-cities";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { FeatureGate } from "@/components/feature-gate/FeatureGate";
 
@@ -54,6 +56,41 @@ export function MoonFeaturesSection() {
   };
 
   const masterOn = prefs.moon_features_enabled;
+
+  // EK138 — observer location for moonrise/moonset on the today card.
+  const moonLoc = useMoonLocation();
+  const [cityInput, setCityInput] = useState("");
+  const [cityError, setCityError] = useState(false);
+  const useDeviceLocation = () => {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          setMoonLocation({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            label: "Current location",
+          }),
+        () => toast.error("Couldn't get your location. Type a city instead."),
+        { timeout: 10000, maximumAge: 60 * 60 * 1000 },
+      );
+    } else {
+      toast.error("Location isn't available here. Type a city instead.");
+    }
+  };
+  const applyCity = () => {
+    const hit = geocodeBirthPlace(cityInput);
+    if (!hit) {
+      setCityError(true);
+      return;
+    }
+    setMoonLocation({
+      lat: hit.latitude,
+      lon: hit.longitude,
+      label: cityInput.trim(),
+    });
+    setCityInput("");
+    setCityError(false);
+  };
 
   return (
     <section className="space-y-4">
@@ -107,6 +144,66 @@ export function MoonFeaturesSection() {
                     {size}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {prefs.moon_show_carousel && (
+            <div className="ml-6 flex flex-col gap-2">
+              <Label className="text-sm text-foreground/70">
+                Moon times location
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Sets the moonrise &amp; moonset shown on today&apos;s card. Rise
+                and set times depend on where you are.
+              </p>
+              {moonLoc ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-foreground/80">
+                    {moonLoc.label}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMoonLocation(null)}
+                    className="rounded-md border border-foreground/20 px-3 py-1.5 text-xs text-foreground/60 transition-colors hover:border-gold/30 hover:text-gold"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ) : (
+                <span className="text-sm text-foreground/50">Not set</span>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={useDeviceLocation}
+                  className="rounded-md border border-gold/40 bg-gold/15 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/20"
+                >
+                  Use my location
+                </button>
+              </div>
+              <div className="flex flex-col gap-1">
+                <input
+                  type="text"
+                  value={cityInput}
+                  onChange={(e) => {
+                    setCityInput(e.target.value);
+                    setCityError(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyCity();
+                    }
+                  }}
+                  placeholder="Or type a city (e.g. Seattle)"
+                  className="rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus:border-gold/40 focus:outline-none"
+                />
+                {cityError && (
+                  <span className="text-xs text-destructive">
+                    City not found — try a major city nearby.
+                  </span>
+                )}
               </div>
             </div>
           )}

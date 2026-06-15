@@ -4,6 +4,7 @@ import {
   getCurrentMoonPhase,
   getPhaseOccurrences,
   getMoonSign,
+  getMoonRiseSet,
   type MoonInfo,
   type MoonPhaseName,
 } from "@/lib/moon";
@@ -21,6 +22,9 @@ import {
   getTodayInTz,
 } from "@/lib/use-timezone";
 import { carouselHeightForSize, type CarouselSize } from "@/lib/use-moon-prefs";
+import { useMoonLocation, setMoonLocation } from "@/lib/moon-location";
+import { formatTime24InTz, startOfDayInTz } from "@/lib/time";
+import { useNavigate } from "@tanstack/react-router";
 
 // Tarot Seed-native accent resolver — reads --gold from active CSS theme.
 function useTarotSeedAccent(): string {
@@ -100,6 +104,37 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   }, []);
 
   const today = useMemo(() => getTodayInTz(effectiveTz), [effectiveTz]);
+
+  // EK138 — Moonrise / moonset for the TODAY card. Location-specific, so it
+  // needs an observer (stored per-device via useMoonLocation). Rendered only
+  // on the today cell, 24-hour, in the seeker's timezone. "—" when the moon
+  // doesn't rise or set within the day.
+  const moonLoc = useMoonLocation();
+  const navigate = useNavigate();
+  const moonTimesText = useMemo<string | null>(() => {
+    if (!moonLoc) return null;
+    const dayStart = startOfDayInTz(new Date(), effectiveTz);
+    const { rise, set } = getMoonRiseSet(dayStart, moonLoc.lat, moonLoc.lon);
+    const r = rise ? formatTime24InTz(rise, effectiveTz) : "—";
+    const s = set ? formatTime24InTz(set, effectiveTz) : "—";
+    return `\u2191 ${r}\u2002\u2002\u2193 ${s}`;
+  }, [moonLoc, effectiveTz]);
+  const handleSetMoonLocation = () => {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          setMoonLocation({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            label: "Current location",
+          }),
+        () => navigate({ to: "/settings/preferences" }),
+        { timeout: 10000, maximumAge: 60 * 60 * 1000 },
+      );
+    } else {
+      navigate({ to: "/settings/preferences" });
+    }
+  };
 
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
@@ -769,6 +804,9 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     maxWidth={centerMaxWidth}
                     carouselHeight={carouselHeight}
                     peakTimeText={peakTimeText}
+                    riseSetText={d.isToday ? moonTimesText : null}
+                    needsLocation={d.isToday && !moonLoc}
+                    onSetLocation={handleSetMoonLocation}
                   />
                 ) : (
                   <AdjacentCard
@@ -920,6 +958,9 @@ function CenterCard({
   maxWidth,
   carouselHeight,
   peakTimeText,
+  riseSetText,
+  needsLocation,
+  onSetLocation,
 }: {
   info: MoonInfo;
   moonSign: string;
@@ -932,6 +973,9 @@ function CenterCard({
   maxWidth: number;
   carouselHeight: number;
   peakTimeText?: string | null;
+  riseSetText?: string | null;
+  needsLocation?: boolean;
+  onSetLocation?: () => void;
 }) {
   // CV — Mobile center-card icon scales 20% smaller alongside the
   // overall carousel height reduction so proportions stay balanced.
@@ -1050,6 +1094,54 @@ function CenterCard({
           >
             in {moonSign}
           </p>
+          {isToday && riseSetText && (
+            <p
+              aria-label={`Moonrise and moonset: ${riseSetText
+                .replace("\u2191", "rise")
+                .replace("\u2193", "set")}`}
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-mono, monospace)",
+                fontSize: `${Math.max(12, Math.round(baseFontPx * 0.85))}px`,
+                lineHeight: 1.15,
+                margin: 0,
+                marginTop: 1,
+                color: "var(--color-foreground)",
+                opacity: 0.75,
+                letterSpacing: "0.03em",
+              }}
+            >
+              {riseSetText}
+            </p>
+          )}
+          {isToday && needsLocation && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetLocation?.();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onSetLocation?.();
+                }
+              }}
+              style={{
+                fontSize: `${Math.max(12, Math.round(baseFontPx * 0.8))}px`,
+                lineHeight: 1.2,
+                marginTop: 2,
+                color: "var(--accent)",
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                cursor: "pointer",
+              }}
+            >
+              Set location for moon times
+            </span>
+          )}
         </div>
       </div>
     </button>

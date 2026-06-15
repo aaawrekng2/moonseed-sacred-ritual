@@ -165,3 +165,17 @@ export function formatTimeInTz(date: Date, tz: string, locale?: string): string 
     hour12: true,
   }).format(date);
 }
+
+/**
+ * EK138 — 24-hour clock formatting in a given tz (e.g. "06:42").
+ * Distinct from formatTimeInTz (locale 12-hour). Used where a fixed 24-hour
+ * readout is wanted regardless of locale — e.g. moonrise / moonset.
+ */
+export function formatTime24InTz(date: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
