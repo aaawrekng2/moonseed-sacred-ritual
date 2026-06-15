@@ -1465,6 +1465,9 @@ export type Database = {
           default_spread: string
           dismissed_hints: Json
           display_name: string | null
+          entry_back_id: string | null
+          entry_back_name: string | null
+          entry_back_url: string | null
           feedback_notification_email: string | null
           feedback_notification_frequency: string
           feedback_notifications_enabled: boolean
@@ -1553,6 +1556,9 @@ export type Database = {
           default_spread?: string
           dismissed_hints?: Json
           display_name?: string | null
+          entry_back_id?: string | null
+          entry_back_name?: string | null
+          entry_back_url?: string | null
           feedback_notification_email?: string | null
           feedback_notification_frequency?: string
           feedback_notifications_enabled?: boolean
@@ -1641,6 +1647,9 @@ export type Database = {
           default_spread?: string
           dismissed_hints?: Json
           display_name?: string | null
+          entry_back_id?: string | null
+          entry_back_name?: string | null
+          entry_back_url?: string | null
           feedback_notification_email?: string | null
           feedback_notification_frequency?: string
           feedback_notifications_enabled?: boolean
