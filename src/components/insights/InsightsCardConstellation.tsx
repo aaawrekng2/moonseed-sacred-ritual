@@ -644,7 +644,7 @@ export function InsightsCardConstellation({
           EK44 — onCardHover wired so the calendar can preview what
           asterism days would look like if the hovered card were
           added to the teal set. */}
-      <div className="mx-auto" style={{ maxWidth: 540 }}>
+      <div className="mx-auto" style={{ maxWidth: 450 }}>
         <ConstellationWeb
           heroPick={heroPick}
           constellation={constellation}

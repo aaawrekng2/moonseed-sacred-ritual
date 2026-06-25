@@ -665,6 +665,7 @@ export function CardTraceView({
               timeRange={{
                 value: gFilters.timeRange ?? "all",
                 options: [
+                  { value: "7d", label: "Last 7 days" },
                   { value: "30d", label: "Last 30 days" },
                   { value: "90d", label: "Last 90 days" },
                   { value: "180d", label: "Last 180 days" },
@@ -685,7 +686,7 @@ export function CardTraceView({
               filter above is absolute so it doesn't push this down
               — the constellation top edge sits at the SAME y as the
               filter, just centered in the column. */}
-          <div ref={heroRef} className="mx-auto">
+          <div ref={heroRef} className="mx-auto" style={{ paddingTop: 48 }}>
             <InsightsCardConstellation
               heroCardId={cid}
               heroCardName={cardName}
