@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  Circle,
   FileUp,
   Loader2,
   Lock,
@@ -28,6 +29,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { signOutAndClear } from "@/lib/sign-out";
 import { Button } from "@/components/ui/button";
@@ -70,6 +72,14 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 type RestorePhase = "pick" | "preview" | "running" | "done";
+
+type RestoreStep = {
+  key: string;
+  label: string;
+  status: "pending" | "active" | "done";
+  current?: number;
+  total?: number;
+};
 type LoadedPart = {
   file: File;
   manifest: BackupManifestV1;
@@ -113,6 +123,8 @@ export function DataTab() {
   const [rangeEnd, setRangeEnd] = useState("");
   const [eraseConfirm, setEraseConfirm] = useState("");
   const [rangedReadingCount, setRangedReadingCount] = useState<number | null>(null);
+  // v2.1 — live step checklist for the blocking restore modal.
+  const [restoreSteps, setRestoreSteps] = useState<RestoreStep[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // CS — universal CSV importer (TarotPulse + generic with column mapping)
@@ -131,6 +143,7 @@ export function DataTab() {
     setRangeEnd("");
     setEraseConfirm("");
     setRangedReadingCount(null);
+    setRestoreSteps([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -229,21 +242,60 @@ export function DataTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parts, restoreSelected, useRange, rangeStart, rangeEnd, effectiveTz]);
 
+  // v2.1 — build the planned step list (mirrors the engine's emit order) so
+  // the modal can show pending steps too, and a helper to advance them.
+  const buildSteps = (mode: RestoreMode, cats: Set<string>): RestoreStep[] => {
+    const overwrite = mode === "overwrite";
+    const s: { key: string; label: string }[] = [];
+    if (overwrite) s.push({ key: "safety_backup", label: "Saving a safety backup" });
+    s.push({ key: "validate", label: "Validating the backup file" });
+    if (cats.has("readings")) {
+      if (overwrite) s.push({ key: "clear_readings", label: "Clearing current readings" });
+      s.push({ key: "readings", label: "Restoring readings" });
+    }
+    if (cats.has("preferences")) s.push({ key: "preferences", label: "Restoring preferences" });
+    if (cats.has("user_tags")) s.push({ key: "tags", label: "Restoring tags" });
+    if (cats.has("user_streaks")) s.push({ key: "streaks", label: "Restoring streak history" });
+    if (cats.has("custom_guides")) s.push({ key: "guides", label: "Restoring custom guides" });
+    if (cats.has("custom_decks")) {
+      if (overwrite) s.push({ key: "clear_decks", label: "Clearing current decks" });
+      s.push({ key: "decks", label: "Restoring custom decks" });
+    }
+    if (cats.has("reading_photos")) {
+      if (overwrite) s.push({ key: "clear_photos", label: "Clearing current photos" });
+      s.push({ key: "photos", label: "Restoring reading photos" });
+    }
+    return s.map((x) => ({ ...x, status: "pending" as const }));
+  };
+
+  const markStep = (key: string, patch?: { current?: number; total?: number }) => {
+    setRestoreSteps((prev) => {
+      const idx = prev.findIndex((s) => s.key === key);
+      if (idx === -1) return prev;
+      return prev.map((s, i) =>
+        i < idx
+          ? { ...s, status: "done" as const }
+          : i === idx
+            ? { ...s, status: "active" as const, ...patch }
+            : { ...s, status: "pending" as const },
+      );
+    });
+  };
+
   const runRestore = async () => {
     if (parts.length === 0 || restoreSelected.size === 0) return;
     const overwrite = restoreMode === "overwrite";
-    // EK142 — the destructive path is gated by a typed confirmation.
     if (overwrite && eraseConfirm.trim().toUpperCase() !== "ERASE") {
       toast.error("Type ERASE to confirm the overwrite.");
       return;
     }
 
+    setRestoreSteps(buildSteps(restoreMode, restoreSelected));
     setRestorePhase("running");
     try {
-      // EK142 — before an overwrite erases anything, save a full backup of the
-      // seeker's CURRENT data so the action is reversible. Downloads to them.
+      // Safety backup before an overwrite erases anything.
       if (overwrite) {
-        setRestoreMessage("Saving a safety backup of your current data…");
+        markStep("safety_backup");
         const snapshot = await createBackup({
           userId: user.id,
           categories: BACKUP_CATEGORIES.map((c) => c.id),
@@ -258,7 +310,6 @@ export function DataTab() {
         URL.revokeObjectURL(snapUrl);
       }
 
-      setRestoreMessage("Validating backup…");
       const orderedZips = [...parts]
         .sort(
           (a, b) =>
@@ -271,11 +322,14 @@ export function DataTab() {
         userId: user.id,
         mode: restoreMode,
         dateRange: buildDateRange(),
-        onProgress: (msg) => setRestoreMessage(msg),
+        onProgress: (e) => {
+          if (e.key === "done") return;
+          markStep(e.key, { current: e.current, total: e.total });
+        },
       });
+      setRestoreSteps((prev) => prev.map((s) => ({ ...s, status: "done" as const })));
       setRestoreResult(r);
       setRestorePhase("done");
-      toast.success("Restore complete");
     } catch (e) {
       toast.error((e as Error).message || "Restore failed");
       setRestorePhase("preview");
@@ -509,6 +563,7 @@ export function DataTab() {
           rangedReadingCount={rangedReadingCount}
           eraseConfirm={eraseConfirm}
           onEraseConfirm={setEraseConfirm}
+          steps={restoreSteps}
           onFiles={(f) => void handleFiles(f)}
           onToggle={toggleRestoreCategory}
           onRestore={() => void runRestore()}
@@ -638,6 +693,7 @@ type RestorePanelProps = {
   rangedReadingCount: number | null;
   eraseConfirm: string;
   onEraseConfirm: (v: string) => void;
+  steps: RestoreStep[];
   onFiles: (files: FileList | File[] | null) => void;
   onToggle: (id: string) => void;
   onRestore: () => void;
@@ -651,7 +707,6 @@ function RestorePanel({
   totalParts,
   haveAllParts,
   selected,
-  message,
   result,
   fileInputRef,
   mode,
@@ -665,6 +720,7 @@ function RestorePanel({
   rangedReadingCount,
   eraseConfirm,
   onEraseConfirm,
+  steps,
   onFiles,
   onToggle,
   onRestore,
@@ -944,49 +1000,143 @@ function RestorePanel({
     );
   }
 
-  if (phase === "running") {
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-border/40 p-4 text-sm">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>{message || "Restoring…"}</span>
-      </div>
-    );
-  }
+  // v2.1 — running + done share one blocking modal that can't be dismissed
+  // until the OK button appears at completion.
+  const doneCount = steps.filter((s) => s.status === "done").length;
+  const activeReadings = steps.find(
+    (s) => s.status === "active" && s.key === "readings",
+  );
+  const activeFrac =
+    activeReadings && activeReadings.total
+      ? (activeReadings.current ?? 0) / activeReadings.total
+      : 0;
+  const pct = steps.length
+    ? Math.min(100, Math.round(((doneCount + activeFrac) / steps.length) * 100))
+    : phase === "done" ? 100 : 0;
 
-  // phase === "done"
   const skippedPremium =
     Object.values(result?.perCategory ?? {}).reduce(
       (s, v) => s + (v.filesSkippedPremium ?? 0),
       0,
     ) > 0;
 
-  return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-border/40 p-3 text-sm">
-        <div className="mb-2 font-medium">Restore complete</div>
-        <ul className="space-y-1 text-xs text-muted-foreground">
+  const modeLabel =
+    mode === "overwrite" ? "Overwrite" : "Merge";
+  const rangeLabel =
+    useRange && (rangeStart || rangeEnd)
+      ? `${rangeStart || "start"} – ${rangeEnd || "today"}`
+      : "all dates";
+  const readingsInserted = result?.perCategory?.readings?.inserted ?? 0;
+
+  const body =
+    phase === "done" ? (
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5" style={{ color: "var(--gold)" }} />
+            <span className="text-lg font-medium">Restore complete</span>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {modeLabel} · {rangeLabel}
+          </p>
+        </div>
+
+        <div className="space-y-1.5 text-sm">
           {Object.entries(result?.perCategory ?? {}).map(([id, r]) => {
             const label = CATEGORY_LABEL[id] ?? id;
-            if (id === "preferences") {
-              return <li key={id}>{label}: {r.overwrote ? "replaced" : "no change"}</li>;
+            let right: string;
+            if (id === "preferences" || id === "user_streaks") {
+              right = r.overwrote || r.inserted > 0 ? "replaced" : "no change";
+            } else {
+              right = `${r.inserted} ${r.overwrote ? "restored" : "added"}`;
+              if (r.skipped > 0) right += ` · ${r.skipped} already present`;
+              if (r.failed > 0) right += ` · ${r.failed} failed`;
             }
             return (
-              <li key={id}>
-                {label}: {r.inserted} added
-                {r.skipped > 0 ? ` (${r.skipped} already present)` : ""}
-                {r.failed > 0 ? `, ${r.failed} failed` : ""}
-              </li>
+              <div key={id} className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{label}</span>
+                <span style={{ color: "var(--gold)" }}>{right}</span>
+              </div>
             );
           })}
-        </ul>
-        {skippedPremium && (
-          <p className="mt-2 text-xs italic text-muted-foreground">
-            Custom decks and reading photo images were not restored
-            (Premium feature). Their metadata was preserved.
-          </p>
-        )}
+        </div>
+
+        <div className="rounded-lg bg-foreground/5 p-3 text-xs leading-relaxed text-muted-foreground">
+          {mode === "overwrite"
+            ? `Your journal now holds ${readingsInserted} reading${readingsInserted === 1 ? "" : "s"}. A safety backup of your previous data was saved to your downloads.`
+            : `${readingsInserted} reading${readingsInserted === 1 ? "" : "s"} added to your journal. Anything already present was left untouched.`}
+          {skippedPremium && (
+            <span className="mt-1 block italic">
+              Custom deck and reading-photo images need Premium; their metadata was preserved.
+            </span>
+          )}
+        </div>
+
+        <Button onClick={onReset} className="w-full">
+          OK
+        </Button>
       </div>
-      <Button onClick={onReset}>Done</Button>
-    </div>
+    ) : (
+      <div className="space-y-4">
+        <div>
+          <div className="text-lg font-medium">Restoring your data</div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Please keep this open until it finishes.
+          </p>
+        </div>
+
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-foreground/10"
+          role="progressbar"
+          aria-valuenow={pct}
+        >
+          <div
+            className="h-full transition-[width] duration-200 ease-out"
+            style={{ width: `${Math.max(3, pct)}%`, background: "var(--gold)", opacity: 0.9 }}
+          />
+        </div>
+
+        <div className="space-y-2.5">
+          {steps.map((s) => (
+            <div key={s.key} className="flex items-center gap-2.5 text-sm">
+              {s.status === "done" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "var(--gold)" }} />
+              ) : s.status === "active" ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" style={{ color: "var(--gold)" }} />
+              ) : (
+                <Circle className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+              )}
+              <span className={s.status === "pending" ? "text-muted-foreground/50" : ""}>
+                {s.label}
+                {s.key === "readings" && s.status === "active" && s.total ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    {s.current ?? 0} / {s.total}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground/70">
+          The button to close appears when everything is done.
+        </p>
+      </div>
+    );
+
+  return createPortal(
+    <div
+      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: "var(--z-modal)" }}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border bg-card p-5 shadow-xl"
+        style={{ borderColor: "color-mix(in oklab, var(--gold) 22%, transparent)" }}
+      >
+        {body}
+      </div>
+    </div>,
+    document.body,
   );
 }
