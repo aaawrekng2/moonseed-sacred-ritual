@@ -25,6 +25,7 @@ import { getCardMeta } from "@/lib/card-astrology";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { isoDayInTz } from "@/lib/time";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
@@ -184,6 +185,7 @@ export function CardRichContent({
   /** EK88 — optional ⓘ content shown next to the card name in the header. */
   headerInfo?: ReactNode;
 }) {
+  const { trackReversals } = useTrackReversals();
   const tarotMeaning = TAROT_MEANINGS[cardId];
   const isOracle = !tarotMeaning;
   const m =
@@ -1203,7 +1205,7 @@ export function CardRichContent({
           ),
         )}
 
-      {!isOracle && allowReversed &&
+      {!isOracle && allowReversed && trackReversals &&
         sec(
           "meaning_reversed",
           "Reversed meaning",
