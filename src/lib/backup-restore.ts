@@ -62,6 +62,43 @@ function emptyResult(): CategoryRestoreResult {
   };
 }
 
+// EK142 — restore conflict mode + optional date-range scope.
+export type RestoreMode = "merge" | "overwrite";
+export type RestoreDateRange = {
+  startIso?: string | null;
+  endIso?: string | null;
+} | null;
+
+/** A row's created_at is in range when within [start, end] (either bound optional). */
+function createdAtInRange(
+  createdAt: unknown,
+  range: RestoreDateRange,
+): boolean {
+  if (!range || (!range.startIso && !range.endIso)) return true;
+  if (typeof createdAt !== "string" || !createdAt) return false;
+  const t = Date.parse(createdAt);
+  if (Number.isNaN(t)) return false;
+  if (range.startIso && t < Date.parse(range.startIso)) return false;
+  if (range.endIso && t > Date.parse(range.endIso)) return false;
+  return true;
+}
+
+/** Delete all of a user's rows in a table (RLS-scoped to the user). */
+async function deleteAllForUser(
+  table: "readings" | "user_tags" | "custom_guides" | "reading_photos",
+  userId: string,
+  range?: RestoreDateRange,
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = (supabase.from(table as any) as any)
+    .delete()
+    .eq("user_id", userId);
+  if (range?.startIso) q = q.gte("created_at", range.startIso);
+  if (range?.endIso) q = q.lte("created_at", range.endIso);
+  const { error } = await q;
+  if (error) console.warn(`[restore] overwrite delete ${table} failed`, error);
+}
+
 export async function readBackupManifest(file: File): Promise<{
   manifest: BackupManifestV1;
   zip: JSZip;
@@ -237,13 +274,42 @@ async function uploadIfMissing(
   return false;
 }
 
+/**
+ * EK142 — Count how many backup readings fall inside a date range. Used by
+ * the restore panel to show an accurate "will restore N readings" preview
+ * when a range is active. Reads the part-1 readings JSON only.
+ */
+export async function countReadingsInRange(
+  part1Zip: JSZip | undefined,
+  range: RestoreDateRange,
+): Promise<number> {
+  const rows = await readJson<Record<string, unknown>>(
+    part1Zip,
+    "readings/readings.json",
+  );
+  if (!range || (!range.startIso && !range.endIso)) return rows.length;
+  return rows.filter((r) =>
+    createdAtInRange((r as { created_at?: unknown }).created_at, range),
+  ).length;
+}
+
 export async function executeRestore(params: {
   zips: JSZip[];
   selectedCategories: string[];
   userId: string;
+  mode?: RestoreMode;
+  dateRange?: RestoreDateRange;
   onProgress?: (msg: string, pct: number) => void;
 }): Promise<RestoreResult> {
-  const { zips, selectedCategories, userId, onProgress } = params;
+  const {
+    zips,
+    selectedCategories,
+    userId,
+    mode = "merge",
+    dateRange = null,
+    onProgress,
+  } = params;
+  const overwrite = mode === "overwrite";
   const result: RestoreResult = { perCategory: {} };
 
   onProgress?.("Validating backup…", 0);
@@ -299,13 +365,38 @@ export async function executeRestore(params: {
 
   const wanted = new Set(selectedCategories);
 
-  // ---- Readings ----
-  if (wanted.has("readings") && FREE_CATEGORIES.has("readings")) {
-    onProgress?.("Restoring readings…", 0.1);
-    const rows = await readJson<Record<string, unknown>>(
+  // EK142 — When a date range is active, photos must follow their parent
+  // reading: a photo restores only if its reading falls inside the window.
+  // Precompute the set of in-range backup reading IDs from the readings
+  // JSON (needed even if "readings" itself isn't selected but photos are).
+  const hasRange = !!(dateRange && (dateRange.startIso || dateRange.endIso));
+  let inRangeReadingIds: Set<string> | null = null;
+  if (hasRange && (wanted.has("readings") || wanted.has("reading_photos"))) {
+    const allReadings = await readJson<Record<string, unknown>>(
       part1,
       "readings/readings.json",
     );
+    inRangeReadingIds = new Set(
+      allReadings
+        .filter((r) => createdAtInRange((r as { created_at?: unknown }).created_at, dateRange))
+        .map((r) => String((r as { id?: unknown }).id ?? ""))
+        .filter(Boolean),
+    );
+  }
+
+  // ---- Readings ----
+  if (wanted.has("readings") && FREE_CATEGORIES.has("readings")) {
+    onProgress?.("Restoring readings…", 0.1);
+    const allRows = await readJson<Record<string, unknown>>(
+      part1,
+      "readings/readings.json",
+    );
+    // EK142 — apply the date range (if any) to the backup rows.
+    const rows = hasRange
+      ? allRows.filter((r) =>
+          createdAtInRange((r as { created_at?: unknown }).created_at, dateRange),
+        )
+      : allRows;
     // DB-3.3 — Cross-account safety. A backup may reference custom
     // decks that don't exist in the importing account. Look up the
     // importing user's deck IDs once, then null out any reading
@@ -325,7 +416,15 @@ export async function executeRestore(params: {
       }
       return raw;
     });
+    // EK142 — overwrite: clear the user's readings first. When a date range
+    // is set, the delete is scoped to the SAME window so readings outside
+    // the chosen dates are never erased.
+    if (overwrite) {
+      onProgress?.("Clearing current readings…", 0.08);
+      await deleteAllForUser("readings", userId, hasRange ? dateRange : null);
+    }
     result.perCategory.readings = await insertRowsMerge("readings", safeRows, userId);
+    if (overwrite) result.perCategory.readings.overwrote = true;
   }
 
   // ---- Preferences (overwrite) ----
@@ -356,17 +455,40 @@ export async function executeRestore(params: {
   if (wanted.has("user_tags")) {
     onProgress?.("Restoring tags…", 0.3);
     const rows = await readJson<Record<string, unknown>>(part1, "user_tags/tags.json");
+    if (overwrite) await deleteAllForUser("user_tags", userId);
     result.perCategory.user_tags = await insertRowsMerge("user_tags", rows, userId);
+    if (overwrite) result.perCategory.user_tags.overwrote = true;
   }
   if (wanted.has("user_streaks")) {
     onProgress?.("Restoring streak history…", 0.35);
     const rows = await readJson<Record<string, unknown>>(part1, "user_streaks/streaks.json");
-    result.perCategory.user_streaks = await insertRowsMerge("user_streaks", rows, userId);
+    if (overwrite) {
+      // Single summary row per user — replace it via upsert.
+      const r = emptyResult();
+      for (const raw of rows) {
+        const row = { ...raw, user_id: userId };
+        const { error } = await supabase
+          .from("user_streaks")
+          .upsert(row as never, { onConflict: "user_id" });
+        if (error) {
+          r.failed += 1;
+          console.warn("[restore] user_streaks upsert failed", error);
+        } else {
+          r.inserted += 1;
+        }
+      }
+      r.overwrote = true;
+      result.perCategory.user_streaks = r;
+    } else {
+      result.perCategory.user_streaks = await insertRowsMerge("user_streaks", rows, userId);
+    }
   }
   if (wanted.has("custom_guides")) {
     onProgress?.("Restoring custom guides…", 0.4);
     const rows = await readJson<Record<string, unknown>>(part1, "custom_guides/guides.json");
+    if (overwrite) await deleteAllForUser("custom_guides", userId);
     result.perCategory.custom_guides = await insertRowsMerge("custom_guides", rows, userId);
+    if (overwrite) result.perCategory.custom_guides.overwrote = true;
   }
 
   // ---- Custom decks ----
@@ -374,6 +496,24 @@ export async function executeRestore(params: {
     onProgress?.("Restoring custom decks…", 0.5);
     const decks = await readJson<Record<string, unknown>>(part1, "custom_decks/decks.json");
     const deckResult = emptyResult();
+
+    // EK142 — overwrite: clear the user's decks first. Delete cards before
+    // decks to respect the foreign key. Old storage objects are left in
+    // place (new uploads use fresh paths); they're harmless orphans.
+    if (overwrite) {
+      onProgress?.("Clearing current decks…", 0.48);
+      const { error: cardsErr } = await supabase
+        .from("custom_deck_cards")
+        .delete()
+        .eq("user_id", userId);
+      if (cardsErr) console.warn("[restore] overwrite delete custom_deck_cards failed", cardsErr);
+      const { error: decksErr } = await supabase
+        .from("custom_decks")
+        .delete()
+        .eq("user_id", userId);
+      if (decksErr) console.warn("[restore] overwrite delete custom_decks failed", decksErr);
+      deckResult.overwrote = true;
+    }
 
     // Build a lookup: deck.id → its folder name in the zip. The export
     // stores folders as `<safeName(deck.name)>_<deck.id>` so we look for
@@ -526,11 +666,40 @@ export async function executeRestore(params: {
   // ---- Reading photos ----
   if (wanted.has("reading_photos") && PREMIUM_CATEGORIES.has("reading_photos")) {
     onProgress?.("Restoring reading photos…", 0.8);
-    const photos = await readJson<Record<string, unknown>>(
+    const allPhotos = await readJson<Record<string, unknown>>(
       part1,
       "reading_photos/photos.json",
     );
+    // EK142 — photos follow their reading: under a date range, keep only
+    // photos whose parent reading is in the window.
+    const photos =
+      hasRange && inRangeReadingIds
+        ? allPhotos.filter((p) =>
+            inRangeReadingIds!.has(String((p as { reading_id?: unknown }).reading_id ?? "")),
+          )
+        : allPhotos;
     const photoResult = emptyResult();
+
+    // EK142 — overwrite: clear current photos first. Scoped to the in-range
+    // readings when a date range is set, otherwise all of the user's photos.
+    if (overwrite) {
+      onProgress?.("Clearing current photos…", 0.78);
+      if (hasRange && inRangeReadingIds) {
+        const ids = [...inRangeReadingIds];
+        for (let i = 0; i < ids.length; i += 200) {
+          const chunk = ids.slice(i, i + 200);
+          const { error } = await supabase
+            .from("reading_photos")
+            .delete()
+            .eq("user_id", userId)
+            .in("reading_id", chunk);
+          if (error) console.warn("[restore] overwrite delete reading_photos (ranged) failed", error);
+        }
+      } else {
+        await deleteAllForUser("reading_photos", userId);
+      }
+      photoResult.overwrote = true;
+    }
 
     await runPool(photos, async (photo) => {
       const photoId = String(photo.id ?? "");

@@ -16,6 +16,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Archive,
+  AlertTriangle,
+  Calendar,
   CheckCircle2,
   FileUp,
   Loader2,
@@ -43,9 +45,14 @@ import { createBackup, type BackupProgress } from "@/lib/backup-export";
 import {
   executeRestore,
   readBackupManifest,
+  countReadingsInRange,
   type BackupManifestV1,
   type RestoreResult,
+  type RestoreMode,
+  type RestoreDateRange,
 } from "@/lib/backup-restore";
+import { parseIsoDay, endOfDayInTz } from "@/lib/time";
+import { useTimezone } from "@/lib/use-timezone";
 import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
 import { formatDateTime } from "@/lib/dates";
@@ -97,6 +104,15 @@ export function DataTab() {
   const [restoreSelected, setRestoreSelected] = useState<Set<string>>(new Set());
   const [restoreMessage, setRestoreMessage] = useState<string>("");
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
+  // EK142 — conflict mode, optional date range (readings only), and the
+  // typed-confirmation that gates the destructive overwrite path.
+  const { effectiveTz } = useTimezone();
+  const [restoreMode, setRestoreMode] = useState<RestoreMode>("merge");
+  const [useRange, setUseRange] = useState(false);
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
+  const [eraseConfirm, setEraseConfirm] = useState("");
+  const [rangedReadingCount, setRangedReadingCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // CS — universal CSV importer (TarotPulse + generic with column mapping)
@@ -109,6 +125,12 @@ export function DataTab() {
     setRestoreSelected(new Set());
     setRestoreMessage("");
     setRestoreResult(null);
+    setRestoreMode("merge");
+    setUseRange(false);
+    setRangeStart("");
+    setRangeEnd("");
+    setEraseConfirm("");
+    setRangedReadingCount(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -169,37 +191,74 @@ export function DataTab() {
     });
   };
 
-  const runRestore = async () => {
-    if (parts.length === 0 || restoreSelected.size === 0) return;
+  // EK142 — translate the picked dates into UTC instants via the timezone
+  // module, so the window matches the seeker's calendar days. Readings only.
+  const buildDateRange = (): RestoreDateRange => {
+    if (!useRange || (!rangeStart && !rangeEnd)) return null;
+    return {
+      startIso: rangeStart
+        ? parseIsoDay(rangeStart, effectiveTz).toISOString()
+        : null,
+      endIso: rangeEnd
+        ? endOfDayInTz(parseIsoDay(rangeEnd, effectiveTz), effectiveTz).toISOString()
+        : null,
+    };
+  };
+
+  // EK142 — keep the readings preview count accurate while a range is active.
+  useEffect(() => {
+    let cancelled = false;
     const part1 =
       parts.find((p) => (p.manifest.part_index ?? 1) === 1) ?? parts[0];
-
-    // Build a confirmation summary.
-    const lines: string[] = [];
-    for (const id of restoreSelected) {
-      const info = part1.manifest.contents[id];
-      const label = CATEGORY_LABEL[id] ?? id;
-      if (id === "preferences") {
-        lines.push("Your preferences will be REPLACED with the backed-up settings.");
-      } else {
-        const n = info?.rows ?? 0;
-        lines.push(`${n} ${label.toLowerCase()} will be added (any duplicates skipped).`);
-      }
+    if (
+      !part1 ||
+      !restoreSelected.has("readings") ||
+      !useRange ||
+      (!rangeStart && !rangeEnd)
+    ) {
+      setRangedReadingCount(null);
+      return;
     }
-    lines.push("This cannot be undone.");
+    void (async () => {
+      const n = await countReadingsInRange(part1.zip, buildDateRange());
+      if (!cancelled) setRangedReadingCount(n);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parts, restoreSelected, useRange, rangeStart, rangeEnd, effectiveTz]);
 
-    const ok = await confirm({
-      title: "Restore from backup?",
-      description: lines.join(" "),
-      confirmLabel: "Restore",
-      cancelLabel: "Cancel",
-      destructive: false,
-    });
-    if (!ok) return;
+  const runRestore = async () => {
+    if (parts.length === 0 || restoreSelected.size === 0) return;
+    const overwrite = restoreMode === "overwrite";
+    // EK142 — the destructive path is gated by a typed confirmation.
+    if (overwrite && eraseConfirm.trim().toUpperCase() !== "ERASE") {
+      toast.error("Type ERASE to confirm the overwrite.");
+      return;
+    }
 
     setRestorePhase("running");
-    setRestoreMessage("Validating backup…");
     try {
+      // EK142 — before an overwrite erases anything, save a full backup of the
+      // seeker's CURRENT data so the action is reversible. Downloads to them.
+      if (overwrite) {
+        setRestoreMessage("Saving a safety backup of your current data…");
+        const snapshot = await createBackup({
+          userId: user.id,
+          categories: BACKUP_CATEGORIES.map((c) => c.id),
+        });
+        const snapUrl = URL.createObjectURL(snapshot);
+        const a = document.createElement("a");
+        a.href = snapUrl;
+        a.download = `tarotseed-safety-backup-before-restore-${new Date()
+          .toISOString()
+          .slice(0, 10)}.zip`;
+        a.click();
+        URL.revokeObjectURL(snapUrl);
+      }
+
+      setRestoreMessage("Validating backup…");
       const orderedZips = [...parts]
         .sort(
           (a, b) =>
@@ -210,6 +269,8 @@ export function DataTab() {
         zips: orderedZips,
         selectedCategories: Array.from(restoreSelected),
         userId: user.id,
+        mode: restoreMode,
+        dateRange: buildDateRange(),
         onProgress: (msg) => setRestoreMessage(msg),
       });
       setRestoreResult(r);
@@ -434,6 +495,20 @@ export function DataTab() {
           message={restoreMessage}
           result={restoreResult}
           fileInputRef={fileInputRef}
+          mode={restoreMode}
+          onModeChange={(m) => {
+            setRestoreMode(m);
+            if (m === "merge") setEraseConfirm("");
+          }}
+          useRange={useRange}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          onRangeToggle={setUseRange}
+          onRangeStart={setRangeStart}
+          onRangeEnd={setRangeEnd}
+          rangedReadingCount={rangedReadingCount}
+          eraseConfirm={eraseConfirm}
+          onEraseConfirm={setEraseConfirm}
           onFiles={(f) => void handleFiles(f)}
           onToggle={toggleRestoreCategory}
           onRestore={() => void runRestore()}
@@ -552,6 +627,17 @@ type RestorePanelProps = {
   message: string;
   result: RestoreResult | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  mode: RestoreMode;
+  onModeChange: (m: RestoreMode) => void;
+  useRange: boolean;
+  rangeStart: string;
+  rangeEnd: string;
+  onRangeToggle: (on: boolean) => void;
+  onRangeStart: (v: string) => void;
+  onRangeEnd: (v: string) => void;
+  rangedReadingCount: number | null;
+  eraseConfirm: string;
+  onEraseConfirm: (v: string) => void;
   onFiles: (files: FileList | File[] | null) => void;
   onToggle: (id: string) => void;
   onRestore: () => void;
@@ -568,6 +654,17 @@ function RestorePanel({
   message,
   result,
   fileInputRef,
+  mode,
+  onModeChange,
+  useRange,
+  rangeStart,
+  rangeEnd,
+  onRangeToggle,
+  onRangeStart,
+  onRangeEnd,
+  rangedReadingCount,
+  eraseConfirm,
+  onEraseConfirm,
   onFiles,
   onToggle,
   onRestore,
@@ -704,19 +801,145 @@ function RestorePanel({
           })}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={onRestore}
-            disabled={!haveAllParts || selected.size === 0}
-            className="gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Restore selected
-          </Button>
-          <Button variant="ghost" onClick={onReset}>
-            Cancel
-          </Button>
-        </div>
+        {(() => {
+          const overwrite = mode === "overwrite";
+          const readingsSelected = selected.has("readings");
+          const eraseOk =
+            !overwrite || eraseConfirm.trim().toUpperCase() === "ERASE";
+          return (
+            <>
+              <div>
+                <div className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+                  How to restore
+                </div>
+                <div className="inline-flex gap-1 rounded-full border border-border/50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => onModeChange("merge")}
+                    className={`rounded-full px-4 py-1 text-sm transition-colors ${
+                      !overwrite
+                        ? "bg-foreground/10 text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Merge
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onModeChange("overwrite")}
+                    className={`rounded-full px-4 py-1 text-sm transition-colors ${
+                      overwrite
+                        ? "bg-destructive/15 text-destructive"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Overwrite
+                  </button>
+                </div>
+              </div>
+
+              {readingsSelected && (
+                <div className="space-y-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={useRange}
+                      onCheckedChange={(v) => onRangeToggle(v === true)}
+                    />
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    Limit to a date range
+                  </label>
+                  {useRange && (
+                    <div className="space-y-2 pl-6">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <input
+                          type="date"
+                          value={rangeStart}
+                          max={rangeEnd || undefined}
+                          onChange={(e) => onRangeStart(e.target.value)}
+                          className="rounded-md border border-border/50 bg-transparent px-2 py-1 text-sm"
+                          aria-label="Start date"
+                        />
+                        <span className="text-muted-foreground">to</span>
+                        <input
+                          type="date"
+                          value={rangeEnd}
+                          min={rangeStart || undefined}
+                          onChange={(e) => onRangeEnd(e.target.value)}
+                          className="rounded-md border border-border/50 bg-transparent px-2 py-1 text-sm"
+                          aria-label="End date"
+                        />
+                      </div>
+                      <p className="text-xs italic text-muted-foreground">
+                        Applies to readings (and their photos) only. Other
+                        categories restore in full.
+                        {rangedReadingCount != null &&
+                          ` ${rangedReadingCount} reading${
+                            rangedReadingCount === 1 ? "" : "s"
+                          } in range.`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div
+                className={`rounded-lg p-3 text-xs leading-relaxed ${
+                  overwrite
+                    ? "bg-destructive/5 text-muted-foreground"
+                    : "bg-foreground/5 text-muted-foreground"
+                }`}
+              >
+                {overwrite
+                  ? "Erases the selected categories from your account, then restores the backup. A safety backup of your current data downloads first, so this stays reversible."
+                  : "Adds entries from the backup. Anything already in your account is skipped — nothing is removed."}
+              </div>
+
+              {overwrite && (
+                <div className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    This erases the selected categories first
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your current data in the selected categories is removed,
+                    then replaced with the backup. A full backup of your
+                    current data is saved before anything is erased.
+                  </p>
+                  <label className="block text-xs text-muted-foreground">
+                    Type{" "}
+                    <span className="font-semibold tracking-wide text-destructive">
+                      ERASE
+                    </span>{" "}
+                    to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={eraseConfirm}
+                    onChange={(e) => onEraseConfirm(e.target.value)}
+                    placeholder="ERASE"
+                    className="w-full rounded-md border border-destructive/50 bg-transparent px-3 py-2 text-sm tracking-wide outline-none focus:border-destructive"
+                    aria-label="Type ERASE to confirm"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={onRestore}
+                  disabled={!haveAllParts || selected.size === 0 || !eraseOk}
+                  variant={overwrite ? "destructive" : "default"}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  {overwrite ? "Erase & restore" : "Restore selected"}
+                </Button>
+                <Button variant="ghost" onClick={onReset}>
+                  Cancel
+                </Button>
+              </div>
+            </>
+          );
+        })()}
       </div>
     );
   }
