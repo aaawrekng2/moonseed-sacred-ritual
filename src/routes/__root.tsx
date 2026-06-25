@@ -20,6 +20,7 @@ import { usePWA } from "@/lib/use-pwa";
 // mounted because Tabletop / ReadingScreen still publish to it
 // (tabletopActive flag, etc.). The visible `···` pop-down is gone.
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
+import { TipLayer } from "@/components/ui/TipLayer";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { useThemeColorSync } from "@/lib/use-theme-color-sync";
 import { Toaster } from "@/components/ui/sonner";
@@ -227,6 +228,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
+        <TipLayer />
         <Scripts />
       </body>
     </html>

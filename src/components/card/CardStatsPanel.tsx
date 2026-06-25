@@ -21,6 +21,7 @@ import type { CSSProperties } from "react";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { Clock, Calendar as CalendarIcon } from "lucide-react";
 import type { CardPopoverData } from "@/lib/quicklog.functions";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 
 /**
  * EJ70 — Explain a header tag on hover. Covers arcana type, suit,
@@ -161,6 +162,7 @@ export function CardStatsPanel({
   lastSeen,
 }: CardStatsPanelProps) {
   const reversedPct = data?.reversedPct ?? null;
+  const { trackReversals } = useTrackReversals();
   const topMoonPhase = data?.topMoonPhase ?? null;
   const topTimeBucket = data?.topTimeBucket ?? null;
   const topDayOfWeek = data?.topDayOfWeek ?? null;
@@ -432,7 +434,7 @@ export function CardStatsPanel({
       )}
 
       {/* EJ69 — Reversed meaning section. Same treatment as upright. */}
-      {reversedMeaning && (reversedMeaning.keywords.length > 0 || reversedMeaning.body) && (
+      {trackReversals && reversedMeaning && (reversedMeaning.keywords.length > 0 || reversedMeaning.body) && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={sectionLabel}>Reversed meaning</div>
           {reversedMeaning.keywords.length > 0 && (

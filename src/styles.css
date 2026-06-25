@@ -1780,59 +1780,11 @@ button:focus-visible .moon-rung-glow {
    value represent". Positioned above the chip with a small arrow,
    high z-index to clear the popover and modal layers. */
 .tarotseed-mini-tip {
+  /* v2.4 — keep a positioning context for any absolutely-positioned
+     children (e.g. the section show/hide toggle). The hover tip itself
+     is no longer a CSS pseudo-element: it is rendered by the global
+     TipLayer (portaled to <body>) so it can never be clipped by a
+     scrolling popover's overflow. The data-tarotseed-tip attribute is
+     still the trigger; TipLayer reads it. */
   position: relative;
-}
-.tarotseed-mini-tip::before,
-.tarotseed-mini-tip::after {
-  pointer-events: none;
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  opacity: 0;
-  /* EJ52 — Drop the vertical-slide transform. Previous version used
-     translate(-50%, 4px) at rest and translate(-50%, 0) on hover, so
-     every chip-to-chip cursor move overlapped two tooltips mid-slide
-     (one tooltip sliding down on fade-out, the next sliding up on
-     fade-in). That read as the tooltip "stuttering between top and
-     bottom" as the cursor moved across chips. Now: pure opacity
-     fade, no vertical motion, so adjacent chips' tooltips swap in
-     place. */
-  transform: translateX(-50%);
-  transition: opacity 80ms ease-out;
-  z-index: 9999;
-}
-.tarotseed-mini-tip::before {
-  content: attr(data-tarotseed-tip);
-  background: var(--color-foreground);
-  color: var(--background);
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-family: var(--font-serif);
-  font-size: 11px;
-  font-style: italic;
-  line-height: 1.3;
-  /* EJ52 — Cap tooltip width and allow wrap. Long explanatory text
-     (e.g. "13 times this card has appeared in your readings (within
-     current filters)") was hitting the popover's edge and clipping
-     or forcing horizontal overflow when nowrap was the only rule.
-     200px keeps the tooltip readable while staying inside typical
-     popover bounds; the text wraps to two or three lines for the
-     longer chip explanations. */
-  white-space: normal;
-  min-width: 120px;
-  max-width: 200px;
-  width: max-content;
-  margin-bottom: 6px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.28);
-}
-.tarotseed-mini-tip::after {
-  content: "";
-  border: 4px solid transparent;
-  border-top-color: var(--color-foreground);
-  margin-bottom: -2px;
-}
-.tarotseed-mini-tip:hover::before,
-.tarotseed-mini-tip:hover::after {
-  opacity: 1;
 }
