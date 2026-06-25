@@ -164,6 +164,10 @@ function Index() {
   const [splashTransform, setSplashTransform] = useState("none");
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);
   const splashCardRef = useRef<HTMLDivElement | null>(null);
+  // EK141 — tracks whether the gateway card has reached its settled layout
+  // position. Read inside the deferred FLIP loop in dismissSplash so we never
+  // measure the splash's landing target while the gateway is still moving.
+  const gatewayReadyRef = useRef(false);
   const splashActive = splashPhase !== "done";
   // EK124 — the entry card is ~75% of the viewport height (portrait aspect
   // 1.743), capped at ~96% width so it never overflows on narrow screens.
@@ -178,21 +182,57 @@ function Index() {
         );
   function dismissSplash() {
     if (splashPhase !== "showing") return;
-    const from = splashCardRef.current?.getBoundingClientRect();
-    const to = gatewayCardRef.current?.getBoundingClientRect();
-    if (from && to && from.width > 0 && to.width > 0) {
-      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
-      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
-      const scale = to.width / from.width;
-      setSplashTransform(`translate(${dx}px, ${dy}px) scale(${scale})`);
-    } else {
-      // Fallback if the gateway isn't measurable: shrink toward center.
-      setSplashTransform("scale(0.15)");
-    }
-    setSplashPhase("transitioning");
-    // EK125 — after the shrink, HOLD in the slot ("settling"); the effect
-    // below fades the card out only once the gateway card is painted.
-    window.setTimeout(() => setSplashPhase("settling"), 800);
+    // EK141 — Defer the FLIP measurement until the gateway is in its FINAL
+    // position. Measuring at tap time read a stale, too-high target: the
+    // today-draw check and moon carousel above the gateway were still
+    // resolving, so the gateway sat higher than where it lands — the splash
+    // flew up near the carousel, then the real card painted lower at center.
+    //
+    // Instead, retry across animation frames until BOTH (a) the gateway is
+    // ready (today-draw resolved) AND (b) its measured top is stable across
+    // two consecutive frames (it has stopped moving). Capped so it can never
+    // hang; on the cap we commit whatever we have. This makes the card land
+    // precisely on the slot every time instead of racing the layout.
+    const MAX_FRAMES = 30; // ~0.5s ceiling at 60fps
+    let prevTop: number | null = null;
+
+    const commit = (transform: string) => {
+      setSplashTransform(transform);
+      setSplashPhase("transitioning");
+      // EK125 — after the shrink, HOLD in the slot ("settling"); the effect
+      // below fades the card out only once the gateway card is painted.
+      window.setTimeout(() => setSplashPhase("settling"), 800);
+    };
+
+    const tryMeasure = (attempt: number) => {
+      const from = splashCardRef.current?.getBoundingClientRect();
+      const to = gatewayCardRef.current?.getBoundingClientRect();
+      const measurable = !!(from && to && from.width > 0 && to.width > 0);
+
+      if (measurable) {
+        const top = to!.top;
+        const stable = prevTop !== null && Math.abs(top - prevTop) < 1;
+        const ready = gatewayReadyRef.current;
+        if ((ready && stable) || attempt >= MAX_FRAMES) {
+          const dx = to!.left + to!.width / 2 - (from!.left + from!.width / 2);
+          const dy = to!.top + to!.height / 2 - (from!.top + from!.height / 2);
+          const scale = to!.width / from!.width;
+          commit(`translate(${dx}px, ${dy}px) scale(${scale})`);
+          return;
+        }
+        prevTop = top;
+      } else if (attempt >= MAX_FRAMES) {
+        // Gateway never became measurable — shrink toward the lower-center
+        // where the gateway lives (not screen-center), so even this rare
+        // fallback doesn't fly the card too high.
+        commit("translateY(6vh) scale(0.18)");
+        return;
+      }
+
+      requestAnimationFrame(() => tryMeasure(attempt + 1));
+    };
+
+    requestAnimationFrame(() => tryMeasure(0));
   }
   const [todayCard, setTodayCard] = useState<number | null>(null);
   // EW-2 — track today's draw orientation so the gateway face rotates
@@ -204,6 +244,12 @@ function Index() {
   // at least once, so we don't flash the card-back during the async
   // resolution on warm reopen.
   const [hasCheckedTodayDraw, setHasCheckedTodayDraw] = useState(false);
+  // EK141 — mirror the gateway-ready signal into a ref so the deferred FLIP
+  // loop (dismissSplash) can read the latest value across animation frames
+  // without the loop closing over a stale render's state.
+  useEffect(() => {
+    gatewayReadyRef.current = hasCheckedTodayDraw;
+  }, [hasCheckedTodayDraw]);
   // CE — propagate the active custom deck's photographed card back to
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
