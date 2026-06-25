@@ -16,7 +16,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "EK142";
+// v2.0 — EK letter scheme retired; the stamp now holds a semantic version
+// string (renders as "v2.0" wherever the pill prepends the v).
+export const APP_VERSION_LETTER = "2.0";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";

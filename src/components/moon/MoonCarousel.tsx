@@ -1204,12 +1204,8 @@ function AdjacentCard({
         >
           {formatShortDate(info.date, timeZone)}
         </p>
-        <p
-          className="text-[11px]"
-          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
-        >
-          {info.phase}
-        </p>
+        {/* v2.0 — phase name lives only on the focused/centered card now.
+            Side cards stay glyph + date so the center is the clear focus. */}
         {expanded && (
           <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
             <p

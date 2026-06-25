@@ -12,7 +12,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { X } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDateLong, formatTimeAgo } from "@/lib/dates";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
@@ -126,6 +126,18 @@ function LunationRecapRoute() {
   const next = () => setSlide((s) => Math.min(s + 1, total - 1));
   const prev = () => setSlide((s) => Math.max(s - 1, 0));
 
+  // v2.0 — keyboard navigation for the recap story (desktop especially).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") next();
+      else if (e.key === "ArrowLeft") prev();
+      else if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
@@ -174,21 +186,46 @@ function LunationRecapRoute() {
         <X size={18} />
       </button>
 
-      {/* Tap zones */}
-      <button
-        type="button"
-        aria-label="Previous slide"
-        onClick={prev}
-        className="absolute inset-y-0 left-0 z-0 w-1/3"
-        style={{ background: "transparent" }}
-      />
-      <button
-        type="button"
-        aria-label="Next slide"
-        onClick={next}
-        className="absolute inset-y-0 right-0 z-0 w-1/3"
-        style={{ background: "transparent" }}
-      />
+      {/* v2.0 — visible prev/next controls. The old invisible tap-zones sat
+          BELOW the slide content in the stack (content was z-[1], zones z-0),
+          so the content layer ate every click and there was no way to
+          advance. These chevrons sit ABOVE the content (z-20), anchored to
+          the screen edges so they never cover the centered slide content
+          (reflection input, closer buttons). Hidden at the boundaries. */}
+      {slide > 0 && (
+        <button
+          type="button"
+          aria-label="Previous slide"
+          onClick={prev}
+          className="absolute z-20 rounded-full p-2"
+          style={{
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "color-mix(in oklab, var(--cosmos, #0a0a14) 35%, transparent)",
+            color: "var(--gold)",
+          }}
+        >
+          <ChevronLeft size={26} />
+        </button>
+      )}
+      {slide < total - 1 && (
+        <button
+          type="button"
+          aria-label="Next slide"
+          onClick={next}
+          className="absolute z-20 rounded-full p-2"
+          style={{
+            right: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "color-mix(in oklab, var(--cosmos, #0a0a14) 35%, transparent)",
+            color: "var(--gold)",
+          }}
+        >
+          <ChevronRight size={26} />
+        </button>
+      )}
 
       <div
         className="relative z-[1] flex flex-1 justify-center px-6"
