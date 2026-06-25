@@ -57,7 +57,7 @@ import { parseIsoDay, endOfDayInTz } from "@/lib/time";
 import { useTimezone } from "@/lib/use-timezone";
 import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime, formatMonthYear } from "@/lib/dates";
 import { PhotoArchive } from "./PhotoArchive";
 import { DeleteDataModal } from "./DeleteDataModal";
 
@@ -125,6 +125,11 @@ export function DataTab() {
   const [rangedReadingCount, setRangedReadingCount] = useState<number | null>(null);
   // v2.1 — live step checklist for the blocking restore modal.
   const [restoreSteps, setRestoreSteps] = useState<RestoreStep[]>([]);
+  // v2.2 — earliest/latest reading in the uploaded backup, shown in the popup.
+  const [readingsSpan, setReadingsSpan] = useState<{
+    start: string;
+    end: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // CS — universal CSV importer (TarotPulse + generic with column mapping)
@@ -144,6 +149,7 @@ export function DataTab() {
     setEraseConfirm("");
     setRangedReadingCount(null);
     setRestoreSteps([]);
+    setReadingsSpan(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -182,6 +188,30 @@ export function DataTab() {
           next.add(c);
         }
         setRestoreSelected(next);
+      }
+      // v2.2 — find the earliest/latest reading so the popup can show the span.
+      setReadingsSpan(null);
+      try {
+        if (part1?.manifest.categories.includes("readings")) {
+          const entry = part1.zip.file("readings/readings.json");
+          if (entry) {
+            const rows = JSON.parse(await entry.async("string")) as Array<{
+              created_at?: string;
+            }>;
+            const stamps = rows
+              .map((r) => r.created_at)
+              .filter((s): s is string => typeof s === "string" && s.length > 0)
+              .sort();
+            if (stamps.length > 0) {
+              setReadingsSpan({
+                start: stamps[0],
+                end: stamps[stamps.length - 1],
+              });
+            }
+          }
+        }
+      } catch {
+        // Non-fatal — the span is a nicety; skip it if the file can't be read.
       }
       setRestorePhase("preview");
     } catch (e) {
@@ -564,6 +594,7 @@ export function DataTab() {
           eraseConfirm={eraseConfirm}
           onEraseConfirm={setEraseConfirm}
           steps={restoreSteps}
+          readingsSpan={readingsSpan}
           onFiles={(f) => void handleFiles(f)}
           onToggle={toggleRestoreCategory}
           onRestore={() => void runRestore()}
@@ -694,6 +725,7 @@ type RestorePanelProps = {
   eraseConfirm: string;
   onEraseConfirm: (v: string) => void;
   steps: RestoreStep[];
+  readingsSpan: { start: string; end: string } | null;
   onFiles: (files: FileList | File[] | null) => void;
   onToggle: (id: string) => void;
   onRestore: () => void;
@@ -721,6 +753,7 @@ function RestorePanel({
   eraseConfirm,
   onEraseConfirm,
   steps,
+  readingsSpan,
   onFiles,
   onToggle,
   onRestore,
@@ -754,15 +787,20 @@ function RestorePanel({
     );
   }
 
-  if (phase === "preview") {
-    const part1 =
-      parts.find((p) => (p.manifest.part_index ?? 1) === 1) ?? parts[0];
-    const created = part1
-      ? formatDateTime(part1.manifest.exported_at)
-      : "";
-    const categories = part1?.manifest.categories ?? [];
+  // v2.2 — preview, running, and done all render inside ONE blocking popup
+  // that opens the instant a backup is uploaded.
+  const part1 =
+    parts.find((p) => (p.manifest.part_index ?? 1) === 1) ?? parts[0];
+  const created = part1 ? formatDateTime(part1.manifest.exported_at) : "";
+  const categories = part1?.manifest.categories ?? [];
 
-    return (
+  const spanLabel = readingsSpan
+    ? formatMonthYear(readingsSpan.start) === formatMonthYear(readingsSpan.end)
+      ? formatMonthYear(readingsSpan.start)
+      : `${formatMonthYear(readingsSpan.start)} – ${formatMonthYear(readingsSpan.end)}`
+    : "";
+
+  const setupBody = (
       <div className="space-y-4">
         <div className="rounded-lg border border-border/40 p-3 text-xs">
           <div className="mb-2 text-muted-foreground">Created: {created}</div>
@@ -811,6 +849,37 @@ function RestorePanel({
             onChange={(e) => onFiles(e.target.files)}
           />
         </div>
+
+        {part1 && (
+          <div className="rounded-lg bg-foreground/5 p-3">
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+              What&apos;s inside
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              {categories.map((id) => {
+                const info = part1.manifest.contents[id];
+                const label = CATEGORY_LABEL[id] ?? id;
+                const n = info?.files
+                  ? `${info.rows ?? 0} · ${info.files} files`
+                  : `${info?.rows ?? 0}`;
+                return (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="text-muted-foreground">{label}</span>
+                    <span style={{ color: "var(--gold)" }}>{n}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {spanLabel && (
+              <div className="mt-2 text-xs italic text-muted-foreground">
+                Readings span {spanLabel}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           {categories.map((id) => {
@@ -998,10 +1067,8 @@ function RestorePanel({
         })()}
       </div>
     );
-  }
 
-  // v2.1 — running + done share one blocking modal that can't be dismissed
-  // until the OK button appears at completion.
+  // running + done bodies (preview is setupBody above) — all share the popup.
   const doneCount = steps.filter((s) => s.status === "done").length;
   const activeReadings = steps.find(
     (s) => s.status === "active" && s.key === "readings",
@@ -1029,7 +1096,9 @@ function RestorePanel({
   const readingsInserted = result?.perCategory?.readings?.inserted ?? 0;
 
   const body =
-    phase === "done" ? (
+    phase === "preview" ? (
+      setupBody
+    ) : phase === "done" ? (
       <div className="space-y-4">
         <div>
           <div className="flex items-center gap-2">
@@ -1131,7 +1200,7 @@ function RestorePanel({
       style={{ zIndex: "var(--z-modal)" }}
     >
       <div
-        className="w-full max-w-sm rounded-2xl border bg-card p-5 shadow-xl"
+        className={`w-full ${phase === "preview" ? "max-w-md" : "max-w-sm"} max-h-[85vh] overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl`}
         style={{ borderColor: "color-mix(in oklab, var(--gold) 22%, transparent)" }}
       >
         {body}
