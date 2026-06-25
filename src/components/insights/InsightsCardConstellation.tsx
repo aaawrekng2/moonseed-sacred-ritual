@@ -644,7 +644,11 @@ export function InsightsCardConstellation({
           EK44 — onCardHover wired so the calendar can preview what
           asterism days would look like if the hovered card were
           added to the teal set. */}
-      <div className="mx-auto" style={{ maxWidth: 450 }}>
+      {/* v2.6 — marginTop pushes the constellation web down a touch
+          more (extra breathing room below the pinned filter bar). The
+          calendar's top gap is reduced by the same amount below so the
+          calendar holds its position. */}
+      <div className="mx-auto" style={{ maxWidth: 450, marginTop: 16 }}>
         <ConstellationWeb
           heroPick={heroPick}
           constellation={constellation}
@@ -678,7 +682,7 @@ export function InsightsCardConstellation({
           requires 2+). With 1+ teal selected, hovering another card
           → 2+ in the effective set → preview stroke fires. */}
       {calendarState !== "none" && (
-        <div className="mx-auto mt-6" style={{ width: "100%" }}>
+        <div className="mx-auto mt-2" style={{ width: "100%" }}>
           <OverlapStrip
             overlap={overlap}
             heroCardId={heroCardId}
