@@ -28,6 +28,7 @@ import {
   type CardGroupBy,
   type CardSortBy,
 } from "@/lib/insights.types";
+import { useInsightsTimeRange } from "@/lib/use-insights-time-range";
 import { Dropdown } from "@/components/filters/Dropdown";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
@@ -175,6 +176,19 @@ function InsightsRoute() {
   //   • all + non-time filter → "N readings matching filters"
   // See computeStatsLine() below.
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+
+  // v2.6 — Single shared time-range source. The pinned dropdown writes
+  // here (see below); the CardTrace constellation reads the same value,
+  // so adjusting the range actually filters the per-card surface. This
+  // effect mirrors the shared value into the layout's own `filters` so
+  // the Overview/Cards/Calendar/Stalkers fetches (which read
+  // filters.timeRange) stay in lockstep with the dropdown.
+  const [sharedTimeRange, setSharedTimeRange] = useInsightsTimeRange();
+  useEffect(() => {
+    setFilters((f) =>
+      f.timeRange === sharedTimeRange ? f : { ...f, timeRange: sharedTimeRange },
+    );
+  }, [sharedTimeRange]);
 
   // EK47 — Persisted Count/Streak preference. Shared with Card
   // Trace (which lives at /insights/card/$cardId) so the badge
@@ -400,7 +414,7 @@ function InsightsRoute() {
             onChange={handleGlobalChange}
             sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
             timeRange={{
-              value: filters.timeRange,
+              value: sharedTimeRange,
               options: [
                 { value: "7d", label: "Last 7 days" },
                 { value: "30d", label: "Last 30 days" },
@@ -409,7 +423,7 @@ function InsightsRoute() {
                 { value: "365d", label: "Last 365 days" },
                 { value: "all", label: "All time" },
               ],
-              onChange: (v) => setFilters({ ...filters, timeRange: v as TimeRange }),
+              onChange: (v) => setSharedTimeRange(v as TimeRange),
             }}
             userTags={userTags}
             availableTags={overview?.availableTags}

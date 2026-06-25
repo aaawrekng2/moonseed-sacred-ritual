@@ -32,6 +32,7 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS, type TimeRange } from "@/lib/insights.types";
+import { useInsightsTimeRange } from "@/lib/use-insights-time-range";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import {
   ConstellationTagsPanel,
@@ -192,7 +193,13 @@ export function CardTraceView({
     ...EMPTY_GLOBAL_FILTERS,
     timeRange: "all",
   });
-  const trendWin = (gFilters.timeRange ?? "all") as TimeRange;
+  // v2.6 — Time-range comes from the SHARED Insights source (same value
+  // the layout's pinned dropdown writes), so the constellation, calendar,
+  // hero badge, and stats all honor whatever range the seeker picks —
+  // whether they touch the pinned layout dropdown or this page's own bar.
+  // gFilters still owns the non-time sections (tags / spreads / depth).
+  const [sharedTimeRange, setSharedTimeRange] = useInsightsTimeRange();
+  const trendWin = sharedTimeRange;
 
   // Q75 — user tags for the filter drawer.
   const [userTags, setUserTags] = useState<
@@ -663,7 +670,7 @@ export function CardTraceView({
                 />
               }
               timeRange={{
-                value: gFilters.timeRange ?? "all",
+                value: sharedTimeRange,
                 options: [
                   { value: "7d", label: "Last 7 days" },
                   { value: "30d", label: "Last 30 days" },
@@ -672,10 +679,9 @@ export function CardTraceView({
                   { value: "365d", label: "Last 365 days" },
                   { value: "all", label: "All time" },
                 ],
-                // EK44 — Functional setter avoids the stale-closure
-                // bug where rapid changes lost updates.
-                onChange: (v) =>
-                  setGFilters((prev) => ({ ...prev, timeRange: v })),
+                // v2.6 — Writes the shared Insights time-range so this
+                // page's bar and the layout's pinned dropdown stay in sync.
+                onChange: (v) => setSharedTimeRange(v as TimeRange),
               }}
               userTags={userTags}
               availableSpreadTypes={data?.availableSpreadTypes}
@@ -691,7 +697,7 @@ export function CardTraceView({
               heroCardId={cid}
               heroCardName={cardName}
               tz={effectiveTz}
-              filters={gFilters}
+              filters={{ ...gFilters, timeRange: sharedTimeRange }}
               mode={constellationMode}
               onModeChange={setConstellationMode}
               calendarState={calendarState}
