@@ -64,6 +64,15 @@ function emptyResult(): CategoryRestoreResult {
 
 // EK142 — restore conflict mode + optional date-range scope.
 export type RestoreMode = "merge" | "overwrite";
+
+// v2.1 — structured progress so the UI can render a live step checklist.
+export type RestoreProgress = {
+  key: string;
+  label: string;
+  pct: number;
+  current?: number;
+  total?: number;
+};
 export type RestoreDateRange = {
   startIso?: string | null;
   endIso?: string | null;
@@ -238,8 +247,10 @@ async function insertRowsMerge(
     | "reading_photos",
   rows: Record<string, unknown>[],
   userId: string,
+  onCount?: (done: number, total: number) => void,
 ): Promise<CategoryRestoreResult> {
   const result = emptyResult();
+  let done = 0;
   for (const raw of rows) {
     const row = { ...raw, user_id: userId };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -255,6 +266,8 @@ async function insertRowsMerge(
       result.failed += 1;
       console.warn(`[restore] ${table} insert failed`, error);
     }
+    done += 1;
+    if (onCount && (done % 25 === 0 || done === rows.length)) onCount(done, rows.length);
   }
   return result;
 }
@@ -299,7 +312,7 @@ export async function executeRestore(params: {
   userId: string;
   mode?: RestoreMode;
   dateRange?: RestoreDateRange;
-  onProgress?: (msg: string, pct: number) => void;
+  onProgress?: (e: RestoreProgress) => void;
 }): Promise<RestoreResult> {
   const {
     zips,
@@ -312,7 +325,7 @@ export async function executeRestore(params: {
   const overwrite = mode === "overwrite";
   const result: RestoreResult = { perCategory: {} };
 
-  onProgress?.("Validating backup…", 0);
+  onProgress?.({ key: "validate", label: "Validating the backup file", pct: 0.02 });
 
   // ---- Validate parts ----
   const manifests: BackupManifestV1[] = [];
@@ -386,7 +399,7 @@ export async function executeRestore(params: {
 
   // ---- Readings ----
   if (wanted.has("readings") && FREE_CATEGORIES.has("readings")) {
-    onProgress?.("Restoring readings…", 0.1);
+    onProgress?.({ key: "readings", label: "Restoring readings", pct: 0.1, current: 0, total: 0 });
     const allRows = await readJson<Record<string, unknown>>(
       part1,
       "readings/readings.json",
@@ -420,16 +433,28 @@ export async function executeRestore(params: {
     // is set, the delete is scoped to the SAME window so readings outside
     // the chosen dates are never erased.
     if (overwrite) {
-      onProgress?.("Clearing current readings…", 0.08);
+      onProgress?.({ key: "clear_readings", label: "Clearing current readings", pct: 0.06 });
       await deleteAllForUser("readings", userId, hasRange ? dateRange : null);
     }
-    result.perCategory.readings = await insertRowsMerge("readings", safeRows, userId);
+    result.perCategory.readings = await insertRowsMerge(
+      "readings",
+      safeRows,
+      userId,
+      (done, total) =>
+        onProgress?.({
+          key: "readings",
+          label: "Restoring readings",
+          pct: 0.1 + (total ? (done / total) * 0.4 : 0),
+          current: done,
+          total,
+        }),
+    );
     if (overwrite) result.perCategory.readings.overwrote = true;
   }
 
   // ---- Preferences (overwrite) ----
   if (wanted.has("preferences")) {
-    onProgress?.("Restoring preferences…", 0.2);
+    onProgress?.({ key: "preferences", label: "Restoring preferences", pct: 0.55 });
     const obj = await readJsonObject<Record<string, unknown>>(
       part1,
       "preferences/preferences.json",
@@ -453,14 +478,14 @@ export async function executeRestore(params: {
 
   // ---- Tags / Streaks / Guides ----
   if (wanted.has("user_tags")) {
-    onProgress?.("Restoring tags…", 0.3);
+    onProgress?.({ key: "tags", label: "Restoring tags", pct: 0.6 });
     const rows = await readJson<Record<string, unknown>>(part1, "user_tags/tags.json");
     if (overwrite) await deleteAllForUser("user_tags", userId);
     result.perCategory.user_tags = await insertRowsMerge("user_tags", rows, userId);
     if (overwrite) result.perCategory.user_tags.overwrote = true;
   }
   if (wanted.has("user_streaks")) {
-    onProgress?.("Restoring streak history…", 0.35);
+    onProgress?.({ key: "streaks", label: "Restoring streak history", pct: 0.66 });
     const rows = await readJson<Record<string, unknown>>(part1, "user_streaks/streaks.json");
     if (overwrite) {
       // Single summary row per user — replace it via upsert.
@@ -484,7 +509,7 @@ export async function executeRestore(params: {
     }
   }
   if (wanted.has("custom_guides")) {
-    onProgress?.("Restoring custom guides…", 0.4);
+    onProgress?.({ key: "guides", label: "Restoring custom guides", pct: 0.7 });
     const rows = await readJson<Record<string, unknown>>(part1, "custom_guides/guides.json");
     if (overwrite) await deleteAllForUser("custom_guides", userId);
     result.perCategory.custom_guides = await insertRowsMerge("custom_guides", rows, userId);
@@ -493,7 +518,7 @@ export async function executeRestore(params: {
 
   // ---- Custom decks ----
   if (wanted.has("custom_decks") && PREMIUM_CATEGORIES.has("custom_decks")) {
-    onProgress?.("Restoring custom decks…", 0.5);
+    onProgress?.({ key: "decks", label: "Restoring custom decks", pct: 0.78 });
     const decks = await readJson<Record<string, unknown>>(part1, "custom_decks/decks.json");
     const deckResult = emptyResult();
 
@@ -501,7 +526,7 @@ export async function executeRestore(params: {
     // decks to respect the foreign key. Old storage objects are left in
     // place (new uploads use fresh paths); they're harmless orphans.
     if (overwrite) {
-      onProgress?.("Clearing current decks…", 0.48);
+      onProgress?.({ key: "clear_decks", label: "Clearing current decks", pct: 0.74 });
       const { error: cardsErr } = await supabase
         .from("custom_deck_cards")
         .delete()
@@ -665,7 +690,7 @@ export async function executeRestore(params: {
 
   // ---- Reading photos ----
   if (wanted.has("reading_photos") && PREMIUM_CATEGORIES.has("reading_photos")) {
-    onProgress?.("Restoring reading photos…", 0.8);
+    onProgress?.({ key: "photos", label: "Restoring reading photos", pct: 0.9 });
     const allPhotos = await readJson<Record<string, unknown>>(
       part1,
       "reading_photos/photos.json",
@@ -683,7 +708,7 @@ export async function executeRestore(params: {
     // EK142 — overwrite: clear current photos first. Scoped to the in-range
     // readings when a date range is set, otherwise all of the user's photos.
     if (overwrite) {
-      onProgress?.("Clearing current photos…", 0.78);
+      onProgress?.({ key: "clear_photos", label: "Clearing current photos", pct: 0.86 });
       if (hasRange && inRangeReadingIds) {
         const ids = [...inRangeReadingIds];
         for (let i = 0; i < ids.length; i += 200) {
@@ -746,6 +771,6 @@ export async function executeRestore(params: {
     result.perCategory.reading_photos = photoResult;
   }
 
-  onProgress?.("Done", 1);
+  onProgress?.({ key: "done", label: "Done", pct: 1 });
   return result;
 }
