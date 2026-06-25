@@ -17,9 +17,12 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   AlertTriangle,
+  ArrowLeft,
   Calendar,
   CheckCircle2,
   Circle,
+  ClipboardCheck,
+  Eye,
   FileUp,
   Loader2,
   Lock,
@@ -45,6 +48,11 @@ import {
 } from "@/lib/backup-categories";
 import { createBackup, type BackupProgress } from "@/lib/backup-export";
 import {
+  analyzeBackup,
+  readInspectParts,
+  type BackupAnalysis,
+} from "@/lib/backup-inspect";
+import {
   executeRestore,
   readBackupManifest,
   countReadingsInRange,
@@ -57,7 +65,7 @@ import { parseIsoDay, endOfDayInTz } from "@/lib/time";
 import { useTimezone } from "@/lib/use-timezone";
 import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
-import { formatDateTime, formatMonthYear } from "@/lib/dates";
+import { formatDateTime, formatMonthYear, formatDateShort } from "@/lib/dates";
 import { PhotoArchive } from "./PhotoArchive";
 import { DeleteDataModal } from "./DeleteDataModal";
 
@@ -130,6 +138,30 @@ export function DataTab() {
     start: string;
     end: string;
   } | null>(null);
+  // v2.3 — Check Data (read-only backup inspector).
+  const checkFileRef = useRef<HTMLInputElement>(null);
+  const [checkBusy, setCheckBusy] = useState(false);
+  const [checkAnalysis, setCheckAnalysis] = useState<BackupAnalysis | null>(
+    null,
+  );
+  const [checkView, setCheckView] = useState<"report" | "browse">("report");
+
+  const handleCheckFiles = async (files: FileList | File[] | null) => {
+    if (!files || (Array.isArray(files) ? files.length : files.length) === 0)
+      return;
+    setCheckBusy(true);
+    try {
+      const parts = await readInspectParts(Array.from(files));
+      const analysis = await analyzeBackup(parts);
+      setCheckAnalysis(analysis);
+      setCheckView("report");
+    } catch (e) {
+      toast.error((e as Error).message || "Couldn't read that file");
+    } finally {
+      setCheckBusy(false);
+      if (checkFileRef.current) checkFileRef.current.value = "";
+    }
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // CS — universal CSV importer (TarotPulse + generic with column mapping)
@@ -606,6 +638,46 @@ export function DataTab() {
       </SettingsSection>
 
       <SettingsSection
+        title="Check data"
+        description="Inspect any backup file before you rely on it. Reads the file only — your account is never touched."
+      >
+        <input
+          ref={checkFileRef}
+          type="file"
+          accept=".zip,application/zip"
+          multiple
+          className="hidden"
+          onChange={(e) => void handleCheckFiles(e.target.files)}
+        />
+        <Button
+          variant="ghost"
+          onClick={() => checkFileRef.current?.click()}
+          disabled={checkBusy}
+          className="w-full justify-start gap-2 sm:w-auto"
+        >
+          {checkBusy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ClipboardCheck className="h-4 w-4" />
+          )}
+          {checkBusy ? "Reading file…" : "Check a backup file"}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          See exactly what's inside — counts, dates, image files — and browse
+          the actual records.
+        </p>
+      </SettingsSection>
+
+      {checkAnalysis && (
+        <CheckDataModal
+          analysis={checkAnalysis}
+          view={checkView}
+          onView={setCheckView}
+          onClose={() => setCheckAnalysis(null)}
+        />
+      )}
+
+      <SettingsSection
         title="Import from another app"
         description="Bring your spread history from any tarot journal."
       >
@@ -1028,7 +1100,11 @@ function RestorePanel({
                   <p className="text-xs text-muted-foreground">
                     Your current data in the selected categories is removed,
                     then replaced with the backup. A full backup of your
-                    current data is saved before anything is erased.
+                    current data is saved to your downloads first.{" "}
+                    <span className="text-foreground">
+                      Verify that backup saved, and run Check Data on it before
+                      proceeding.
+                    </span>
                   </p>
                   <label className="block text-xs text-muted-foreground">
                     Type{" "}
@@ -1132,7 +1208,7 @@ function RestorePanel({
 
         <div className="rounded-lg bg-foreground/5 p-3 text-xs leading-relaxed text-muted-foreground">
           {mode === "overwrite"
-            ? `Your journal now holds ${readingsInserted} reading${readingsInserted === 1 ? "" : "s"}. A safety backup of your previous data was saved to your downloads.`
+            ? `Your journal now holds ${readingsInserted} reading${readingsInserted === 1 ? "" : "s"}. Verify that a backup of your previous data was saved to your downloads, and run Check Data on it before relying on this restore.`
             : `${readingsInserted} reading${readingsInserted === 1 ? "" : "s"} added to your journal. Anything already present was left untouched.`}
           {skippedPremium && (
             <span className="mt-1 block italic">
@@ -1204,6 +1280,295 @@ function RestorePanel({
         style={{ borderColor: "color-mix(in oklab, var(--gold) 22%, transparent)" }}
       >
         {body}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+// v2.3 — Check Data: read-only inspector modal (report + browse).
+function CheckStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span style={{ color: "var(--gold)" }}>{value}</span>
+    </div>
+  );
+}
+
+function CheckDataModal({
+  analysis,
+  view,
+  onView,
+  onClose,
+}: {
+  analysis: BackupAnalysis;
+  view: "report" | "browse";
+  onView: (v: "report" | "browse") => void;
+  onClose: () => void;
+}) {
+  const a = analysis;
+  const has = (c: string) => a.categories.includes(c);
+  const [tab, setTab] = useState<"readings" | "tags" | "decks">("readings");
+
+  const span =
+    a.readings.spanStart && a.readings.spanEnd
+      ? formatMonthYear(a.readings.spanStart) ===
+        formatMonthYear(a.readings.spanEnd)
+        ? formatMonthYear(a.readings.spanStart)
+        : `${formatMonthYear(a.readings.spanStart)} – ${formatMonthYear(a.readings.spanEnd)}`
+      : "—";
+
+  const ROW_CAP = 500;
+  const shownReadings = a.readingRows.slice(0, ROW_CAP);
+
+  const report = (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2">
+        <ClipboardCheck
+          className="mt-0.5 h-5 w-5 shrink-0"
+          style={{ color: "var(--gold)" }}
+        />
+        <div className="min-w-0">
+          <div className="text-lg font-medium">Check data</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {a.fileName} · {formatBytes(a.fileSizeBytes)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Created {a.exportedAt ? formatDateTime(a.exportedAt) : "—"} · schema
+            v{a.schemaVersion}
+            {a.totalParts > 1
+              ? ` · ${a.partsPresent}/${a.totalParts} parts`
+              : ""}
+          </div>
+        </div>
+      </div>
+
+      {has("readings") && (
+        <div className="rounded-lg bg-foreground/5 p-3">
+          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            Readings
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <CheckStat label="Total" value={`${a.readings.total}`} />
+            <CheckStat label="Favorites" value={`${a.readings.favorites}`} />
+            <CheckStat label="Deep readings" value={`${a.readings.deep}`} />
+            <CheckStat label="With photos" value={`${a.readings.withPhotos}`} />
+            <CheckStat
+              label="Distinct cards"
+              value={`${a.readings.distinctCards}`}
+            />
+            <CheckStat label="Reversed" value={`${a.readings.reversed}`} />
+          </div>
+          <div className="mt-2 text-xs italic text-muted-foreground">
+            Span {span}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg bg-foreground/5 p-3">
+        <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+          Everything else
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+          {has("user_tags") && <CheckStat label="Tags" value={`${a.tags}`} />}
+          {has("user_streaks") && (
+            <CheckStat
+              label="Streak"
+              value={a.streakDays != null ? `${a.streakDays} d` : "—"}
+            />
+          )}
+          {has("custom_decks") && (
+            <CheckStat
+              label="Decks"
+              value={`${a.decks.count} · ${a.decks.imageFiles} img`}
+            />
+          )}
+          {has("reading_photos") && (
+            <CheckStat
+              label="Photos"
+              value={`${a.photos.count} · ${a.photos.imageFiles} img`}
+            />
+          )}
+          {has("custom_guides") && (
+            <CheckStat label="Guides" value={`${a.guides}`} />
+          )}
+          {has("preferences") && (
+            <CheckStat
+              label="Preferences"
+              value={a.hasPreferences ? "yes" : "no"}
+            />
+          )}
+        </div>
+      </div>
+
+      {a.integrity.ok ? (
+        <div className="flex flex-col gap-1.5 text-xs">
+          <div className="flex items-center gap-2 text-emerald-500">
+            <CheckCircle2 className="h-4 w-4" />
+            Manifest counts match the files
+          </div>
+          <div className="flex items-center gap-2 text-emerald-500">
+            <CheckCircle2 className="h-4 w-4" />
+            {a.integrity.imageFilesTotal} image file
+            {a.integrity.imageFilesTotal === 1 ? "" : "s"} present, none missing
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+          <div className="mb-1 flex items-center gap-2 text-xs font-medium text-amber-500">
+            <AlertTriangle className="h-4 w-4" />
+            Things to check
+          </div>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+            {a.integrity.issues.map((iss, i) => (
+              <li key={i}>{iss}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <Button onClick={() => onView("browse")} className="flex-1 gap-2">
+          <Eye className="h-4 w-4" />
+          View data
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+
+  const tabs: { id: "readings" | "tags" | "decks"; label: string; show: boolean }[] =
+    [
+      { id: "readings", label: "Readings", show: a.readingRows.length > 0 },
+      { id: "tags", label: "Tags", show: a.tagList.length > 0 },
+      { id: "decks", label: "Decks", show: a.deckList.length > 0 },
+    ];
+  const activeTab = tabs.find((t) => t.id === tab && t.show)
+    ? tab
+    : (tabs.find((t) => t.show)?.id ?? "readings");
+
+  const browse = (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onView("report")}
+          className="text-muted-foreground hover:text-foreground"
+          aria-label="Back to report"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div className="truncate text-sm font-medium">{a.fileName}</div>
+      </div>
+
+      <div className="flex gap-4 border-b border-border/40 pb-2 text-sm italic">
+        {tabs
+          .filter((t) => t.show)
+          .map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={
+                activeTab === t.id
+                  ? "pb-1.5"
+                  : "pb-1.5 text-muted-foreground hover:text-foreground"
+              }
+              style={
+                activeTab === t.id
+                  ? {
+                      color: "var(--gold)",
+                      borderBottom: "1.5px solid var(--gold)",
+                    }
+                  : undefined
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+      </div>
+
+      {activeTab === "readings" && (
+        <div className="flex flex-col gap-2.5">
+          {shownReadings.map((r, i) => (
+            <div
+              key={i}
+              className="border-b border-foreground/5 pb-2 last:border-0"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {r.date ? formatDateShort(r.date) : "—"}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {r.favorite && <span style={{ color: "var(--gold)" }}>★</span>}
+                  {r.deep && <span className="italic">deep</span>}
+                </span>
+              </div>
+              <div className="text-sm">{r.cards.join(" · ")}</div>
+              {r.question && (
+                <div className="text-xs italic text-muted-foreground">
+                  {r.question}
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="pt-1 text-center text-xs text-muted-foreground">
+            {a.readingRows.length > ROW_CAP
+              ? `Showing first ${ROW_CAP} of ${a.readingRows.length} readings`
+              : `${a.readingRows.length} reading${a.readingRows.length === 1 ? "" : "s"}`}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "tags" && (
+        <div className="flex flex-wrap gap-2">
+          {a.tagList.map((t, i) => (
+            <span
+              key={i}
+              className="rounded-full border border-border/50 px-2.5 py-1 text-xs"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {activeTab === "decks" && (
+        <div className="flex flex-col gap-2">
+          {a.deckList.map((d, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between gap-2 border-b border-foreground/5 pb-2 text-sm last:border-0"
+            >
+              <span>{d.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {d.cards} cards
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button variant="ghost" onClick={onClose} className="w-full">
+        Close
+      </Button>
+    </div>
+  );
+
+  return createPortal(
+    <div
+      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: "var(--z-modal)" }}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl"
+        style={{
+          borderColor: "color-mix(in oklab, var(--gold) 22%, transparent)",
+        }}
+      >
+        {view === "report" ? report : browse}
       </div>
     </div>,
     document.body,
