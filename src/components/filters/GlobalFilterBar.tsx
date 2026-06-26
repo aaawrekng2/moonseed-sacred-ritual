@@ -78,6 +78,12 @@ export type GlobalFilterBarProps = {
    * the standard simple list.
    */
   tagsSectionOverride?: React.ReactNode;
+  /** EK74 — Journal: render a control (e.g. a Favorites heart) right
+   *  after the filter icon. Other consumers omit it. */
+  leadingControl?: React.ReactNode;
+  /** EK74 — Journal: show a small count badge on the filter icon
+   *  reflecting the number of active panel filters. Opt-in. */
+  showActiveCount?: boolean;
 };
 
 const STORIES_DEFAULT_VISIBLE = 5;
@@ -98,6 +104,8 @@ export function GlobalFilterBar({
   drawerOpen: controlledOpen,
   onDrawerOpenChange,
   tagsSectionOverride,
+  leadingControl,
+  showActiveCount,
 }: GlobalFilterBarProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled =
@@ -177,15 +185,44 @@ export function GlobalFilterBar({
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1">
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Filters"
-          className="shrink-0 inline-flex items-center justify-center p-1 rounded-md transition-opacity"
-          style={{ color: "var(--color-foreground)", opacity: 0.7 }}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </button>
+        <span className="relative shrink-0 inline-flex">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label={
+              showActiveCount && chips.length > 0
+                ? `Filters, ${chips.length} active`
+                : "Filters"
+            }
+            className="inline-flex items-center justify-center p-1 rounded-md transition-opacity"
+            style={{ color: "var(--color-foreground)", opacity: 0.7 }}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
+          {showActiveCount && chips.length > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute inline-flex items-center justify-center"
+              style={{
+                top: -3,
+                right: -3,
+                minWidth: 15,
+                height: 15,
+                padding: "0 3px",
+                borderRadius: 8,
+                background: "var(--gold)",
+                color: "#1a1205",
+                fontSize: 10,
+                fontWeight: 600,
+                lineHeight: 1,
+              }}
+            >
+              {chips.length}
+            </span>
+          )}
+        </span>
+
+        {leadingControl}
 
         {leadingDropdowns}
 

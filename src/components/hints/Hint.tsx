@@ -142,7 +142,7 @@ export type HintPointerAlign = "start" | "center" | "end";
 
 export type HintProps = {
   hintId: string;
-  text: string;
+  text: React.ReactNode;
   anchorRef: RefObject<HTMLElement | null>;
   position?: HintPosition;
   /** EA-4 — horizontal anchoring of the pointer arrow on top/bottom hints. */
