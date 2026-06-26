@@ -84,6 +84,10 @@ export type GlobalFilterBarProps = {
   /** EK74 — Journal: show a small count badge on the filter icon
    *  reflecting the number of active panel filters. Opt-in. */
   showActiveCount?: boolean;
+  /** v2.10 — Journal: extra section(s) appended to the bottom of the
+   *  filter drawer (e.g. an "Awaiting reflection" status toggle). Other
+   *  consumers omit it. */
+  extraDrawerSections?: React.ReactNode;
 };
 
 const STORIES_DEFAULT_VISIBLE = 5;
@@ -106,6 +110,7 @@ export function GlobalFilterBar({
   tagsSectionOverride,
   leadingControl,
   showActiveCount,
+  extraDrawerSections,
 }: GlobalFilterBarProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled =
@@ -275,6 +280,7 @@ export function GlobalFilterBar({
         availableSpreadTypes={availableSpreadTypes}
         availableMoonPhases={availableMoonPhases}
         tagsSectionOverride={tagsSectionOverride}
+        extraDrawerSections={extraDrawerSections}
       />
     </>
   );
@@ -300,6 +306,7 @@ function FilterDrawer({
   availableSpreadTypes,
   availableMoonPhases,
   tagsSectionOverride,
+  extraDrawerSections,
 }: {
   open: boolean;
   onClose: () => void;
@@ -313,6 +320,8 @@ function FilterDrawer({
   availableMoonPhases?: ReadonlyArray<string>;
   /** EK36 — when provided, replaces the built-in TagsSection. */
   tagsSectionOverride?: React.ReactNode;
+  /** v2.10 — extra section(s) appended below the standard sections. */
+  extraDrawerSections?: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -457,6 +466,7 @@ function FilterDrawer({
                 return null;
             }
           })}
+          {extraDrawerSections}
         </div>
       </aside>
     </>,

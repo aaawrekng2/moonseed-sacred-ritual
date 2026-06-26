@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
+import { CalendarClock, Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -25,6 +25,8 @@ import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { useServerFn } from "@tanstack/react-start";
 import { generateTailoredPrompt } from "@/lib/tailored-prompt.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { useTimezone } from "@/lib/use-timezone";
+import { RevisitSheet } from "@/components/revisits/RevisitSheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -221,6 +223,9 @@ export function EnrichmentPanel({
   const [note, setNote] = useState(reading.note ?? "");
   const [tags, setTags] = useState<string[]>(reading.tags ?? []);
   const [favorite, setFavorite] = useState(reading.is_favorite);
+  // v2.10 — Revisit (schedule-to-resurface / reflect) sheet.
+  const { effectiveTz } = useTimezone();
+  const [revisitOpen, setRevisitOpen] = useState(false);
   // Q14 Fix 6 — transient gold checkmark flashed after Save tap.
   const [savedFlash, setSavedFlash] = useState(false);
   const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -703,6 +708,13 @@ export function EnrichmentPanel({
               <Share2 size={18} strokeWidth={1.5} />
             </IconAction>
           )}
+          <IconAction
+            label="Revisit later"
+            active={false}
+            onClick={() => setRevisitOpen(true)}
+          >
+            <CalendarClock size={18} strokeWidth={1.5} />
+          </IconAction>
           <StoryMembershipIcon readingId={reading.id} userId={reading.user_id} />
         </div>
       </div>
@@ -735,6 +747,12 @@ export function EnrichmentPanel({
       {/* Phase 9.5b — Stamp AQ. Shared in-app camera (PhotoCapture).
           The seeker can also tap "upload a file instead" inside the
           overlay's empty-camera state to fall back to the file picker. */}
+      <RevisitSheet
+        open={revisitOpen}
+        readingId={reading.id}
+        tz={effectiveTz}
+        onClose={() => setRevisitOpen(false)}
+      />
       {cameraOpen && (
         <PhotoCapture
           shape="free"

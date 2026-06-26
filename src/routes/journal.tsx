@@ -4,6 +4,7 @@ import {
   Archive as ArchiveIcon,
   BookOpen,
   Bookmark,
+  CalendarClock,
   CalendarDays,
   Camera,
   Ghost,
@@ -58,6 +59,7 @@ import { ArchiveView } from "@/components/journal/ArchiveView";
 import { archiveReading, daysUntilPurge, restoreReading } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { getDueRevisits } from "@/lib/revisits.functions";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { SearchInput } from "@/components/ui/search-input";
@@ -323,6 +325,42 @@ function JournalPage() {
   // EK74 — Favorites is now a filter (heart quick-toggle beside the
   // funnel), not a tab. Applies across the main list views.
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  // v2.10 — Awaiting reflection: readings with a due revisit. Activated from
+  // the Today line (localStorage handoff) or the filter panel toggle.
+  const [awaitingReflectionOnly, setAwaitingReflectionOnly] = useState(false);
+  const [dueRevisitIds, setDueRevisitIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const fetchDueRevisits = useServerFn(getDueRevisits);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const res = (await fetchDueRevisits({
+          data: { tz },
+          headers,
+        })) as { readingIds: string[] };
+        if (!cancelled) setDueRevisitIds(new Set(res?.readingIds ?? []));
+      } catch {
+        /* ignore */
+      }
+    })();
+    // Today line taps in with this flag set — open straight into the filter.
+    try {
+      if (
+        window.localStorage.getItem("tarotseed:open-awaiting-reflection") === "1"
+      ) {
+        setAwaitingReflectionOnly(true);
+        window.localStorage.removeItem("tarotseed:open-awaiting-reflection");
+      }
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [tz, fetchDueRevisits]);
   const [openId, setOpenId] = useState<string | null>(null);
   // ED-2A — cache for an archived reading opened from the Archive view.
   // Active readings come from `readings`; archived rows are filtered out
@@ -467,6 +505,7 @@ function JournalPage() {
       if (journalFilters.deepOnly && !r.is_deep_reading) return false;
       if (journalFilters.bookmarked && !r.mirror_saved) return false;
       if (favoritesOnly && !r.is_favorite) return false;
+      if (awaitingReflectionOnly && !dueRevisitIds.has(r.id)) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
       if (journalFilters.storyIds.length > 0) {
@@ -493,7 +532,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, journalFilters, activeDate, batchParam, tz, favoritesOnly]);
+  }, [readings, search, journalFilters, activeDate, batchParam, tz, favoritesOnly, awaitingReflectionOnly, dueRevisitIds]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -754,6 +793,37 @@ function JournalPage() {
             userTags={topTags}
             allStories={allStories}
             showActiveCount
+            extraDrawerSections={
+              <div>
+                <h3
+                  className="font-display text-[11px] uppercase tracking-[0.22em] text-gold mb-2"
+                  style={{ opacity: "var(--ro-plus-30, 0.85)" }}
+                >
+                  Status
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAwaitingReflectionOnly((v) => !v)}
+                  aria-pressed={awaitingReflectionOnly}
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] transition-colors"
+                  style={{
+                    border: "1px solid",
+                    borderColor: awaitingReflectionOnly
+                      ? "color-mix(in oklab, var(--gold) 60%, transparent)"
+                      : "var(--border-default)",
+                    color: awaitingReflectionOnly
+                      ? "var(--gold)"
+                      : "var(--color-foreground)",
+                    background: awaitingReflectionOnly
+                      ? "color-mix(in oklab, var(--gold) 12%, transparent)"
+                      : "transparent",
+                  }}
+                >
+                  <CalendarClock size={13} strokeWidth={1.5} />
+                  Awaiting reflection
+                </button>
+              </div>
+            }
             leadingControl={
               <button
                 type="button"
@@ -786,6 +856,18 @@ function JournalPage() {
                   >
                     <Heart size={11} fill="currentColor" strokeWidth={1.5} />
                     Favorites
+                    <XIcon size={11} strokeWidth={1.5} />
+                  </button>
+                )}
+                {awaitingReflectionOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setAwaitingReflectionOnly(false)}
+                    className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+                    style={{ opacity: "var(--ro-plus-20)" }}
+                  >
+                    <CalendarClock size={11} strokeWidth={1.5} />
+                    Awaiting reflection
                     <XIcon size={11} strokeWidth={1.5} />
                   </button>
                 )}

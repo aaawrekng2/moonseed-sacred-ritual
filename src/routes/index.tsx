@@ -12,6 +12,7 @@ import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { CardImage } from "@/components/card/CardImage";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
+import { RevisitTodayLine } from "@/components/revisits/RevisitTodayLine";
 import {
   resolveCountFromMap,
   type SpreadEntryModes,
@@ -889,6 +890,7 @@ function Index() {
             </button>
           </div>
         )}
+        <RevisitTodayLine />
         <div ref={drawTypeRowRef}>
           <SpreadIconsRow
             onSelect={(spread) => {
