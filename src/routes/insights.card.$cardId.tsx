@@ -32,7 +32,7 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS, type TimeRange } from "@/lib/insights.types";
-import { useInsightsTimeRange } from "@/lib/use-insights-time-range";
+import { useInsightsFilters } from "@/lib/use-insights-filters";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import {
   ConstellationTagsPanel,
@@ -193,13 +193,26 @@ export function CardTraceView({
     ...EMPTY_GLOBAL_FILTERS,
     timeRange: "all",
   });
-  // v2.6 — Time-range comes from the SHARED Insights source (same value
-  // the layout's pinned dropdown writes), so the constellation, calendar,
-  // hero badge, and stats all honor whatever range the seeker picks —
-  // whether they touch the pinned layout dropdown or this page's own bar.
-  // gFilters still owns the non-time sections (tags / spreads / depth).
-  const [sharedTimeRange, setSharedTimeRange] = useInsightsTimeRange();
-  const trendWin = sharedTimeRange;
+  // v2.7 — The ENTIRE filter set comes from the SHARED Insights source
+  // (the same values the layout's pinned bar writes), so the
+  // constellation, calendar, hero badge, and stats honor whatever the
+  // seeker picks — tags, spread types, moon phases, depth, reversed, and
+  // time — whether they touch the pinned layout bar or this page's own
+  // bar. gFilters now only carries this page's local tag-panel state
+  // (tagMode); the filter VALUES live in the shared store.
+  const [shared, setShared] = useInsightsFilters();
+  const trendWin = shared.timeRange;
+  // The unified GlobalFilters view fed to the constellation and this
+  // page's own filter bar: shared filter values + local tagMode.
+  const effectiveFilters: GlobalFilters = {
+    ...gFilters,
+    timeRange: shared.timeRange,
+    tags: shared.tags,
+    spreadTypes: shared.spreadTypes,
+    moonPhases: shared.moonPhases,
+    deepOnly: shared.deepOnly,
+    reversedOnly: shared.reversedOnly,
+  };
 
   // Q75 — user tags for the filter drawer.
   const [userTags, setUserTags] = useState<
@@ -247,11 +260,11 @@ export function CardTraceView({
           data: {
             ...DEFAULT_FILTERS,
             timeRange: trendWin,
-            tagIds: gFilters.tags,
-            spreadTypes: gFilters.spreadTypes,
-            moonPhases: gFilters.moonPhases as MoonPhaseName[],
-            deepOnly: gFilters.deepOnly,
-            reversedOnly: gFilters.reversedOnly,
+            tagIds: shared.tags,
+            spreadTypes: shared.spreadTypes,
+            moonPhases: shared.moonPhases as MoonPhaseName[],
+            deepOnly: shared.deepOnly,
+            reversedOnly: shared.reversedOnly,
             tz: effectiveTz,
             cardId: cid,
           },
@@ -268,11 +281,11 @@ export function CardTraceView({
     cid,
     fn,
     trendWin,
-    gFilters.tags,
-    gFilters.spreadTypes,
-    gFilters.moonPhases,
-    gFilters.deepOnly,
-    gFilters.reversedOnly,
+    shared.tags,
+    shared.spreadTypes,
+    shared.moonPhases,
+    shared.deepOnly,
+    shared.reversedOnly,
     effectiveTz,
   ]);
 
@@ -293,11 +306,11 @@ export function CardTraceView({
             tz: effectiveTz,
             filters: {
               timeRange: trendWin,
-              tagIds: gFilters.tags,
-              spreadTypes: gFilters.spreadTypes,
-              moonPhases: gFilters.moonPhases as MoonPhaseName[],
-              deepOnly: gFilters.deepOnly,
-              reversedOnly: gFilters.reversedOnly,
+              tags: shared.tags,
+              spreadTypes: shared.spreadTypes,
+              moonPhases: shared.moonPhases as MoonPhaseName[],
+              deepOnly: shared.deepOnly,
+              reversedOnly: shared.reversedOnly,
             },
           },
           headers,
@@ -319,11 +332,11 @@ export function CardTraceView({
     cid,
     popoverFn,
     trendWin,
-    gFilters.tags,
-    gFilters.spreadTypes,
-    gFilters.moonPhases,
-    gFilters.deepOnly,
-    gFilters.reversedOnly,
+    shared.tags,
+    shared.spreadTypes,
+    shared.moonPhases,
+    shared.deepOnly,
+    shared.reversedOnly,
     effectiveTz,
   ]);
 
@@ -342,11 +355,11 @@ export function CardTraceView({
             cardIds: [cid],
             filters: {
               timeRange: trendWin,
-              tagIds: gFilters.tags,
-              spreadTypes: gFilters.spreadTypes,
-              moonPhases: gFilters.moonPhases as MoonPhaseName[],
-              deepOnly: gFilters.deepOnly,
-              reversedOnly: gFilters.reversedOnly,
+              tags: shared.tags,
+              spreadTypes: shared.spreadTypes,
+              moonPhases: shared.moonPhases as MoonPhaseName[],
+              deepOnly: shared.deepOnly,
+              reversedOnly: shared.reversedOnly,
             },
           },
           headers,
@@ -371,11 +384,11 @@ export function CardTraceView({
     cid,
     drawCountsFn,
     trendWin,
-    gFilters.tags,
-    gFilters.spreadTypes,
-    gFilters.moonPhases,
-    gFilters.deepOnly,
-    gFilters.reversedOnly,
+    shared.tags,
+    shared.spreadTypes,
+    shared.moonPhases,
+    shared.deepOnly,
+    shared.reversedOnly,
   ]);
 
   // EJ64 — `close` now calls the onClose prop instead of hardcoding
@@ -649,19 +662,29 @@ export function CardTraceView({
             }}
           >
             <GlobalFilterBar
-              filters={gFilters}
-              onChange={setGFilters}
+              filters={effectiveFilters}
+              onChange={(next) => {
+                // v2.7 — fly-out values go to the shared store (so the
+                // pinned layout bar stays in sync); tagMode stays local.
+                setShared({
+                  tags: next.tags,
+                  spreadTypes: next.spreadTypes,
+                  moonPhases: next.moonPhases,
+                  deepOnly: next.deepOnly,
+                  reversedOnly: next.reversedOnly,
+                });
+                setGFilters((prev) => ({ ...prev, tagMode: next.tagMode }));
+              }}
               sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
               tagsSectionOverride={
                 <CardTraceTagsBridge
-                  globalFilters={gFilters}
+                  globalFilters={effectiveFilters}
                   onTagToggle={(name) =>
-                    setGFilters((prev) => ({
-                      ...prev,
-                      tags: prev.tags.includes(name)
-                        ? prev.tags.filter((t) => t !== name)
-                        : [...prev.tags, name],
-                    }))
+                    setShared({
+                      tags: shared.tags.includes(name)
+                        ? shared.tags.filter((t) => t !== name)
+                        : [...shared.tags, name],
+                    })
                   }
                   onTagModeChange={(mode) =>
                     setGFilters((prev) => ({ ...prev, tagMode: mode }))
@@ -670,7 +693,7 @@ export function CardTraceView({
                 />
               }
               timeRange={{
-                value: sharedTimeRange,
+                value: shared.timeRange,
                 options: [
                   { value: "7d", label: "Last 7 days" },
                   { value: "30d", label: "Last 30 days" },
@@ -679,9 +702,9 @@ export function CardTraceView({
                   { value: "365d", label: "Last 365 days" },
                   { value: "all", label: "All time" },
                 ],
-                // v2.6 — Writes the shared Insights time-range so this
-                // page's bar and the layout's pinned dropdown stay in sync.
-                onChange: (v) => setSharedTimeRange(v as TimeRange),
+                // v2.7 — Writes the shared Insights filters so this page's
+                // bar and the layout's pinned bar stay in sync.
+                onChange: (v) => setShared({ timeRange: v as TimeRange }),
               }}
               userTags={userTags}
               availableSpreadTypes={data?.availableSpreadTypes}
@@ -697,7 +720,7 @@ export function CardTraceView({
               heroCardId={cid}
               heroCardName={cardName}
               tz={effectiveTz}
-              filters={{ ...gFilters, timeRange: sharedTimeRange }}
+              filters={effectiveFilters}
               mode={constellationMode}
               onModeChange={setConstellationMode}
               calendarState={calendarState}

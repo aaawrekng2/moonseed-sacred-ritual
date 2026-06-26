@@ -28,7 +28,7 @@ import {
   type CardGroupBy,
   type CardSortBy,
 } from "@/lib/insights.types";
-import { useInsightsTimeRange } from "@/lib/use-insights-time-range";
+import { useInsightsFilters } from "@/lib/use-insights-filters";
 import { Dropdown } from "@/components/filters/Dropdown";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
@@ -177,18 +177,25 @@ function InsightsRoute() {
   // See computeStatsLine() below.
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
 
-  // v2.6 — Single shared time-range source. The pinned dropdown writes
-  // here (see below); the CardTrace constellation reads the same value,
-  // so adjusting the range actually filters the per-card surface. This
-  // effect mirrors the shared value into the layout's own `filters` so
-  // the Overview/Cards/Calendar/Stalkers fetches (which read
-  // filters.timeRange) stay in lockstep with the dropdown.
-  const [sharedTimeRange, setSharedTimeRange] = useInsightsTimeRange();
+  // v2.7 — Single shared source for the WHOLE Insights filter set (time
+  // range + tags + spread types + moon phases + depth + reversed). The
+  // pinned bar writes here; the CardTrace constellation reads the same
+  // values, so every filter actually narrows the per-card surface. This
+  // effect mirrors the shared values into the layout's own `filters` so
+  // the Overview/Cards/Calendar/Stalkers fetches (which read `filters`)
+  // stay in lockstep with the bar.
+  const [shared, setShared] = useInsightsFilters();
   useEffect(() => {
-    setFilters((f) =>
-      f.timeRange === sharedTimeRange ? f : { ...f, timeRange: sharedTimeRange },
-    );
-  }, [sharedTimeRange]);
+    setFilters((f) => ({
+      ...f,
+      timeRange: shared.timeRange,
+      tagIds: shared.tags,
+      spreadTypes: shared.spreadTypes,
+      moonPhases: shared.moonPhases as InsightsFilters["moonPhases"],
+      deepOnly: shared.deepOnly,
+      reversedOnly: shared.reversedOnly,
+    }));
+  }, [shared]);
 
   // EK47 — Persisted Count/Streak preference. Shared with Card
   // Trace (which lives at /insights/card/$cardId) so the badge
@@ -303,21 +310,22 @@ function InsightsRoute() {
   }, [userId, filters, overviewFn, stalkerFn, fetchNonce]);
 
   // FU — adapt InsightsFilters ↔ GlobalFilters for the shared bar.
+  // v2.7 — sourced from the shared store so the pinned bar reflects (and
+  // drives) the same values the CardTrace constellation reads.
   const globalFilters: GlobalFilters = {
     ...EMPTY_GLOBAL_FILTERS,
-    timeRange: filters.timeRange,
-    tags: filters.tagIds,
-    spreadTypes: filters.spreadTypes,
-    moonPhases: filters.moonPhases,
-    deepOnly: filters.deepOnly,
-    reversedOnly: filters.reversedOnly,
+    timeRange: shared.timeRange,
+    tags: shared.tags,
+    spreadTypes: shared.spreadTypes,
+    moonPhases: shared.moonPhases,
+    deepOnly: shared.deepOnly,
+    reversedOnly: shared.reversedOnly,
   };
   const handleGlobalChange = (next: GlobalFilters) => {
-    setFilters({
-      ...filters,
-      tagIds: next.tags,
+    setShared({
+      tags: next.tags,
       spreadTypes: next.spreadTypes,
-      moonPhases: next.moonPhases as InsightsFilters["moonPhases"],
+      moonPhases: next.moonPhases,
       deepOnly: next.deepOnly,
       reversedOnly: next.reversedOnly,
     });
@@ -414,7 +422,7 @@ function InsightsRoute() {
             onChange={handleGlobalChange}
             sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
             timeRange={{
-              value: sharedTimeRange,
+              value: shared.timeRange,
               options: [
                 { value: "7d", label: "Last 7 days" },
                 { value: "30d", label: "Last 30 days" },
@@ -423,7 +431,7 @@ function InsightsRoute() {
                 { value: "365d", label: "Last 365 days" },
                 { value: "all", label: "All time" },
               ],
-              onChange: (v) => setSharedTimeRange(v as TimeRange),
+              onChange: (v) => setShared({ timeRange: v as TimeRange }),
             }}
             userTags={userTags}
             availableTags={overview?.availableTags}
@@ -512,7 +520,15 @@ function InsightsRoute() {
                 overview={overview}
                 stalkers={stalkers}
                 filtersActive={hasAnyActive(globalFilters)}
-                onClearFilters={() => setFilters(DEFAULT_FILTERS)}
+                onClearFilters={() =>
+                  setShared({
+                    tags: [],
+                    spreadTypes: [],
+                    moonPhases: [],
+                    deepOnly: false,
+                    reversedOnly: false,
+                  })
+                }
                 onEmptyCta={() => navigate({ to: "/" })}
                 onTapHero={() => setTab("stalkers")}
                 onTapCalendar={() => setTab("calendar")}
@@ -527,7 +543,7 @@ function InsightsRoute() {
                 <TagCloud
                   filters={filters}
                   onTagSelect={(tagId) => {
-                    setFilters((f) => ({ ...f, tagIds: [tagId] }));
+                    setShared({ tags: [tagId] });
                     setTab("cards");
                   }}
                 />
@@ -547,10 +563,9 @@ function InsightsRoute() {
               <MoonPhaseInsightRing
                 filters={filters}
                 onPhaseToggle={(phase: MoonPhaseName) =>
-                  setFilters((f) => ({
-                    ...f,
-                    moonPhases: f.moonPhases[0] === phase ? [] : [phase],
-                  }))
+                  setShared({
+                    moonPhases: shared.moonPhases[0] === phase ? [] : [phase],
+                  })
                 }
               />
               <YearHeatmap filters={filters} />
