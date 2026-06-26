@@ -105,6 +105,25 @@ export function Tabletop({
   const { user: authUser, loading: authLoading } = useAuth();
   const entryToggleRef = useRef<HTMLButtonElement | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
+  // EK74 — Question preview overflow detection. The preview is one line
+  // that reads from the start; only when the text is too wide to fit do
+  // we left-anchor it and fade the right end. Short questions stay
+  // centered with no fade.
+  const questionPreviewRef = useRef<HTMLDivElement | null>(null);
+  const [questionOverflows, setQuestionOverflows] = useState(false);
+  useEffect(() => {
+    const el = questionPreviewRef.current;
+    if (!el) {
+      setQuestionOverflows(false);
+      return;
+    }
+    const check = () =>
+      setQuestionOverflows(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [question]);
   const [showEntryHint, setShowEntryHint] = useState(false);
   const [showCountHint, setShowCountHint] = useState(false);
   useEffect(() => {
@@ -2235,13 +2254,13 @@ export function Tabletop({
           is gone — its handler `handleExit` is now wired to the
           TabletopTopActions overlay rendered as a sibling of the
           TopNav band. */}
-      {/* EK49 — Centered question preview. Was right-aligned with a
-          right-edge fade that caused longer questions to disappear
-          off the right edge of the screen. Now anchored at the same
-          Y but centered horizontally with two-sided fade so it never
-          clips at either edge. */}
+      {/* EK74 — Centered question preview. One line. Short questions sit
+          centered (width shrinks to content). When the text is too wide
+          to fit, it left-anchors so it reads from the start and fades out
+          only at the right end — never clipped at the left. */}
       {question && question.trim().length > 0 && (
         <div
+          ref={questionPreviewRef}
           aria-hidden="true"
           style={{
             position: "absolute",
@@ -2249,20 +2268,25 @@ export function Tabletop({
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 60,
+            width: "fit-content",
             maxWidth: "min(420px, 80vw)",
             whiteSpace: "nowrap",
             overflow: "hidden",
-            textAlign: "center",
+            textAlign: "left",
             pointerEvents: "none",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: "var(--text-caption)",
             color: "var(--color-foreground)",
             opacity: 0.55,
-            WebkitMaskImage:
-              "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
-            maskImage:
-              "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+            ...(questionOverflows
+              ? {
+                  WebkitMaskImage:
+                    "linear-gradient(to right, black calc(100% - 28px), transparent 100%)",
+                  maskImage:
+                    "linear-gradient(to right, black calc(100% - 28px), transparent 100%)",
+                }
+              : {}),
           }}
         >
           {question.trim()}
@@ -2301,26 +2325,57 @@ export function Tabletop({
         >
           <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
-        {(() => {
-          // EJ68 — Count display. For custom spreads, the stepper is
-          // fully interactive (min=1, max=10). For fixed spreads, we
-          // clamp min===max to the spread's count so both chevrons
-          // render as disabled-transparent (opacity 0.3 in the
-          // component) — the count is visible but un-editable.
-          const isCustom = spread === "custom" && onCustomCountChange;
-          const displayCount = isCustom ? (customCount ?? required) : required;
-          return (
-            <CustomCountStepper
-              ref={stepperRef}
-              count={displayCount}
-              onChange={(next) => {
-                if (isCustom && onCustomCountChange) onCustomCountChange(next);
-              }}
-              min={isCustom ? 1 : displayCount}
-              max={isCustom ? 10 : displayCount}
+        {/* EK74 — Count stepper only on Custom spreads, where the
+            chevrons actually change the card count. On fixed spreads the
+            count is implied by the spread, so the non-editable display +
+            inert arrows are removed entirely. */}
+        {spread === "custom" && onCustomCountChange && (
+          <CustomCountStepper
+            ref={stepperRef}
+            count={customCount ?? required}
+            onChange={(next) => {
+              if (onCustomCountChange) onCustomCountChange(next);
+            }}
+            min={1}
+            max={10}
+          />
+        )}
+        {/* EK74 — Switch to Manual Entry, now an icon in the top row
+            (matches the side panel's Manual Entry item). Replaces the
+            former underlined text link below the row. */}
+        {onSwitchToManual && (
+          <button
+            type="button"
+            ref={entryToggleRef}
+            onClick={onSwitchToManual}
+            aria-label="Switch to manual entry"
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            <Keyboard className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
+        {/* EK74 — Add / edit question, beside the manual-entry icon
+            (matches the side panel's "Add a question" item). */}
+        {onOpenQuestion && (
+          <button
+            type="button"
+            onClick={onOpenQuestion}
+            aria-label={
+              question && question.trim().length > 0
+                ? "Edit question"
+                : "Add a question"
+            }
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            <MessageCircle
+              className="h-4 w-4"
+              strokeWidth={1.5}
+              aria-hidden="true"
             />
-          );
-        })()}
+          </button>
+        )}
         <button
           type="button"
           onClick={redo}
@@ -2331,38 +2386,6 @@ export function Tabletop({
         >
           <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
-        {/* EK73 — explicit swap link, floats just below the stepper row.
-            Absolutely positioned so it adds zero flow height and the card
-            scatter does not move. */}
-        {onSwitchToManual && (
-          <button
-            type="button"
-            onClick={onSwitchToManual}
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              right: 0,
-              margin: "0 auto",
-              width: "fit-content",
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: "var(--text-caption)",
-              color: "var(--accent, var(--gold))",
-              textDecoration: "underline",
-              textUnderlineOffset: 3,
-              opacity: restingAlpha,
-              zIndex: 6,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Switch to Manual Entry
-          </button>
-        )}
       </div>
       {showEntryHint && onSwitchToManual && (
         <Hint
