@@ -103,7 +103,7 @@ export function Tabletop({
   // surfaces. The Q5/DZ-2 "manual draw" hint is now anchored to the
   // toggle and lives at the draw-route level.
   const { user: authUser, loading: authLoading } = useAuth();
-  const entryToggleRef = useRef<HTMLButtonElement | null>(null);
+  const entryToggleRef = useRef<HTMLElement | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
   // EK74 — Question preview overflow detection. The preview is one line
   // that reads from the start; only when the text is too wide to fit do
@@ -2340,41 +2340,47 @@ export function Tabletop({
             max={10}
           />
         )}
-        {/* EK74 — Switch to Manual Entry, now an icon in the top row
-            (matches the side panel's Manual Entry item). Replaces the
-            former underlined text link below the row. */}
-        {onSwitchToManual && (
-          <button
-            type="button"
+        {/* EK74 — Manual-entry (keyboard) + add/edit-question (bubble)
+            wrapped in a single inline-flex span. The entry hint anchors
+            to this pair so its pointer centers in the gap BETWEEN the two
+            icons. Same 12px gap as the surrounding row, so spacing is
+            unchanged. */}
+        {(onSwitchToManual || onOpenQuestion) && (
+          <span
             ref={entryToggleRef}
-            onClick={onSwitchToManual}
-            aria-label="Switch to manual entry"
-            style={{ opacity: restingAlpha }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            style={{ display: "inline-flex", alignItems: "center", gap: "12px" }}
           >
-            <Keyboard className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        )}
-        {/* EK74 — Add / edit question, beside the manual-entry icon
-            (matches the side panel's "Add a question" item). */}
-        {onOpenQuestion && (
-          <button
-            type="button"
-            onClick={onOpenQuestion}
-            aria-label={
-              question && question.trim().length > 0
-                ? "Edit question"
-                : "Add a question"
-            }
-            style={{ opacity: restingAlpha }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            <MessageCircle
-              className="h-4 w-4"
-              strokeWidth={1.5}
-              aria-hidden="true"
-            />
-          </button>
+            {onSwitchToManual && (
+              <button
+                type="button"
+                onClick={onSwitchToManual}
+                aria-label="Switch to manual entry"
+                style={{ opacity: restingAlpha }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              >
+                <Keyboard className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            )}
+            {onOpenQuestion && (
+              <button
+                type="button"
+                onClick={onOpenQuestion}
+                aria-label={
+                  question && question.trim().length > 0
+                    ? "Edit question"
+                    : "Add a question"
+                }
+                style={{ opacity: restingAlpha }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              >
+                <MessageCircle
+                  className="h-4 w-4"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+              </button>
+            )}
+          </span>
         )}
         <button
           type="button"
@@ -2390,10 +2396,20 @@ export function Tabletop({
       {showEntryHint && onSwitchToManual && (
         <Hint
           hintId="entry_mode_toggle"
-          text={'Drew elsewhere? Tap "Type" to record cards you already drew.'}
+          text={
+            <>
+              <span style={{ display: "block" }}>
+                Drew elsewhere? Tap the keyboard to record cards you already
+                drew.
+              </span>
+              <span style={{ display: "block", marginTop: 8 }}>
+                Tap the bubble to add or edit your question.
+              </span>
+            </>
+          }
           anchorRef={entryToggleRef}
           position="bottom"
-          pointerAlign="start"
+          pointerAlign="center"
           onDismiss={() => setShowEntryHint(false)}
         />
       )}

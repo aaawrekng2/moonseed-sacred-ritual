@@ -320,6 +320,9 @@ function JournalPage() {
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
+  // EK74 — Favorites is now a filter (heart quick-toggle beside the
+  // funnel), not a tab. Applies across the main list views.
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   // ED-2A — cache for an archived reading opened from the Archive view.
   // Active readings come from `readings`; archived rows are filtered out
@@ -463,6 +466,7 @@ function JournalPage() {
       }
       if (journalFilters.deepOnly && !r.is_deep_reading) return false;
       if (journalFilters.bookmarked && !r.mirror_saved) return false;
+      if (favoritesOnly && !r.is_favorite) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
       if (journalFilters.storyIds.length > 0) {
@@ -489,7 +493,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, journalFilters, activeDate, batchParam, tz]);
+  }, [readings, search, journalFilters, activeDate, batchParam, tz, favoritesOnly]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -749,18 +753,54 @@ function JournalPage() {
             sections={["tags", "spreadTypes", "depth"]}
             userTags={topTags}
             allStories={allStories}
+            showActiveCount
+            leadingControl={
+              <button
+                type="button"
+                onClick={() => setFavoritesOnly((v) => !v)}
+                aria-label={
+                  favoritesOnly ? "Showing favorites only" : "Show favorites only"
+                }
+                aria-pressed={favoritesOnly}
+                className="shrink-0 inline-flex items-center justify-center p-1 rounded-md transition-opacity"
+                style={{
+                  color: favoritesOnly ? "var(--gold)" : "var(--color-foreground)",
+                  opacity: favoritesOnly ? 1 : 0.7,
+                }}
+              >
+                <Heart
+                  className="h-4 w-4"
+                  fill={favoritesOnly ? "currentColor" : "none"}
+                  strokeWidth={1.5}
+                />
+              </button>
+            }
             trailingChips={
-              activeDate ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveDate(null)}
-                  className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
-                  style={{ opacity: "var(--ro-plus-20)" }}
-                >
-                  <XIcon size={11} strokeWidth={1.5} />
-                  {formatDateShort(new Date(activeDate + "T12:00:00").toISOString())}
-                </button>
-              ) : null
+              <>
+                {favoritesOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setFavoritesOnly(false)}
+                    className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+                    style={{ opacity: "var(--ro-plus-20)" }}
+                  >
+                    <Heart size={11} fill="currentColor" strokeWidth={1.5} />
+                    Favorites
+                    <XIcon size={11} strokeWidth={1.5} />
+                  </button>
+                )}
+                {activeDate ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveDate(null)}
+                    className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+                    style={{ opacity: "var(--ro-plus-20)" }}
+                  >
+                    <XIcon size={11} strokeWidth={1.5} />
+                    {formatDateShort(new Date(activeDate + "T12:00:00").toISOString())}
+                  </button>
+                ) : null}
+              </>
             }
           />
 
@@ -773,9 +813,7 @@ function JournalPage() {
                 ["readings", "Readings", BookOpen],
                 ["gallery", "Gallery", ImageIcon],
                 ["notes", "Notes", StickyNote],
-                ["favorites", "Favorites", Heart],
                 ["calendar", "Calendar", CalendarDays],
-                ["threads", "Stories", Network],
                 ["archive", "Archive", ArchiveIcon],
               ] as const
             ).map(([key, label, Icon]) => {
