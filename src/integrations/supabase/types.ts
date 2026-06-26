@@ -1126,6 +1126,53 @@ export type Database = {
           },
         ]
       }
+      reading_revisits: {
+        Row: {
+          created_at: string
+          id: string
+          prompt: string | null
+          reading_id: string
+          reflected_at: string | null
+          reflection: string | null
+          resurface_on: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prompt?: string | null
+          reading_id: string
+          reflected_at?: string | null
+          reflection?: string | null
+          resurface_on: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prompt?: string | null
+          reading_id?: string
+          reflected_at?: string | null
+          reflection?: string | null
+          resurface_on?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_revisits_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       readings: {
         Row: {
           archived_at: string | null
