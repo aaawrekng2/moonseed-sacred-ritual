@@ -12,7 +12,7 @@ import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
 import { HeroCard } from "@/components/insights/HeroCard";
-import { DrawCalendar } from "@/components/insights/DrawCalendar";
+import { OverviewMoonCalendar } from "@/components/insights/OverviewMoonCalendar";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -709,13 +709,10 @@ function OverviewTab({
         stalkers.stalkerCards?.[0]?.appearances &&
         stalkers.stalkerCards[0].appearances.length > 0 && (
           <div className="hidden md:block">
-            <DrawCalendar
+            <OverviewMoonCalendar
               appearances={stalkers.stalkerCards[0].appearances}
+              cardName={stalkers.stalkerCards[0].cardName}
               tz={effectiveTz}
-              monthsBack={Math.min(
-                3,
-                new Set(stalkers.stalkerCards[0].appearances.map((a) => a.date.slice(0, 7))).size,
-              )}
             />
           </div>
         )}
