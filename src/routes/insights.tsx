@@ -778,15 +778,6 @@ function OverviewTab({
         <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={() => log("rhythm")} />
       </div>
 
-      <div className="pt-2 text-center">
-        <a
-          href="/journal"
-          className="text-sm italic"
-          style={{ color: "var(--gold)", opacity: 0.8 }}
-        >
-          See in journal →
-        </a>
-      </div>
     </div>
   );
 }
