@@ -33,6 +33,17 @@ export const getAIFeaturesEnabled = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ enabled: boolean }> => {
     const { supabase: supa, userId } = context;
+    // v2.13 — the admin master AI switch gates everyone. When
+    // admin_settings.ai_enabled_globally is explicitly false, AI is hidden
+    // for every seeker regardless of their per-user grant. Absent/true = on.
+    const { data: gRow } = await supa
+      .from("admin_settings" as never)
+      .select("value")
+      .eq("key", "ai_enabled_globally" as never)
+      .maybeSingle();
+    const gVal = (gRow as { value?: unknown } | null)?.value;
+    const globalOn = !(gVal === false || gVal === "false");
+    if (!globalOn) return { enabled: false };
     // EK51 — DEFAULT-DENY model. AI is hidden for every user unless
     // their `user_preferences.ai_features_enabled` is explicitly
     // `true`. The legacy global flag (`admin_settings.ai_features_default`)

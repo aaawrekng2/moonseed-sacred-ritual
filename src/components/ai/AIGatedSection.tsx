@@ -10,6 +10,7 @@
 import type { ReactNode } from "react";
 import { SectionHeader } from "@/components/insights/StalkerCardsSection";
 import { formatTimeAgo } from "@/lib/dates";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 
 export type AIGatedSectionProps = {
   title: string;
@@ -39,6 +40,13 @@ export function AIGatedSection(props: AIGatedSectionProps) {
     isGenerating,
     children,
   } = props;
+
+  // v2.13 — when the seeker doesn't have AI granted (admin gate), every AI
+  // surface is hidden entirely, not disabled. That includes this section's
+  // Generate button AND any cached AI result. useAIEnabled() returns null
+  // while resolving, so we stay hidden until we know for sure.
+  const aiEnabled = useAIEnabled();
+  if (aiEnabled !== true) return null;
 
   // Reduced-prompt mode: render a single muted line in place of the
   // generate button so the seeker can hide AI affordances entirely
