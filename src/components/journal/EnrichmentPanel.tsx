@@ -40,6 +40,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
+import { usePhase2Enabled } from "@/lib/use-phase2";
 import { useConfirm } from "@/hooks/use-confirm";
 
 /* ---------- Types ---------- */
@@ -263,6 +264,7 @@ export function EnrichmentPanel({
   // photos. The hidden file input remains as a fallback for users on
   // desktops without a camera or who want to upload an existing image.
   const [cameraOpen, setCameraOpen] = useState(false);
+  const phase2Enabled = usePhase2Enabled();
 
   // 9-6-AD — fullscreen photo viewer + delete confirm.
   const [photoViewerSrc, setPhotoViewerSrc] = useState<string | null>(null);
@@ -687,18 +689,20 @@ export function EnrichmentPanel({
           >
             <TagIcon size={18} strokeWidth={1.5} />
           </IconAction>
-          <IconAction
-            label="Add photo"
-            active={hasPhotos}
-            onClick={() => setCameraOpen(true)}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <Loader2 size={18} strokeWidth={1.5} className="animate-spin" />
-            ) : (
-              <Camera size={18} strokeWidth={1.5} />
-            )}
-          </IconAction>
+          {phase2Enabled === true && (
+            <IconAction
+              label="Add photo"
+              active={hasPhotos}
+              onClick={() => setCameraOpen(true)}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <Loader2 size={18} strokeWidth={1.5} className="animate-spin" />
+              ) : (
+                <Camera size={18} strokeWidth={1.5} />
+              )}
+            </IconAction>
+          )}
           {onShare && (
             <IconAction
               label="Share"

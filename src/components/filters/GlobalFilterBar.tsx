@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { SlidersHorizontal, X as XIcon } from "lucide-react";
 import { Dropdown } from "@/components/filters/Dropdown";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import {
   DRAW_TYPE_LABEL,
   DRAW_TYPE_KEYS,
@@ -113,6 +114,12 @@ export function GlobalFilterBar({
   extraDrawerSections,
 }: GlobalFilterBarProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  // v2.16 — the "deep readings only" filter is an AI surface. When AI is off
+  // (global admin switch or no per-user grant), drop the depth section so the
+  // filter disappears everywhere GlobalFilterBar is used.
+  const aiEnabled = useAIEnabled();
+  const effectiveSections =
+    aiEnabled === true ? sections : sections.filter((s) => s !== "depth");
   const isControlled =
     controlledOpen !== undefined && onDrawerOpenChange !== undefined;
   const drawerOpen = isControlled ? (controlledOpen ?? false) : uncontrolledOpen;
@@ -273,7 +280,7 @@ export function GlobalFilterBar({
         onClose={() => setDrawerOpen(false)}
         filters={filters}
         onChange={onChange}
-        sections={sections}
+        sections={effectiveSections}
         userTags={userTags}
         allStories={allStories}
         availableTags={availableTags}

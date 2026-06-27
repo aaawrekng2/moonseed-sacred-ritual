@@ -68,6 +68,7 @@ import { EmptyNote } from "@/components/ui/empty-note";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import { EMPTY_GLOBAL_FILTERS, type GlobalFilters } from "@/lib/filters.types";
 import { useTimezone } from "@/lib/use-timezone";
+import { usePhase2Enabled } from "@/lib/use-phase2";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { useHoverSnooze, applySnooze, clearSnooze, SNOOZE_OPTIONS } from "@/lib/hover-snooze";
@@ -322,6 +323,7 @@ function JournalPage() {
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
+  const phase2Enabled = usePhase2Enabled();
   // EK74 — Favorites is now a filter (heart quick-toggle beside the
   // funnel), not a tab. Applies across the main list views.
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -898,7 +900,9 @@ function JournalPage() {
                 ["calendar", "Calendar", CalendarDays],
                 ["archive", "Archive", ArchiveIcon],
               ] as const
-            ).map(([key, label, Icon]) => {
+            )
+              .filter(([key]) => key !== "gallery" || phase2Enabled === true)
+              .map(([key, label, Icon]) => {
               const active = view === key;
               return (
                 <button

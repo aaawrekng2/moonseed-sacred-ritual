@@ -1539,6 +1539,7 @@ export type Database = {
           oracle_mode: boolean
           outcome_reminder_days: number
           outcome_reminders_enabled: boolean
+          phase2_enabled: boolean
           premium_expires_at: string | null
           premium_months_used: number
           premium_since: string | null
@@ -1630,6 +1631,7 @@ export type Database = {
           oracle_mode?: boolean
           outcome_reminder_days?: number
           outcome_reminders_enabled?: boolean
+          phase2_enabled?: boolean
           premium_expires_at?: string | null
           premium_months_used?: number
           premium_since?: string | null
@@ -1721,6 +1723,7 @@ export type Database = {
           oracle_mode?: boolean
           outcome_reminder_days?: number
           outcome_reminders_enabled?: boolean
+          phase2_enabled?: boolean
           premium_expires_at?: string | null
           premium_months_used?: number
           premium_since?: string | null
