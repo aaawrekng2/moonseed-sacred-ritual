@@ -1966,7 +1966,7 @@ export function OverlapPills({
   );
 }
 
-function OverlapStrip({
+export function OverlapStrip({
   overlap,
   heroCardId,
   pullCardIds,
