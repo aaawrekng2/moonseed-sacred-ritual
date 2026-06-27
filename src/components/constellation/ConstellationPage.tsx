@@ -549,6 +549,10 @@ type ConstellationPageProps = {
   /** EK101 — render the full 78-card clock (Atlas) in place of the
    *  hero+companions web. Everything else on the page is identical. */
   atlasMode?: boolean;
+  /** v2.18 — render inside the Insights › Patterns tab. Drops the
+   *  journal-entry block (question, notes, Save to Journal, backdate)
+   *  and reserves the left column for the pattern chip cluster. */
+  insightsMode?: boolean;
 };
 
 // EK107 — atlas group helpers. An asterism is a list of OR-groups; a day
@@ -750,6 +754,7 @@ function buildAtlasGroupSlot(
 export function ConstellationPage({
   onSwitchToTable,
   atlasMode = false,
+  insightsMode = false,
 }: ConstellationPageProps = {}) {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -4183,6 +4188,7 @@ export function ConstellationPage({
                 width: "100%",
               }}
             >
+              {!insightsMode && (
               <Popover open={dateOpen} onOpenChange={setDateOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -4225,6 +4231,7 @@ export function ConstellationPage({
                   />
                 </PopoverContent>
               </Popover>
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <SmartCardInput
                   positionLabels={[]}
@@ -4940,7 +4947,25 @@ export function ConstellationPage({
               when no picks.
               EK120 — on atlas, lives in the Draw tab. /constellation
               (non-atlas) shows it unconditionally as before. */}
-          {picks.length > 0 && (!atlasMode || atlasTab === "draw") && (
+          {insightsMode && picks.length > 0 && (
+            <div
+              style={{
+                order: 4,
+                marginTop: 12,
+                padding: "20px 0",
+                borderTop: "1px solid var(--border-subtle)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm, 0.85rem)",
+                color: "var(--color-foreground)",
+                opacity: 0.55,
+                textAlign: "center",
+              }}
+            >
+              The pattern cluster for these cards will appear here.
+            </div>
+          )}
+          {picks.length > 0 && (!atlasMode || atlasTab === "draw") && !insightsMode && (
             <div
               style={{
                 order: 4,
