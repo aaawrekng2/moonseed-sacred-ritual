@@ -551,7 +551,7 @@ export function CardPicker({
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto p-3">
-        <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-11 xl:grid-cols-[repeat(13,minmax(0,1fr))]">
+        <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-11 xl:grid-cols-[repeat(14,minmax(0,1fr))]">
           {cards.map(({ idx, name, src: itemSrc }) => {
             const isExcluded = mode === "manual-entry" && excluded.has(idx);
             const isShot = mode === "photography" && photographed.has(idx);

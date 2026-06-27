@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 
 // v2.0 — EK letter scheme retired; the stamp now holds a semantic version
 // string (renders as "v2.0" wherever the pill prepends the v).
-export const APP_VERSION_LETTER = "2.17";
+export const APP_VERSION_LETTER = "2.18";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";

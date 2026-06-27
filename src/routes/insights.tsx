@@ -13,6 +13,7 @@ import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
 import { HeroCard } from "@/components/insights/HeroCard";
 import { OverlapStrip } from "@/components/tabletop/QuickLog";
+import { ConstellationPage } from "@/components/constellation/ConstellationPage";
 import { getQuickLogOverlap, type QuickLogOverlap } from "@/lib/quicklog.functions";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
@@ -73,10 +74,11 @@ export const Route = createFileRoute("/insights")({
 });
 
 // Q52a — Numerology promoted to /numerology; Stories absorbed as a sub-tab.
-type Tab = "overview" | "cards" | "calendar" | "stalkers" | "stories" | "recap";
+type Tab = "overview" | "patterns" | "cards" | "calendar" | "stalkers" | "stories" | "recap";
 
 const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
+  { id: "patterns", label: "Patterns" },
   { id: "cards", label: "Cards" },
   { id: "calendar", label: "Calendar" },
   { id: "stalkers", label: "Stalkers" },
@@ -144,7 +146,7 @@ function InsightsRoute() {
   const moonPrefs = useMoonPrefs();
   const moonEnabled = moonPrefs.moon_features_enabled;
   const initialTab: Tab = (
-    ["overview", "cards", "calendar", "stalkers", "stories", "recap"] as Tab[]
+    ["overview", "patterns", "cards", "calendar", "stalkers", "stories", "recap"] as Tab[]
   ).includes(search.tab as Tab)
     ? (search.tab as Tab)
     : "overview";
@@ -552,6 +554,11 @@ function InsightsRoute() {
                 <QuestionThemesLocked filters={filters} />
               </div>
             </>
+          )}
+          {tab === "patterns" && (
+            <div className="pb-12">
+              <ConstellationPage insightsMode />
+            </div>
           )}
           {tab === "cards" && (
             <div className="flex flex-col gap-8 pb-12">
