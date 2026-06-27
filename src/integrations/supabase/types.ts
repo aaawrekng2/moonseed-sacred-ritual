@@ -1487,6 +1487,7 @@ export type Database = {
           ai_blocked: boolean
           ai_blocked_reason: string | null
           ai_features_enabled: boolean | null
+          phase2_enabled: boolean
           ai_tone: string
           allow_reversed_cards: boolean
           archive_deepening_unlocked: boolean
@@ -1578,6 +1579,7 @@ export type Database = {
           ai_blocked?: boolean
           ai_blocked_reason?: string | null
           ai_features_enabled?: boolean | null
+          phase2_enabled?: boolean
           ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
@@ -1669,6 +1671,7 @@ export type Database = {
           ai_blocked?: boolean
           ai_blocked_reason?: string | null
           ai_features_enabled?: boolean | null
+          phase2_enabled?: boolean
           ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean

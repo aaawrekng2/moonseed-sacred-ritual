@@ -143,6 +143,7 @@ function Index() {
   // EK129 — chosen entry/home back (Signature or a deck's back). Governs
   // both the splash card and the home gateway back.
   const entryBack = useEntryBack();
+  const { effectiveTz } = useTimezone();
   // EK122 — splash entry. The Signature card back shows full-size, back-lit
   // + breathing, over the cosmos. Tapping it shrinks the card into the home
   // gateway slot while the rest of home fades in.
@@ -159,9 +160,21 @@ function Index() {
   useLayoutEffect(() => {
     if (splashShownThisLoad) return;
     if (isSplashDisabled()) return;
+    // v2.16 — show the splash at most once per calendar day in the seeker's
+    // timezone. Any later home-button tap or app reopen the same day skips
+    // straight to the gateway (no re-pop). The "Don't show again" preference
+    // (isSplashDisabled) still wins outright. The date lives under the
+    // `tarotseed:` prefix so Clear Data wipes it and the splash returns.
+    try {
+      const today = nowYmdInTz(currentTzOrFallback(effectiveTz));
+      if (localStorage.getItem("tarotseed:splash-shown-date") === today) return;
+      localStorage.setItem("tarotseed:splash-shown-date", today);
+    } catch {
+      /* localStorage unavailable — fall back to once-per-load behavior. */
+    }
     splashShownThisLoad = true;
     setSplashPhase("showing");
-  }, []);
+  }, [effectiveTz]);
   const [splashTransform, setSplashTransform] = useState("none");
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);
   const splashCardRef = useRef<HTMLDivElement | null>(null);
@@ -362,7 +375,6 @@ function Index() {
       cancelled = true;
     };
   }, [user?.id]);
-  const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
   // CV — Live moon prefs so the master toggle / carousel sub-toggle
   // actually control rendering on the home page.

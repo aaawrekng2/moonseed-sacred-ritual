@@ -332,7 +332,7 @@ export const getSeekerDetail = createServerFn({ method: "GET" })
 
     const { data: prefs } = await supabaseAdmin
       .from("user_preferences" as never)
-      .select("ai_blocked,ai_blocked_reason,is_premium,subscription_type,role,display_name,premium_since")
+      .select("ai_blocked,ai_blocked_reason,is_premium,subscription_type,role,display_name,premium_since,phase2_enabled")
       .eq("user_id", target)
       .maybeSingle();
 
@@ -438,6 +438,31 @@ export const setAiBlocked = createServerFn({ method: "POST" })
         ai_blocked: data.blocked,
         ai_blocked_reason: data.blocked ? data.reason ?? null : null,
       } as never)
+      .eq("user_id", data.userId);
+    return { ok: true };
+  });
+
+/**
+ * Phase 2 per-seeker gate. Admin turns Phase 2 features (Gallery tab,
+ * journal photos, anything wrapped in <Phase2Gate>) on/off for one seeker.
+ * Mirrors setAiBlocked — admin role check, then supabaseAdmin update.
+ */
+export const setPhase2Enabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        enabled: z.boolean(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId: callerId } = context;
+    await assertAdmin(supabase, callerId);
+    await supabaseAdmin
+      .from("user_preferences" as never)
+      .update({ phase2_enabled: data.enabled } as never)
       .eq("user_id", data.userId);
     return { ok: true };
   });

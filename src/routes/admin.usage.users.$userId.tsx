@@ -14,6 +14,7 @@ import {
   grantBonusCredits,
   resetMonthlyQuota,
   setAiBlocked,
+  setPhase2Enabled,
   getUserCreditSummary,
   getUserTrendSeries,
   getUserEmailHistory,
@@ -149,6 +150,7 @@ function SeekerPage() {
   const s = data.seeker;
   const prefs = data.prefs;
   const blocked = !!prefs?.ai_blocked;
+  const phase2On = !!prefs?.phase2_enabled;
 
   const doGrant = async (credits: number, silent = false) => {
     const note = silent
@@ -193,6 +195,15 @@ function SeekerPage() {
     try {
       const headers = await authHeaders();
       await setAiBlocked({ data: { userId, blocked: block, reason: reason ?? undefined }, headers });
+      await reload();
+    } finally { setBusy(null); }
+  };
+  const doPhase2 = async (enabled: boolean) => {
+    if (!confirm(enabled ? "Turn ON Phase 2 features for this seeker?" : "Turn OFF Phase 2 features for this seeker?")) return;
+    setBusy("phase2");
+    try {
+      const headers = await authHeaders();
+      await setPhase2Enabled({ data: { userId, enabled }, headers });
       await reload();
     } finally { setBusy(null); }
   };
@@ -297,6 +308,11 @@ function SeekerPage() {
             <button style={{ ...textLink, color: "var(--destructive, #c25450)" }} onClick={() => doBlock(true)} disabled={busy !== null}>Block AI for this seeker</button>
           ) : (
             <button style={textLink} onClick={() => doBlock(false)} disabled={busy !== null}>Unblock AI</button>
+          )}
+          {!phase2On ? (
+            <button style={textLink} onClick={() => doPhase2(true)} disabled={busy !== null}>Enable Phase 2 features</button>
+          ) : (
+            <button style={{ ...textLink, color: "var(--gold)" }} onClick={() => doPhase2(false)} disabled={busy !== null}>Phase 2 ON · disable</button>
           )}
         </div>
       </section>
