@@ -12,7 +12,9 @@ import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
 import { HeroCard } from "@/components/insights/HeroCard";
-import { OverviewMoonCalendar } from "@/components/insights/OverviewMoonCalendar";
+import { OverlapStrip } from "@/components/tabletop/QuickLog";
+import { getQuickLogOverlap, type QuickLogOverlap } from "@/lib/quicklog.functions";
+import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -616,6 +618,40 @@ function OverviewTab({
   filters: InsightsFilters;
 }) {
   const { effectiveTz } = useTimezone();
+  // v2.12 — the Overview calendar now renders the SAME manual-entry calendar
+  // component (OverlapStrip / grid12), fed the featured card as its hero so
+  // its gold-fill marks that card's draw days. One source of truth.
+  const featuredId =
+    stalkers?.stalkerCards?.[0]?.cardId ?? stalkers?.topCard?.cardId ?? null;
+  const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
+  const [openReadingId, setOpenReadingId] = useState<string | null>(null);
+  const fetchOverlap = useServerFn(getQuickLogOverlap);
+  useEffect(() => {
+    if (featuredId == null) {
+      setOverlap(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const ov = (await fetchOverlap({
+          data: {
+            heroCardId: featuredId,
+            tz: effectiveTz,
+            filters: EMPTY_GLOBAL_FILTERS,
+          },
+          headers,
+        })) as QuickLogOverlap;
+        if (!cancelled) setOverlap(ov);
+      } catch {
+        if (!cancelled) setOverlap(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [featuredId, effectiveTz, fetchOverlap]);
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
   }
@@ -702,20 +738,33 @@ function OverviewTab({
         <HeroCard result={stalkers} onTap={onTapHero} filters={filters} />
       )}
 
-      {/* Q101 #6 — Horizontal 3-month calendar of stalker appearances, desktop only.
-          EJ41 — defensive: every level of the access path can be undefined on
-          partial mobile payloads. */}
-      {stalkers &&
-        stalkers.stalkerCards?.[0]?.appearances &&
-        stalkers.stalkerCards[0].appearances.length > 0 && (
-          <div className="hidden md:block">
-            <OverviewMoonCalendar
-              appearances={stalkers.stalkerCards[0].appearances}
-              cardName={stalkers.stalkerCards[0].cardName}
-              tz={effectiveTz}
-            />
-          </div>
-        )}
+      {/* v2.12 — Overview calendar: the shared manual-entry OverlapStrip
+          (grid12), fed the featured card as hero. Desktop only. */}
+      {overlap && featuredId != null && (
+        <div className="hidden md:block">
+          <OverlapStrip
+            overlap={overlap}
+            heroCardId={featuredId}
+            pullCardIds={[featuredId]}
+            mode="day"
+            onModeChange={() => {}}
+            layout="grid12"
+            monthsToShow={12}
+            showModeToggle={false}
+            showOlder
+            onShowOlderChange={() => {}}
+            onDayClick={(_date, readingIds) => {
+              if (readingIds.length > 0) setOpenReadingId(readingIds[0]);
+            }}
+          />
+        </div>
+      )}
+      {openReadingId && (
+        <ReadingDetailModal
+          readingId={openReadingId}
+          onClose={() => setOpenReadingId(null)}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />

@@ -1966,7 +1966,7 @@ export function OverlapPills({
   );
 }
 
-function OverlapStrip({
+export function OverlapStrip({
   overlap,
   heroCardId,
   pullCardIds,
@@ -3290,7 +3290,6 @@ function PracticeLine({
 // Phase 17 — named re-exports for the standalone /constellation page.
 // Phase 20 Fix 13 — also expose tiles + practice + history banners.
 export {
-  OverlapStrip,
   ChipGrid,
   ThisPullTiles,
   PullHistoryPill,
