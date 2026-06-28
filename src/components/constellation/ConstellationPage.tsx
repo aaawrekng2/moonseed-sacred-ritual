@@ -4956,24 +4956,12 @@ export function ConstellationPage({
               style={{
                 order: 4,
                 marginTop: 12,
-                paddingTop: 20,
-                borderTop: "1px solid var(--border-subtle)",
               }}
             >
               {cardStats ? (
                 <HeroPatternCluster
                   heroCardId={heroPick.cardIndex}
                   heroDeckId={heroPick.deckId ?? undefined}
-                  timeRangeLabel={
-                    {
-                      "7d": "7 days",
-                      "30d": "30 days",
-                      "90d": "90 days",
-                      "180d": "180 days",
-                      "365d": "1 year",
-                      all: "All time",
-                    }[globalFilters.timeRange ?? DEFAULT_TIMEFRAME] ?? "Your data"
-                  }
                   stats={cardStats}
                   drawCounts={drawCounts}
                   tz={effectiveTz}
