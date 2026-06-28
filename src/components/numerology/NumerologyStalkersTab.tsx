@@ -163,15 +163,16 @@ function StalkerEntry({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${stalker.topCards.length}, 1fr)`,
+          gridTemplateColumns: `repeat(${stalker.topCards.length}, 64px)`,
           gap: 12,
           alignItems: "end",
           justifyItems: "center",
+          justifyContent: "center",
         }}
       >
         {stalker.topCards.map(({ cardId, count }) => (
+          <div key={cardId} style={{ width: 64 }}>
           <CardCellWithBadge
-            key={cardId}
             cardId={cardId}
             count={count}
             onClick={() =>
@@ -181,16 +182,18 @@ function StalkerEntry({
               })
             }
           />
+          </div>
         ))}
       </div>
       {/* Labels row — same columns; names wrap freely. */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${stalker.topCards.length}, 1fr)`,
+          gridTemplateColumns: `repeat(${stalker.topCards.length}, 64px)`,
           gap: 12,
           marginTop: 8,
           justifyItems: "center",
+          justifyContent: "center",
           alignItems: "start",
         }}
       >

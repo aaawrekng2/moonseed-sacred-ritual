@@ -432,18 +432,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {mode === "singles" && selectedSingle ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-2/5 max-w-[200px] mx-auto">
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({ to: "/insights/card/$cardId", params: { cardId: String(selectedSingle.cardId) } })
-                }
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block", width: "100%" }}
-                aria-label={`View Card Trace for ${selectedSingle.cardName}`}
-              >
-                <CardImage cardId={selectedSingle.cardId} size="hero" style={{ width: "100%", minHeight: 0 }} />
-              </button>
-            </div>
             <div className="w-full max-w-[560px] text-center">
               <h3 className="text-base font-serif italic mb-2">{selectedSingle.cardName}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -529,18 +517,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {mode === "reversed" && selectedReversed ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-2/5 max-w-[200px] mx-auto">
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({ to: "/insights/card/$cardId", params: { cardId: String(selectedReversed.cardId) } })
-                }
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block", width: "100%" }}
-                aria-label={`View Card Trace for ${selectedReversed.cardName}`}
-              >
-                <CardImage cardId={selectedReversed.cardId} size="hero" reversed style={{ width: "100%", minHeight: 0 }} />
-              </button>
-            </div>
             <div className="w-full max-w-[560px] text-center">
               <h3 className="text-base font-serif italic mb-2">{selectedReversed.cardName} (reversed)</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
