@@ -76,6 +76,7 @@ export type QuickLogJournalRow = {
   cardIds: number[];
   tags: string[];
   isDeepReading: boolean;
+  moonPhase: string | null;
 };
 
 export type QuickLogCardStats = {
@@ -219,6 +220,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
         cardIds: r.card_ids ?? [],
         tags: r.tags ?? [],
         isDeepReading: r.is_deep_reading ?? false,
+        moonPhase: r.moon_phase ?? null,
       })),
     };
   });

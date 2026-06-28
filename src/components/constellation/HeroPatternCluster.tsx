@@ -1,31 +1,30 @@
-import { useMemo, useState } from "react";
-import { CardImage } from "@/components/card/CardImage";
+import { useMemo } from "react";
 import { getCardName } from "@/lib/tarot";
 import { getCardMeta } from "@/lib/card-astrology";
 import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
 import { formatTimeAgo, formatDateShort } from "@/lib/dates";
-import { hourInTz } from "@/lib/time";
+import { hourInTz, dayOfWeekInTz } from "@/lib/time";
 import type { QuickLogCardStats, CardDrawCounts } from "@/lib/quicklog.functions";
 
 // ── State A hero pattern cluster ─────────────────────────────────────
 // Single-card lens for the Insights › Patterns left block. Every value
 // computes from data already in hand (getQuickLogCardStats + drawCounts
-// + static card metadata). Hover-first: a calm value on the face, a hint
-// + example on hover (native title for this first pass). Thin history
-// shows "still gathering" instead of a fabricated number.
+// + static card metadata). Hover-first: a calm value on the face, an
+// enriched breakdown on hover (native title). Thin history shows
+// "still gathering" instead of a fabricated number.
 
 type Props = {
   heroCardId: number;
   heroDeckId?: string | null;
-  timeRangeLabel: string;
   stats: QuickLogCardStats;
   drawCounts: CardDrawCounts | null;
   tz: string;
 };
 
 const STILL = "still gathering";
-
 const DAY = 86400000;
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 function daysAgo(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / DAY));
 }
@@ -34,33 +33,32 @@ function ordinal(n: number): string {
   const v = n % 100;
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
-function pluralCard(name: string): string {
-  return /s$/i.test(name) ? name : name + "s";
+// "a 12, b 7, c 3" from sorted [label, count] entries.
+function listCounts(entries: Array<[string, number]>, n = 6): string {
+  return entries
+    .slice(0, n)
+    .map(([k, c]) => `${k} ${c}`)
+    .join(", ");
 }
 
 type ChipModel = {
   label: string;
   value: React.ReactNode;
   hint: string;
+  accent?: boolean;
 };
 
 export function HeroPatternCluster({
   heroCardId,
-  heroDeckId,
-  timeRangeLabel,
   stats,
   drawCounts,
   tz,
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
-
-  const heroName = getCardName(heroCardId);
   const meta = getCardMeta(heroCardId);
   const meaning = TAROT_MEANINGS[heroCardId] ?? null;
   const count = stats.count;
   const enough = count >= 2;
 
-  // Sorted ascending timestamps for this card's appearances.
   const tsAsc = useMemo(
     () =>
       [...stats.journal]
@@ -70,8 +68,8 @@ export function HeroPatternCluster({
     [stats.journal],
   );
 
-  const { flag, chips, sparkPoints } = useMemo(() => {
-    // ── derived temporal values ──
+  const { chips, sparkPoints } = useMemo(() => {
+    // ── temporal ──
     let cadenceDays: number | null = null;
     if (tsAsc.length >= 2) {
       const span = (tsAsc[tsAsc.length - 1] - tsAsc[0]) / DAY;
@@ -88,7 +86,7 @@ export function HeroPatternCluster({
       ? stats.journal[stats.journal.length - 1].createdAt
       : null;
 
-    // ── trend (older half vs newer half) + monthly sparkline ──
+    // ── trend + sparkline ──
     let trendWord = STILL;
     const points: number[] = [];
     if (tsAsc.length >= 2) {
@@ -112,66 +110,85 @@ export function HeroPatternCluster({
       else trendWord = "steady";
     }
 
-    // ── time of day ──
-    const tod = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+    // ── weekday full split (client, tz-aware) ──
+    const wd = new Array(7).fill(0);
+    for (const t of tsAsc) wd[dayOfWeekInTz(new Date(t), tz)]++;
+    const wdList = wd
+      .map((c, i) => [`${WEEKDAYS[i]}s`, c] as [string, number])
+      .filter(([, c]) => c > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    // ── time of day full split ──
+    const tod = { Mornings: 0, Afternoons: 0, Evenings: 0, "Late night": 0 };
     for (const t of tsAsc) {
       const h = hourInTz(new Date(t), tz);
-      if (h >= 5 && h <= 11) tod.morning++;
-      else if (h >= 12 && h <= 16) tod.afternoon++;
-      else if (h >= 17 && h <= 21) tod.evening++;
-      else tod.night++;
+      if (h >= 5 && h <= 11) tod.Mornings++;
+      else if (h >= 12 && h <= 16) tod.Afternoons++;
+      else if (h >= 17 && h <= 21) tod.Evenings++;
+      else tod["Late night"]++;
     }
-    const todTop = (Object.entries(tod) as Array<[string, number]>).sort(
-      (a, b) => b[1] - a[1],
-    )[0];
-    const todLabel: Record<string, string> = {
-      morning: "Mornings",
-      afternoon: "Afternoons",
-      evening: "Evenings",
-      night: "Late night",
-    };
+    const todList = (Object.entries(tod) as Array<[string, number]>)
+      .filter(([, c]) => c > 0)
+      .sort((a, b) => b[1] - a[1]);
 
-    // ── tag signature ──
+    // ── moon phase full split (client, from passthrough) ──
+    const moonFreq = new Map<string, number>();
+    for (const r of stats.journal)
+      if (r.moonPhase) moonFreq.set(r.moonPhase, (moonFreq.get(r.moonPhase) ?? 0) + 1);
+    const moonList = [...moonFreq.entries()].sort((a, b) => b[1] - a[1]);
+
+    // ── tags full freq ──
     const tagFreq = new Map<string, number>();
     for (const r of stats.journal)
       for (const tg of r.tags ?? []) tagFreq.set(tg, (tagFreq.get(tg) ?? 0) + 1);
-    const topTag = [...tagFreq.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+    const tagList = [...tagFreq.entries()].sort((a, b) => b[1] - a[1]);
 
-    // ── position pattern ──
+    // ── position ──
     const posFreq = new Map<number, number>();
     for (const r of stats.journal) {
       const idx = (r.cardIds ?? []).indexOf(heroCardId);
       if (idx >= 0) posFreq.set(idx, (posFreq.get(idx) ?? 0) + 1);
     }
-    const topPos = [...posFreq.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+    const posList = [...posFreq.entries()].sort((a, b) => b[1] - a[1]);
+    const topPos = posList[0] ?? null;
 
-    // ── deep-read rate ──
+    // ── deep read ──
     const deepCount = stats.journal.filter((r) => r.isDeepReading).length;
 
-    // ── numerology / astrology window neighbours ──
-    let sameNumber = 0;
-    let sameElement = 0;
+    // ── numerology / astrology matching cards (by name) ──
+    const sameNumberCards: Array<[string, number]> = [];
+    const sameElementCards: Array<[string, number]> = [];
     if (drawCounts?.perCard) {
       for (const [idStr, c] of Object.entries(drawCounts.perCard)) {
         const id = Number(idStr);
         if (c <= 0 || id === heroCardId) continue;
         const m = getCardMeta(id);
         if (!m) continue;
-        if (meta?.root != null && m.root === meta.root) sameNumber++;
-        if (meta?.element && m.element === meta.element) sameElement++;
+        if (meta?.root != null && m.root === meta.root)
+          sameNumberCards.push([getCardName(id), c]);
+        if (meta?.element && m.element === meta.element)
+          sameElementCards.push([getCardName(id), c]);
       }
+      sameNumberCards.sort((a, b) => b[1] - a[1]);
+      sameElementCards.sort((a, b) => b[1] - a[1]);
     }
 
-    // ── flag (one, by priority) ──
-    let flagModel: { label: string; value: string } | null = null;
+    // ── flag (one, by priority) → first chip ──
+    let flagChip: ChipModel | null = null;
     if (count === 0) {
-      flagModel = { label: "Ghost", value: "Not drawn in this window" };
-    } else if (
-      firstIso &&
-      daysAgo(firstIso) <= 30 &&
-      count <= 2
-    ) {
-      flagModel = { label: "New", value: "New to your records" };
+      flagChip = {
+        label: "Ghost",
+        value: "Not drawn",
+        hint: "This card hasn't appeared at all in the current window.",
+        accent: true,
+      };
+    } else if (firstIso && daysAgo(firstIso) <= 30 && count <= 2) {
+      flagChip = {
+        label: "New",
+        value: "New to you",
+        hint: `First appears ${daysAgo(firstIso)} days ago — new to your records this window.`,
+        accent: true,
+      };
     } else if (
       enough &&
       cadenceDays != null &&
@@ -180,19 +197,29 @@ export function HeroPatternCluster({
       stats.lastSeenAt != null &&
       daysAgo(stats.lastSeenAt) <= 30
     ) {
-      flagModel = {
+      flagChip = {
         label: "Comeback",
-        value: `Returned after ${lastGap} days away`,
+        value: `Back after ${lastGap}d`,
+        hint: `Returned after ${lastGap} days away — its usual rhythm is about every ${cadenceDays} days.`,
+        accent: true,
       };
     } else if (
       (stats.frequencyRank != null && stats.frequencyRank <= 5) ||
       count >= 10
     ) {
-      flagModel = { label: "Lesson card", value: "Keeps returning to you" };
+      flagChip = {
+        label: "Lesson card",
+        value: "Keeps returning",
+        hint: `One of your most-drawn cards${
+          stats.frequencyRank ? ` — ranked #${stats.frequencyRank} of ${stats.totalDistinctCards}` : ""
+        }. A recurring lesson.`,
+        accent: true,
+      };
     }
 
     // ── chips ──
     const c: ChipModel[] = [];
+    if (flagChip) c.push(flagChip);
 
     c.push({
       label: "Frequency",
@@ -200,38 +227,35 @@ export function HeroPatternCluster({
         count === 0
           ? STILL
           : `${count} ${count === 1 ? "pull" : "pulls"}${
-              stats.frequencyRank
-                ? ` · #${stats.frequencyRank} of ${stats.totalDistinctCards}`
-                : ""
+              stats.frequencyRank ? ` · #${stats.frequencyRank} of ${stats.totalDistinctCards}` : ""
             }`,
-      hint: `How often you've drawn this card, and its rank among the cards you draw. ${count} ${
-        count === 1 ? "pull" : "pulls"
-      } this window.`,
+      hint:
+        count === 0
+          ? "No pulls of this card in the window yet."
+          : `Drawn ${count} times this window${
+              stats.frequencyRank
+                ? `, your #${stats.frequencyRank} most-drawn of ${stats.totalDistinctCards} cards.`
+                : "."
+            }`,
     });
 
     c.push({
       label: "Last seen",
       value: stats.lastSeenAt
-        ? `${formatTimeAgo(stats.lastSeenAt)}${
-            cadenceDays ? ` · ≈ every ${cadenceDays}d` : ""
-          }`
+        ? `${formatTimeAgo(stats.lastSeenAt)}${cadenceDays ? ` · ≈ every ${cadenceDays}d` : ""}`
         : STILL,
       hint: stats.lastSeenAt
-        ? `When you last drew it${
-            cadenceDays ? `, and roughly how often it visits — about every ${cadenceDays} days.` : "."
+        ? `Last drawn ${daysAgo(stats.lastSeenAt)} days ago${
+            cadenceDays ? `; on average it visits about every ${cadenceDays} days.` : "."
           }`
         : "Draw it again to start a cadence.",
     });
 
     c.push({
       label: "First seen",
-      value: firstIso
-        ? `${formatDateShort(firstIso)} · ${daysAgo(firstIso)}d ago`
-        : STILL,
+      value: firstIso ? `${formatDateShort(firstIso)} · ${daysAgo(firstIso)}d ago` : STILL,
       hint: firstIso
-        ? `The earliest this card appears in your records — ${daysAgo(
-            firstIso,
-          )} days ago.`
+        ? `Earliest in your records this window — ${formatDateShort(firstIso)}, ${daysAgo(firstIso)} days ago.`
         : "No appearances yet in this window.",
     });
 
@@ -240,8 +264,8 @@ export function HeroPatternCluster({
       value: stats.topDayOfWeek
         ? `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`
         : STILL,
-      hint: stats.topDayOfWeek
-        ? `The day of the week it tends to land on — ${stats.topDayOfWeek.day}s, ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total} pulls.`
+      hint: wdList.length
+        ? `Full split — ${listCounts(wdList)}.`
         : "Not enough pulls to see a weekday pattern.",
     });
 
@@ -250,23 +274,17 @@ export function HeroPatternCluster({
       value: stats.topMoonPhase
         ? `${stats.topMoonPhase.phase} · ${stats.topMoonPhase.count} of ${stats.topMoonPhase.total}`
         : STILL,
-      hint: stats.topMoonPhase
-        ? `The lunar phase you most often draw it under — a ${stats.topMoonPhase.phase} moon, ${stats.topMoonPhase.count} of ${stats.topMoonPhase.total}.`
+      hint: moonList.length
+        ? `Full split — ${listCounts(moonList)}.`
         : "Not enough pulls to see a moon pattern.",
     });
 
     c.push({
       label: "Time of day",
-      value:
-        todTop && todTop[1] > 0
-          ? `${todLabel[todTop[0]]} · ${todTop[1]} of ${count}`
-          : STILL,
-      hint:
-        todTop && todTop[1] > 0
-          ? `The hours you tend to pull it — ${todLabel[
-              todTop[0]
-            ].toLowerCase()}, ${todTop[1]} of ${count}.`
-          : "Not enough pulls to see a time-of-day pattern.",
+      value: todList.length ? `${todList[0][0]} · ${todList[0][1]} of ${count}` : STILL,
+      hint: todList.length
+        ? `Full split — ${listCounts(todList)}.`
+        : "Not enough pulls to see a time-of-day pattern.",
     });
 
     c.push({
@@ -284,11 +302,9 @@ export function HeroPatternCluster({
       hint:
         count === 0
           ? "No pulls yet to measure reversals."
-          : `How often it arrives reversed (${Math.round(
+          : `Reversed ${stats.reversedCount} of ${count} (${Math.round(
               (stats.reversedCount / count) * 100,
-            )}%), against your overall ${Math.round(
-              stats.seekerReversedRate * 100,
-            )}% rate.`,
+            )}%), vs your ${Math.round(stats.seekerReversedRate * 100)}% overall rate.`,
     });
 
     c.push({
@@ -296,15 +312,15 @@ export function HeroPatternCluster({
       value:
         meta?.cardNumber != null && meta?.root != null
           ? `${meta.cardNumber} → ${meta.root}${
-              sameNumber > 0 ? ` · ${sameNumber} more ${meta.root}s` : ""
+              sameNumberCards.length ? ` · ${sameNumberCards.length} more ${meta.root}s` : ""
             }`
           : meta?.rankLabel ?? STILL,
       hint:
         meta?.root != null
-          ? `Its number reduces to ${meta.root}${
-              sameNumber > 0
-                ? ` — and ${sameNumber} other ${meta.root}-cards drawn this window.`
-                : "."
+          ? `Reduces to ${meta.root}.${
+              sameNumberCards.length
+                ? ` Other ${meta.root}-cards you've drawn — ${listCounts(sameNumberCards)}.`
+                : ""
             }`
           : "A court card — no numeric reduction.",
     });
@@ -313,41 +329,41 @@ export function HeroPatternCluster({
       label: "Astrology",
       value: meta
         ? `${meta.planetOrSign ?? meta.element}${
-            sameElement > 0 ? ` · ${sameElement} ${meta.element.toLowerCase()}` : ""
+            sameElementCards.length ? ` · ${sameElementCards.length} ${meta.element.toLowerCase()}` : ""
           }`
         : STILL,
       hint: meta
-        ? `${meta.planetOrSign ? `${meta.planetOrSign}-ruled` : meta.element}${
-            sameElement > 0
-              ? ` — ${sameElement} other ${meta.element.toLowerCase()}-element cards this window.`
-              : "."
+        ? `${meta.planetOrSign ? `${meta.planetOrSign}-ruled, ` : ""}${meta.element} element.${
+            sameElementCards.length
+              ? ` Other ${meta.element.toLowerCase()} cards you've drawn — ${listCounts(sameElementCards)}.`
+              : ""
           }`
         : "No astrological mapping for this card.",
     });
 
-    {
-      const top = stats.companions[0] ?? null;
-      c.push({
-        label: "Top companion",
-        value: top ? `${getCardName(top.cardId)} · ${top.count}×` : STILL,
-        hint: top
-          ? `The card it co-draws with most — ${getCardName(top.cardId)}, ${top.count} times.`
-          : "No co-draws yet in this window.",
-      });
-    }
+    c.push({
+      label: "Top companion",
+      value: stats.companions[0]
+        ? `${getCardName(stats.companions[0].cardId)} · ${stats.companions[0].count}×`
+        : STILL,
+      hint: stats.companions.length
+        ? `Most-drawn alongside — ${listCounts(
+            stats.companions.map((co) => [getCardName(co.cardId), co.count] as [string, number]),
+          )}.`
+        : "No co-draws yet in this window.",
+    });
 
     {
       const yn = meaning?.yesNo ?? "maybe";
       c.push({
         label: "Yes / No",
-        value:
-          yn === "yes" ? "Leans Yes" : yn === "no" ? "Leans No" : "Either way",
+        value: yn === "yes" ? "Leans Yes" : yn === "no" ? "Leans No" : "Either way",
         hint:
           yn === "yes"
-            ? `${heroName} leans Yes in a yes/no question.`
+            ? "Leans Yes in a yes/no question — reversed, it flips toward No."
             : yn === "no"
-            ? `${heroName} leans No in a yes/no question.`
-            : `${heroName} could go either way — read the surrounding cards.`,
+            ? "Leans No in a yes/no question — reversed, it flips toward Yes."
+            : "Could go either way — upright leans Yes, reversed leans No.",
       });
     }
 
@@ -355,7 +371,7 @@ export function HeroPatternCluster({
       label: "Trend",
       value: enough ? trendWord : STILL,
       hint: enough
-        ? `Whether it's rising or fading over time — currently ${trendWord}.`
+        ? `Drawn over time it's ${trendWord} — the sparkline tracks pulls per period across the window.`
         : "Draw it a few more times to see a trend.",
     });
 
@@ -364,27 +380,25 @@ export function HeroPatternCluster({
       value: longestGap != null ? `${longestGap} days` : STILL,
       hint:
         longestGap != null
-          ? `The longest it's gone unseen between pulls — ${longestGap} days.`
+          ? `The longest stretch it went unseen between pulls — ${longestGap} days.`
           : "Not enough pulls to measure a silence.",
     });
 
     c.push({
       label: "Tag signature",
-      value: topTag ? `"${topTag[0]}" · ${topTag[1]}×` : STILL,
-      hint: topTag
-        ? `The tag you most attach when this card shows — "${topTag[0]}", ${topTag[1]} times.`
+      value: tagList.length ? `"${tagList[0][0]}" · ${tagList[0][1]}×` : STILL,
+      hint: tagList.length
+        ? `Your tags on its readings — ${listCounts(tagList)}.`
         : "No tags on its readings yet.",
     });
 
     c.push({
       label: "Position",
-      value: topPos
-        ? `Often ${ordinal(topPos[0] + 1)} · ${topPos[1]} of ${count}`
-        : STILL,
-      hint: topPos
-        ? `Which spread slot it tends to land in — the ${ordinal(
-            topPos[0] + 1,
-          )} card, ${topPos[1]} of ${count}.`
+      value: topPos ? `Often ${ordinal(topPos[0] + 1)} · ${topPos[1]} of ${count}` : STILL,
+      hint: posList.length
+        ? `Where it lands in the spread — ${listCounts(
+            posList.map(([p, cc]) => [ordinal(p + 1), cc] as [string, number]),
+          )}.`
         : "Not enough pulls to see a position pattern.",
     });
 
@@ -394,101 +408,27 @@ export function HeroPatternCluster({
       hint:
         count === 0
           ? "No pulls yet to measure."
-          : `How often you took it into a deep reading — ${deepCount} of ${count}.`,
+          : `Taken into a deep reading ${deepCount} of ${count} times.`,
     });
 
-    return { flag: flagModel, chips: c, sparkPoints: points };
-  }, [
-    tsAsc,
-    stats,
-    drawCounts,
-    heroCardId,
-    heroName,
-    meta,
-    meaning,
-    count,
-    enough,
-    tz,
-  ]);
+    // ── keywords chip ──
+    const upright = meaning?.uprightKeywords ?? [];
+    const reversed = meaning?.reversedKeywords ?? [];
+    if (upright.length || reversed.length) {
+      c.push({
+        label: "Keywords",
+        value: upright.length ? upright.join(", ") : reversed.join(", "),
+        hint: `${upright.length ? `Upright — ${upright.join(", ")}.` : ""}${
+          reversed.length ? ` Reversed — ${reversed.join(", ")}.` : ""
+        }`,
+      });
+    }
 
-  const upright = meaning?.uprightKeywords ?? [];
-  const reversed = meaning?.reversedKeywords ?? [];
+    return { chips: c, sparkPoints: points };
+  }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz]);
 
   return (
     <div style={{ width: "100%" }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 12,
-        }}
-      >
-        <CardImage
-          variant="face"
-          cardId={heroCardId}
-          deckId={heroDeckId ?? undefined}
-          size="custom"
-          widthPx={34}
-        />
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          {timeRangeLabel} of data on{" "}
-          <span style={{ color: "var(--accent, var(--gold))" }}>{heroName}</span>
-        </div>
-      </div>
-
-      {/* Flag chip (conditional) */}
-      {flag && (
-        <div
-          title={flag.value}
-          style={{
-            border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-            background:
-              "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
-            borderRadius: 6,
-            padding: "7px 11px",
-            marginBottom: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 1,
-            cursor: "help",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              letterSpacing: "0.14em",
-              fontStyle: "italic",
-              fontFamily: "var(--font-serif)",
-              color: "var(--accent, var(--gold))",
-              textTransform: "uppercase",
-              opacity: 0.85,
-            }}
-          >
-            {flag.label}
-          </span>
-          <span
-            style={{
-              fontSize: 13,
-              fontStyle: "italic",
-              fontFamily: "var(--font-serif)",
-              color: "var(--color-foreground)",
-            }}
-          >
-            {flag.value}
-          </span>
-        </div>
-      )}
-
-      {/* Chip grid (responsive ~4 cols) */}
       <div
         style={{
           display: "grid",
@@ -501,8 +441,12 @@ export function HeroPatternCluster({
             key={chip.label}
             title={chip.hint}
             style={{
-              border: "1px solid var(--border-subtle)",
-              background: "var(--surface-elevated, var(--surface-card))",
+              border: chip.accent
+                ? "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)"
+                : "1px solid var(--border-subtle)",
+              background: chip.accent
+                ? "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)"
+                : "var(--surface-elevated, var(--surface-card))",
               borderRadius: 6,
               padding: "6px 10px",
               minHeight: 40,
@@ -521,7 +465,7 @@ export function HeroPatternCluster({
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 color: "var(--accent, var(--gold))",
-                opacity: 0.8,
+                opacity: chip.accent ? 0.85 : 0.8,
                 textTransform: "uppercase",
               }}
             >
@@ -550,124 +494,6 @@ export function HeroPatternCluster({
           </div>
         ))}
       </div>
-
-      {/* Keyword strip */}
-      {(upright.length > 0 || reversed.length > 0) && (
-        <div
-          style={{
-            marginTop: 14,
-            paddingTop: 12,
-            borderTop: "1px solid var(--border-subtle)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-              alignItems: "center",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 9,
-                letterSpacing: "0.14em",
-                fontStyle: "italic",
-                fontFamily: "var(--font-serif)",
-                color: "var(--color-foreground-muted)",
-                textTransform: "uppercase",
-                marginRight: 4,
-              }}
-            >
-              Keywords
-            </span>
-            {upright.map((k) => (
-              <span
-                key={`u-${k}`}
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  fontFamily: "var(--font-serif)",
-                  color: "var(--background)",
-                  background: "var(--accent, var(--gold))",
-                  borderRadius: 4,
-                  padding: "2px 9px",
-                }}
-              >
-                {k}
-              </span>
-            ))}
-            {reversed.map((k) => (
-              <span
-                key={`r-${k}`}
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  fontFamily: "var(--font-serif)",
-                  color: "var(--color-foreground-muted)",
-                  background: "var(--surface-elevated, var(--surface-card))",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: 4,
-                  padding: "2px 9px",
-                }}
-              >
-                {k}
-              </span>
-            ))}
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              style={{
-                fontSize: 11,
-                fontStyle: "italic",
-                fontFamily: "var(--font-serif)",
-                color: "var(--color-foreground-muted)",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                marginLeft: 2,
-              }}
-            >
-              {expanded ? "tap to collapse ‹" : "tap to expand ›"}
-            </button>
-          </div>
-          {expanded && meaning && (
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "var(--text-body-sm)",
-                  fontFamily: "var(--font-serif)",
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.5,
-                }}
-              >
-                <span style={{ color: "var(--accent, var(--gold))" }}>Upright · </span>
-                {meaning.uprightMeaning}
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "var(--text-body-sm)",
-                  fontFamily: "var(--font-serif)",
-                  color: "var(--color-foreground-muted)",
-                  lineHeight: 1.5,
-                }}
-              >
-                <span style={{ fontStyle: "italic" }}>Reversed · </span>
-                {meaning.reversedMeaning}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -688,12 +514,7 @@ function Sparkline({ points }: { points: number[] }) {
       style={{ flexShrink: 0, overflow: "visible" }}
       aria-hidden="true"
     >
-      <polyline
-        points={path}
-        fill="none"
-        stroke="var(--accent, var(--gold))"
-        strokeWidth={1.5}
-      />
+      <polyline points={path} fill="none" stroke="var(--accent, var(--gold))" strokeWidth={1.5} />
     </svg>
   );
 }
