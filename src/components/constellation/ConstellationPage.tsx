@@ -3388,7 +3388,9 @@ export function ConstellationPage({
         display: "flex",
         flexDirection: "column",
         // DU — reduced top padding so Manual Entry header sits closer to top.
-        padding: "2px 0 80px",
+        // v2.21 — insightsMode (Patterns tab) drops the 2px so the surface
+        // sits flush under the tab strip.
+        padding: insightsMode ? "0 0 80px" : "2px 0 80px",
       }}
     >
       {/* EJ65 — Left fly-out page menu trigger + panel. Holds the
@@ -3410,7 +3412,7 @@ export function ConstellationPage({
       <div
         style={{
           position: "relative",
-          display: "flex",
+          display: insightsMode ? "none" : "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 24px 0",
@@ -4091,6 +4093,7 @@ export function ConstellationPage({
               style={{
                 position: "relative",
                 width: "100%",
+                display: insightsMode ? "none" : undefined,
                 // EJ16 — marginBottom removed per user spec; the slot
                 // row's paddingBottom (2) is the only gap between the
                 // slot row and the labels row. Below the labels row,
