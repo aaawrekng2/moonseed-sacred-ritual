@@ -276,7 +276,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
     : mode === "twins" ? twinsList.length
     : mode === "triplets" ? tripletsList.length
     : reversedList.length;
-  const slots = Math.max(0, 5 - filledCount);
 
   const selectedSingle = singlesList.find((s) => s.cardId === selectedKey);
   const selectedTwin = twinsList.find((t) => `${t.cardA}-${t.cardB}` === selectedKey);
@@ -334,7 +333,15 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       )}
 
       <div className="mx-auto w-full max-w-xl md:max-w-2xl mb-8">
-        <div className="grid grid-cols-5 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-5 sm:gap-y-6 md:gap-y-7">
+        {/* v2.26 — all stalkers on one line, shrinking to fit (filler slots dropped). */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${Math.max(1, filledCount)}, minmax(0, 1fr))`,
+            gap: "10px",
+            alignItems: "start",
+          }}
+        >
           {mode === "singles" &&
             singlesList.map((s) => (
               <div
@@ -420,12 +427,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               </div>
             ))}
 
-          {Array.from({ length: slots }).map((_, i) => (
-            <div key={`empty-${i}`} className="flex flex-col items-center gap-1">
-              <div className="aspect-[2/3] w-full rounded-md border border-dashed border-border/40 opacity-30" />
-              <span className="text-xs text-muted-foreground tabular-nums opacity-30">—</span>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -439,7 +440,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               </p>
             </div>
           </div>
-          <StalkerCalendar appearances={selectedSingle.appearances} />
+          <StalkerCalendar heroCardId={selectedSingle.cardId} />
           <StalkerOccurrenceList
             appearances={selectedSingle.appearances}
             onOpenReading={setOpenReadingId}
@@ -468,7 +469,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {twinProse(selectedTwin.cardAName, selectedTwin.cardBName, selectedTwin.count, timeRange, cooccurrence)}
           </p>
-          <StalkerCalendar appearances={selectedTwin.appearances} />
+          <StalkerCalendar heroCardId={selectedTwin.cardA} pullCardIds={[selectedTwin.cardA, selectedTwin.cardB]} />
           <StalkerOccurrenceList
             appearances={selectedTwin.appearances}
             onOpenReading={setOpenReadingId}
@@ -506,7 +507,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence)}
           </p>
-          <StalkerCalendar appearances={selectedTriplet.appearances} />
+          <StalkerCalendar heroCardId={selectedTriplet.cardIds[0]} pullCardIds={selectedTriplet.cardIds} />
           <StalkerOccurrenceList
             appearances={selectedTriplet.appearances}
             onOpenReading={setOpenReadingId}
@@ -524,7 +525,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               </p>
             </div>
           </div>
-          <StalkerCalendar appearances={selectedReversed.appearances} />
+          <StalkerCalendar heroCardId={selectedReversed.cardId} />
           <StalkerOccurrenceList
             appearances={selectedReversed.appearances}
             onOpenReading={setOpenReadingId}

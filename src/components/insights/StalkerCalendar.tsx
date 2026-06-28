@@ -1,70 +1,83 @@
 /**
- * Q100 — Mobile shows 1 month with a twirl-down to reveal up to 4.
- * Desktop always shows 3 months.
+ * v2.26 — Stalkers calendar now renders the SAME manual-entry table the
+ * Overview tab uses: the grid12 OverlapStrip, fed each selected stalker's
+ * overlap via getQuickLogOverlap. Replaces the old shrunk day-picker.
+ *
+ * Singles / Reversed pass one card (gold-fill marks that card's draw days).
+ * Twins / Triplets pass the group via pullCardIds; the hero (first card)
+ * drives the gold fill.
  */
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { DrawCalendar } from "./DrawCalendar";
+import { useServerFn } from "@tanstack/react-start";
+import { OverlapStrip } from "@/components/tabletop/QuickLog";
+import {
+  getQuickLogOverlap,
+  type QuickLogOverlap,
+} from "@/lib/quicklog.functions";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { EMPTY_GLOBAL_FILTERS } from "@/lib/filters.types";
 import { useTimezone } from "@/lib/use-timezone";
+import { LoadingText } from "@/components/ui/loading-text";
 
 export function StalkerCalendar({
-  appearances,
+  heroCardId,
+  pullCardIds,
 }: {
-  appearances: Array<{ readingId: string; date: string }>;
+  heroCardId: number;
+  pullCardIds?: number[];
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
   const { effectiveTz } = useTimezone();
+  const fetchOverlap = useServerFn(getQuickLogOverlap);
+  const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(min-width: 768px)");
-    const update = () => setIsDesktop(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const ov = (await fetchOverlap({
+          data: {
+            heroCardId,
+            tz: effectiveTz,
+            filters: EMPTY_GLOBAL_FILTERS,
+          },
+          headers,
+        })) as QuickLogOverlap;
+        if (!cancelled) {
+          setOverlap(ov);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setOverlap(null);
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [heroCardId, effectiveTz, fetchOverlap]);
 
-  if (isDesktop) {
-    return <DrawCalendar appearances={appearances} monthsBack={3} tz={effectiveTz} cellSize="20px" />;
+  if (loading && !overlap) {
+    return <LoadingText>Loading calendar…</LoadingText>;
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <DrawCalendar
-        appearances={appearances}
-        monthsBack={expanded ? 4 : 1}
-        tz={effectiveTz}
-        cellSize="20px"
-      />
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          background: "none",
-          border: "none",
-          padding: "6px 0",
-          cursor: "pointer",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          color: "var(--color-foreground)",
-          opacity: 0.55,
-        }}
-      >
-        <ChevronDown
-          size={12}
-          strokeWidth={1.5}
-          style={{
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 200ms ease",
-          }}
-        />
-        {expanded ? "Show less" : "Show more months"}
-      </button>
-    </div>
+    <OverlapStrip
+      overlap={overlap}
+      heroCardId={heroCardId}
+      pullCardIds={pullCardIds ?? [heroCardId]}
+      mode="day"
+      onModeChange={() => {}}
+      layout="grid12"
+      monthsToShow={12}
+      showModeToggle={false}
+      showOlder
+      onShowOlderChange={() => {}}
+      onDayClick={() => {}}
+    />
   );
 }
