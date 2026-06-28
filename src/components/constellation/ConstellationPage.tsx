@@ -3382,8 +3382,8 @@ export function ConstellationPage({
         // Phase 22 Fix 1 — page owns its own scroll container; html/body/#root
         // are globally locked, so we must anchor to the viewport here.
         width: "100%",
-        height: "100dvh",
-        overflowY: "auto",
+        height: insightsMode ? "auto" : "100dvh",
+        overflowY: insightsMode ? "visible" : "auto",
         overflowX: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -3523,7 +3523,7 @@ export function ConstellationPage({
             flexDirection: "column",
             gap: 12,
             minHeight: 0,
-            height: "100%",
+            height: insightsMode ? "auto" : "100%",
           }}
         >
           {/* EJ66 — Filter bar lives at the top of the LEFT column
