@@ -270,7 +270,7 @@ function BirthCardThumb({
   const arcana = numberToMajorArcana(cardNumber);
   const { ref: boxRef, width: boxW } = useElementWidth<HTMLDivElement>();
   const containerWidth = primary
-    ? "clamp(140px, 38vw, 280px)"
+    ? "64px"
     : "clamp(100px, 26vw, 200px)";
   if (arcana === null) return null;
   return (
@@ -688,7 +688,7 @@ function MaturityFocalCard({
       <div
         ref={boxRef}
         style={{
-          width: "clamp(160px, 50vw, 320px)",
+          width: "64px",
           display: "flex",
           justifyContent: "center",
         }}

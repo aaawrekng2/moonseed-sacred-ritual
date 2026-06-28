@@ -66,13 +66,13 @@ export function HeroCard({ result, onTap, filters }: { result: StalkerCardsResul
             : "0 1px 3px color-mix(in oklch, var(--cosmos, #0a0a14) 25%, transparent)",
         }}
       >
-        <div style={{ position: "relative", width: 180, containerType: "inline-size" }}>
+        <div style={{ position: "relative", width: 64, containerType: "inline-size" }}>
           <CardHoverTip cardId={featuredId} filters={filters}>
             <CardImage
               cardId={featuredId}
               variant="face"
               size="custom"
-              widthPx={180}
+              widthPx={64}
               ariaLabel={cardName}
               eager
               style={{ width: "100%" }}

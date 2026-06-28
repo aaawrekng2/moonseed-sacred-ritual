@@ -5,7 +5,6 @@ import {
   BookOpen,
   Bookmark,
   CalendarClock,
-  CalendarDays,
   Camera,
   Ghost,
   Heart,
@@ -897,7 +896,6 @@ function JournalPage() {
                 ["readings", "Readings", BookOpen],
                 ["gallery", "Gallery", ImageIcon],
                 ["notes", "Notes", StickyNote],
-                ["calendar", "Calendar", CalendarDays],
                 ["archive", "Archive", ArchiveIcon],
               ] as const
             )

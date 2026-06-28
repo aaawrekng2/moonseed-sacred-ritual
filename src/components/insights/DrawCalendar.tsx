@@ -20,11 +20,16 @@ export function DrawCalendar({
   appearances,
   monthsBack,
   tz,
+  cellSize,
 }: {
   appearances: DrawCalendarAppearance[];
   /** Q64 — when provided, caps the visible months from the current month
    *  back. Falls back to viewport-based auto-selection when omitted. */
   monthsBack?: number;
+  /** v2.25 — override the day-cell size (CSS length). Defaults to the
+   *  responsive clamp. Used by StalkerCalendar to match the manual-entry
+   *  calendar's 20px cells. */
+  cellSize?: string;
   /**
    * Phase 16 — IANA tz used to bucket appearances by the seeker's
    * calendar day. Without this the calendar drifts in negative offsets
@@ -192,7 +197,7 @@ export function DrawCalendar({
           style={{
             width: "100%",
             ["--cell-size" as never]:
-              "clamp(32px, calc((100% - 24px) / 7), 56px)",
+              cellSize ?? "clamp(32px, calc((100% - 24px) / 7), 56px)",
           }}
         >
           <Calendar

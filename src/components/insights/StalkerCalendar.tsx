@@ -26,7 +26,7 @@ export function StalkerCalendar({
   }, []);
 
   if (isDesktop) {
-    return <DrawCalendar appearances={appearances} monthsBack={3} tz={effectiveTz} />;
+    return <DrawCalendar appearances={appearances} monthsBack={3} tz={effectiveTz} cellSize="20px" />;
   }
 
   return (
@@ -35,6 +35,7 @@ export function StalkerCalendar({
         appearances={appearances}
         monthsBack={expanded ? 4 : 1}
         tz={effectiveTz}
+        cellSize="20px"
       />
       <button
         type="button"
