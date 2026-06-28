@@ -156,6 +156,17 @@ export function dayOfWeekInTz(date: Date, tz: string): number {
   return map[weekday] ?? 0;
 }
 
+/** Hour of day (0-23) for the given date in the given IANA timezone. */
+export function hourInTz(date: Date, tz: string): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    hour12: false,
+  });
+  const h = parseInt(fmt.format(date), 10);
+  return Number.isFinite(h) ? h % 24 : 0;
+}
+
 /** Display a time in the given tz, formatted per locale. */
 export function formatTimeInTz(date: Date, tz: string, locale?: string): string {
   return new Intl.DateTimeFormat(locale, {
