@@ -558,7 +558,7 @@ function InsightsRoute() {
             </>
           )}
           {tab === "patterns" && (
-            <div className="pb-12">
+            <div className="pb-12 -mt-4">
               <ConstellationPage insightsMode />
             </div>
           )}
