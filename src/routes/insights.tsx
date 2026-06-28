@@ -420,7 +420,7 @@ function InsightsRoute() {
         </HorizontalScroll>
         {/* Q77 — filter bar moved below the tab strip so tabs are the
             primary nav and filters read as contextual controls. */}
-        {tab !== "recap" && (
+        {tab !== "recap" && tab !== "patterns" && (
           <GlobalFilterBar
             filters={globalFilters}
             onChange={handleGlobalChange}
@@ -492,6 +492,7 @@ function InsightsRoute() {
       </div>
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+        {tab !== "patterns" && (
         <h1
           className="font-serif italic mb-4"
           style={{
@@ -503,7 +504,8 @@ function InsightsRoute() {
         >
           {pageTitle}
         </h1>
-        {statsLine ? (
+        )}
+        {statsLine && tab !== "patterns" ? (
           <p
             className="font-serif italic mb-4"
             style={{
