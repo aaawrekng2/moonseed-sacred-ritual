@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
+import { HeroPatternCluster } from "./HeroPatternCluster";
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
@@ -4950,22 +4951,48 @@ export function ConstellationPage({
               when no picks.
               EK120 — on atlas, lives in the Draw tab. /constellation
               (non-atlas) shows it unconditionally as before. */}
-          {insightsMode && picks.length > 0 && (
+          {insightsMode && picks.length > 0 && heroPick && (
             <div
               style={{
                 order: 4,
                 marginTop: 12,
-                padding: "20px 0",
+                paddingTop: 20,
                 borderTop: "1px solid var(--border-subtle)",
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-body-sm, 0.85rem)",
-                color: "var(--color-foreground)",
-                opacity: 0.55,
-                textAlign: "center",
               }}
             >
-              The pattern cluster for these cards will appear here.
+              {cardStats ? (
+                <HeroPatternCluster
+                  heroCardId={heroPick.cardIndex}
+                  heroDeckId={heroPick.deckId ?? undefined}
+                  timeRangeLabel={
+                    {
+                      "7d": "7 days",
+                      "30d": "30 days",
+                      "90d": "90 days",
+                      "180d": "180 days",
+                      "365d": "1 year",
+                      all: "All time",
+                    }[globalFilters.timeRange ?? DEFAULT_TIMEFRAME] ?? "Your data"
+                  }
+                  stats={cardStats}
+                  drawCounts={drawCounts}
+                  tz={effectiveTz}
+                />
+              ) : (
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 0.85rem)",
+                    color: "var(--color-foreground)",
+                    opacity: 0.55,
+                    textAlign: "center",
+                    padding: "8px 0",
+                  }}
+                >
+                  Gathering this card's patterns…
+                </div>
+              )}
             </div>
           )}
           {picks.length > 0 && (!atlasMode || atlasTab === "draw") && !insightsMode && (

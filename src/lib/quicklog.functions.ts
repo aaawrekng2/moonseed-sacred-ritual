@@ -74,6 +74,8 @@ export type QuickLogJournalRow = {
   createdAt: string;
   question: string | null;
   cardIds: number[];
+  tags: string[];
+  isDeepReading: boolean;
 };
 
 export type QuickLogCardStats = {
@@ -215,6 +217,8 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
         createdAt: r.created_at,
         question: r.question,
         cardIds: r.card_ids ?? [],
+        tags: r.tags ?? [],
+        isDeepReading: r.is_deep_reading ?? false,
       })),
     };
   });
