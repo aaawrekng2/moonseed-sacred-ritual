@@ -3362,7 +3362,6 @@ export function ConstellationPage({
       variant="rich"
       showConstellation={true}
       initialEditing={popoverEditStart}
-      headerInfo={<ConstellationLegend />}
       pinnable={opts.editable}
       onEditingChange={opts.onEditingChange}
       onPin={
