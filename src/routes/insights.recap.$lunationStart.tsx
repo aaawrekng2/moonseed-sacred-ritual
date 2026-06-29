@@ -975,10 +975,10 @@ function LunationSpread({
   onReflection?: (r: string | null) => void;
   tz: string;
 }) {
-  const range = formatLunationRange(
-    new Date(data.lunationStart),
-    new Date(data.lunationEnd),
-  );
+  const range = formatLunationRange({
+    start: new Date(data.lunationStart),
+    end: new Date(data.lunationEnd),
+  });
 
   const days = useMemo(() => {
     const startDate = new Date(data.lunationStart);
