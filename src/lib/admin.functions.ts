@@ -126,7 +126,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
         const { data: chunk, error: chunkErr } = await supabaseAdmin
           .from("user_preferences")
           .select(
-            "user_id, display_name, role, subscription_type, is_premium, premium_since, premium_expires_at, premium_months_used, admin_note, ai_features_enabled",
+            "user_id, display_name, role, subscription_type, is_premium, premium_since, premium_expires_at, premium_months_used, admin_note, ai_features_enabled, phase2_enabled",
           )
           .in("user_id", slice);
         if (chunkErr) throw new Error(chunkErr.message);
@@ -165,6 +165,9 @@ export const listAdminUsers = createServerFn({ method: "GET" })
           // EK37 — Per-user AI features override.
           ai_features_enabled:
             (p.ai_features_enabled as boolean | null | undefined) ?? null,
+          // v2.31 — Per-user Phase 2 (photos / Gallery) override.
+          phase2_enabled:
+            (p.phase2_enabled as boolean | null | undefined) ?? null,
           reading_count: 0,
           last_reading: null as string | null,
         };
