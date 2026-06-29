@@ -1705,18 +1705,13 @@ export const setUserAIFeatures = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    // Upsert the per-user override. The migration backfilled every
-    // existing user_preferences row, but new signups might not yet
-    // have a row — upsert covers both.
+    // v2.34 — plain update().eq() (matches the working Phase 2 toggle).
+    // The previous upsert with onConflict:"user_id" threw when the table
+    // had no matching unique constraint, which reverted the toggle.
     const { error } = await supabaseAdmin
       .from("user_preferences" as never)
-      .upsert(
-        {
-          user_id: data.targetUserId,
-          ai_features_enabled: data.enabled,
-        } as never,
-        { onConflict: "user_id" },
-      );
+      .update({ ai_features_enabled: data.enabled } as never)
+      .eq("user_id", data.targetUserId);
     if (error) throw new Error(error.message);
 
     // EK37 — Audit log entry for the grant trail.

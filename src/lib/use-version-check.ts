@@ -20,6 +20,11 @@ export type VersionCheckState = {
   updateReady: boolean;
   /** The version reported by /version.json, or null until first read. */
   latest: string | null;
+  /** v2.34 diagnostic — last check outcome:
+   *  idle | ssr | dev | throttled | fetching | ok | badjson | http:<n> | neterr */
+  status: string;
+  /** v2.34 diagnostic — how many fetch attempts have actually run. */
+  runs: number;
 };
 
 /** Minimum gap between non-forced checks, so navigation doesn't spam fetches. */
@@ -50,28 +55,55 @@ export async function hardRefresh(): Promise<void> {
 
 export function useVersionCheck(): VersionCheckState {
   const [latest, setLatest] = useState<string | null>(null);
+  // v2.34 — diagnostic surfaced in the admin dev chip.
+  const [diag, setDiag] = useState<{ status: string; runs: number }>({
+    status: "idle",
+    runs: 0,
+  });
   // Re-runs the route-change effect on every navigation (pathname change).
   const location = useLocation();
   const lastCheckedRef = useRef(0);
   const mountedRef = useRef(true);
 
   const check = useCallback(async (force = false) => {
-    if (typeof window === "undefined") return;
+    // v2.34 — record the outcome of each check so the dev chip can show it.
+    // Dedupe identical statuses so throttled navigations don't spam re-renders.
+    const setStatus = (s: string) =>
+      setDiag((d) => (d.status === s ? d : { ...d, status: s }));
+    if (typeof window === "undefined") {
+      setStatus("ssr");
+      return;
+    }
     // Don't nag during local dev — the bundle and version.json drift there.
-    if (import.meta.env.DEV) return;
+    if (import.meta.env.DEV) {
+      setStatus("dev");
+      return;
+    }
     const now = Date.now();
-    if (!force && now - lastCheckedRef.current < THROTTLE_MS) return;
+    if (!force && now - lastCheckedRef.current < THROTTLE_MS) {
+      setStatus("throttled");
+      return;
+    }
     lastCheckedRef.current = now;
+    setDiag((d) => ({ status: "fetching", runs: d.runs + 1 }));
     try {
       const res = await fetch(`/version.json?t=${now}`, { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setStatus(`http:${res.status}`);
+        return;
+      }
       const data = (await res.json()) as { version?: unknown };
       if (!mountedRef.current) return;
       if (typeof data.version === "string" && data.version.length > 0) {
         setLatest(data.version);
+        setStatus("ok");
+      } else {
+        setStatus("badjson");
       }
     } catch {
-      // offline / blocked — ignore, try again on the next trigger
+      // offline / blocked — surface it so we can tell a fetch failure apart
+      // from a skipped check.
+      setStatus("neterr");
     }
   }, []);
 
@@ -98,5 +130,5 @@ export function useVersionCheck(): VersionCheckState {
   }, [location.pathname, check]);
 
   const updateReady = latest != null && latest !== APP_VERSION_LETTER;
-  return { updateReady, latest };
+  return { updateReady, latest, status: diag.status, runs: diag.runs };
 }
