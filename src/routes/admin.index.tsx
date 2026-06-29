@@ -71,7 +71,7 @@ import {
   updateFeedbackStatus,
   type AdminFeedbackItem,
 } from "@/lib/admin-feedback.functions";
-import { grantBonusCredits, getDashboardAlerts } from "@/lib/admin-usage.functions";
+import { grantBonusCredits, getDashboardAlerts, setPhase2Enabled } from "@/lib/admin-usage.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useConfirm } from "@/hooks/use-confirm";
 import { toast } from "sonner";
@@ -2028,6 +2028,8 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
                 <Th>Joined</Th>
                 {/* EK37 — Per-user AI features toggle column. */}
                 <Th>AI</Th>
+                {/* v2.31 — Per-user Phase 2 (photos / Gallery) toggle column. */}
+                <Th>Phase 2</Th>
               </tr>
             </thead>
             <tbody>
@@ -2037,6 +2039,7 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
                   user={u}
                   onSelect={() => setSelectedUserId(u.user_id)}
                   onAIToggle={() => void load()}
+                  onPhase2Toggle={() => void load()}
                 />
               ))}
             </tbody>
@@ -2059,10 +2062,12 @@ function UserListRow({
   user,
   onSelect,
   onAIToggle,
+  onPhase2Toggle,
 }: {
   user: AdminUser;
   onSelect: () => void;
   onAIToggle: () => void;
+  onPhase2Toggle: () => void;
 }) {
   const [hover, setHover] = useState(false);
   // EK37 — Optimistic local state for the AI toggle so the cell
@@ -2071,6 +2076,11 @@ function UserListRow({
     (user as { ai_features_enabled?: boolean | null }).ai_features_enabled ?? null,
   );
   const [aiBusy, setAiBusy] = useState(false);
+  // v2.31 — Optimistic local state for the Phase 2 toggle, mirroring AI.
+  const [phase2Override, setPhase2Override] = useState<boolean | null>(
+    (user as { phase2_enabled?: boolean | null }).phase2_enabled ?? null,
+  );
+  const [phase2Busy, setPhase2Busy] = useState(false);
   const name = user.display_name?.trim() || null;
   // Q62 Fix 11 — anomalous accounts (no email + no name) get a clear
   // "— no email —" label with a tiny user-id stub underneath instead of
@@ -2193,6 +2203,69 @@ function UserListRow({
             }}
           />
           {aiOverride === true ? "ON" : aiOverride === false ? "OFF" : "—"}
+        </button>
+      </Td>
+      {/* v2.31 — Phase 2 (photos / Gallery) toggle. No global default, so
+          it's a plain ON/OFF (null is treated as OFF). */}
+      <Td>
+        <button
+          type="button"
+          disabled={phase2Busy}
+          onClick={async (e) => {
+            e.stopPropagation();
+            const next = phase2Override === true ? false : true;
+            setPhase2Busy(true);
+            setPhase2Override(next);
+            try {
+              await setPhase2Enabled({
+                data: { userId: user.user_id, enabled: next },
+                headers: await authHeaders(),
+              });
+              onPhase2Toggle();
+            } catch (err) {
+              // Revert on failure.
+              setPhase2Override(phase2Override);
+              console.error("[admin] setPhase2Enabled failed:", err);
+            } finally {
+              setPhase2Busy(false);
+            }
+          }}
+          title={
+            phase2Override === true
+              ? "Phase 2 enabled for this user (click to disable)"
+              : "Phase 2 disabled for this user (click to enable)"
+          }
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "transparent",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: 999,
+            padding: "3px 10px",
+            cursor: phase2Busy ? "wait" : "pointer",
+            opacity: phase2Busy ? 0.5 : 1,
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.05em",
+            color: "var(--color-foreground)",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 999,
+              background:
+                phase2Override === true
+                  ? "var(--accent, var(--gold))"
+                  : "color-mix(in oklab, var(--color-foreground) 25%, transparent)",
+              flexShrink: 0,
+            }}
+          />
+          {phase2Override === true ? "ON" : "OFF"}
         </button>
       </Td>
     </tr>
