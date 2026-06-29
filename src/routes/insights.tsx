@@ -50,6 +50,7 @@ import { SuitTrendsChart } from "@/components/insights/SuitTrendsChart";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import { StoriesTab } from "@/components/insights/StoriesTab";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
@@ -157,6 +158,9 @@ function InsightsRoute() {
   // v2.30 — Stories is an AI surface; hide it unless the seeker has AI access
   // (on top of the existing no-patterns rule).
   const aiEnabled = useAIEnabled();
+  // ER-9 — the Reversed % sort hides when the seeker has reversals off.
+  const { trackReversals, loaded: reversalsLoaded } = useTrackReversals();
+  const reversalsOff = reversalsLoaded && !trackReversals;
   const visibleTabs = TABS.filter((t) => {
     if (t.id === "recap" && !moonEnabled) return false;
     if (t.id === "stories" && (patternCount === 0 || aiEnabled !== true))
@@ -221,6 +225,14 @@ function InsightsRoute() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
+  // ER-9 — if the Reversed % sort was active and the seeker turns reversals
+  // off, snap back to frequency so the hidden option can't stay selected.
+  useEffect(() => {
+    if (reversalsOff && (filters.cardSortBy ?? "frequency") === "reversed_pct") {
+      setFilters((f) => ({ ...f, cardSortBy: "frequency" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reversalsOff, filters.cardSortBy]);
   // Phase 10 — keep filters.tz synced with the user's effective timezone so
   // every server fn that spreads filters aggregates on local calendar days.
   const { effectiveTz } = useTimezone();
@@ -484,7 +496,9 @@ function InsightsRoute() {
                   <Dropdown
                     prefix="Sort"
                     value={filters.cardSortBy ?? "frequency"}
-                    options={CARD_SORT_BY.map((v) => ({
+                    options={CARD_SORT_BY.filter(
+                      (v) => v !== "reversed_pct" || !reversalsOff,
+                    ).map((v) => ({
                       value: v,
                       label: CARD_SORT_BY_LABEL[v],
                     }))}

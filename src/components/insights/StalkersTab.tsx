@@ -12,6 +12,7 @@ import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
 import { CardCountBadge } from "@/components/ui/CardCountBadge";
 import { getCardName } from "@/lib/tarot";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 
 const twinTripletNameStyle: React.CSSProperties = {
   fontFamily: "var(--font-serif)",
@@ -164,6 +165,9 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   const timeRange = filters.timeRange;
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("singles");
+  // ER-9 — reversed mode/data hides when the seeker has reversals off.
+  const { trackReversals, loaded: reversalsLoaded } = useTrackReversals();
+  const reversalsOff = reversalsLoaded && !trackReversals;
   const [cooccurrence, setCooccurrence] = useState<Cooccurrence>("reading");
   const [selectedKey, setSelectedKey] = useState<string | number | null>(null);
   // FQ-5 — Selected occurrence opens a modal over the Stalkers tab; setting
@@ -268,8 +272,8 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   useEffect(() => {
     if (mode === "twins" && twinCount === 0) setMode("singles");
     else if (mode === "triplets" && tripletCount === 0) setMode("singles");
-    else if (mode === "reversed" && reversedCount === 0) setMode("singles");
-  }, [mode, twinCount, tripletCount, reversedCount]);
+    else if (mode === "reversed" && (reversedCount === 0 || reversalsOff)) setMode("singles");
+  }, [mode, twinCount, tripletCount, reversedCount, reversalsOff]);
 
   const filledCount =
     mode === "singles" ? singlesList.length
@@ -294,7 +298,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           {tripletCount > 0 ? (
             <Chip icon={<TripletCardIcon />} label="Triplets" active={mode === "triplets"} onClick={() => setMode("triplets")} />
           ) : null}
-          {reversedCount > 0 ? (
+          {reversedCount > 0 && !reversalsOff ? (
             <Chip icon={<ReversedCardIcon />} label="Reversed" active={mode === "reversed"} onClick={() => setMode("reversed")} />
           ) : null}
         </div>
