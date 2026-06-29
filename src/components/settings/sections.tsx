@@ -1022,6 +1022,7 @@ function ReadingPreferencesSection({
       toast.error("Couldn't save your preference.");
       return;
     }
+    emitTrackReversalsChanged();
     toast.success(next ? "Reversed cards on" : "Reversed cards off", {
       icon: "✓",
     });
@@ -1201,24 +1202,8 @@ function ReadingPreferencesSection({
           </div>
         )}
 
-        {/* ER-7 — Track reversed cards (statistics gating) */}
-        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
-          <div className="space-y-0.5">
-            <Label htmlFor="track-reversals" className="text-sm">
-              Track reversed cards
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              When off, reversed cards are still drawable, but reversal stats are hidden across the
-              app.
-            </p>
-          </div>
-          <Switch
-            id="track-reversals"
-            checked={prefs.track_reversals}
-            disabled={savingTrackReversals}
-            onCheckedChange={toggleTrackReversals}
-          />
-        </div>
+        {/* v2.28 — "Track reversed cards" merged into "Allow reversed cards";
+            reversal data now follows the single allow-reversed switch. */}
 
         <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}

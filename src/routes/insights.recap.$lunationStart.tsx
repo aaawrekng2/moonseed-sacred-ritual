@@ -25,6 +25,7 @@ import { useTrackReversals } from "@/lib/use-track-reversals";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { LunationHint } from "@/components/insights/LunationHint";
 import { useTimezone } from "@/lib/use-timezone";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
 import { getCardName } from "@/lib/tarot";
 import { isoDayInTz, addDaysInTz, calendarDaysBetween } from "@/lib/time";
@@ -975,6 +976,7 @@ function LunationSpread({
   onReflection?: (r: string | null) => void;
   tz: string;
 }) {
+  const aiEnabled = useAIEnabled();
   const range = formatLunationRange({
     start: new Date(data.lunationStart),
     end: new Date(data.lunationEnd),
@@ -1248,19 +1250,21 @@ function LunationSpread({
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 28,
-          paddingTop: 18,
-          borderTop: "1px solid var(--border-subtle)",
-        }}
-      >
-        <PremiumReflectionSlide
-          lunationStart={lunationStart}
-          readingCount={data.readingCount}
-          onReflection={onReflection}
-        />
-      </div>
+      {aiEnabled === true && (
+        <div
+          style={{
+            marginTop: 28,
+            paddingTop: 18,
+            borderTop: "1px solid var(--border-subtle)",
+          }}
+        >
+          <PremiumReflectionSlide
+            lunationStart={lunationStart}
+            readingCount={data.readingCount}
+            onReflection={onReflection}
+          />
+        </div>
+      )}
     </div>
   );
 }

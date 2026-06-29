@@ -1,5 +1,5 @@
 /**
- * ER-7 / ER-8 — lightweight read of the `track_reversals` preference
+ * v2.28 — lightweight read of the `allow_reversed_cards` preference
  * for any component outside the SettingsProvider tree (Insights,
  * Lunation Recap, etc).
  *
@@ -27,27 +27,29 @@ export type TrackReversalsState = {
 export function useTrackReversals(): TrackReversalsState {
   const { user } = useAuth();
   const [state, setState] = useState<TrackReversalsState>({
-    trackReversals: true,
+    trackReversals: false,
     loaded: false,
   });
 
   useEffect(() => {
     if (!user) {
-      setState({ trackReversals: true, loaded: true });
+      setState({ trackReversals: false, loaded: true });
       return;
     }
     let cancelled = false;
     const load = async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("track_reversals")
+        .select("allow_reversed_cards")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const row = data as { track_reversals?: boolean | null } | null;
+      const row = data as { allow_reversed_cards?: boolean | null } | null;
       setState({
         trackReversals:
-          typeof row?.track_reversals === "boolean" ? row.track_reversals : true,
+          typeof row?.allow_reversed_cards === "boolean"
+            ? row.allow_reversed_cards
+            : false,
         loaded: true,
       });
     };
