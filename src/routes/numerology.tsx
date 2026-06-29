@@ -25,6 +25,7 @@ import { NumerologyCyclesTab } from "@/components/numerology/NumerologyCyclesTab
 import { NumerologyPatternsTab } from "@/components/numerology/NumerologyPatternsTab";
 import { NumerologyStalkersTab } from "@/components/numerology/NumerologyStalkersTab";
 import { NumerologyReadingTab } from "@/components/numerology/NumerologyReadingTab";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
@@ -56,6 +57,15 @@ function NumerologyPage() {
   const [birthName, setBirthName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("today");
+  // v2.30 — Blueprint is an AI surface; hide its tab unless the seeker has AI
+  // access, and fall back to Today if AI is switched off while it's active.
+  const aiEnabled = useAIEnabled();
+  const visibleTabs = TABS.filter((t) =>
+    t.id === "blueprint" ? aiEnabled === true : true,
+  );
+  useEffect(() => {
+    if (tab === "blueprint" && aiEnabled !== true) setTab("today");
+  }, [tab, aiEnabled]);
   const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "";
   const pageTitle = activeTabLabel ? `Numerology: ${activeTabLabel}` : "Numerology";
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
@@ -170,6 +180,7 @@ function NumerologyPage() {
           >
             Add your birth date to begin.
           </p>
+          {aiEnabled === true && (
           <Link
             to="/settings/blueprint"
             style={{
@@ -188,6 +199,7 @@ function NumerologyPage() {
           >
             Open Blueprint
           </Link>
+          )}
         </div>
       </main>
     );
@@ -288,7 +300,7 @@ function NumerologyPage() {
           className="py-2"
           contentClassName="items-center gap-6 px-4"
         >
-          {TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const active = tab === t.id;
             return (
               <button

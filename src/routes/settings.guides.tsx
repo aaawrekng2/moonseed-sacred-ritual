@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { GuideSelector } from "@/components/guides/GuideSelector";
 import { SettingsSection } from "@/components/settings/sections";
+import { AIRouteGuard } from "@/components/feature-gate/AIRouteGuard";
 
 /**
  * /settings/guides — manage guides directly from Settings, without
@@ -18,16 +19,18 @@ export const Route = createFileRoute("/settings/guides")({
 function SettingsGuidesPage() {
   const navigate = useNavigate();
   return (
-    <SettingsSection
-      title="Guides"
-      description="Choose the voice that reads your cards."
-    >
-      <GuideSelector
-        isEmbedded
-        onContinue={() => void navigate({ to: "/draw" })}
-        onSkip={() => void navigate({ to: "/settings/profile" })}
-        ctaLabel="Begin a new spread"
-      />
-    </SettingsSection>
+    <AIRouteGuard>
+      <SettingsSection
+        title="Guides"
+        description="Choose the voice that reads your cards."
+      >
+        <GuideSelector
+          isEmbedded
+          onContinue={() => void navigate({ to: "/draw" })}
+          onSkip={() => void navigate({ to: "/settings/profile" })}
+          ctaLabel="Begin a new spread"
+        />
+      </SettingsSection>
+    </AIRouteGuard>
   );
 }

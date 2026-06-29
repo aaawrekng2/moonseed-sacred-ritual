@@ -49,6 +49,7 @@ import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { SuitTrendsChart } from "@/components/insights/SuitTrendsChart";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import { StoriesTab } from "@/components/insights/StoriesTab";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
@@ -153,15 +154,20 @@ function InsightsRoute() {
   const [tab, setTab] = useState<Tab>(initialTab);
   // Q99 #5 — hide Recap when moon disabled, and hide Stories when no patterns.
   const [patternCount, setPatternCount] = useState<number>(0);
+  // v2.30 — Stories is an AI surface; hide it unless the seeker has AI access
+  // (on top of the existing no-patterns rule).
+  const aiEnabled = useAIEnabled();
   const visibleTabs = TABS.filter((t) => {
     if (t.id === "recap" && !moonEnabled) return false;
-    if (t.id === "stories" && patternCount === 0) return false;
+    if (t.id === "stories" && (patternCount === 0 || aiEnabled !== true))
+      return false;
     return true;
   });
   useEffect(() => {
     if (!moonEnabled && tab === "recap") setTab("overview");
-    if (tab === "stories" && patternCount === 0) setTab("overview");
-  }, [moonEnabled, tab, patternCount]);
+    if (tab === "stories" && (patternCount === 0 || aiEnabled !== true))
+      setTab("overview");
+  }, [moonEnabled, tab, patternCount, aiEnabled]);
   const activeTabLabel = visibleTabs.find((t) => t.id === tab)?.label ?? "";
   const pageTitle = activeTabLabel ? `Insights: ${activeTabLabel}` : "Insights";
   // EJ43 — was a one-shot supabase.auth.getUser() that captured null
