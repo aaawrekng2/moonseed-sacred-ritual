@@ -36,7 +36,7 @@ import { Dropdown } from "@/components/filters/Dropdown";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
 import { ReversalPatternsSection } from "@/components/insights/ReversalPatternsSection";
-import { YearHeatmap } from "@/components/insights/YearHeatmap";
+import { StalkerCalendar } from "@/components/insights/StalkerCalendar";
 import { MoonPhaseInsightRing } from "@/components/insights/MoonPhaseInsightRing";
 import { TimeOfDayRadial } from "@/components/insights/TimeOfDayRadial";
 import { StreakHistory } from "@/components/insights/StreakHistory";
@@ -579,7 +579,7 @@ function InsightsRoute() {
                   })
                 }
               />
-              <YearHeatmap filters={filters} />
+              <StalkerCalendar heroCardId={null} markReadingDays />
               <TimeOfDayRadial filters={filters} />
               <StreakHistory />
             </div>

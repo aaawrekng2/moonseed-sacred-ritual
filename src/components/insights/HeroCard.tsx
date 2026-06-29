@@ -59,19 +59,19 @@ export function HeroCard({ result, onTap, filters }: { result: StalkerCardsResul
         className="flex items-center justify-center p-4 transition-opacity hover:opacity-95"
         style={{
           width: "100%",
-          background: "var(--surface-card)",
+          background: "transparent",
           borderRadius: 20,
-          // v2.26 — purple emphasis ring removed; card sits flat on the panel.
+          // v2.27 — panel color and emphasis ring removed; card sits on the page.
           boxShadow: "none",
         }}
       >
-        <div style={{ position: "relative", width: 128, containerType: "inline-size" }}>
+        <div style={{ position: "relative", width: 96, containerType: "inline-size" }}>
           <CardHoverTip cardId={featuredId} filters={filters}>
             <CardImage
               cardId={featuredId}
               variant="face"
               size="custom"
-              widthPx={128}
+              widthPx={96}
               ariaLabel={cardName}
               eager
               style={{ width: "100%" }}
