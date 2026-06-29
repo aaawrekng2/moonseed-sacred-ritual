@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { GuideSelector } from "@/components/guides/GuideSelector";
+import { AIRouteGuard } from "@/components/feature-gate/AIRouteGuard";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 
 type Search = { spread?: string };
@@ -22,5 +23,9 @@ function GuidesPage() {
     void navigate({ to: "/draw", search: { spread } });
   };
 
-  return <GuideSelector onContinue={goDraw} onSkip={goDraw} />;
+  return (
+    <AIRouteGuard>
+      <GuideSelector onContinue={goDraw} onSkip={goDraw} />
+    </AIRouteGuard>
+  );
 }
