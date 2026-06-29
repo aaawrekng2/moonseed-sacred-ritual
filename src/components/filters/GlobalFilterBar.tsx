@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { SlidersHorizontal, X as XIcon } from "lucide-react";
 import { Dropdown } from "@/components/filters/Dropdown";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 import {
   DRAW_TYPE_LABEL,
   DRAW_TYPE_KEYS,
@@ -134,6 +135,15 @@ export function GlobalFilterBar({
   const update = (patch: Partial<GlobalFilters>) =>
     onChange({ ...filters, ...patch });
 
+  // ER-9 — the "Reversed only" filter hides when the seeker has reversals
+  // off, and clears itself if it was active when they turned reversals off.
+  const { trackReversals, loaded: reversalsLoaded } = useTrackReversals();
+  const reversalsOff = reversalsLoaded && !trackReversals;
+  useEffect(() => {
+    if (reversalsOff && filters.reversedOnly) update({ reversedOnly: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reversalsOff, filters.reversedOnly]);
+
   const removeTag = (name: string) =>
     update({ tags: filters.tags.filter((t) => t !== name) });
   const removeSpread = (s: string) =>
@@ -169,7 +179,7 @@ export function GlobalFilterBar({
       clear: () => update({ deepOnly: false }),
     });
   }
-  if (filters.reversedOnly) {
+  if (filters.reversedOnly && !reversalsOff) {
     chips.push({
       key: "rev",
       label: "Reversed only",
@@ -699,6 +709,9 @@ function ReversedSection({
   filters: GlobalFilters;
   onChange: (next: GlobalFilters) => void;
 }) {
+  // ER-9 — hide the Reversed filter section when reversals are off.
+  const { trackReversals, loaded } = useTrackReversals();
+  if (loaded && !trackReversals) return null;
   return (
     <section>
       <SectionHeader>Reversed</SectionHeader>

@@ -427,7 +427,8 @@ export function CardRichContent({
 
   const renderSlimStrip = (onInfo?: () => void): ReactNode => {
     const chips = ALL_SLIM_IDS.map((id) => ({ id, value: slimChipValue(id) })).filter(
-      (c): c is { id: SlimId; value: string } => slimVisible.has(c.id) && c.value !== null,
+      (c): c is { id: SlimId; value: string } =>
+        slimVisible.has(c.id) && c.value !== null && (c.id !== "reversed" || trackReversals),
     );
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -617,7 +618,7 @@ export function CardRichContent({
         First hover shows
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        {ALL_SLIM_IDS.map((id) => {
+        {ALL_SLIM_IDS.filter((id) => id !== "reversed" || trackReversals).map((id) => {
           const on = slimVisible.has(id);
           return (
             <button
