@@ -2036,6 +2036,9 @@ export function OverlapStrip({
   // behavior; ≤6 collapses to a single row automatically (the grid is
   // 6 columns, so ≤6 cells = one row).
   monthsToShow: monthsToShowProp,
+  // v2.27 — when true (and no card hero), fills every day that has any
+  // reading so the no-hero Insights Calendar tab shows draw activity.
+  markReadingDays = false,
   // EK68 — calendar number mode + birthdate for the numerology display.
   calendarNumberMode = "dates",
   birthDate = null,
@@ -2110,6 +2113,8 @@ export function OverlapStrip({
   /** EK58 — number of (most-recent) months to show in the grid12
    *  calendar. Optional; absent = legacy fixed 12. */
   monthsToShow?: number;
+  /** v2.27 — fill days that have any reading (used by the no-hero Calendar tab). */
+  markReadingDays?: boolean;
   calendarNumberMode?: "dates" | "numerology";
   birthDate?: string | null;
   /** EJ65 — accepted for API symmetry with <OverlapPills/>. OverlapStrip
@@ -2527,6 +2532,12 @@ export function OverlapStrip({
                         bg = "var(--accent, var(--gold))";
                         opacity = op;
                       }
+                    } else if (markReadingDays) {
+                      // v2.27 — no hero: light up any day that has a reading.
+                      if ((overlap?.readingsByDate?.[day.date]?.length ?? 0) > 0) {
+                        bg = "var(--accent, var(--gold))";
+                        opacity = 0.4;
+                      }
                     }
                     // EC — readability fix for saturated themes. Previously
                     // the text only flipped to background color when opacity
@@ -2547,6 +2558,11 @@ export function OverlapStrip({
                     if (day.heroDrawn && heroCardId != null) {
                       textColor = "var(--background)";
                     } else if (matchCount > 0) {
+                      textColor = "var(--accent-foreground, var(--background))";
+                    } else if (
+                      markReadingDays &&
+                      (overlap?.readingsByDate?.[day.date]?.length ?? 0) > 0
+                    ) {
                       textColor = "var(--accent-foreground, var(--background))";
                     } else {
                       textColor = "var(--color-foreground)";
@@ -3290,6 +3306,7 @@ function PracticeLine({
 // Phase 17 — named re-exports for the standalone /constellation page.
 // Phase 20 Fix 13 — also expose tiles + practice + history banners.
 export {
+  OverlapStrip,
   ChipGrid,
   ThisPullTiles,
   PullHistoryPill,

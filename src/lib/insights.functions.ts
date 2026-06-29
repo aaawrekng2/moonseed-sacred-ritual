@@ -976,6 +976,9 @@ export const getLensDistribution = createServerFn({ method: "GET" })
 
 const LunationRecapInputSchema = z.object({
   lunationStart: z.string(), // ISO datetime
+  // v2.27 — tz for per-day reading-day keying (rhythm strip). Optional;
+  // falls back to UTC when absent.
+  tz: z.string().optional(),
 });
 
 /**
@@ -1117,10 +1120,16 @@ export const getLunationRecap = createServerFn({ method: "GET" })
     const pctOf = (part: number, total: number) =>
       total <= 0 ? 0 : Math.round((part / total) * 1000) / 10;
 
+    // v2.27 — distinct day-keys (seeker tz) that had any reading, for the
+    // recap rhythm strip.
+    const readingDays = Array.from(
+      new Set(rows.map((r) => ymd(r.created_at as string, data.tz ?? ""))),
+    ).sort();
     return {
       lunationStart: start.toISOString(),
       lunationEnd: end.toISOString(),
       readingCount: rows.length,
+      readingDays,
       topStalker,
       suitBalance: {
         wands: pctOf(suitCounts.Wands, minorTotal),

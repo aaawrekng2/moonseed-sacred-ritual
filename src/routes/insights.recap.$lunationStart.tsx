@@ -24,6 +24,11 @@ import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
 import { useTrackReversals } from "@/lib/use-track-reversals";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { LunationHint } from "@/components/insights/LunationHint";
+import { useTimezone } from "@/lib/use-timezone";
+import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
+import { getCardName } from "@/lib/tarot";
+import { isoDayInTz, addDaysInTz, calendarDaysBetween } from "@/lib/time";
+import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
@@ -81,6 +86,7 @@ function LunationRecapRoute() {
       void navigate({ to: "/insights" });
     }
   }, [moonPrefs.loaded, moonPrefs.moon_features_enabled, navigate]);
+  const { effectiveTz } = useTimezone();
   const fn = useServerFn(getLunationRecap);
   const [data, setData] = useState<RecapData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +102,7 @@ function LunationRecapRoute() {
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: { lunationStart }, headers });
+        const r = await fn({ data: { lunationStart, tz: effectiveTz }, headers });
         if (!cancelled) {
           setData(r);
           setLoading(false);
@@ -108,7 +114,7 @@ function LunationRecapRoute() {
     return () => {
       cancelled = true;
     };
-  }, [lunationStart, fn]);
+  }, [lunationStart, fn, effectiveTz]);
 
   const close = () => navigate({ to: "/insights" });
 
@@ -140,34 +146,18 @@ function LunationRecapRoute() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col"
+      className="fixed inset-0 z-50"
       style={{
         background:
           "radial-gradient(ellipse at top, color-mix(in oklab, var(--gold) 8%, var(--background)) 0%, var(--background) 70%)",
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
       }}
     >
-      {/* Top progress bar */}
-      <div className="flex gap-1 px-3 pt-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-        {Array.from({ length: total }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1"
-            style={{
-              height: 3,
-              borderRadius: 2,
-              background:
-                i < slide
-                  ? "var(--gold)"
-                  : i === slide
-                  ? "color-mix(in oklab, var(--gold) 80%, transparent)"
-                  : "color-mix(in oklab, var(--color-foreground) 18%, transparent)",
-              transition: "background 200ms ease",
-            }}
-          />
-        ))}
-      </div>
-      {/* Q61 Fix 4 — mount LunationHint on recap detail route. */}
-      <div className="px-4 pt-2">
+      <div
+        className="px-4"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      >
         <LunationHint />
       </div>
 
@@ -179,62 +169,19 @@ function LunationRecapRoute() {
         style={{
           top: "calc(env(safe-area-inset-top, 0px) + 24px)",
           right: 12,
-          background: "color-mix(in oklab, var(--cosmos, #0a0a14) 35%, transparent)",
+          background:
+            "color-mix(in oklab, var(--cosmos, #0a0a14) 35%, transparent)",
           color: "var(--color-foreground)",
         }}
       >
         <X size={18} />
       </button>
 
-      {/* v2.0 — visible prev/next controls. The old invisible tap-zones sat
-          BELOW the slide content in the stack (content was z-[1], zones z-0),
-          so the content layer ate every click and there was no way to
-          advance. These chevrons sit ABOVE the content (z-20), anchored to
-          the screen edges so they never cover the centered slide content
-          (reflection input, closer buttons). Hidden at the boundaries. */}
-      {slide > 0 && (
-        <button
-          type="button"
-          aria-label="Previous slide"
-          onClick={prev}
-          className="absolute z-20 rounded-full p-2"
-          style={{
-            left: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "color-mix(in oklab, var(--cosmos, #0a0a14) 35%, transparent)",
-            color: "var(--gold)",
-          }}
-        >
-          <ChevronLeft size={26} />
-        </button>
-      )}
-      {slide < total - 1 && (
-        <button
-          type="button"
-          aria-label="Next slide"
-          onClick={next}
-          className="absolute z-20 rounded-full p-2"
-          style={{
-            right: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "color-mix(in oklab, var(--cosmos, #0a0a14) 35%, transparent)",
-            color: "var(--gold)",
-          }}
-        >
-          <ChevronRight size={26} />
-        </button>
-      )}
-
       <div
-        className="relative z-[1] flex flex-1 justify-center px-6"
+        className="relative z-[1] flex justify-center px-6"
         style={{
-          overflowY: "auto",
-          overscrollBehaviorY: "contain",
-          alignItems: "safe center",
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)",
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 56px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 48px)",
         }}
       >
         {loading && (
@@ -249,15 +196,11 @@ function LunationRecapRoute() {
           </div>
         )}
         {!loading && data && (
-          <SlideContent
+          <LunationSpread
             data={data}
-            slide={slide}
-            hasTags={hasTags}
-            trackReversals={trackReversals}
             lunationStart={lunationStart}
-            reflection={reflection}
             onReflection={setReflection}
-            onClose={close}
+            tz={effectiveTz}
           />
         )}
       </div>
@@ -991,5 +934,333 @@ function StalkerImage({ cardId }: { cardId: number }) {
         boxShadow: "0 8px 32px color-mix(in oklab, var(--gold) 25%, transparent)",
       }}
     />
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-md)",
+          color: "var(--color-foreground)",
+        }}
+      >
+        {value}
+      </div>
+      <div
+        style={{
+          fontSize: "var(--text-caption)",
+          color: "var(--color-foreground-muted)",
+          fontStyle: "italic",
+          fontFamily: "var(--font-serif)",
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function LunationSpread({
+  data,
+  lunationStart,
+  onReflection,
+  tz,
+}: {
+  data: RecapData;
+  lunationStart: string;
+  onReflection?: (r: string | null) => void;
+  tz: string;
+}) {
+  const range = formatLunationRange(
+    new Date(data.lunationStart),
+    new Date(data.lunationEnd),
+  );
+
+  const days = useMemo(() => {
+    const startDate = new Date(data.lunationStart);
+    const endDate = new Date(data.lunationEnd);
+    const span = Math.max(1, calendarDaysBetween(startDate, endDate, tz));
+    const readingSet = new Set(data.readingDays ?? []);
+    const list: { key: string; drew: boolean }[] = [];
+    for (let i = 0; i <= span; i++) {
+      const key = isoDayInTz(addDaysInTz(startDate, i, tz), tz);
+      list.push({ key, drew: readingSet.has(key) });
+    }
+    return list;
+  }, [data.lunationStart, data.lunationEnd, data.readingDays, tz]);
+  const fullIdx = Math.round((days.length - 1) / 2);
+
+  const reversedPct = Math.round((data.reversalRate ?? 0) * 100);
+  const topTag = data.topTags?.[0] ?? null;
+
+  const poemParts: string[] = [];
+  if (data.topStalker) {
+    poemParts.push(
+      getCardName(data.topStalker.cardId) +
+        " kept arriving, " +
+        data.topStalker.count +
+        " time" +
+        (data.topStalker.count === 1 ? "" : "s") +
+        " this moon.",
+    );
+  }
+  if (data.topGuide) {
+    poemParts.push(data.topGuide.name + " walked beside you.");
+  }
+  if (reversedPct > 0) {
+    poemParts.push("Roughly " + reversedPct + "% turned to face away.");
+  }
+  const poem = poemParts.join(" ");
+
+  return (
+    <div style={{ width: "100%", maxWidth: 920 }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 38,
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            flex: "1 1 260px",
+            minWidth: 240,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: 230,
+              height: 230,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MoonPhaseIcon
+              phase={(data.topMoonPhase?.phase as MoonPhaseName) ?? "Full Moon"}
+              size={200}
+            />
+            {data.topStalker && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  bottom: 0,
+                  transform: "rotate(-7deg)",
+                }}
+              >
+                <StalkerImage cardId={data.topStalker.cardId} />
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 14 }}>
+            <div
+              style={{
+                letterSpacing: "0.22em",
+                fontSize: "var(--text-caption)",
+                color: "var(--gold)",
+                fontStyle: "italic",
+                fontFamily: "var(--font-serif)",
+              }}
+            >
+              your lunation
+            </div>
+            <div
+              style={{
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground-muted)",
+                fontStyle: "italic",
+                fontFamily: "var(--font-serif)",
+                marginTop: 3,
+              }}
+            >
+              {range}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "clamp(2.6rem, 6vw, 3.4rem)",
+                  color: "var(--gold)",
+                  lineHeight: 1,
+                }}
+              >
+                {data.readingCount}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--color-foreground-muted)",
+                  marginLeft: 6,
+                }}
+              >
+                spread{data.readingCount === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ flex: "2 1 340px", minWidth: 280 }}>
+          {poem && (
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-lg)",
+                color: "var(--color-foreground)",
+                lineHeight: 1.5,
+                marginBottom: 22,
+              }}
+            >
+              {poem}
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              gap: 30,
+              flexWrap: "wrap",
+              marginBottom: 22,
+            }}
+          >
+            <Stat value={reversedPct + "%"} label="arrived reversed" />
+            {data.topMoonPhase && (
+              <Stat
+                value={String(data.topMoonPhase.count)}
+                label={"under the " + data.topMoonPhase.phase.toLowerCase()}
+              />
+            )}
+            {topTag && (
+              <Stat
+                value={topTag.tagName}
+                label={"most-tagged · ×" + topTag.count}
+              />
+            )}
+          </div>
+          {data.topPairs && data.topPairs.length > 0 && (
+            <>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  letterSpacing: "0.14em",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--gold)",
+                  marginBottom: 10,
+                }}
+              >
+                traveled together
+              </div>
+              <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
+                {data.topPairs.slice(0, 2).map((pr, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-body)",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    {pr.cardAName} · {pr.cardBName}{" "}
+                    <span style={{ color: "var(--color-foreground-muted)" }}>
+                      ×{pr.count}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 28,
+          paddingTop: 18,
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            letterSpacing: "0.14em",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground-muted)",
+            marginBottom: 12,
+          }}
+        >
+          this cycle, day by day
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            flexWrap: "wrap",
+          }}
+        >
+          {days.map((d, i) => {
+            if (i === 0)
+              return <MoonPhaseIcon key={d.key} phase="New Moon" size={16} />;
+            if (i === fullIdx)
+              return <MoonPhaseIcon key={d.key} phase="Full Moon" size={18} />;
+            return (
+              <span
+                key={d.key}
+                title={d.key}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: d.drew
+                    ? "var(--gold)"
+                    : "color-mix(in oklab, var(--color-foreground) 18%, transparent)",
+                  flexShrink: 0,
+                }}
+              />
+            );
+          })}
+        </div>
+        <div
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground-muted)",
+            fontStyle: "italic",
+            fontFamily: "var(--font-serif)",
+            marginTop: 8,
+          }}
+        >
+          gold marks a day you drew · the moons open and crown the cycle
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 28,
+          paddingTop: 18,
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        <PremiumReflectionSlide
+          lunationStart={lunationStart}
+          readingCount={data.readingCount}
+          onReflection={onReflection}
+        />
+      </div>
+    </div>
   );
 }

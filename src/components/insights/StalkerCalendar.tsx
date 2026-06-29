@@ -1,11 +1,14 @@
 /**
- * v2.26 — Stalkers calendar now renders the SAME manual-entry table the
- * Overview tab uses: the grid12 OverlapStrip, fed each selected stalker's
- * overlap via getQuickLogOverlap. Replaces the old shrunk day-picker.
+ * v2.26 — Stalkers calendar renders the SAME manual-entry table the Overview
+ * tab uses: the grid12 OverlapStrip, fed each selected stalker's overlap via
+ * getQuickLogOverlap. Replaces the old shrunk day-picker.
  *
  * Singles / Reversed pass one card (gold-fill marks that card's draw days).
  * Twins / Triplets pass the group via pullCardIds; the hero (first card)
  * drives the gold fill.
+ *
+ * v2.27 — heroCardId may be null. With no hero + markReadingDays, the table
+ * lights up every day that has any reading (used by the Insights Calendar tab).
  */
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,9 +25,11 @@ import { LoadingText } from "@/components/ui/loading-text";
 export function StalkerCalendar({
   heroCardId,
   pullCardIds,
+  markReadingDays = false,
 }: {
-  heroCardId: number;
+  heroCardId: number | null;
   pullCardIds?: number[];
+  markReadingDays?: boolean;
 }) {
   const { effectiveTz } = useTimezone();
   const fetchOverlap = useServerFn(getQuickLogOverlap);
@@ -69,7 +74,8 @@ export function StalkerCalendar({
     <OverlapStrip
       overlap={overlap}
       heroCardId={heroCardId}
-      pullCardIds={pullCardIds ?? [heroCardId]}
+      pullCardIds={pullCardIds ?? (heroCardId != null ? [heroCardId] : [])}
+      markReadingDays={markReadingDays}
       mode="day"
       onModeChange={() => {}}
       layout="grid12"

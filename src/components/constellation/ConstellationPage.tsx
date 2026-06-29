@@ -5525,7 +5525,8 @@ export function ConstellationPage({
               </div>
             ))}
           </div>
-          {/* Get AI Reading button */}
+          {/* Get AI Reading button — hidden on insights Patterns (v2.27) */}
+          {!insightsMode && (
           <button
             type="button"
             onClick={() => void handleGetAIReading()}
@@ -5551,6 +5552,7 @@ export function ConstellationPage({
                 ? "Re-read the cards"
                 : "Get AI reading"}
           </button>
+          )}
           {aiStatus === "error" && aiError && (
             <p
               style={{
