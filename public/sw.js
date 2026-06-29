@@ -49,6 +49,7 @@ self.addEventListener("fetch", (event) => {
   // the client bundle stays in lockstep with the SSR HTML. Only cache-first
   // truly static files (icons, manifest).
   if (
+    url.pathname === "/version.json" ||
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
     url.pathname.endsWith(".mjs") ||

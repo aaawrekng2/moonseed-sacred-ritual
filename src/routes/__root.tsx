@@ -16,6 +16,7 @@ import { usePreferencesSync } from "@/lib/use-preferences-sync";
 // Q24 Fix 1 — useTapToPeek is dormant; Clarity feature was dropped, and
 // "tap empty space → menu opens" is no longer desired UX.
 import { usePWA } from "@/lib/use-pwa";
+import { UpdateBanner } from "@/components/UpdateBanner";
 // EJ47 — FloatingMenu mount removed from this file. Provider stays
 // mounted because Tabletop / ReadingScreen still publish to it
 // (tabletopActive flag, etc.). The visible `···` pop-down is gone.
@@ -376,6 +377,7 @@ function RootComponent() {
             <TopNavGate />
             <Outlet />
             <BottomNavGate />
+            <UpdateBanner />
             <DevOverlay />
             <DevChip />
             {mounted && <Toaster />}
