@@ -16,6 +16,8 @@ import { useEffect, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { useVersionCheck } from "@/lib/use-version-check";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import {
   APP_VERSION_LETTER,
   readDevFaces,
@@ -88,6 +90,10 @@ export function DevChip() {
   // EJ47 — version + opacity readout for the chip header (replaces
   // the standalone top-left DevOverlay pill).
   const opacity = useDevOpacity();
+  // v2.34 — diagnostics: what the version check sees + what useAIEnabled
+  // returns for this account. Admin + dev-mode only (this whole chip is).
+  const vc = useVersionCheck();
+  const aiEnabled = useAIEnabled();
   const [pos, setPos] = useState<Pos>(() => readPos());
   const draggingRef = useRef<{
     startX: number;
@@ -274,6 +280,26 @@ export function DevChip() {
         <span style={{ fontSize: 10, letterSpacing: "0.08em", fontWeight: 600 }}>
           v{APP_VERSION_LETTER} · Op {opacity}%
         </span>
+      </div>
+
+      {/* v2.34 — diagnostic readout (temporary; remove after we confirm the
+          update-nudge + AI gating). Shows what the version check fetched and
+          what useAIEnabled resolves to for this account. */}
+      <div
+        style={{
+          fontSize: 9,
+          opacity: 0.82,
+          lineHeight: 1.5,
+          paddingBottom: 4,
+          borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
+          fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
+        }}
+      >
+        <div>
+          upd: json {vc.latest ?? "—"} · {vc.status} ·{" "}
+          {vc.updateReady ? "NEW" : "cur"} · n{vc.runs}
+        </div>
+        <div>ai: {aiEnabled === null ? "…" : String(aiEnabled)}</div>
       </div>
 
       {/* Dev mode master */}
