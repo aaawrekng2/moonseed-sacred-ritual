@@ -1,6 +1,7 @@
 /**
- * v2.29 / v2.32 — Update check. Fetches /version.json (cache-busted, no-store)
- * and compares it to the version baked into the running bundle
+ * v2.29 / v2.32 — Update check. Fetches /version.json (cache-busted, forced
+ * network reload — see v2.39 note at the fetch) and compares it to the version
+ * baked into the running bundle
  * (APP_VERSION_LETTER). A mismatch means a newer build has been deployed while
  * this client is running a stale one.
  *
@@ -87,7 +88,15 @@ export function useVersionCheck(): VersionCheckState {
     lastCheckedRef.current = now;
     setDiag((d) => ({ status: "fetching", runs: d.runs + 1 }));
     try {
-      const res = await fetch(`/version.json?t=${now}`, { cache: "no-store" });
+      // v2.39 — `cache: "no-store"` alone was still being answered from the
+      // browser HTTP cache on some clients (a plain tab saw the new version
+      // while the running app's fetch kept reading the old one). `cache:
+      // "reload"` bypasses the cache and revalidates with the origin every
+      // time; the no-cache request headers + unique ?t= are belt-and-suspenders.
+      const res = await fetch(`/version.json?t=${now}`, {
+        cache: "reload",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      });
       if (!res.ok) {
         setStatus(`http:${res.status}`);
         return;
