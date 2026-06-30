@@ -2,8 +2,9 @@
  * /settings/decks — My Decks (Phase 9.5b, Stamp AT/AW).
  *
  * List custom decks, create new ones, photograph cards, set the active deck,
- * and delete. Free tier capped at FREE_DECK_LIMIT (Stamp AW); when the user
- * exceeds the cap the "New deck" button becomes a paywall hint.
+ * and delete. Cap is the admin-tunable admin_settings.max_custom_decks
+ * (v2.38; default 5, editable in admin → Usage → Settings); when the user
+ * reaches the cap the "New deck" button shows a limit hint.
  */
 import { createFileRoute, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,7 +31,7 @@ import { LoadingText } from "@/components/ui/loading-text";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
-  FREE_DECK_LIMIT,
+  getMaxCustomDecks,
   fetchDeckCards,
   fetchUserDecks,
   setActiveDeck,
@@ -102,6 +103,7 @@ function DecksPage() {
   const navigate = useNavigate();
   const { refresh: refreshActiveDeck } = useActiveDeck();
   const [decks, setDecks] = useState<CustomDeck[]>([]);
+  const [maxDecks, setMaxDecks] = useState(5);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<WizardState>({ kind: "list" });
   const confirm = useConfirm();
@@ -110,8 +112,12 @@ function DecksPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const list = await fetchUserDecks(user.id);
+      const [list, max] = await Promise.all([
+        fetchUserDecks(user.id),
+        getMaxCustomDecks(),
+      ]);
       setDecks(list);
+      setMaxDecks(max);
     } finally {
       setLoading(false);
     }
@@ -212,7 +218,7 @@ function DecksPage() {
     );
   }
 
-  const overLimit = decks.length >= FREE_DECK_LIMIT;
+  const overLimit = decks.length >= maxDecks;
 
   return (
     <SettingsSection
@@ -229,15 +235,15 @@ function DecksPage() {
           "inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm",
           overLimit ? "cursor-not-allowed opacity-40" : "hover:bg-gold/10",
         )}
-        title={overLimit ? `Free tier limited to ${FREE_DECK_LIMIT} decks` : undefined}
+        title={overLimit ? `Limited to ${maxDecks} decks` : undefined}
       >
         <Plus className="h-4 w-4" /> New deck
       </button>
 
       {overLimit && (
         <div className="rounded-md border border-gold/30 bg-gold/5 p-3 text-sm">
-          You've reached the free tier limit of {FREE_DECK_LIMIT} decks. Delete one to add another,
-          or upgrade for unlimited decks.
+          You've reached your limit of {maxDecks} decks. Delete one to add another. Upgrade for
+          more decks.
         </div>
       )}
 
