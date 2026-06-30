@@ -10,6 +10,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { PressureGauge } from "@/components/insights/PressureGauge";
 import {
   ArrowLeft,
   X,
@@ -743,6 +744,11 @@ export function CardTraceView({
             (inline, no collapse) + companions + first/last seen +
             longest gap / avg spacing. Single source of truth. */}
         <div className="mx-auto mt-6 px-2" style={{ maxWidth: 480 }}>
+          {popoverData?.comparison && (
+            <div style={{ marginBottom: 18, display: "flex", justifyContent: "center" }}>
+              <PressureGauge comparison={popoverData.comparison} size="lg" />
+            </div>
+          )}
           <CardStatsPanel
             cardName={cardName}
             count={count}
