@@ -113,10 +113,14 @@ export function useVersionCheck(): VersionCheckState {
     if (typeof window === "undefined") return;
     void check(true);
     const onVisible = () => {
-      if (document.visibilityState === "visible") void check();
+      // v2.37 — force on refocus (bypass throttle) so switching away and
+      // back is a reliable manual trigger to catch a fresh deploy.
+      if (document.visibilityState === "visible") void check(true);
     };
     document.addEventListener("visibilitychange", onVisible);
-    const interval = window.setInterval(() => void check(), 30 * 60 * 1000);
+    // v2.37 — fallback poll every 2 min (was 30) so a parked tab the seeker
+    // never touches still catches a new deploy within a couple of minutes.
+    const interval = window.setInterval(() => void check(), 2 * 60 * 1000);
     return () => {
       mountedRef.current = false;
       document.removeEventListener("visibilitychange", onVisible);
