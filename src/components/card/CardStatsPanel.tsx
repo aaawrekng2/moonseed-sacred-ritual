@@ -272,7 +272,7 @@ export function CardStatsPanel({
           <div style={tileValue}>{count}</div>
           <div style={tileLabel}>{count === 1 ? "Pull" : "Pulls"}</div>
         </div>
-        {reversedPct !== null && (
+        {trackReversals && reversedPct !== null && (
           <div style={tileBase}>
             <div style={tileValue}>{`${Math.round(reversedPct * 100)}%`}</div>
             <div style={tileLabel}>Reversed</div>

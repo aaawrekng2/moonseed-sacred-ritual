@@ -856,7 +856,7 @@ export function CardRichContent({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
+              gridTemplateColumns: trackReversals && reversedPct !== null ? "1fr 1fr 1fr" : "1fr 1fr",
               gap: 6,
             }}
           >
@@ -926,7 +926,7 @@ export function CardRichContent({
                 {count === 1 ? "Pull" : "Pulls"}
               </div>
             </div>
-            {reversedPct !== null && (
+            {trackReversals && reversedPct !== null && (
               <div
                 {...hintAttrs(slimTitle("reversed"))}
                 style={{
