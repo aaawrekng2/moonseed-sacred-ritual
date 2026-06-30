@@ -18,8 +18,13 @@ import { useAuth } from "@/lib/auth";
 
 // v2.0 — EK letter scheme retired; the stamp now holds a semantic version
 // string (renders as "v2.0" wherever the pill prepends the v).
-export const APP_VERSION_LETTER = "2.35";
+export const APP_VERSION_LETTER = "2.36";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
+// v2.36 — device-local "developer options" unlock so the owner can use
+// the dev chip on a non-admin account. Set by the 7-tap version gesture
+// at the bottom of Settings. DevChip shows when (isAdmin || dev_unlock).
+const DEV_UNLOCK_KEY = "tarotseed:dev_unlock";
+const DEV_UNLOCK_EVENT = "tarotseed:dev-unlock-changed";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
 const MIST_EVENT = "tarotseed:mist-level-changed";
@@ -50,6 +55,13 @@ function readDevMode(): boolean {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(DEV_MODE_KEY) === "true";
 }
+
+export function readDevUnlock(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(DEV_UNLOCK_KEY) === "true";
+}
+
+export const DEV_UNLOCK_CHANGED_EVENT = DEV_UNLOCK_EVENT;
 
 function readMist(): number {
   if (typeof window === "undefined") return 0;
@@ -150,6 +162,17 @@ export function setDevMode(on: boolean): void {
   if (on) window.localStorage.setItem(DEV_MODE_KEY, "true");
   else window.localStorage.removeItem(DEV_MODE_KEY);
   window.dispatchEvent(new CustomEvent<boolean>(DEV_EVENT, { detail: on }));
+}
+
+// v2.36 — toggle the device-local dev unlock (and turn dev mode on/off to
+// match, so the chip appears/disappears immediately). Returns the new state.
+export function setDevUnlock(on: boolean): boolean {
+  if (typeof window === "undefined") return false;
+  if (on) window.localStorage.setItem(DEV_UNLOCK_KEY, "true");
+  else window.localStorage.removeItem(DEV_UNLOCK_KEY);
+  window.dispatchEvent(new CustomEvent<boolean>(DEV_UNLOCK_EVENT, { detail: on }));
+  setDevMode(on);
+  return on;
 }
 
 // EK126 — reactive Dev Mode reader, so the top-menu version readout can

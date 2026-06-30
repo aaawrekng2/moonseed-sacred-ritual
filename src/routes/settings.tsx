@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation } from "@tanstack/react-router";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import {
   Database,
   MessageSquare,
@@ -22,6 +22,7 @@ import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { supabase } from "@/lib/supabase";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { signOutAndClear } from "@/lib/sign-out";
+import { APP_VERSION_LETTER, setDevUnlock, readDevUnlock } from "@/components/dev/DevOverlay";
 
 /**
  * /settings — layout route. The route itself redirects to
@@ -133,6 +134,23 @@ function SettingsLayout() {
   // so the user gets a session immediately; the generic error only
   // appears if signInAnonymously actually fails.
   const [autoSignInError, setAutoSignInError] = useState<string | null>(null);
+  // v2.36 — secret "developer options" unlock: tap the version line at the
+  // bottom of Settings 7 times to toggle the dev chip on this device.
+  const devTapRef = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
+  const [devMsg, setDevMsg] = useState<string | null>(null);
+  const onVersionTap = () => {
+    const now = Date.now();
+    const r = devTapRef.current;
+    if (now - r.last > 1500) r.count = 0;
+    r.count += 1;
+    r.last = now;
+    if (r.count >= 7) {
+      r.count = 0;
+      const next = setDevUnlock(!readDevUnlock());
+      setDevMsg(next ? "Developer tools on" : "Developer tools off");
+      window.setTimeout(() => setDevMsg(null), 2000);
+    }
+  };
   const [autoSignInTried, setAutoSignInTried] = useState(false);
   useEffect(() => {
     if (authLoading) return;
@@ -411,6 +429,40 @@ function SettingsLayout() {
               </button>
             </div>
           )}
+          {/* v2.36 — dim version footer. Tapping 7× toggles the dev chip
+              on this device (Android "developer options" style). */}
+          <div className="flex flex-col items-center gap-1 pb-10">
+            <button
+              type="button"
+              onClick={onVersionTap}
+              aria-label="App version"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.2,
+                background: "none",
+                border: "none",
+                padding: 4,
+                cursor: "default",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              Tarot Seed v{APP_VERSION_LETTER}
+            </button>
+            {devMsg && (
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--accent)",
+                }}
+              >
+                {devMsg}
+              </span>
+            )}
+          </div>
         </div>
       </main>
     </SettingsProvider>
