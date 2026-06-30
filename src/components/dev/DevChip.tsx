@@ -23,6 +23,7 @@ import {
   readDevFaces,
   readDevHideMenu,
   readDevSlotColors,
+  readDevUnlock,
   setDevFaces,
   setDevHideMenu,
   setDevMode,
@@ -32,6 +33,8 @@ import {
 
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const DEV_EVENT = "tarotseed:dev-mode-changed";
+const DEV_UNLOCK_KEY = "tarotseed:dev_unlock";
+const DEV_UNLOCK_EVENT = "tarotseed:dev-unlock-changed";
 const DEV_SLOT_COLORS_KEY = "tarotseed:dev_slot_colors";
 const DEV_SLOT_COLORS_EVENT = "tarotseed:dev-slot-colors-changed";
 // EJ49 — hide-menu sub-toggle. Mirrors the slot-colors pattern.
@@ -82,6 +85,9 @@ export function DevChip() {
   const { user, loading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [devOn, setDevOn] = useState<boolean>(() => readDevMode());
+  // v2.36 — device-local dev unlock (7-tap gesture). Lets the chip show on
+  // a non-admin account.
+  const [unlocked, setUnlocked] = useState<boolean>(() => readDevUnlock());
   const [slotColorsOn, setSlotColorsOn] = useState<boolean>(() => readDevSlotColors());
   // EJ49 — hide-menu sub-toggle state.
   const [hideMenuOn, setHideMenuOn] = useState<boolean>(() => readDevHideMenu());
@@ -146,19 +152,26 @@ export function DevChip() {
       const detail = (e as CustomEvent<boolean>).detail;
       setFacesOn(typeof detail === "boolean" ? detail : readDevFaces());
     };
+    const onUnlock = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setUnlocked(typeof detail === "boolean" ? detail : readDevUnlock());
+    };
     const onStorage = (e: StorageEvent) => {
       if (e.key === DEV_MODE_KEY) setDevOn(readDevMode());
+      if (e.key === DEV_UNLOCK_KEY) setUnlocked(readDevUnlock());
       if (e.key === DEV_SLOT_COLORS_KEY) setSlotColorsOn(readDevSlotColors());
       if (e.key === DEV_HIDE_MENU_KEY) setHideMenuOn(readDevHideMenu());
       if (e.key === DEV_FACES_KEY) setFacesOn(readDevFaces());
     };
     window.addEventListener(DEV_EVENT, onDev);
+    window.addEventListener(DEV_UNLOCK_EVENT, onUnlock);
     window.addEventListener(DEV_SLOT_COLORS_EVENT, onSlot);
     window.addEventListener(DEV_HIDE_MENU_EVENT, onHideMenu);
     window.addEventListener(DEV_FACES_EVENT, onFaces);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(DEV_EVENT, onDev);
+      window.removeEventListener(DEV_UNLOCK_EVENT, onUnlock);
       window.removeEventListener(DEV_SLOT_COLORS_EVENT, onSlot);
       window.removeEventListener(DEV_HIDE_MENU_EVENT, onHideMenu);
       window.removeEventListener(DEV_FACES_EVENT, onFaces);
@@ -228,7 +241,7 @@ export function DevChip() {
   // want it cluttering the screen for non-dev sessions. To re-enable
   // dev mode (and the chip), use the existing toggle in
   // Settings → Profile → Dev mode.
-  if (loading || !isAdmin || !devOn) return null;
+  if (loading || (!isAdmin && !unlocked) || !devOn) return null;
 
   return (
     <div

@@ -300,7 +300,7 @@ export function Tabletop({
         // be consistent everywhere, since the seeker's mental
         // model is "Copy" and the share sheet on mobile is just a
         // mechanism. Was: `webShareAvailable ? "Share..." : "Copy..."`.
-        label: "Copy table snapshot",
+        label: "Copy a photo of the table",
         description:
           snapshotStatus === "ready"
             ? // EK17 — Was: "Proof that the deck wasn't rigged" (EK15)
@@ -309,7 +309,7 @@ export function Tabletop({
               // with sacred-language framing that honors the moment
               // the snapshot actually captures: the deck face-down,
               // shuffled, before any card has been revealed.
-              "The veil before it parts"
+              "Your shuffled cards as they are now — face-down, before the reveal."
             : snapshotStatus === "generating"
               ? "Preparing snapshot…"
               : snapshotStatus === "failed"
@@ -2399,11 +2399,32 @@ export function Tabletop({
           text={
             <>
               <span style={{ display: "block" }}>
-                Drew elsewhere? Tap the keyboard to record cards you already
-                drew.
+                Already drew your cards elsewhere? Tap the{" "}
+                <Keyboard
+                  className="h-4 w-4"
+                  strokeWidth={1.5}
+                  style={{
+                    display: "inline-block",
+                    verticalAlign: "text-bottom",
+                    margin: "0 1px",
+                  }}
+                  aria-hidden="true"
+                />{" "}
+                above to record them.
               </span>
               <span style={{ display: "block", marginTop: 8 }}>
-                Tap the bubble to add or edit your question.
+                Tap the{" "}
+                <MessageCircle
+                  className="h-4 w-4"
+                  strokeWidth={1.5}
+                  style={{
+                    display: "inline-block",
+                    verticalAlign: "text-bottom",
+                    margin: "0 1px",
+                  }}
+                  aria-hidden="true"
+                />{" "}
+                above to add or edit your question.
               </span>
             </>
           }
