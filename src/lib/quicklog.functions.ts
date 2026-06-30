@@ -13,6 +13,11 @@ import { getCardMeta } from "@/lib/card-astrology";
 import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase, type MoonPhaseName } from "@/lib/moon";
 import { dayOfWeekInTz, isoDayInTz } from "@/lib/time";
+import {
+  cardComparison,
+  drawsFromReadings,
+  type CardComparison,
+} from "@/lib/pattern-engine";
 
 // ─── Phase 23 — shared filter envelope ────────────────────────────────
 // Optional filter set threaded into every Constellation server fn. Mirrors
@@ -752,6 +757,10 @@ export type CardPopoverData = {
   longestGapDays: number | null;
   avgSpacingDays: number | null;
   topTag: { tag: string; multiplier: number } | null;
+  // v2.40 — pattern-engine per-card comparison (observed vs expected,
+  // over-index, rank/percentile, rarity, acute/chronic). null when the card
+  // has never been drawn in the current filter universe.
+  comparison: CardComparison | null;
 };
 
 export type CardPopoverDataMap = Record<number, CardPopoverData>;
@@ -793,6 +802,11 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
     )
       .filter((r) => Array.isArray(r.card_ids))
       .filter((r) => postFilterRow(r, data.filters));
+
+    // v2.40 — slot-level draw log for the pattern engine, built once and
+    // reused for every requested card's observed-vs-expected comparison.
+    const engineDraws = drawsFromReadings(rows);
+    const engineNow = Date.now();
 
     // Baseline tag frequencies — what fraction of ALL readings carry
     // each tag. Used as the denominator for the per-card tag bias.
@@ -843,6 +857,7 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
           longestGapDays: null,
           avgSpacingDays: null,
           topTag: null,
+          comparison: null,
         };
         continue;
       }
@@ -1019,6 +1034,7 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
         longestGapDays,
         avgSpacingDays,
         topTag,
+        comparison: cardComparison(cardId, engineDraws, { now: engineNow }),
       };
     }
     return out;
