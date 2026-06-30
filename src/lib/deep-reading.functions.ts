@@ -112,9 +112,9 @@ export const interpretDeepReading = createServerFn({ method: "POST" })
         birth_time?: string | null;
         birth_place?: string | null;
       };
-      const unlimited =
-        prefsRow.is_premium === true ||
-        prefsRow.archive_deepening_unlocked === true;
+      // v2.35 — premium tier retired (credits-only). Deep readings are
+      // metered by credits via callAI; no separate per-dawn-cycle cap.
+      const unlimited = true;
 
       // 3. Gate: count deep readings already used in this dawn cycle.
       if (!unlimited) {

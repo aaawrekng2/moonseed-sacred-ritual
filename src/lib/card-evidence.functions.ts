@@ -105,13 +105,9 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
       forceRegenerate: data.forceRegenerate ?? false,
     });
 
-    // 1. Premium status (drives Layer 2 inclusion)
-    const { data: prefs } = await supabase
-      .from("user_preferences")
-      .select("is_premium")
-      .eq("user_id", userId)
-      .maybeSingle();
-    const isPremium = !!(prefs as { is_premium?: boolean } | null)?.is_premium;
+    // 1. v2.35 — premium tier retired (credits-only). Layer 2 is always
+    // included; it is an AI call already metered by credits.
+    const isPremium = true;
 
     // 2. Load the thread + verify ownership
     const { data: threadRow } = await supabase
