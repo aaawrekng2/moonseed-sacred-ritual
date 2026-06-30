@@ -71,13 +71,31 @@ export async function checkCustomDeckLimit(userId: string): Promise<string | nul
   const raw = (setting as { value?: unknown } | null)?.value;
   const max = (() => {
     if (typeof raw === "number") return raw;
-    const n = parseInt(String(raw ?? 10), 10);
-    return Number.isFinite(n) ? n : 10;
+    const n = parseInt(String(raw ?? 5), 10);
+    return Number.isFinite(n) ? n : 5;
   })();
   if ((count ?? 0) >= max) {
     return `You've reached the maximum of ${max} custom decks. Delete an existing deck to create a new one.`;
   }
   return null;
+}
+
+/**
+ * v2.38 — Read the admin-tunable custom-deck cap (admin_settings.max_custom_decks).
+ * Default 5 when the row is missing or unparseable. Client-callable; mirrors the
+ * read in checkCustomDeckLimit so the "New deck" button and the server-side
+ * enforcement agree on one number (no more 3-vs-server drift).
+ */
+export async function getMaxCustomDecks(): Promise<number> {
+  const { data: setting } = await supabase
+    .from("admin_settings")
+    .select("value")
+    .eq("key", "max_custom_decks")
+    .maybeSingle();
+  const raw = (setting as { value?: unknown } | null)?.value;
+  if (typeof raw === "number") return raw;
+  const n = parseInt(String(raw ?? 5), 10);
+  return Number.isFinite(n) ? n : 5;
 }
 
 export type CustomDeckCard = {
