@@ -48,7 +48,7 @@ export function SuitCompositionRing({ data }: { data: EngineInsights | null }) {
     const frac = s.observed / totalSlots;
     const startFrac = accFrac;
     accFrac += frac;
-    return { key: s.key, frac, startFrac, isOver: s.isOver };
+    return { key: s.key, label: s.label, frac, startFrac, isOver: s.isOver };
   });
 
   const majFrac = majorMinor.major / totalSlots;
@@ -128,6 +128,32 @@ export function SuitCompositionRing({ data }: { data: EngineInsights | null }) {
                     transform={`rotate(-90 ${cx} ${cy})`}
                   />
                 )}
+                {o.frac >= 0.05 &&
+                  (() => {
+                    // Label sits on the band at the segment's mid-angle,
+                    // outlined so it reads on any theme's fill.
+                    const th = (o.startFrac + o.frac / 2) * 2 * Math.PI;
+                    const lx = cx + R * Math.sin(th);
+                    const ly = cy - R * Math.cos(th);
+                    const txt = o.key === "pentacles" ? "Pents" : o.label;
+                    return (
+                      <text
+                        x={lx.toFixed(1)}
+                        y={ly.toFixed(1)}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize="10.5"
+                        fill="var(--color-foreground)"
+                        stroke="var(--background)"
+                        strokeWidth={2.2}
+                        paintOrder="stroke"
+                        strokeLinejoin="round"
+                        style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+                      >
+                        {txt}
+                      </text>
+                    );
+                  })()}
               </g>
             );
           })}
@@ -159,7 +185,7 @@ export function SuitCompositionRing({ data }: { data: EngineInsights | null }) {
 
           <text
             x={cx}
-            y={cy - 1}
+            y={cy - 2}
             textAnchor="middle"
             fontSize="26"
             fill="var(--color-foreground)"
@@ -171,9 +197,9 @@ export function SuitCompositionRing({ data }: { data: EngineInsights | null }) {
             x={cx}
             y={cy + 16}
             textAnchor="middle"
-            fontSize="11"
-            fill="var(--color-foreground-muted)"
-            style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+            fontSize="13"
+            fill="var(--color-foreground)"
+            style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", letterSpacing: "0.03em" }}
           >
             draws
           </text>
