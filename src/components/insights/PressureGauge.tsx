@@ -73,12 +73,18 @@ export function PressureGauge({
   cardId,
   deckId,
   onCardClick,
+  bare = false,
+  bareWidth,
 }: {
   comparison: CardComparison | null;
   size?: Size;
   cardId?: number | null;
   deckId?: string | null;
   onCardClick?: () => void;
+  /** v2.51 — dial-only render (no readout, no help, no card image). Used to
+   *  overlay the same dial on constellation web cards. */
+  bare?: boolean;
+  bareWidth?: number;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [hover, setHover] = useState(false);
@@ -87,7 +93,7 @@ export function PressureGauge({
   if (!comparison) return null;
 
   const d = DIMS[size];
-  const W = d.w;
+  const W = bare && bareWidth ? bareWidth : d.w;
   const cx = W / 2;
   const R = W * 0.42;
   const cy = R + 4;
@@ -163,6 +169,12 @@ export function PressureGauge({
       )}
     </svg>
   );
+
+  // v2.51 — dial-only overlay for the constellation web. Same dial, no readout,
+  // no help layer. Calm cards (showDial false) render nothing.
+  if (bare) {
+    return showDial ? dial : null;
+  }
 
   // v2.49 — the hint leads with a small labelled dial: the three zones drawn
   // in their true colors with Calm / Building / Redline sitting along the arc,
