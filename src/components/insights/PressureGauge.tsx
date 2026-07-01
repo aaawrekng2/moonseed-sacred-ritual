@@ -102,6 +102,11 @@ export function PressureGauge({
   const isStalker = comparison.status === "ok" && comparison.isStalker;
   const overIndex = comparison.status === "ok" ? comparison.overIndex : 0;
 
+  // v2.49 — the dial only renders once the needle leaves the calm zone
+  // (building or redline). Calm cards show the card + numbers, no dial.
+  // Gathering keeps its dial so the "still gathering" state reads.
+  const showDial = comparison.status !== "ok" || overIndex > 1;
+
   const alertFill = gathering
     ? "var(--gauge-track)"
     : isStalker
@@ -159,11 +164,76 @@ export function PressureGauge({
     </svg>
   );
 
-  const zoneRows: Array<[string, string, string]> = [
-    ["var(--gauge-track)", "Calm", "drawn about as often as a random deck would deal it."],
-    ["var(--gauge-mid)", "Building", "pulling ahead of chance \u2014 a Story beginning to surface."],
-    ["var(--gauge-alert)", "Redline", "far past what chance explains \u2014 a card genuinely seeking you out."],
-  ];
+  // v2.49 — the hint leads with a small labelled dial: the three zones drawn
+  // in their true colors with Calm / Building / Redline sitting along the arc,
+  // plus this card's own needle so the seeker sees where it lands.
+  const zoneDial = (() => {
+    const Wg = 210;
+    const pad = 22;
+    const R2 = Wg * 0.4;
+    const cx2 = Wg / 2;
+    const cy2 = pad + R2 + 4;
+    const Ro2 = R2;
+    const Ri2 = R2 * 0.72;
+    const hub2 = Math.max(6, R2 * 0.1);
+    const H2 = cy2 + hub2 + 4;
+    const sw2 = Math.max(1, Wg * 0.006);
+    const nlen2 = Ro2 - Math.max(3, R2 * 0.04);
+    const na2 = needleDeg(overIndex);
+    const [tx, ty] = polar(cx2, cy2, nlen2, na2);
+    const [q1x, q1y] = polar(cx2, cy2, hub2 * 0.85, na2 + 90);
+    const [q2x, q2y] = polar(cx2, cy2, hub2 * 0.85, na2 - 90);
+    const npts = `${q1x.toFixed(2)},${q1y.toFixed(2)} ${tx.toFixed(2)},${ty.toFixed(2)} ${q2x.toFixed(2)},${q2y.toFixed(2)}`;
+    const lr = Ro2 + 9;
+    const zlab = (deg: number, text: string, fill: string) => {
+      const [lx, ly] = polar(cx2, cy2, lr, deg);
+      return (
+        <text
+          x={lx.toFixed(1)}
+          y={ly.toFixed(1)}
+          textAnchor="middle"
+          fontSize="11"
+          fill={fill}
+          style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+        >
+          {text}
+        </text>
+      );
+    };
+    return (
+      <svg
+        viewBox={`0 0 ${Wg} ${H2}`}
+        width="100%"
+        role="img"
+        aria-label="The gauge zones: Calm, Building, Redline"
+        style={{ display: "block", margin: "2px auto 4px" }}
+      >
+        <g stroke="var(--gauge-stroke)" strokeWidth={sw2} strokeLinejoin="round">
+          <path d={sector(cx2, cy2, Ro2, Ri2, 180, 144)} fill="var(--gauge-track)" />
+          <path d={sector(cx2, cy2, Ro2, Ri2, 144, 100.8)} fill="var(--gauge-mid)" />
+          <path d={sector(cx2, cy2, Ro2, Ri2, 100.8, 0)} fill="var(--gauge-alert)" />
+        </g>
+        <polygon
+          points={npts}
+          fill={needleColor}
+          stroke="var(--gauge-stroke)"
+          strokeWidth={sw2}
+          strokeLinejoin="round"
+        />
+        <circle
+          cx={cx2}
+          cy={cy2}
+          r={hub2}
+          fill="var(--surface-card)"
+          stroke="var(--gauge-stroke)"
+          strokeWidth={sw2 * 1.2}
+        />
+        {zlab(162, "Calm", "color-mix(in oklch, var(--gauge-track) 55%, var(--color-foreground))")}
+        {zlab(122.4, "Building", "color-mix(in oklch, var(--gauge-mid) 72%, var(--color-foreground))")}
+        {zlab(50.4, "Redline", "var(--gauge-alert)")}
+      </svg>
+    );
+  })();
 
   const swatchRow = (swatch: string, lab: string, rest: string, key: string) => (
     <div key={key} style={{ display: "flex", gap: 9, marginBottom: 9 }}>
@@ -203,12 +273,14 @@ export function PressureGauge({
           }}
         >
           <CardImage cardId={cardId} deckId={deckId ?? undefined} size="custom" widthPx={W} />
-          <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)", zIndex: 2 }}>
-            {dial}
-          </div>
+          {showDial && (
+            <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)", zIndex: 2 }}>
+              {dial}
+            </div>
+          )}
         </div>
       ) : (
-        dial
+        showDial ? dial : null
       )}
 
       {gathering ? (
@@ -327,21 +399,8 @@ export function PressureGauge({
                 boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
               }}
             >
-              <div
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: d.sub,
-                  color: "var(--color-foreground-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: 8,
-                }}
-              >
-                The zones
-              </div>
-              {zoneRows.map(([sw, lab, rest], i) => swatchRow(sw, lab, rest, `z${i}`))}
-              <div style={{ height: 1, background: "var(--border-subtle)", margin: "4px 0 10px" }} />
+              {zoneDial}
+              <div style={{ height: 1, background: "var(--border-subtle)", margin: "8px 0 10px" }} />
               {(() => {
                 const c = comparison;
                 if (c.status !== "ok") return null;

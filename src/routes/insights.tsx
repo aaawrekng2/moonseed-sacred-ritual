@@ -609,7 +609,6 @@ function InsightsRoute() {
                 }
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
-                <SuitTrendsChart filters={filters} />
                 <TagCloud
                   filters={filters}
                   onTagSelect={(tagId) => {
@@ -782,6 +781,8 @@ function OverviewTab({
       )}
 
       <StalkerMeterRow data={engine} onOpenCard={onOpenCard} />
+
+      <SuitTrendsChart filters={filters} />
 
       <SuitCompositionRing data={engine} />
 
