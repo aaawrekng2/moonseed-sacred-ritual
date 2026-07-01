@@ -18,6 +18,16 @@ import {
   type ReversedStalkersResult,
 } from "@/lib/insights.types";
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
+import {
+  drawsFromReadings,
+  detectPatterns,
+  cardComparison,
+  cardMemberships,
+  binomSF,
+  DECK_SIZE,
+  DEFAULT_MIN_SLOTS,
+  type CardComparison,
+} from "@/lib/pattern-engine";
 import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
@@ -2878,3 +2888,139 @@ export const getTagFilterStats = createServerFn({ method: "POST" })
       };
     },
   );
+
+// ─── v2.44 — engine-powered Overview feed (meters + suit composition) ────────
+// Runs the pattern engine across the seeker's FULL reading history (the engine
+// does its own windowing internally), so the Overview can show significance-
+// ranked stalker gauges and a whole-deck suit-composition ring. No new tables:
+// readings.card_ids[] + created_at IS the slot-level draw log.
+
+export type EngineMeter = {
+  cardId: number;
+  cardName: string;
+  comparison: CardComparison;
+};
+
+export type EngineSuit = {
+  key: string; // majors | wands | cups | swords | pentacles
+  label: string;
+  size: number;
+  observed: number;
+  expected: number;
+  overIndex: number;
+  isOver: boolean; // Bonferroni-corrected over-presence (gold rim)
+};
+
+export type EngineInsights =
+  | { status: "gathering"; totalSlots: number; needed: number }
+  | {
+      status: "ok";
+      totalSlots: number;
+      meters: EngineMeter[]; // up to 3, significance-ranked; falls back to the single most-elevated
+      anyStalker: boolean;
+      suits: EngineSuit[]; // all 5 suits, volume + over-presence
+      majorMinor: {
+        major: number;
+        minor: number;
+        majorExpected: number;
+        minorExpected: number;
+      };
+    };
+
+const ENGINE_SUIT_META: Array<{ key: string; label: string; size: number }> = [
+  { key: "majors", label: "Major Arcana", size: 22 },
+  { key: "wands", label: "Wands", size: 14 },
+  { key: "cups", label: "Cups", size: 14 },
+  { key: "swords", label: "Swords", size: 14 },
+  { key: "pentacles", label: "Pentacles", size: 14 },
+];
+
+export const getEngineInsights = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => z.object({ tz: z.string().optional() }).parse(raw ?? {}))
+  .handler(async ({ context }): Promise<EngineInsights> => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: rows, error } = await supabase
+      .from("readings")
+      .select("created_at, card_ids")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(5000);
+    if (error) throw error;
+    const readings = (rows ?? []) as Array<{ created_at: string; card_ids: number[] | null }>;
+    const draws = drawsFromReadings(readings);
+    const now = Date.now();
+    const totalSlots = draws.length;
+
+    if (totalSlots < DEFAULT_MIN_SLOTS) {
+      return { status: "gathering", totalSlots, needed: DEFAULT_MIN_SLOTS };
+    }
+
+    // Meters — top card-dimension patterns, significance-ranked, deduped, cap 3.
+    const detect = detectPatterns(draws, { now, topN: 12 });
+    const meterIds: number[] = [];
+    if (detect.status === "ok") {
+      for (const p of detect.patterns) {
+        if (p.dimension !== "card" || p.cardId == null) continue;
+        if (!meterIds.includes(p.cardId)) meterIds.push(p.cardId);
+        if (meterIds.length >= 3) break;
+      }
+    }
+    // Calm state — no significant card pattern: show the single most-elevated
+    // card (within-normal-range) so the Overview still says something.
+    if (meterIds.length === 0) {
+      const counts = new Map<number, number>();
+      for (const d of draws) counts.set(d.cardId, (counts.get(d.cardId) ?? 0) + 1);
+      let bestId = -1;
+      let bestCount = -1;
+      for (const [id, c] of counts) {
+        if (c > bestCount) {
+          bestId = id;
+          bestCount = c;
+        }
+      }
+      if (bestId >= 0) meterIds.push(bestId);
+    }
+    const meters: EngineMeter[] = meterIds.map((cardId) => ({
+      cardId,
+      cardName: getCardName(cardId),
+      comparison: cardComparison(cardId, draws, { now }),
+    }));
+    const anyStalker = meters.some(
+      (m) => m.comparison.status === "ok" && m.comparison.isStalker,
+    );
+
+    // Suit composition — all 5 suits, observed vs expected + corrected over-flag.
+    const suitObs: Record<string, number> = {};
+    for (const d of draws) {
+      const s = cardMemberships(d.cardId).suit;
+      suitObs[s] = (suitObs[s] ?? 0) + 1;
+    }
+    const suitAlpha = 0.005 / ENGINE_SUIT_META.length; // Bonferroni across 5 suits
+    const suits: EngineSuit[] = ENGINE_SUIT_META.map((sm) => {
+      const observed = suitObs[sm.key] ?? 0;
+      const expected = (totalSlots * sm.size) / DECK_SIZE;
+      const overIndex = expected > 0 ? observed / expected : 0;
+      const rawP = binomSF(observed, totalSlots, sm.size / DECK_SIZE);
+      return {
+        key: sm.key,
+        label: sm.label,
+        size: sm.size,
+        observed,
+        expected,
+        overIndex,
+        isOver: overIndex > 1 && rawP < suitAlpha,
+      };
+    });
+
+    const majorObs = suitObs["majors"] ?? 0;
+    const minorObs = totalSlots - majorObs;
+    const majorMinor = {
+      major: majorObs,
+      minor: minorObs,
+      majorExpected: (totalSlots * 22) / DECK_SIZE,
+      minorExpected: (totalSlots * 56) / DECK_SIZE,
+    };
+
+    return { status: "ok", totalSlots, meters, anyStalker, suits, majorMinor };
+  });
