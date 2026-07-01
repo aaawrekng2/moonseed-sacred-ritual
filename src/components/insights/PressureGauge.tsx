@@ -102,6 +102,12 @@ export function PressureGauge({
   const hubR = Math.max(6, R * 0.1);
   const H = cy + hubR + 3;
   const strokeW = Math.max(1, W * 0.006);
+  // v2.52 — bare (constellation) dial is stroked as ONE graphic: a white
+  // silhouette (fill + thick outline) tracing the whole half-disc, at 75%
+  // opacity so it reads translucent over the card art. Pad the viewBox so the
+  // thick outline isn't clipped.
+  const casing = Math.max(2, W * 0.045);
+  const wellPad = bare ? casing : 0;
   const needleLen = Ro - Math.max(3, R * 0.04);
 
   const gathering = comparison.status === "gathering";
@@ -132,7 +138,7 @@ export function PressureGauge({
 
   const dial = (
     <svg
-      viewBox={`0 0 ${W} ${H}`}
+      viewBox={`${-wellPad} ${-wellPad} ${W + wellPad * 2} ${H + wellPad * 2}`}
       width={W}
       role="img"
       aria-label={
@@ -143,6 +149,15 @@ export function PressureGauge({
             }`
       }
     >
+      {bare && (
+        <path
+          d={`M${(cx - Ro).toFixed(2)},${cy.toFixed(2)} A${Ro.toFixed(2)},${Ro.toFixed(2)} 0 0 1 ${(cx + Ro).toFixed(2)},${cy.toFixed(2)} Z`}
+          fill="var(--gauge-well)"
+          stroke="var(--gauge-well)"
+          strokeWidth={casing}
+          strokeLinejoin="round"
+        />
+      )}
       <g stroke="var(--gauge-stroke)" strokeWidth={strokeW} strokeLinejoin="round">
         <path d={sector(cx, cy, Ro, Ri, 180, 144)} fill="var(--gauge-track)" />
         <path d={sector(cx, cy, Ro, Ri, 144, 100.8)} fill="var(--gauge-mid)" />
