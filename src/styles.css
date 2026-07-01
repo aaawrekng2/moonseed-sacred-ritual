@@ -75,6 +75,14 @@
   --ring:                      oklch(0.80 0.13 80 / 60%);
   --gold:                      oklch(0.82 0.14 82);
   --gold-foreground:           oklch(0.18 0.04 280);
+  /* v2.46 — Pressure-gauge palette. Theme-independent (like --gold) so the
+     dial reads the same everywhere and stays clearly distinct from the
+     gold / accent / teal the Patterns surface already owns. A theme may
+     override these if a light background needs it. */
+  --gauge-track:               oklch(0.37 0.05 295);
+  --gauge-mid:                 oklch(0.50 0.07 293);
+  --gauge-alert:               oklch(0.65 0.16 42);
+  --gauge-stroke:              oklch(1 0 0 / 0.9);
   --mystic:                    oklch(0.45 0.18 295);
   --mystic-foreground:         oklch(0.78 0.16 295);
   /* BT — atmosphere overlay tokenized. Themes set --atmosphere-overlay
