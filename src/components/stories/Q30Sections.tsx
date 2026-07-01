@@ -9,6 +9,7 @@ import type { CSSProperties } from "react";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
 import { formatDateLong } from "@/lib/dates";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 
 export const sectionHeadingStyle = (): CSSProperties => ({
   fontFamily: "var(--font-serif)",
@@ -146,10 +147,12 @@ export function StatsRibbon({
   reversalCount: number;
   dominantMoonPhase: string;
 }) {
+  const { trackReversals, loaded } = useTrackReversals();
+  const reversalsOff = loaded && !trackReversals;
   const stats: Array<{ value: string | number; label: string }> = [
     { value: readingCount, label: "READINGS" },
     { value: recurringCardCount, label: "CARDS RECURRING" },
-    { value: reversalCount, label: "REVERSALS" },
+    ...(reversalsOff ? [] : [{ value: reversalCount, label: "REVERSALS" }]),
     { value: dominantMoonPhase || "—", label: "DOMINANT MOON" },
   ];
   return (
