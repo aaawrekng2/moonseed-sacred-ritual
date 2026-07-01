@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Outlet } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouterState, Outlet } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -152,7 +152,18 @@ function InsightsRoute() {
   ).includes(search.tab as Tab)
     ? (search.tab as Tab)
     : "overview";
-  const [tab, setTab] = useState<Tab>(initialTab);
+  // v2.43 — tabs are real navigation, not local state. `tab` derives from
+  // the URL search param; a tab click navigates to /insights?tab=X. This
+  // makes tabs URL-addressable AND lets a tab click escape a child route
+  // (e.g. /insights/card/$cardId) instead of being trapped by the Outlet,
+  // which is what made the strip look dead on the Card Trace page.
+  const tab: Tab = initialTab;
+  const setTab = (id: Tab) => navigate({ to: "/insights", search: { tab: id } });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const childActive = pathname.startsWith("/insights/card");
+  // On a child route the strip still shows; light up Cards since the
+  // single-card deep-dive lives under the Cards tab.
+  const displayTab: Tab = childActive ? "cards" : tab;
   // Q99 #5 — hide Recap when moon disabled, and hide Stories when no patterns.
   const [patternCount, setPatternCount] = useState<number>(0);
   // v2.30 — Stories is an AI surface; hide it unless the seeker has AI access
@@ -409,7 +420,7 @@ function InsightsRoute() {
         {/* Tab strip */}
         <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
           {visibleTabs.map((t) => {
-            const active = tab === t.id;
+            const active = displayTab === t.id;
             return (
               <button
                 key={t.id}
@@ -438,7 +449,7 @@ function InsightsRoute() {
         </HorizontalScroll>
         {/* Q77 — filter bar moved below the tab strip so tabs are the
             primary nav and filters read as contextual controls. */}
-        {tab !== "recap" && tab !== "patterns" && (
+        {!childActive && tab !== "recap" && tab !== "patterns" && (
           <GlobalFilterBar
             filters={globalFilters}
             onChange={handleGlobalChange}
@@ -512,6 +523,8 @@ function InsightsRoute() {
       </div>
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+        {!childActive && (
+        <>
         {tab !== "patterns" && (
         <h1
           className="font-serif italic mb-4"
@@ -608,6 +621,8 @@ function InsightsRoute() {
           {tab === "stories" && <StoriesTab />}
           {tab === "recap" && moonEnabled && <RecapTab />}
         </div>
+        </>
+        )}
       </main>
       {/* Q60 Fix 3 — child routes (/insights/card/$cardId,
           /insights/recap/$lunationStart, /insights/year-of-lunations)
