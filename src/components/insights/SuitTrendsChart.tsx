@@ -50,6 +50,9 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   );
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("pct");
+  // v2.44 — suit trends gets its own range picker, defaulting to the last
+  // 7 days (selection-control rule: time range = dropdown).
+  const [range, setRange] = useState<string>("7d");
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +60,10 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
       setLoading(true);
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: { ...filters, tz: effectiveTz }, headers });
+        const r = await fn({
+          data: { ...filters, timeRange: range as InsightsFilters["timeRange"], tz: effectiveTz },
+          headers,
+        });
         if (!cancelled) {
           setData(r);
           setLoading(false);
@@ -69,7 +75,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
     return () => {
       cancelled = true;
     };
-  }, [filters, fn, effectiveTz]);
+  }, [filters, fn, effectiveTz, range]);
 
   const chartData = useMemo(() => {
     if (!data || !Array.isArray(data.buckets)) return [];
@@ -146,6 +152,28 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             Distribution of suits over time
           </p>
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <select
+          value={range}
+          onChange={(e) => setRange(e.target.value)}
+          aria-label="Time range"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            background: "var(--surface-elevated)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: 8,
+            padding: "4px 8px",
+            cursor: "pointer",
+          }}
+        >
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="90d">Last 90 days</option>
+          <option value="all">All time</option>
+        </select>
         <div
           className="flex gap-1 rounded-full p-0.5"
           style={{ background: "var(--surface-card)" }}
@@ -174,6 +202,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
               {it.label}
             </button>
           ))}
+        </div>
         </div>
       </div>
       <div style={{ width: "100%", height: 280 }}>

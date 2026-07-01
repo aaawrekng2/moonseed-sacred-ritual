@@ -11,12 +11,15 @@ import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
-import { HeroCard } from "@/components/insights/HeroCard";
-import { OverlapStrip } from "@/components/tabletop/QuickLog";
 import { ConstellationPage } from "@/components/constellation/ConstellationPage";
-import { getQuickLogOverlap, type QuickLogOverlap } from "@/lib/quicklog.functions";
-import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
-import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
+import {
+  getInsightsOverview,
+  getStalkerCards,
+  getEngineInsights,
+  type EngineInsights,
+} from "@/lib/insights.functions";
+import { StalkerMeterRow } from "@/components/insights/StalkerMeterRow";
+import { SuitCompositionRing } from "@/components/insights/SuitCompositionRing";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
   DEFAULT_FILTERS,
@@ -263,6 +266,27 @@ function InsightsRoute() {
   const [fetchNonce, setFetchNonce] = useState(0);
   const overviewFn = useServerFn(getInsightsOverview);
   const stalkerFn = useServerFn(getStalkerCards);
+  const [engine, setEngine] = useState<EngineInsights | null>(null);
+  const engineFn = useServerFn(getEngineInsights);
+  // v2.44 — engine feed for the Overview (meters + suit ring). Runs over the
+  // full history and is filter-independent, so it only refetches on
+  // user / tab / retry, not on every global-filter change.
+  useEffect(() => {
+    if (!userId || tab !== "overview") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const e = await engineFn({ data: { tz: effectiveTz }, headers });
+        if (!cancelled) setEngine(e as EngineInsights);
+      } catch {
+        if (!cancelled) setEngine(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, tab, fetchNonce, engineFn, effectiveTz]);
 
   // FU — Lift userTags fetch up so GlobalFilterBar can render Tags section.
   useEffect(() => {
@@ -576,6 +600,13 @@ function InsightsRoute() {
                 fetchError={fetchError}
                 onRetry={() => setFetchNonce((n) => n + 1)}
                 filters={filters}
+                engine={engine}
+                onOpenCard={(cardId) =>
+                  navigate({
+                    to: "/insights/card/$cardId",
+                    params: { cardId: String(cardId) },
+                  })
+                }
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
                 <SuitTrendsChart filters={filters} />
@@ -646,6 +677,8 @@ function OverviewTab({
   fetchError,
   onRetry,
   filters,
+  engine,
+  onOpenCard,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -660,42 +693,12 @@ function OverviewTab({
   fetchError: boolean;
   onRetry: () => void;
   filters: InsightsFilters;
+  engine: EngineInsights | null;
+  onOpenCard: (cardId: number) => void;
 }) {
-  const { effectiveTz } = useTimezone();
-  // v2.12 — the Overview calendar now renders the SAME manual-entry calendar
-  // component (OverlapStrip / grid12), fed the featured card as its hero so
-  // its gold-fill marks that card's draw days. One source of truth.
-  const featuredId =
-    stalkers?.stalkerCards?.[0]?.cardId ?? stalkers?.topCard?.cardId ?? null;
-  const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
-  const [openReadingId, setOpenReadingId] = useState<string | null>(null);
-  const fetchOverlap = useServerFn(getQuickLogOverlap);
-  useEffect(() => {
-    if (featuredId == null) {
-      setOverlap(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const headers = await getAuthHeaders();
-        const ov = (await fetchOverlap({
-          data: {
-            heroCardId: featuredId,
-            tz: effectiveTz,
-            filters: EMPTY_GLOBAL_FILTERS,
-          },
-          headers,
-        })) as QuickLogOverlap;
-        if (!cancelled) setOverlap(ov);
-      } catch {
-        if (!cancelled) setOverlap(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [featuredId, effectiveTz, fetchOverlap]);
+  // v2.44 — the featured-card OverlapStrip calendar and its fetch were retired
+  // here. The Overview now leads with engine meters + the suit ring, and
+  // "your rhythm" collapses to the tappable heatmap in the stat grid below.
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
   }
@@ -778,37 +781,9 @@ function OverviewTab({
         </div>
       )}
 
-      {stalkers && (stalkers.topCard || (stalkers.stalkerCards ?? []).length > 0) && (
-        <HeroCard result={stalkers} onTap={onTapHero} filters={filters} />
-      )}
+      <StalkerMeterRow data={engine} onOpenCard={onOpenCard} />
 
-      {/* v2.12 — Overview calendar: the shared manual-entry OverlapStrip
-          (grid12), fed the featured card as hero. Desktop only. */}
-      {overlap && featuredId != null && (
-        <div className="hidden md:block">
-          <OverlapStrip
-            overlap={overlap}
-            heroCardId={featuredId}
-            pullCardIds={[featuredId]}
-            mode="day"
-            onModeChange={() => {}}
-            layout="grid12"
-            monthsToShow={12}
-            showModeToggle={false}
-            showOlder
-            onShowOlderChange={() => {}}
-            onDayClick={(_date, readingIds) => {
-              if (readingIds.length > 0) setOpenReadingId(readingIds[0]);
-            }}
-          />
-        </div>
-      )}
-      {openReadingId && (
-        <ReadingDetailModal
-          readingId={openReadingId}
-          onClose={() => setOpenReadingId(null)}
-        />
-      )}
+      <SuitCompositionRing data={engine} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />
@@ -819,7 +794,7 @@ function OverviewTab({
           />
         )}
         <ReversalStat rate={overview.reversalRate} onTap={() => log("reversal")} />
-        <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={() => log("rhythm")} />
+        <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={onTapCalendar} />
       </div>
 
     </div>
