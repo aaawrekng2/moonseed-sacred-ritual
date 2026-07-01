@@ -184,7 +184,7 @@ export function PressureGauge({
           }}
         >
           <CardImage cardId={cardId} deckId={deckId ?? undefined} size="custom" widthPx={W} />
-          <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)" }}>
+          <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)", zIndex: 2 }}>
             {dial}
           </div>
         </div>
