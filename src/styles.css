@@ -1702,7 +1702,7 @@ button:focus-visible .moon-rung-glow {
  * Border-bottom provides edge definition against scrolling content.
  */
 .page-header-glass {
-  background: color-mix(in oklch, var(--surface-elevated) 88%, transparent);
+  background: color-mix(in oklch, var(--surface-elevated) 97%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-subtle);

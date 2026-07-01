@@ -13,6 +13,7 @@
  * pure presentational, no data fetching.
  */
 import type { CardComparison } from "@/lib/pattern-engine";
+import { useState } from "react";
 
 type Size = "lg" | "md" | "sm";
 
@@ -52,6 +53,10 @@ export function PressureGauge({
   comparison: CardComparison | null;
   size?: Size;
 }) {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const helpVisible = helpOpen || hover;
+
   if (!comparison) return null;
 
   const d = DIMS[size];
@@ -174,6 +179,150 @@ export function PressureGauge({
           </div>
         </div>
       ) : null}
+
+      {comparison.status === "ok" && size !== "sm" && (
+        <div
+          style={{ marginTop: 8, width: "100%", maxWidth: W }}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setHelpOpen((o) => !o)}
+            aria-expanded={helpVisible}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              margin: "0 auto",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: d.sub,
+              color: "var(--gold)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "2px 6px",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 15,
+                height: 15,
+                borderRadius: "50%",
+                border: "1px solid var(--gold)",
+                fontStyle: "normal",
+                fontSize: 10,
+                lineHeight: 1,
+              }}
+            >
+              ?
+            </span>
+            what this means
+          </button>
+
+          {helpVisible && (
+            <div
+              style={{
+                marginTop: 8,
+                textAlign: "left",
+                background: "var(--surface-card)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md, 10px)",
+                padding: "12px 14px",
+              }}
+            >
+              {(() => {
+                const c = comparison;
+                if (c.status !== "ok") return null;
+                const rows: Array<[string, string, string]> = [
+                  [
+                    "var(--gold)",
+                    "The needle",
+                    "how hard this card outruns chance. Dead left is exactly as often as a random deck would deal it; the further right, the more it's seeking you out.",
+                  ],
+                  [
+                    "var(--color-foreground)",
+                    `Drawn ${c.observed}\u00d7 \u00b7 expected ~${c.expected.toFixed(1)}\u00d7`,
+                    "your real pulls versus what pure luck would land across the same number of draws.",
+                  ],
+                ];
+                if (isStalker) {
+                  rows.push([
+                    "var(--gold)",
+                    "The gold redline",
+                    "once the needle crosses into gold, the gap is too large for chance to explain \u2014 the card is genuinely following you.",
+                  ]);
+                }
+                if (isStalker && c.best) {
+                  rows.push([
+                    "color-mix(in oklch, var(--color-foreground) 55%, transparent)",
+                    formatOneIn(c.best.oneInN),
+                    "the odds of this much repetition by luck alone. The rarer it is, the more the pattern means.",
+                  ]);
+                }
+                rows.push([
+                  "var(--accent)",
+                  `#${c.rank} of ${c.deckSize}`,
+                  "where it ranks against every card by over-presence. Separate from the needle \u2014 that's this card vs. chance; this is this card vs. the rest of the deck.",
+                ]);
+                return (
+                  <>
+                    {rows.map(([sw, lab, rest], i) => (
+                      <div key={i} style={{ display: "flex", gap: 9, marginBottom: 9 }}>
+                        <span
+                          style={{
+                            flex: "0 0 9px",
+                            width: 9,
+                            height: 9,
+                            borderRadius: 3,
+                            background: sw,
+                            marginTop: 6,
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: d.label,
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          <span style={{ fontStyle: "italic", color: "var(--color-foreground)" }}>
+                            {lab}
+                          </span>
+                          {" \u2014 "}
+                          <span style={{ color: "var(--color-foreground-muted)" }}>{rest}</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: d.sub,
+                        color: "var(--color-foreground-muted)",
+                        lineHeight: 1.5,
+                        marginTop: 2,
+                      }}
+                    >
+                      {c.kind === "acute"
+                        ? "Acute \u2014 a recent burst; it's been close lately. "
+                        : c.kind === "chronic"
+                        ? "Chronic \u2014 a slow, steady over-presence across your whole history. "
+                        : ""}
+                      Below 60 draws the gauge stays quiet, until a pattern can be told from coincidence.
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
