@@ -159,6 +159,25 @@ export function PressureGauge({
     </svg>
   );
 
+  const zoneRows: Array<[string, string, string]> = [
+    ["var(--gauge-track)", "Calm", "drawn about as often as a random deck would deal it."],
+    ["var(--gauge-mid)", "Building", "pulling ahead of chance \u2014 a Story beginning to surface."],
+    ["var(--gauge-alert)", "Redline", "far past what chance explains \u2014 a card genuinely seeking you out."],
+  ];
+
+  const swatchRow = (swatch: string, lab: string, rest: string, key: string) => (
+    <div key={key} style={{ display: "flex", gap: 9, marginBottom: 9 }}>
+      <span
+        style={{ flex: "0 0 9px", width: 9, height: 9, borderRadius: 3, background: swatch, marginTop: 6 }}
+      />
+      <div style={{ fontFamily: "var(--font-serif)", fontSize: d.label, lineHeight: 1.45 }}>
+        <span style={{ fontStyle: "italic", color: "var(--color-foreground)" }}>{lab}</span>
+        {" \u2014 "}
+        <span style={{ color: "var(--color-foreground-muted)" }}>{rest}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       {cardId != null ? (
@@ -246,7 +265,7 @@ export function PressureGauge({
 
       {comparison.status === "ok" && size !== "sm" && (
         <div
-          style={{ marginTop: 8, width: "100%", maxWidth: W }}
+          style={{ marginTop: 8, width: "100%", maxWidth: W, position: "relative" }}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
         >
@@ -292,14 +311,37 @@ export function PressureGauge({
           {helpVisible && (
             <div
               style={{
-                marginTop: 8,
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "min(320px, 86vw)",
+                maxHeight: "min(70vh, 440px)",
+                overflowY: "auto",
+                zIndex: "var(--z-popover, 50)" as unknown as number,
                 textAlign: "left",
-                background: "var(--surface-card)",
+                background: "var(--surface-elevated)",
                 border: "1px solid var(--border-subtle)",
                 borderRadius: "var(--radius-md, 10px)",
                 padding: "12px 14px",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
               }}
             >
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: d.sub,
+                  color: "var(--color-foreground-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: 8,
+                }}
+              >
+                The zones
+              </div>
+              {zoneRows.map(([sw, lab, rest], i) => swatchRow(sw, lab, rest, `z${i}`))}
+              <div style={{ height: 1, background: "var(--border-subtle)", margin: "4px 0 10px" }} />
               {(() => {
                 const c = comparison;
                 if (c.status !== "ok") return null;
@@ -336,33 +378,7 @@ export function PressureGauge({
                 ]);
                 return (
                   <>
-                    {rows.map(([swatch, lab, rest], i) => (
-                      <div key={i} style={{ display: "flex", gap: 9, marginBottom: 9 }}>
-                        <span
-                          style={{
-                            flex: "0 0 9px",
-                            width: 9,
-                            height: 9,
-                            borderRadius: 3,
-                            background: swatch,
-                            marginTop: 6,
-                          }}
-                        />
-                        <div
-                          style={{
-                            fontFamily: "var(--font-serif)",
-                            fontSize: d.label,
-                            lineHeight: 1.45,
-                          }}
-                        >
-                          <span style={{ fontStyle: "italic", color: "var(--color-foreground)" }}>
-                            {lab}
-                          </span>
-                          {" \u2014 "}
-                          <span style={{ color: "var(--color-foreground-muted)" }}>{rest}</span>
-                        </div>
-                      </div>
-                    ))}
+                    {rows.map(([sw, lab, rest], i) => swatchRow(sw, lab, rest, `s${i}`))}
                     <div
                       style={{
                         fontFamily: "var(--font-serif)",
