@@ -19,6 +19,7 @@ type Props = {
   stats: QuickLogCardStats;
   drawCounts: CardDrawCounts | null;
   tz: string;
+  trackReversals: boolean;
 };
 
 const STILL = "still gathering";
@@ -53,6 +54,7 @@ export function HeroPatternCluster({
   stats,
   drawCounts,
   tz,
+  trackReversals,
 }: Props) {
   const meta = getCardMeta(heroCardId);
   const meaning = TAROT_MEANINGS[heroCardId] ?? null;
@@ -287,25 +289,27 @@ export function HeroPatternCluster({
         : "Not enough pulls to see a time-of-day pattern.",
     });
 
-    c.push({
-      label: "Reversal",
-      value:
-        count === 0
-          ? STILL
-          : `${Math.round((stats.reversedCount / count) * 100)}% · ${
-              stats.reversedCount / count > stats.seekerReversedRate
-                ? "above"
-                : stats.reversedCount / count < stats.seekerReversedRate
-                ? "below"
-                : "at"
-            } your ${Math.round(stats.seekerReversedRate * 100)}%`,
-      hint:
-        count === 0
-          ? "No pulls yet to measure reversals."
-          : `Reversed ${stats.reversedCount} of ${count} (${Math.round(
-              (stats.reversedCount / count) * 100,
-            )}%), vs your ${Math.round(stats.seekerReversedRate * 100)}% overall rate.`,
-    });
+    if (trackReversals) {
+      c.push({
+        label: "Reversal",
+        value:
+          count === 0
+            ? STILL
+            : `${Math.round((stats.reversedCount / count) * 100)}% · ${
+                stats.reversedCount / count > stats.seekerReversedRate
+                  ? "above"
+                  : stats.reversedCount / count < stats.seekerReversedRate
+                  ? "below"
+                  : "at"
+              } your ${Math.round(stats.seekerReversedRate * 100)}%`,
+        hint:
+          count === 0
+            ? "No pulls yet to measure reversals."
+            : `Reversed ${stats.reversedCount} of ${count} (${Math.round(
+                (stats.reversedCount / count) * 100,
+              )}%), vs your ${Math.round(stats.seekerReversedRate * 100)}% overall rate.`,
+      });
+    }
 
     c.push({
       label: "Numerology",
@@ -358,12 +362,17 @@ export function HeroPatternCluster({
       c.push({
         label: "Yes / No",
         value: yn === "yes" ? "Leans Yes" : yn === "no" ? "Leans No" : "Either way",
-        hint:
-          yn === "yes"
+        hint: trackReversals
+          ? yn === "yes"
             ? "Leans Yes in a yes/no question — reversed, it flips toward No."
             : yn === "no"
             ? "Leans No in a yes/no question — reversed, it flips toward Yes."
-            : "Could go either way — upright leans Yes, reversed leans No.",
+            : "Could go either way — upright leans Yes, reversed leans No."
+          : yn === "yes"
+          ? "Leans Yes in a yes/no question."
+          : yn === "no"
+          ? "Leans No in a yes/no question."
+          : "Could go either way.",
       });
     }
 
@@ -413,7 +422,7 @@ export function HeroPatternCluster({
 
     // ── keywords chip ──
     const upright = meaning?.uprightKeywords ?? [];
-    const reversed = meaning?.reversedKeywords ?? [];
+    const reversed = trackReversals ? meaning?.reversedKeywords ?? [] : [];
     if (upright.length || reversed.length) {
       c.push({
         label: "Keywords",
@@ -425,7 +434,7 @@ export function HeroPatternCluster({
     }
 
     return { chips: c, sparkPoints: points };
-  }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz]);
+  }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz, trackReversals]);
 
   return (
     <div style={{ width: "100%" }}>

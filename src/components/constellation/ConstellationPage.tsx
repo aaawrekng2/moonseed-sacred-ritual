@@ -4964,6 +4964,7 @@ export function ConstellationPage({
                   stats={cardStats}
                   drawCounts={drawCounts}
                   tz={effectiveTz}
+                  trackReversals={allowReversed}
                 />
               ) : (
                 <div
