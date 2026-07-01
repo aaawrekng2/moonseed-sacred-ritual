@@ -1,26 +1,31 @@
 /**
- * PressureGauge (v2.41)
+ * PressureGauge (v2.46)
  *
- * A pressure-dial view of the pattern engine's per-card comparison.
- * Needle = over-index (observed ÷ expected, capped at 5×). The "surprising"
- * upper band + needle light up in --gold ONLY when the engine's
- * Bonferroni-corrected `isStalker` is true — so the redline reflects real
- * statistical significance, not just needle position, and stays theme-safe
- * (no hardcoded alarm color).
+ * A filled pressure-dial view of the pattern engine's per-card comparison.
+ * Needle = over-index (observed ÷ expected, capped at 5×). The alert (redline)
+ * zone + needle light up in --gauge-alert ONLY when the engine's Bonferroni-
+ * corrected `isStalker` is true — so the redline reflects real statistical
+ * significance, not just needle position.
  *
- * Reusable at three sizes: "lg" (Card Trace), "md" (Overview meters),
- * "sm" (hover popover). All values come in via the `comparison` prop —
- * pure presentational, no data fetching.
+ * The dial uses its OWN palette (--gauge-track / --gauge-mid / --gauge-alert /
+ * --gauge-stroke) so it stays distinct from the gold / accent / teal the
+ * Patterns surface owns, wherever the gauge appears.
+ *
+ * Reusable at three sizes: "lg" (Card Trace), "md" (Overview meters), "sm".
+ * When `cardId` is provided, the card image renders behind the dial with the
+ * dial bottom-aligned to the card's edge (Overview meter composition); the
+ * whole card becomes the tap target via `onCardClick`. Pure presentational.
  */
 import type { CardComparison } from "@/lib/pattern-engine";
+import { CardImage } from "@/components/card/CardImage";
 import { useState } from "react";
 
 type Size = "lg" | "md" | "sm";
 
-const DIMS: Record<Size, { w: number; sw: number; big: number; label: number; sub: number }> = {
-  lg: { w: 300, sw: 15, big: 40, label: 14, sub: 12 },
-  md: { w: 200, sw: 11, big: 28, label: 12.5, sub: 11 },
-  sm: { w: 140, sw: 8, big: 22, label: 11, sub: 10 },
+const DIMS: Record<Size, { w: number; big: number; label: number; sub: number }> = {
+  lg: { w: 300, big: 40, label: 14, sub: 12 },
+  md: { w: 200, big: 28, label: 12.5, sub: 11 },
+  sm: { w: 140, big: 22, label: 11, sub: 10 },
 };
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -28,10 +33,26 @@ function polar(cx: number, cy: number, r: number, deg: number): [number, number]
   return [cx + r * Math.cos(rad), cy - r * Math.sin(rad)];
 }
 
-function arc(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
-  const [x1, y1] = polar(cx, cy, r, startDeg);
-  const [x2, y2] = polar(cx, cy, r, endDeg);
-  return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 1 ${x2.toFixed(2)},${y2.toFixed(2)}`;
+// Filled annular sector over the top of the dial, from startDeg down to endDeg
+// (startDeg > endDeg). Outer arc clockwise, inner arc back counter-clockwise.
+function sector(
+  cx: number,
+  cy: number,
+  ro: number,
+  ri: number,
+  startDeg: number,
+  endDeg: number,
+): string {
+  const [ox1, oy1] = polar(cx, cy, ro, startDeg);
+  const [ox2, oy2] = polar(cx, cy, ro, endDeg);
+  const [ix2, iy2] = polar(cx, cy, ri, endDeg);
+  const [ix1, iy1] = polar(cx, cy, ri, startDeg);
+  return (
+    `M${ox1.toFixed(2)},${oy1.toFixed(2)} ` +
+    `A${ro.toFixed(2)},${ro.toFixed(2)} 0 0 1 ${ox2.toFixed(2)},${oy2.toFixed(2)} ` +
+    `L${ix2.toFixed(2)},${iy2.toFixed(2)} ` +
+    `A${ri.toFixed(2)},${ri.toFixed(2)} 0 0 0 ${ix1.toFixed(2)},${iy1.toFixed(2)} Z`
+  );
 }
 
 // over-index v -> needle angle. 0× = 180° (left), 5× = 0° (right).
@@ -49,9 +70,15 @@ function formatOneIn(oneInN: number): string {
 export function PressureGauge({
   comparison,
   size = "lg",
+  cardId,
+  deckId,
+  onCardClick,
 }: {
   comparison: CardComparison | null;
   size?: Size;
+  cardId?: number | null;
+  deckId?: string | null;
+  onCardClick?: () => void;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [hover, setHover] = useState(false);
@@ -61,73 +88,109 @@ export function PressureGauge({
 
   const d = DIMS[size];
   const W = d.w;
-  const sw = d.sw;
   const cx = W / 2;
   const R = W * 0.42;
-  const cy = R + sw / 2 + 4;
-  const H = cy + 8;
-  const needleLen = R - sw / 2 - 2;
-  const hubR = sw * 0.55;
+  const cy = R + 4;
+  const Ro = R;
+  const Ri = R * 0.72;
+  const hubR = Math.max(6, R * 0.1);
+  const H = cy + hubR + 3;
+  const strokeW = Math.max(1, W * 0.006);
+  const needleLen = Ro - Math.max(3, R * 0.04);
 
   const gathering = comparison.status === "gathering";
   const isStalker = comparison.status === "ok" && comparison.isStalker;
   const overIndex = comparison.status === "ok" ? comparison.overIndex : 0;
 
-  const track = "color-mix(in oklch, var(--color-foreground) 14%, transparent)";
-  const buildingColor = "color-mix(in oklch, var(--accent) 55%, transparent)";
-  const surprisingColor = isStalker
-    ? "var(--gold)"
-    : "color-mix(in oklch, var(--gold) 22%, transparent)";
-  const needleColor = isStalker ? "var(--gold)" : "var(--color-foreground)";
+  const alertFill = gathering
+    ? "var(--gauge-track)"
+    : isStalker
+    ? "var(--gauge-alert)"
+    : "var(--gauge-mid)";
+  const needleColor = isStalker
+    ? "var(--gauge-alert)"
+    : "color-mix(in oklch, var(--color-foreground) 55%, transparent)";
 
-  const [tipX, tipY] = polar(cx, cy, needleLen, needleDeg(overIndex));
+  const nAngle = needleDeg(overIndex);
+  const [tipX, tipY] = polar(cx, cy, needleLen, nAngle);
+  const [b1x, b1y] = polar(cx, cy, hubR * 0.85, nAngle + 90);
+  const [b2x, b2y] = polar(cx, cy, hubR * 0.85, nAngle - 90);
+  const needlePts =
+    `${b1x.toFixed(2)},${b1y.toFixed(2)} ${tipX.toFixed(2)},${tipY.toFixed(2)} ` +
+    `${b2x.toFixed(2)},${b2y.toFixed(2)}`;
+
+  const dial = (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      width={W}
+      role="img"
+      aria-label={
+        gathering
+          ? "Pressure gauge — still gathering data"
+          : `Pressure gauge — ${overIndex.toFixed(1)} times baseline${
+              isStalker ? ", past the redline" : ""
+            }`
+      }
+    >
+      <g stroke="var(--gauge-stroke)" strokeWidth={strokeW} strokeLinejoin="round">
+        <path d={sector(cx, cy, Ro, Ri, 180, 144)} fill="var(--gauge-track)" />
+        <path d={sector(cx, cy, Ro, Ri, 144, 100.8)} fill="var(--gauge-mid)" />
+        <path d={sector(cx, cy, Ro, Ri, 100.8, 0)} fill={alertFill} />
+      </g>
+      {!gathering && (
+        <>
+          <polygon
+            points={needlePts}
+            fill={needleColor}
+            stroke="var(--gauge-stroke)"
+            strokeWidth={strokeW}
+            strokeLinejoin="round"
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={hubR}
+            fill="var(--surface-card)"
+            stroke="var(--gauge-stroke)"
+            strokeWidth={strokeW * 1.2}
+          />
+        </>
+      )}
+    </svg>
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        width={W}
-        role="img"
-        aria-label={
-          gathering
-            ? "Pressure gauge — still gathering data"
-            : `Pressure gauge — ${overIndex.toFixed(1)} times baseline${isStalker ? ", past the redline" : ""}`
-        }
-      >
-        {/* base track */}
-        <path d={arc(cx, cy, R, 180, 0)} fill="none" stroke={track} strokeWidth={sw} strokeLinecap="round" />
-        {/* building band (1× → ~2.2×) */}
-        <path d={arc(cx, cy, R, 144, 100.8)} fill="none" stroke={buildingColor} strokeWidth={sw} />
-        {/* surprising band (~2.2× → 5×) — lit gold only when a true stalker */}
-        <path
-          d={arc(cx, cy, R, 100.8, 0)}
-          fill="none"
-          stroke={surprisingColor}
-          strokeWidth={sw}
-          strokeLinecap="round"
-        />
-        {!gathering && (
-          <>
-            <line
-              x1={cx}
-              y1={cy}
-              x2={tipX.toFixed(2)}
-              y2={tipY.toFixed(2)}
-              stroke={needleColor}
-              strokeWidth={Math.max(2, sw * 0.22)}
-              strokeLinecap="round"
-            />
-            <circle
-              cx={cx}
-              cy={cy}
-              r={hubR}
-              fill="var(--surface-card)"
-              stroke="var(--gold)"
-              strokeWidth={Math.max(2, sw * 0.18)}
-            />
-          </>
-        )}
-      </svg>
+      {cardId != null ? (
+        <div
+          onClick={onCardClick}
+          role={onCardClick ? "button" : undefined}
+          tabIndex={onCardClick ? 0 : undefined}
+          onKeyDown={
+            onCardClick
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onCardClick();
+                  }
+                }
+              : undefined
+          }
+          style={{
+            position: "relative",
+            width: W,
+            cursor: onCardClick ? "pointer" : "default",
+            lineHeight: 0,
+          }}
+        >
+          <CardImage cardId={cardId} deckId={deckId ?? undefined} size="custom" widthPx={W} />
+          <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)" }}>
+            {dial}
+          </div>
+        </div>
+      ) : (
+        dial
+      )}
 
       {gathering ? (
         <div
@@ -143,12 +206,13 @@ export function PressureGauge({
           Still gathering — {comparison.totalSlots} of {comparison.needed} draws
         </div>
       ) : comparison.status === "ok" ? (
-        <div style={{ textAlign: "center", marginTop: -2 }}>
+        <div style={{ textAlign: "center", marginTop: 8 }}>
           <div
             style={{
               fontFamily: "var(--font-display)",
+              fontStyle: "italic",
               fontSize: d.big,
-              color: "var(--gold)",
+              color: isStalker ? "var(--gauge-alert)" : "var(--color-foreground)",
               lineHeight: 1,
             }}
           >
@@ -170,7 +234,7 @@ export function PressureGauge({
               fontFamily: "var(--font-serif)",
               fontSize: d.sub,
               marginTop: 5,
-              color: isStalker ? "var(--gold)" : "var(--color-foreground-muted)",
+              color: isStalker ? "var(--gauge-alert)" : "var(--color-foreground-muted)",
             }}
           >
             {isStalker && comparison.best
@@ -198,7 +262,7 @@ export function PressureGauge({
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: d.sub,
-              color: "var(--gold)",
+              color: "var(--gauge-alert)",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -214,7 +278,7 @@ export function PressureGauge({
                 width: 15,
                 height: 15,
                 borderRadius: "50%",
-                border: "1px solid var(--gold)",
+                border: "1px solid var(--gauge-alert)",
                 fontStyle: "normal",
                 fontSize: 10,
                 lineHeight: 1,
@@ -241,7 +305,7 @@ export function PressureGauge({
                 if (c.status !== "ok") return null;
                 const rows: Array<[string, string, string]> = [
                   [
-                    "var(--gold)",
+                    "var(--gauge-alert)",
                     "The needle",
                     "how hard this card outruns chance. Dead left is exactly as often as a random deck would deal it; the further right, the more it's seeking you out.",
                   ],
@@ -253,9 +317,9 @@ export function PressureGauge({
                 ];
                 if (isStalker) {
                   rows.push([
-                    "var(--gold)",
-                    "The gold redline",
-                    "once the needle crosses into gold, the gap is too large for chance to explain \u2014 the card is genuinely following you.",
+                    "var(--gauge-alert)",
+                    "The redline",
+                    "once the needle crosses into the ember zone, the gap is too large for chance to explain \u2014 the card is genuinely following you.",
                   ]);
                 }
                 if (isStalker && c.best) {
@@ -266,13 +330,13 @@ export function PressureGauge({
                   ]);
                 }
                 rows.push([
-                  "var(--accent)",
+                  "var(--gauge-mid)",
                   `#${c.rank} of ${c.deckSize}`,
                   "where it ranks against every card by over-presence. Separate from the needle \u2014 that's this card vs. chance; this is this card vs. the rest of the deck.",
                 ]);
                 return (
                   <>
-                    {rows.map(([sw, lab, rest], i) => (
+                    {rows.map(([swatch, lab, rest], i) => (
                       <div key={i} style={{ display: "flex", gap: 9, marginBottom: 9 }}>
                         <span
                           style={{
@@ -280,7 +344,7 @@ export function PressureGauge({
                             width: 9,
                             height: 9,
                             borderRadius: 3,
-                            background: sw,
+                            background: swatch,
                             marginTop: 6,
                           }}
                         />

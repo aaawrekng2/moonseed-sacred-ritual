@@ -84,27 +84,15 @@ export function StalkerMeterRow({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 2,
-              minWidth: 180,
+              minWidth: 200,
             }}
           >
-            <button
-              type="button"
-              onClick={() => onOpenCard(m.cardId)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "2px 6px",
-                fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontSize: "var(--text-body-lg)",
-                color: "var(--gold)",
-              }}
-            >
-              {m.cardName} &rsaquo;
-            </button>
-            <PressureGauge comparison={m.comparison} size="md" />
+            <PressureGauge
+              comparison={m.comparison}
+              size="md"
+              cardId={m.cardId}
+              onCardClick={() => onOpenCard(m.cardId)}
+            />
           </div>
         ))}
       </div>
