@@ -9,8 +9,39 @@ import { useMemo } from "react";
 import { CardImage } from "@/components/card/CardImage";
 import { ConstellationGhostSkeleton } from "@/components/constellation/ConstellationGhostSkeleton";
 import { useAnyDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
+import { PressureGauge } from "@/components/insights/PressureGauge";
+import { useCardGauges, type GaugeMap } from "@/lib/use-card-gauges";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+
+// v2.51 — dial-only gauge overlaid on the bottom of any constellation card the
+// seeker has drawn more than chance. Bottom-centered so it clears the hero's
+// gold pull badge (bottom-right). Display-only — never intercepts card
+// clicks / drags / hover.
+function CardGaugeOverlay({ gauges, cardId, cardW }: { gauges: GaugeMap; cardId: number; cardW: number }) {
+  const cmp = gauges[cardId];
+  if (!cmp || cmp.status !== "ok" || cmp.overIndex <= 1) return null;
+  const w = Math.round(cardW * 0.6);
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: "absolute",
+        left: "50%",
+        bottom: 0,
+        transform: "translateX(-50%)",
+        width: w,
+        zIndex: 3,
+        pointerEvents: "none",
+        fontSize: 0,
+        lineHeight: 0,
+      }}
+    >
+      <PressureGauge comparison={cmp} bare bareWidth={w} />
+    </span>
+  );
+}
+
 
 // Phase 19 Fix 4 + Fix 6 — wider SVG (edge buffer for ring outline),
 // shorter SVG so the whole page fits one viewport, smaller hero +
@@ -326,6 +357,7 @@ function ConstellationSvg({
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
   const resolveCardName = useAnyDeckCardName();
+  const gauges = useCardGauges();
   // EJ27 — read the active deck's seeker-chosen corner radius (stored
   // as a 0-15% value via the deck-import slider). Used to size the
   // selection highlight's borderRadius so its outer silhouette matches
@@ -685,6 +717,7 @@ function ConstellationSvg({
                       eager
                     />
                   </span>
+                  <CardGaugeOverlay gauges={gauges} cardId={constellation.heroCardId} cardW={pos.w} />
                   {/* EJ7 — hero gold badge nested INSIDE the inner span
                     so it anchors to the actual image bottom-right (the
                     span hugs the image). Previously the badge lived in
@@ -1013,6 +1046,7 @@ function ConstellationSvg({
                       eager
                     />
                   </span>
+                  <CardGaugeOverlay gauges={gauges} cardId={c.cardId} cardW={pos.w} />
                   {/* EJ7 — companion asterism badge nested inside the
                     button so it anchors to the actual rendered card
                     image top-right (same fix as the hero badges). */}

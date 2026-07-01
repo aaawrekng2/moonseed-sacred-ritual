@@ -3024,3 +3024,40 @@ export const getEngineInsights = createServerFn({ method: "GET" })
 
     return { status: "ok", totalSlots, meters, anyStalker, suits, majorMinor };
   });
+
+// ─── v2.51 — per-card gauge feed for the constellation web ───────────────────
+// Every card the seeker has drawn MORE than chance would deal it (over-index
+// above 1, same engine comparison the Overview meters use, over the whole
+// history) gets a CardComparison. ConstellationWeb overlays a dial on those
+// cards. Under the minimum-slots floor we return "gathering" and no dials show.
+export type CardGaugesResult =
+  | { status: "gathering" }
+  | { status: "ok"; gauges: Record<number, CardComparison> };
+
+export const getCardGauges = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => z.object({ tz: z.string().optional() }).parse(raw ?? {}))
+  .handler(async ({ context }): Promise<CardGaugesResult> => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: rows, error } = await supabase
+      .from("readings")
+      .select("created_at, card_ids")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(5000);
+    if (error) throw error;
+    const readings = (rows ?? []) as Array<{ created_at: string; card_ids: number[] | null }>;
+    const draws = drawsFromReadings(readings);
+    if (draws.length < DEFAULT_MIN_SLOTS) return { status: "gathering" };
+
+    const now = Date.now();
+    const distinct = new Set<number>();
+    for (const d of draws) distinct.add(d.cardId);
+
+    const gauges: Record<number, CardComparison> = {};
+    for (const cardId of distinct) {
+      const cmp = cardComparison(cardId, draws, { now });
+      if (cmp.status === "ok" && cmp.overIndex > 1) gauges[cardId] = cmp;
+    }
+    return { status: "ok", gauges };
+  });
