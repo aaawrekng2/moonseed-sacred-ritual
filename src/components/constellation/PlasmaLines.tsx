@@ -106,7 +106,7 @@ export function PlasmaLines({
       for (let k = 0; k < count; k++) {
         parts.push({
           t: Math.random(),
-          sp: (0.004 + Math.random() * 0.003) * (0.5 + e.weight),
+          sp: (0.004 + Math.random() * 0.003) * (0.35 + e.weight * 1.15),
           amp: 2.5 + e.weight * 2,
           ph: Math.random() * 6.28,
           r: 1.3 + e.weight * 1.6,
@@ -138,32 +138,46 @@ export function PlasmaLines({
         const nx = -dy / L;
         const ny = dx / L;
 
-        // v2.55 — the connecting line, back at ~25% and breathing with a soft
-        // glow. Drawn under the comets so they ride on top. Width by weight.
+        // v2.56 — the connecting line is ONE soft-edged band: a feathered
+        // plateau (solid across the middle ~40% of its width, fading to 0 at
+        // both edges). Thickness by co-occurrence weight; opacity scales
+        // 20% (rarest pair) -> 80% (most-frequent), with a gentle breathe
+        // riding within. Drawn under the comets.
         {
-          const breathe = animate ? 0.7 + 0.3 * Math.sin(time * 0.9 + e.phase) : 1;
-          const op = 0.25 * breathe;
-          const [cr, cg, cb] = e.hero ? [210, 170, 255] : e.body;
-          const lw = Math.max(1, Math.min(5, e.weight * 5)) * s;
+          const breathe = animate ? 0.85 + 0.15 * Math.sin(time * 0.9 + e.phase) : 1;
+          const op = (0.2 + e.weight * 0.6) * breathe; // 0.2..0.8
+          const [cr, cg, cb] = e.hero ? [220, 180, 255] : e.body;
+          const w = Math.max(1, Math.min(5, e.weight * 5)) * s; // total thickness (px)
+          const hw = w / 2;
           const x1 = mapX(e.fx);
           const y1 = mapY(e.fy);
           const x2 = mapX(e.tx);
           const y2 = mapY(e.ty);
-          ctx.lineCap = "round";
-          // soft glow
-          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${op * 0.4})`;
-          ctx.lineWidth = lw + 6 * s;
+          const dlen = Math.hypot(x2 - x1, y2 - y1) || 1;
+          const pnx = -(y2 - y1) / dlen;
+          const pny = (x2 - x1) / dlen;
+          const mx = (x1 + x2) / 2;
+          const my = (y1 + y2) / 2;
+          const grad = ctx.createLinearGradient(
+            mx - pnx * hw,
+            my - pny * hw,
+            mx + pnx * hw,
+            my + pny * hw,
+          );
+          const solid = `rgba(${cr},${cg},${cb},${op})`;
+          const clear = `rgba(${cr},${cg},${cb},0)`;
+          grad.addColorStop(0, clear);
+          grad.addColorStop(0.3, solid); // feathered plateau: solid across the
+          grad.addColorStop(0.7, solid); // middle ~40%, fade over outer edges
+          grad.addColorStop(1, clear);
+          ctx.fillStyle = grad;
           ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.stroke();
-          // crisp line
-          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${op})`;
-          ctx.lineWidth = lw;
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.stroke();
+          ctx.moveTo(x1 - pnx * hw, y1 - pny * hw);
+          ctx.lineTo(x2 - pnx * hw, y2 - pny * hw);
+          ctx.lineTo(x2 + pnx * hw, y2 + pny * hw);
+          ctx.lineTo(x1 + pnx * hw, y1 + pny * hw);
+          ctx.closePath();
+          ctx.fill();
         }
 
         for (const pt of e.parts) {
@@ -181,7 +195,7 @@ export function PlasmaLines({
             const y = mapY(uy);
             const fall = 1 - sIdx / TAIL;
             const rr = Math.max(0.5, pt.r * fall * 2.4 * s);
-            const al = (0.5 + e.weight * 0.45) * fall * fall;
+            const al = (0.35 + e.weight * 0.65) * fall * fall;
             const c =
               e.hero && sIdx === 0 ? [255, 250, 255] : e.body;
             const g = ctx.createRadialGradient(x, y, 0, x, y, rr);
