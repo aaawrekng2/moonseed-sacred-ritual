@@ -81,6 +81,9 @@ type Props = {
    * Only the full-size constellation surfaces pass this; card-hover popovers
    * and the Card Trace mini-web leave it off. */
   showPlasma?: boolean;
+  /** v2.60 — per-card draw counts (filtered universe). Orbs flow from the
+   * less-drawn card toward the more-drawn card on each connection. */
+  cardDrawCounts?: Record<number, number>;
   /** Phase 24 — clicking any card (hero or companion) toggles its membership
    * in the teal selection. */
   onCardClick: (cardId: number) => void;
@@ -202,6 +205,7 @@ export function ConstellationWeb({
   heroPick,
   constellation,
   showPlasma = false,
+  cardDrawCounts = {},
   onCardClick,
   tealSelectedIds,
   candidateIds = [],
@@ -279,6 +283,7 @@ export function ConstellationWeb({
         <ConstellationSvg
           constellation={constellation}
           showPlasma={showPlasma}
+          cardDrawCounts={cardDrawCounts}
           onCardClick={onCardClick}
           tealSelectedIds={tealSelectedIds}
           candidateIds={candidateIds}
@@ -308,6 +313,7 @@ export function ConstellationWeb({
 function ConstellationSvg({
   constellation,
   showPlasma,
+  cardDrawCounts,
   onCardClick,
   tealSelectedIds,
   candidateIds,
@@ -331,6 +337,7 @@ function ConstellationSvg({
 }: {
   constellation: CardConstellation;
   showPlasma?: boolean;
+  cardDrawCounts?: Record<number, number>;
   onCardClick: (cardId: number) => void;
   tealSelectedIds: number[];
   candidateIds: number[];
@@ -467,18 +474,26 @@ function ConstellationSvg({
       const ca = center(a);
       const cb = center(b);
       const weight = maxPair > 0 ? pair.count / maxPair : 0;
-      // orient higher (smaller y) endpoint as "from"
-      let fx = ca.cx;
-      let fy = ca.cy;
-      let tx = cb.cx;
-      let ty = cb.cy;
-      if (fy > ty) {
-        fx = cb.cx;
-        fy = cb.cy;
-        tx = ca.cx;
-        ty = ca.cy;
+      // v2.60 — orbs flow from the LESS-drawn card toward the MORE-drawn card
+      // (filtered per-card counts). Ties fall back to top -> bottom (down).
+      const countA = cardDrawCounts?.[pair.a] ?? 0;
+      const countB = cardDrawCounts?.[pair.b] ?? 0;
+      let fromC = ca;
+      let toC = cb;
+      if (countA !== countB) {
+        if (countA < countB) {
+          fromC = ca;
+          toC = cb;
+        } else {
+          fromC = cb;
+          toC = ca;
+        }
+      } else if (ca.cy > cb.cy) {
+        // tie: higher (smaller y) endpoint is "from"
+        fromC = cb;
+        toC = ca;
       }
-      arr.push({ fx, fy, tx, ty, weight, hero: false });
+      arr.push({ fx: fromC.cx, fy: fromC.cy, tx: toC.cx, ty: toC.cy, weight, hero: false });
     }
     // mark the single strongest pair as hero
     let bestIdx = -1;
@@ -492,7 +507,7 @@ function ConstellationSvg({
     if (bestIdx >= 0 && bestW > 0) arr[bestIdx].hero = true;
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showPlasma, constellation.pairCounts, constellation.heroCardId, maxPair]);
+  }, [showPlasma, constellation.pairCounts, constellation.heroCardId, maxPair, cardDrawCounts]);
 
   return (
     <div style={{ position: "relative", width: "100%" }}>

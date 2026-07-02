@@ -2192,6 +2192,31 @@ export function ConstellationPage({
     }
     return [...ids].sort((a, b) => a - b);
   }, [picks, displayedConstellation]);
+
+  // v2.60 — per-card draw counts (within the active filtered universe) for the
+  // web cards, so the plasma orbs can flow from the LESS-drawn card toward the
+  // MORE-drawn card on each connection. Reuses getCardDrawCounts (no new fn).
+  const [webCardCounts, setWebCardCounts] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (!user?.id || visibleCardIds.length === 0) {
+      setWebCardCounts({});
+      return;
+    }
+    let cancelled = false;
+    void getCardDrawCounts({
+      data: { cardIds: visibleCardIds, tz: effectiveTz, filters: filterPayload },
+    })
+      .then((d) => {
+        if (!cancelled) setWebCardCounts(d.perCard ?? {});
+      })
+      .catch(() => {
+        if (!cancelled) setWebCardCounts({});
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, effectiveTz, filterKey, visibleCardIds.join(",")]);
   // EJ18 — invalidate cache when filters change.
   useEffect(() => {
     popoverDataCacheKeyRef.current = null;
@@ -5407,6 +5432,7 @@ export function ConstellationPage({
             heroPick={heroPick}
             constellation={displayedConstellation}
             showPlasma
+            cardDrawCounts={webCardCounts}
             onCardClick={(cardId) =>
               setTealSelectedIds((prev) =>
                 prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
