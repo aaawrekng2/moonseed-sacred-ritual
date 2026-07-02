@@ -35,6 +35,7 @@ type Built = {
   fx: number; fy: number; tx: number; ty: number;
   weight: number; hero: boolean;
   body: [number, number, number];
+  phase: number; // breathing offset for the base line
   parts: Particle[];
 };
 
@@ -113,7 +114,12 @@ export function PlasmaLines({
       }
       const body: [number, number, number] =
         e.weight > 0.6 ? [210, 170, 255] : [170, 130, 255];
-      return { fx: e.fx, fy: e.fy, tx: e.tx, ty: e.ty, weight: e.weight, hero: e.hero, body, parts };
+      return {
+        fx: e.fx, fy: e.fy, tx: e.tx, ty: e.ty,
+        weight: e.weight, hero: e.hero, body,
+        phase: Math.random() * 6.28,
+        parts,
+      };
     });
 
     let time = 0;
@@ -131,6 +137,34 @@ export function PlasmaLines({
         const L = Math.hypot(dx, dy) || 1;
         const nx = -dy / L;
         const ny = dx / L;
+
+        // v2.55 — the connecting line, back at ~25% and breathing with a soft
+        // glow. Drawn under the comets so they ride on top. Width by weight.
+        {
+          const breathe = animate ? 0.7 + 0.3 * Math.sin(time * 0.9 + e.phase) : 1;
+          const op = 0.25 * breathe;
+          const [cr, cg, cb] = e.hero ? [210, 170, 255] : e.body;
+          const lw = Math.max(1, Math.min(5, e.weight * 5)) * s;
+          const x1 = mapX(e.fx);
+          const y1 = mapY(e.fy);
+          const x2 = mapX(e.tx);
+          const y2 = mapY(e.ty);
+          ctx.lineCap = "round";
+          // soft glow
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${op * 0.4})`;
+          ctx.lineWidth = lw + 6 * s;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          // crisp line
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${op})`;
+          ctx.lineWidth = lw;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
 
         for (const pt of e.parts) {
           if (animate) {

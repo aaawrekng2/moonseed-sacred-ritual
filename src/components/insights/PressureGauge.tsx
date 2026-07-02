@@ -167,8 +167,8 @@ export function PressureGauge({
         <>
           <polygon
             points={needlePts}
-            fill={needleColor}
-            stroke="var(--gauge-stroke)"
+            fill={bare ? "var(--gauge-needle)" : needleColor}
+            stroke={bare ? "none" : "var(--gauge-stroke)"}
             strokeWidth={strokeW}
             strokeLinejoin="round"
           />
@@ -176,8 +176,8 @@ export function PressureGauge({
             cx={cx}
             cy={cy}
             r={hubR}
-            fill="var(--surface-card)"
-            stroke="var(--gauge-stroke)"
+            fill={bare ? "var(--gauge-needle)" : "var(--surface-card)"}
+            stroke={bare ? "none" : "var(--gauge-stroke)"}
             strokeWidth={strokeW * 1.2}
           />
         </>
