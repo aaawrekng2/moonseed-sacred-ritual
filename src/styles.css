@@ -84,6 +84,7 @@
   --gauge-alert:               oklch(0.65 0.16 42);
   --gauge-stroke:              oklch(1 0 0 / 0.9);
   --gauge-well:                oklch(1 0 0 / 0.6);
+  --gauge-needle:              oklch(0.18 0.03 295);
   --mystic:                    oklch(0.45 0.18 295);
   --mystic-foreground:         oklch(0.78 0.16 295);
   /* BT — atmosphere overlay tokenized. Themes set --atmosphere-overlay
