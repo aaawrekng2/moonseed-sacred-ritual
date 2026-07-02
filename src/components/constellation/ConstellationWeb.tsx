@@ -11,6 +11,7 @@ import { ConstellationGhostSkeleton } from "@/components/constellation/Constella
 import { useAnyDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import { PressureGauge } from "@/components/insights/PressureGauge";
 import { useCardGauges, type GaugeMap } from "@/lib/use-card-gauges";
+import { PlasmaLines, type PlasmaEdge } from "@/components/constellation/PlasmaLines";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
@@ -76,6 +77,10 @@ const COMPANION_POSITIONS = [
 type Props = {
   heroPick: ManualPick | null;
   constellation: CardConstellation | null;
+  /** v2.53 — render the connecting lines as flowing plasma (canvas layer).
+   * Only the full-size constellation surfaces pass this; card-hover popovers
+   * and the Card Trace mini-web leave it off. */
+  showPlasma?: boolean;
   /** Phase 24 — clicking any card (hero or companion) toggles its membership
    * in the teal selection. */
   onCardClick: (cardId: number) => void;
@@ -196,6 +201,7 @@ function center(b: Box): { cx: number; cy: number } {
 export function ConstellationWeb({
   heroPick,
   constellation,
+  showPlasma = false,
   onCardClick,
   tealSelectedIds,
   candidateIds = [],
@@ -272,6 +278,7 @@ export function ConstellationWeb({
       ) : (
         <ConstellationSvg
           constellation={constellation}
+          showPlasma={showPlasma}
           onCardClick={onCardClick}
           tealSelectedIds={tealSelectedIds}
           candidateIds={candidateIds}
@@ -300,6 +307,7 @@ export function ConstellationWeb({
 
 function ConstellationSvg({
   constellation,
+  showPlasma,
   onCardClick,
   tealSelectedIds,
   candidateIds,
@@ -322,6 +330,7 @@ function ConstellationSvg({
   onConstellationDragOver,
 }: {
   constellation: CardConstellation;
+  showPlasma?: boolean;
   onCardClick: (cardId: number) => void;
   tealSelectedIds: number[];
   candidateIds: number[];
@@ -445,7 +454,51 @@ function ConstellationSvg({
     [...candidateSet].sort().join(","),
   ]);
 
+  // v2.53 — plasma edge list: same weight the SVG lines use (count / maxPair),
+  // oriented top -> bottom so the flow runs out and down. The single strongest
+  // pair is the hero (solid ribbon).
+  const plasmaEdges = useMemo<PlasmaEdge[]>(() => {
+    if (!showPlasma) return [];
+    const arr: PlasmaEdge[] = [];
+    for (const pair of constellation.pairCounts) {
+      const a = getCardPosition(pair.a, constellation);
+      const b = getCardPosition(pair.b, constellation);
+      if (a.w === 0 || b.w === 0) continue;
+      const ca = center(a);
+      const cb = center(b);
+      const weight = maxPair > 0 ? pair.count / maxPair : 0;
+      // orient higher (smaller y) endpoint as "from"
+      let fx = ca.cx;
+      let fy = ca.cy;
+      let tx = cb.cx;
+      let ty = cb.cy;
+      if (fy > ty) {
+        fx = cb.cx;
+        fy = cb.cy;
+        tx = ca.cx;
+        ty = ca.cy;
+      }
+      arr.push({ fx, fy, tx, ty, weight, hero: false });
+    }
+    // mark the single strongest pair as hero
+    let bestIdx = -1;
+    let bestW = -1;
+    arr.forEach((e, i) => {
+      if (e.weight > bestW) {
+        bestW = e.weight;
+        bestIdx = i;
+      }
+    });
+    if (bestIdx >= 0 && bestW > 0) arr[bestIdx].hero = true;
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPlasma, constellation.pairCounts, constellation.heroCardId, maxPair]);
+
   return (
+    <div style={{ position: "relative", width: "100%" }}>
+      {showPlasma && (
+        <PlasmaLines edges={plasmaEdges} vbX0={0} vbY0={-12} vbW={SVG_W} vbH={SVG_H + 12} />
+      )}
     <svg
       // EJ5 — viewBox extended 32px above 0 (was 20) to ensure the
       // asterism badge (32px tall, anchored at pos.y - 16 = -12 in
@@ -460,7 +513,7 @@ function ConstellationSvg({
       // negative-y children even if rare overshoot occurs.
       viewBox={`0 -12 ${SVG_W} ${SVG_H + 12}`}
       width="100%"
-      style={{ display: "block", overflow: "visible" }}
+      style={{ display: "block", overflow: "visible", position: "relative", zIndex: 1 }}
       role="img"
       aria-label="constellation web of cards that have appeared together"
     >
@@ -490,7 +543,13 @@ function ConstellationSvg({
           ((aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate)) && allowedTealPairs.has(i);
         const strokeWidth = isTealLine ? 2.5 : Math.max(1, Math.min(5, weight * 5));
         const opacity = isTealLine ? 0.95 : 0.2 + weight * 0.7;
-        const stroke = isTealLine ? TRACE_VAR : "var(--accent, var(--gold))";
+        // v2.53 — under plasma the flat base stroke is dropped (the canvas draws
+        // the connection); teal trace lines still render on top of the plasma.
+        const stroke = isTealLine
+          ? TRACE_VAR
+          : showPlasma
+            ? "transparent"
+            : "var(--accent, var(--gold))";
         return (
           <g key={`pairline-${pair.a}-${pair.b}-${i}`}>
             <line
@@ -1134,5 +1193,6 @@ function ConstellationSvg({
         );
       })}
     </svg>
+    </div>
   );
 }
