@@ -138,16 +138,23 @@ export function PlasmaLines({
         const nx = -dy / L;
         const ny = dx / L;
 
-        // v2.56 — the connecting line is ONE soft-edged band: a feathered
-        // plateau (solid across the middle ~40% of its width, fading to 0 at
-        // both edges). Thickness by co-occurrence weight; opacity scales
-        // 20% (rarest pair) -> 80% (most-frequent), with a gentle breathe
-        // riding within. Drawn under the comets.
+        // v2.59 — the connecting line is ONE soft-edged band. FIX for weak
+        // lines vanishing on busy webs: a once-drawn pair on a web whose
+        // busiest pair is 5+ used to floor to a 1px, 20%-opacity, feathered
+        // band = sub-pixel and invisible while its orbs still showed. Now:
+        //   - rendered width floors at 2px (always has body, any maxPair),
+        //   - opacity floors higher (0.35..0.8), and
+        //   - lines under ~3px draw CRISP (no feathered gradient — there
+        //     aren't enough pixels across the width for the plateau to
+        //     survive). Feathering only applies once the band is thick enough
+        //     to show it (the stronger pairs). Thickness/opacity still scale
+        //     with co-occurrence, so the hierarchy is preserved.
         {
           const breathe = animate ? 0.85 + 0.15 * Math.sin(time * 0.9 + e.phase) : 1;
-          const op = (0.2 + e.weight * 0.6) * breathe; // 0.2..0.8
+          const op = (0.35 + e.weight * 0.45) * breathe; // 0.35..0.8
           const [cr, cg, cb] = e.hero ? [220, 180, 255] : e.body;
-          const w = Math.max(1, Math.min(5, e.weight * 5)) * s; // total thickness (px)
+          const wUnits = Math.min(5, e.weight * 5);
+          const w = Math.max(2, wUnits * s); // rendered thickness (px), floor 2
           const hw = w / 2;
           const x1 = mapX(e.fx);
           const y1 = mapY(e.fy);
@@ -156,21 +163,27 @@ export function PlasmaLines({
           const dlen = Math.hypot(x2 - x1, y2 - y1) || 1;
           const pnx = -(y2 - y1) / dlen;
           const pny = (x2 - x1) / dlen;
-          const mx = (x1 + x2) / 2;
-          const my = (y1 + y2) / 2;
-          const grad = ctx.createLinearGradient(
-            mx - pnx * hw,
-            my - pny * hw,
-            mx + pnx * hw,
-            my + pny * hw,
-          );
           const solid = `rgba(${cr},${cg},${cb},${op})`;
-          const clear = `rgba(${cr},${cg},${cb},0)`;
-          grad.addColorStop(0, clear);
-          grad.addColorStop(0.3, solid); // feathered plateau: solid across the
-          grad.addColorStop(0.7, solid); // middle ~40%, fade over outer edges
-          grad.addColorStop(1, clear);
-          ctx.fillStyle = grad;
+          if (w < 3) {
+            // thin: crisp solid band, no feather
+            ctx.fillStyle = solid;
+          } else {
+            // thick: feathered plateau (solid middle ~40%, fade at edges)
+            const mx = (x1 + x2) / 2;
+            const my = (y1 + y2) / 2;
+            const clear = `rgba(${cr},${cg},${cb},0)`;
+            const grad = ctx.createLinearGradient(
+              mx - pnx * hw,
+              my - pny * hw,
+              mx + pnx * hw,
+              my + pny * hw,
+            );
+            grad.addColorStop(0, clear);
+            grad.addColorStop(0.3, solid);
+            grad.addColorStop(0.7, solid);
+            grad.addColorStop(1, clear);
+            ctx.fillStyle = grad;
+          }
           ctx.beginPath();
           ctx.moveTo(x1 - pnx * hw, y1 - pny * hw);
           ctx.lineTo(x2 - pnx * hw, y2 - pny * hw);
