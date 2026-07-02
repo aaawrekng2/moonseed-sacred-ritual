@@ -3052,7 +3052,7 @@ export function Tabletop({
                 color: "var(--accent, var(--gold))",
               }}
             >
-              The veil before it parts
+              Before the first card turns
             </h2>
             <p
               style={{
@@ -3063,15 +3063,12 @@ export function Tabletop({
                 opacity: 0.85,
               }}
             >
-              {/* EK26 — Reworded from "Copy draw proof?" → "A snapshot
-                  of the table is ready..." to match the sacred tone
-                  set in EK17 ("The veil before it parts"). The
-                  forensic "verify later that the cards were always
-                  where they are" framing was replaced with a
-                  contemplative invitation to hold the moment. */}
-              A snapshot of the table, before the veil parts. Save it
-              if you want to hold this moment before any card is
-              chosen.
+              {/* v2.61 — reworded to make the modal's purpose clear and to
+                  center the seeker's AGENCY: the snapshot is proof the table
+                  was set before any card was chosen, so the draw is theirs. */}
+              The table is set and nothing has been chosen. Save this moment
+              as proof that what comes next is yours entirely — your hand,
+              your agency, your draw. Or skip and let it begin.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
