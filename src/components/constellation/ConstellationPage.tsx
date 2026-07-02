@@ -5270,6 +5270,7 @@ export function ConstellationPage({
           <ConstellationWeb
             heroPick={heroPick}
             constellation={displayedConstellation}
+            showPlasma
             onCardClick={(cardId) =>
               setTealSelectedIds((prev) =>
                 prev.includes(cardId) ? prev.filter((x) => x !== cardId) : [...prev, cardId],
