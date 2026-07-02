@@ -6762,8 +6762,8 @@ export function ConstellationPage({
                       style={{
                         position: "relative",
                         display: "flex",
-                        alignItems: "stretch",
-                        gap: 10,
+                        flexDirection: "column",
+                        gap: 8,
                         padding: "10px 12px",
                         borderRadius: 8,
                         background: composedBg,
@@ -6776,40 +6776,7 @@ export function ConstellationPage({
                       onMouseEnter={() => setEntryHoverId(r.id)}
                       onMouseLeave={() => setEntryHoverId((cur) => (cur === r.id ? null : cur))}
                     >
-                      {/* v2.57 — floating tip: this entry's drawn cards at
-                          constellation-small size */}
-                      {isHoverRow && r.cardIds.length > 0 && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: "50%",
-                            bottom: "calc(100% + 6px)",
-                            transform: "translateX(-50%)",
-                            display: "flex",
-                            gap: 4,
-                            padding: "6px 8px",
-                            background: "var(--surface-elevated)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: 8,
-                            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-                            zIndex: 10,
-                            pointerEvents: "none",
-                            maxWidth: "min(320px, 86vw)",
-                            flexWrap: "wrap",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {r.cardIds.slice(0, 10).map((id, ci) => (
-                            <span
-                              key={`${r.id}-thumb-${ci}`}
-                              style={{ width: 38, display: "inline-block", flexShrink: 0 }}
-                            >
-                              <CardImage variant="face" cardId={id} size="custom" widthPx={38} />
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
+                      <div style={{ display: "flex", alignItems: "stretch", gap: 10, width: "100%" }}>
                       {/* v2.57 — left icon column: open in journal / load these
                           cards into the slot row (full replace) */}
                       <div
@@ -6847,7 +6814,9 @@ export function ConstellationPage({
                           title="Load these cards into the slots"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleLoadReading(r.id);
+                            // v2.58 — load into the CURRENT page's slots, no
+                            // navigation / unsaved-changes prompt. Records undo.
+                            void performLoadReading(r.id);
                           }}
                           style={{
                             background: "transparent",
@@ -6920,6 +6889,30 @@ export function ConstellationPage({
                           {extra}
                         </span>
                       </button>
+                      </div>
+                      {/* v2.58 — drawn cards shown IN-FLOW below the entry on
+                          hover (row grows), so they're never clipped by the
+                          modal edge like the old floating tip was. */}
+                      {isHoverRow && r.cardIds.length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 5,
+                            paddingTop: 2,
+                            justifyContent: "flex-start",
+                          }}
+                        >
+                          {r.cardIds.slice(0, 10).map((id, ci) => (
+                            <span
+                              key={`${r.id}-thumb-${ci}`}
+                              style={{ width: 40, display: "inline-block", flexShrink: 0 }}
+                            >
+                              <CardImage variant="face" cardId={id} size="custom" widthPx={40} />
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 });
