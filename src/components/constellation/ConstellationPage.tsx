@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Feather, Pin, RotateCw, Sparkles, TrendingUp, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, Feather, Pin, RotateCcw, RotateCw, Sparkles, TrendingUp, X, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -837,6 +837,77 @@ export function ConstellationPage({
   //   2. After mount, an effect reads localStorage ONCE and hydrates
   //      the state. This runs only on the client, so no mismatch.
   const [picks, setPicks] = useState<ManualPick[]>([]);
+
+  // v2.57 — slot-row undo/redo. History snapshots the `picks` array only
+  // (adds / removes / reorders / clear / hero promotion / loading a reading /
+  // the load-cards action). Filters and teal selection are NOT tracked.
+  // Capped, session-only. Implemented via a single effect that records every
+  // picks transition, so no individual setPicks callsite needs instrumenting.
+  const HISTORY_CAP = 25;
+  const undoStack = useRef<ManualPick[][]>([]);
+  const redoStack = useRef<ManualPick[][]>([]);
+  const prevPicksRef = useRef<ManualPick[]>([]);
+  const suppressHistory = useRef(false);
+  const [historyVersion, setHistoryVersion] = useState(0);
+
+  const picksEqual = (a: ManualPick[], b: ManualPick[]) => {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (
+        a[i].cardIndex !== b[i].cardIndex ||
+        a[i].isReversed !== b[i].isReversed ||
+        (a[i].deckId ?? null) !== (b[i].deckId ?? null)
+      )
+        return false;
+    }
+    return true;
+  };
+
+  useEffect(() => {
+    if (suppressHistory.current) {
+      suppressHistory.current = false;
+      prevPicksRef.current = picks;
+      return;
+    }
+    if (picksEqual(picks, prevPicksRef.current)) {
+      prevPicksRef.current = picks;
+      return;
+    }
+    undoStack.current.push(prevPicksRef.current);
+    if (undoStack.current.length > HISTORY_CAP) undoStack.current.shift();
+    redoStack.current = [];
+    prevPicksRef.current = picks;
+    setHistoryVersion((v) => v + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picks]);
+
+  const undoPicks = () => {
+    if (undoStack.current.length === 0) return;
+    const prev = undoStack.current.pop() as ManualPick[];
+    redoStack.current.push(prevPicksRef.current);
+    if (redoStack.current.length > HISTORY_CAP) redoStack.current.shift();
+    suppressHistory.current = true;
+    prevPicksRef.current = prev;
+    setPicks(prev);
+    setFocusedSlotIdx(prev.length > 0 ? 0 : null);
+    setHistoryVersion((v) => v + 1);
+  };
+
+  const redoPicks = () => {
+    if (redoStack.current.length === 0) return;
+    const next = redoStack.current.pop() as ManualPick[];
+    undoStack.current.push(prevPicksRef.current);
+    if (undoStack.current.length > HISTORY_CAP) undoStack.current.shift();
+    suppressHistory.current = true;
+    prevPicksRef.current = next;
+    setPicks(next);
+    setFocusedSlotIdx(next.length > 0 ? 0 : null);
+    setHistoryVersion((v) => v + 1);
+  };
+  const canUndo = undoStack.current.length > 0;
+  const canRedo = redoStack.current.length > 0;
+  void historyVersion; // re-render trigger for the undo/redo buttons
+
   const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
   // Phase 24 — teal multi-select trace. Empty by default. Click any card in
   // the constellation web (hero or companion) to toggle membership. Drives
@@ -930,7 +1001,10 @@ export function ConstellationPage({
     hydratedFromStorageRef.current = true;
     const persisted = loadPersisted();
     if (!persisted) return;
-    if (persisted.picks?.length) setPicks(persisted.picks);
+    if (persisted.picks?.length) {
+      suppressHistory.current = true;
+      setPicks(persisted.picks);
+    }
     if (persisted.focusedSlotIdx !== undefined) setFocusedSlotIdx(persisted.focusedSlotIdx);
     if (persisted.tealSelectedIds?.length) setTealSelectedIds(persisted.tealSelectedIds);
     // EJ16 — backdate is NOT restored from localStorage. The picker
@@ -1067,6 +1141,19 @@ export function ConstellationPage({
   const handleLoadReading = (readingId: string) => {
     requestNavigate(() => {
       void performLoadReading(readingId);
+    });
+  };
+
+  // v2.57 — open a reading in the Journal. Reuses the existing sessionStorage
+  // handoff (/journal reads "tarotseed:open-reading-id" on mount and opens it).
+  const handleOpenInJournal = (readingId: string) => {
+    requestNavigate(() => {
+      try {
+        window.sessionStorage.setItem("tarotseed:open-reading-id", readingId);
+      } catch {
+        /* swallow */
+      }
+      navigate({ to: "/journal" });
     });
   };
 
@@ -2052,6 +2139,9 @@ export function ConstellationPage({
     open: boolean;
     date: string | null;
   }>({ open: false, date: null });
+  // v2.57 — which day-modal entry row is hovered (shows its drawn cards as a
+  // floating thumbnail tip). Set on hover (desktop) / long-press (touch).
+  const [entryHoverId, setEntryHoverId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id || picks.length === 0) {
@@ -3541,6 +3631,50 @@ export function ConstellationPage({
               hover-only counts, font-weight gradient, recent-activity
               dot, and trend arrows. */}
           {(() => null)()}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+              <button
+                type="button"
+                aria-label="Undo"
+                title="Undo"
+                disabled={!canUndo}
+                onClick={undoPicks}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-foreground)",
+                  opacity: canUndo ? 0.85 : 0.28,
+                  cursor: canUndo ? "pointer" : "default",
+                }}
+              >
+                <RotateCcw size={16} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                aria-label="Redo"
+                title="Redo"
+                disabled={!canRedo}
+                onClick={redoPicks}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-foreground)",
+                  opacity: canRedo ? 0.85 : 0.28,
+                  cursor: canRedo ? "pointer" : "default",
+                }}
+              >
+                <RotateCw size={16} strokeWidth={2} />
+              </button>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
           <GlobalFilterBar
             filters={globalFilters}
             onChange={setGlobalFilters}
@@ -3574,6 +3708,8 @@ export function ConstellationPage({
               onChange: (v) => setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
             }}
           />
+            </div>
+          </div>
           {/* EJ21 — right-side data card removed entirely. The "1
               Year of Data on..." header and the ChipGrid below it
               (LAST SEEN, TIME PATTERN, FREQUENCY, MOON PHASE,
@@ -6619,13 +6755,15 @@ export function ConstellationPage({
                   // beneath it (modal body), not on a raw color.
                   const opPct = Math.round(sig.opacity * 100);
                   const composedBg = `color-mix(in oklab, ${sig.bg} ${opPct}%, var(--surface-card) ${100 - opPct}%)`;
+                  const isHoverRow = entryHoverId === r.id;
                   return (
-                    <button
+                    <div
                       key={r.id}
-                      type="button"
-                      onClick={() => handleLoadReading(r.id)}
                       style={{
-                        textAlign: "left",
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "stretch",
+                        gap: 10,
                         padding: "10px 12px",
                         borderRadius: 8,
                         background: composedBg,
@@ -6633,52 +6771,156 @@ export function ConstellationPage({
                         outline: sig.outline,
                         outlineOffset: sig.outlineOffset,
                         color: sig.textColor,
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 4,
                         width: "100%",
                       }}
+                      onMouseEnter={() => setEntryHoverId(r.id)}
+                      onMouseLeave={() => setEntryHoverId((cur) => (cur === r.id ? null : cur))}
                     >
-                      {r.question ? (
-                        <span
+                      {/* v2.57 — floating tip: this entry's drawn cards at
+                          constellation-small size */}
+                      {isHoverRow && r.cardIds.length > 0 && (
+                        <div
                           style={{
-                            fontFamily: "var(--font-serif)",
-                            fontStyle: "italic",
-                            fontSize: 13,
-                            color: sig.textColor,
-                            lineHeight: 1.35,
+                            position: "absolute",
+                            left: "50%",
+                            bottom: "calc(100% + 6px)",
+                            transform: "translateX(-50%)",
+                            display: "flex",
+                            gap: 4,
+                            padding: "6px 8px",
+                            background: "var(--surface-elevated)",
+                            border: "1px solid var(--border-subtle)",
+                            borderRadius: 8,
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+                            zIndex: 10,
+                            pointerEvents: "none",
+                            maxWidth: "min(320px, 86vw)",
+                            flexWrap: "wrap",
+                            justifyContent: "center",
                           }}
                         >
-                          {r.question}
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            fontFamily: "var(--font-serif)",
-                            fontStyle: "italic",
-                            fontSize: 12,
-                            color: sig.textColor,
-                            opacity: 0.7,
-                            lineHeight: 1.35,
-                          }}
-                        >
-                          (no question)
-                        </span>
+                          {r.cardIds.slice(0, 10).map((id, ci) => (
+                            <span
+                              key={`${r.id}-thumb-${ci}`}
+                              style={{ width: 38, display: "inline-block", flexShrink: 0 }}
+                            >
+                              <CardImage variant="face" cardId={id} size="custom" widthPx={38} />
+                            </span>
+                          ))}
+                        </div>
                       )}
-                      <span
+
+                      {/* v2.57 — left icon column: open in journal / load these
+                          cards into the slot row (full replace) */}
+                      <div
                         style={{
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 11,
-                          color: sig.textColor,
-                          opacity: 0.85,
-                          lineHeight: 1.35,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          justifyContent: "center",
+                          flexShrink: 0,
                         }}
                       >
-                        {cardsLabel}
-                        {extra}
-                      </span>
-                    </button>
+                        <button
+                          type="button"
+                          aria-label="Open journal entry"
+                          title="Open journal entry"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenInJournal(r.id);
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            padding: 2,
+                            display: "inline-flex",
+                            color: sig.textColor,
+                            cursor: "pointer",
+                            opacity: 0.85,
+                          }}
+                        >
+                          <BookOpen size={15} strokeWidth={2} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Load these cards into the slots"
+                          title="Load these cards into the slots"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLoadReading(r.id);
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            padding: 2,
+                            display: "inline-flex",
+                            color: sig.textColor,
+                            cursor: "pointer",
+                            opacity: 0.85,
+                          }}
+                        >
+                          <LayoutGrid size={15} strokeWidth={2} />
+                        </button>
+                      </div>
+
+                      {/* text — clicking loads the reading (existing behavior) */}
+                      <button
+                        type="button"
+                        onClick={() => handleLoadReading(r.id)}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          textAlign: "left",
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          color: sig.textColor,
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 4,
+                        }}
+                      >
+                        {r.question ? (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontSize: 13,
+                              color: sig.textColor,
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            {r.question}
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontSize: 12,
+                              color: sig.textColor,
+                              opacity: 0.7,
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            (no question)
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 11,
+                            color: sig.textColor,
+                            opacity: 0.85,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {cardsLabel}
+                          {extra}
+                        </span>
+                      </button>
+                    </div>
                   );
                 });
               })()}
