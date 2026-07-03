@@ -13,6 +13,7 @@ import { Route as ThreadsRouteImport } from './routes/threads'
 import { Route as StoriesRouteImport } from './routes/stories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as NumerologyRouteImport } from './routes/numerology'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as InsightsRouteImport } from './routes/insights'
@@ -72,6 +73,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ScatterTestRoute = ScatterTestRouteImport.update({
   id: '/scatter-test',
   path: '/scatter-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NumerologyRoute = NumerologyRouteImport.update({
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
   '/numerology': typeof NumerologyRoute
+  '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
   '/numerology': typeof NumerologyRoute
+  '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
@@ -383,6 +391,7 @@ export interface FileRoutesById {
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
   '/numerology': typeof NumerologyRoute
+  '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/journal'
     | '/numerology'
+    | '/privacy'
     | '/scatter-test'
     | '/settings'
     | '/stories'
@@ -476,6 +486,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/journal'
     | '/numerology'
+    | '/privacy'
     | '/scatter-test'
     | '/settings'
     | '/stories'
@@ -522,6 +533,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/journal'
     | '/numerology'
+    | '/privacy'
     | '/scatter-test'
     | '/settings'
     | '/stories'
@@ -569,6 +581,7 @@ export interface RootRouteChildren {
   InsightsRoute: typeof InsightsRouteWithChildren
   JournalRoute: typeof JournalRoute
   NumerologyRoute: typeof NumerologyRoute
+  PrivacyRoute: typeof PrivacyRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesRoute: typeof StoriesRouteWithChildren
@@ -611,6 +624,13 @@ declare module '@tanstack/react-router' {
       path: '/scatter-test'
       fullPath: '/scatter-test'
       preLoaderRoute: typeof ScatterTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/numerology': {
@@ -1035,6 +1055,7 @@ const rootRouteChildren: RootRouteChildren = {
   InsightsRoute: InsightsRouteWithChildren,
   JournalRoute: JournalRoute,
   NumerologyRoute: NumerologyRoute,
+  PrivacyRoute: PrivacyRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
   StoriesRoute: StoriesRouteWithChildren,
@@ -1051,13 +1072,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
