@@ -92,6 +92,9 @@ export type QuickLogCardStats = {
   seekerReversedRate: number; // 0..1
   frequencyRank: number | null; // 1 = most-drawn card across user's history
   totalDistinctCards: number; // denominator for "rank N of M"
+  // v2.64 — total draw slots across ALL cards in the filtered window. Used to
+  // compute the card's over-index vs pure chance: expected = this / 78.
+  windowTotalSlots: number;
   topMoonPhase: { phase: MoonPhaseName; count: number; total: number } | null;
   lastSeenMoonPhase: MoonPhaseName | null;
   companions: Array<{ cardId: number; count: number }>;
@@ -215,6 +218,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       seekerReversedRate: totalCards > 0 ? totalReversed / totalCards : 0,
       frequencyRank,
       totalDistinctCards,
+      windowTotalSlots: totalCards,
       topMoonPhase,
       lastSeenMoonPhase,
       companions,

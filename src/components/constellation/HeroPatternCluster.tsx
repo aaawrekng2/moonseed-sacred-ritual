@@ -241,6 +241,36 @@ export function HeroPatternCluster({
             }`,
     });
 
+    // v2.64 — over-index vs pure chance, as a signed percent. Same engine
+    // formula the gauge uses: expected = windowTotalSlots / 78; over-index =
+    // count / expected; shown as (overIndex - 1) * 100. Positive = drawn more
+    // than chance, negative = less. Reflects the active filter window (like the
+    // other tiles).
+    c.push(
+      (() => {
+        const totalSlots = stats.windowTotalSlots ?? 0;
+        const expected = totalSlots / 78;
+        if (count === 0 || expected <= 0) {
+          return {
+            label: "Vs chance",
+            value: STILL,
+            hint: "Not enough pulls yet to compare against pure chance.",
+          };
+        }
+        const overIndex = count / expected;
+        const pct = Math.round((overIndex - 1) * 100);
+        const absPct = Math.abs(pct);
+        const value = pct === 0 ? "even" : `${pct > 0 ? "+" : "\u2212"}${absPct}%`;
+        const hint =
+          pct === 0
+            ? `Drawn about as often as pure chance would deal it — ${count} vs ~${expected.toFixed(1)} expected across this window.`
+            : `Drawn ${absPct}% ${pct > 0 ? "more" : "less"} often than pure chance would deal it — ${count} vs ~${expected.toFixed(
+                1,
+              )} expected across this window.`;
+        return { label: "Vs chance", value, hint };
+      })(),
+    );
+
     c.push({
       label: "Last seen",
       value: stats.lastSeenAt
