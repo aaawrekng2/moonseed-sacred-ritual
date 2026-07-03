@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ThreadsRouteImport } from './routes/threads'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StoriesRouteImport } from './routes/stories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
@@ -58,6 +59,11 @@ import { Route as AdminUsageUsersUserIdRouteImport } from './routes/admin.usage.
 const ThreadsRoute = ThreadsRouteImport.update({
   id: '/threads',
   path: '/threads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StoriesRoute = StoriesRouteImport.update({
@@ -301,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
+  '/terms': typeof TermsRoute
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
+  '/terms': typeof TermsRoute
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
@@ -395,6 +403,7 @@ export interface FileRoutesById {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
+  '/terms': typeof TermsRoute
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/stories'
+    | '/terms'
     | '/threads'
     | '/admin/usage'
     | '/credits/cancel'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/stories'
+    | '/terms'
     | '/threads'
     | '/admin/usage'
     | '/credits/cancel'
@@ -537,6 +548,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/stories'
+    | '/terms'
     | '/threads'
     | '/admin/usage'
     | '/credits/cancel'
@@ -585,6 +597,7 @@ export interface RootRouteChildren {
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesRoute: typeof StoriesRouteWithChildren
+  TermsRoute: typeof TermsRoute
   ThreadsRoute: typeof ThreadsRouteWithChildren
   CreditsCancelRoute: typeof CreditsCancelRoute
   CreditsSuccessRoute: typeof CreditsSuccessRoute
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       path: '/threads'
       fullPath: '/threads'
       preLoaderRoute: typeof ThreadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stories': {
@@ -1059,6 +1079,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
   StoriesRoute: StoriesRouteWithChildren,
+  TermsRoute: TermsRoute,
   ThreadsRoute: ThreadsRouteWithChildren,
   CreditsCancelRoute: CreditsCancelRoute,
   CreditsSuccessRoute: CreditsSuccessRoute,
