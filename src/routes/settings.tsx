@@ -11,10 +11,21 @@ import {
   Wand2,
   Layers,
   BarChart2,
+  LogOut,
 } from "lucide-react";
 import { useAuth, triggerAnonymousSession } from "@/lib/auth";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useNavigate } from "@tanstack/react-router";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
@@ -152,6 +163,7 @@ function SettingsLayout() {
     }
   };
   const [autoSignInTried, setAutoSignInTried] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   useEffect(() => {
     if (authLoading) return;
     if (user) return;
@@ -399,6 +411,29 @@ function SettingsLayout() {
                   </Link>
                 );
               })}
+
+              {/* v2.66 — Sign out lives at the BOTTOM of the settings left
+                  column, its own row, separated by a divider and slightly
+                  de-emphasized so it's findable but not a mis-tap. Opens a
+                  "Sign out?" confirm before actually signing out. */}
+              <div style={{ marginTop: "auto" }}>
+                <div
+                  style={{
+                    height: 1,
+                    background: "var(--border-subtle)",
+                    margin: "8px 16px",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSignOutOpen(true)}
+                  className="flex w-full items-center gap-3 px-6 py-2.5 text-sm font-normal text-muted-foreground transition-colors duration-150 hover:bg-foreground/5 hover:text-foreground/80"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  <LogOut className="h-4 w-4" style={{ opacity: "var(--ro-plus-0)" }} />
+                  <span>Sign out</span>
+                </button>
+              </div>
             </aside>
 
             <div className="min-w-0 flex-1 md:max-w-[680px] md:pl-2">
@@ -406,29 +441,19 @@ function SettingsLayout() {
             </div>
           </div>
 
-          {user.email && (
-            <div className="flex justify-center pt-4 pb-8">
-              <button
-                type="button"
-                onClick={async () => {
-                  await signOutAndClear();
-                }}
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-body-sm)",
-                  color: "var(--foreground)",
-                  opacity: 0.25,
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              >
-                Sign out
-              </button>
-            </div>
-          )}
+          {/* v2.66 — the sidebar logout above is desktop-only (aside is
+              md:flex/hidden), so mobile gets its own Sign out, same confirm. */}
+          <div className="flex justify-center pt-4 pb-6 md:hidden">
+            <button
+              type="button"
+              onClick={() => setSignOutOpen(true)}
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+              style={{ background: "none", border: "none", cursor: "pointer" }}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
+            </button>
+          </div>
           {/* v2.36 — dim version footer. Tapping 7× toggles the dev chip
               on this device (Android "developer options" style). */}
           <div className="flex flex-col items-center gap-1 pb-10">
@@ -465,6 +490,27 @@ function SettingsLayout() {
           </div>
         </div>
       </main>
+
+      <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You&rsquo;ll be signed out of Tarot Seed on this device.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void signOutAndClear();
+              }}
+            >
+              Sign out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SettingsProvider>
   );
 }
