@@ -100,13 +100,38 @@ export function PlasmaLines({
     const rawSum = rawCounts.reduce((a, b) => a + b, 0) || 1;
     const scaleCounts = rawSum > COMET_BUDGET ? COMET_BUDGET / rawSum : 1;
 
+    // v2.63 — comet SPEED is length-independent and calibrated to two anchors
+    // taken from the CURRENT geometry:
+    //   - lowest co-occurrence  -> the speed a once-drawn pair has on the
+    //     SHORTEST line today,
+    //   - highest co-occurrence -> the speed the top pair has on the LONGEST
+    //     line today.
+    // Old model advanced t (0..1 along the edge) at a weight rate, but t is
+    // length-normalized, so equal co-occurrence looked FASTER on a longer line.
+    // Now each edge's per-frame t-step = (target visual units/frame) / (its own
+    // length), so equal co-occurrence = equal on-screen speed regardless of
+    // line length. SP_MEAN reproduces the old mean t-rate at the anchors.
+    const SP_MEAN = 0.0055;
+    const lensUnits = edges.map((e) => dist(e) || 1);
+    const shortestUnits = lensUnits.length ? Math.min(...lensUnits) : 1;
+    const longestUnits = lensUnits.length ? Math.max(...lensUnits) : 1;
+    const weightsArr = edges.map((e) => e.weight);
+    const minW = weightsArr.length ? Math.min(...weightsArr) : 0;
+    const maxW = weightsArr.length ? Math.max(...weightsArr) : 1;
+    const aLow = SP_MEAN * (0.35 + minW * 1.15) * shortestUnits; // units/frame
+    const aHigh = SP_MEAN * (0.35 + maxW * 1.15) * longestUnits;
+
     const built: Built[] = edges.map((e, idx) => {
       const count = Math.max(2, Math.round(rawCounts[idx] * scaleCounts));
+      const lenU = lensUnits[idx] || 1;
+      const normW = maxW > minW ? (e.weight - minW) / (maxW - minW) : 0;
+      const speedUnits = aLow + (aHigh - aLow) * normW; // target on-screen units/frame
+      const edgeTAdvance = speedUnits / lenU; // per-frame t-step for THIS edge
       const parts: Particle[] = [];
       for (let k = 0; k < count; k++) {
         parts.push({
           t: Math.random(),
-          sp: (0.004 + Math.random() * 0.003) * (0.35 + e.weight * 1.15),
+          sp: edgeTAdvance * (0.9 + Math.random() * 0.2),
           amp: 2.5 + e.weight * 2,
           ph: Math.random() * 6.28,
           r: 1.3 + e.weight * 1.6,
@@ -151,7 +176,7 @@ export function PlasmaLines({
         //     with co-occurrence, so the hierarchy is preserved.
         {
           const breathe = animate ? 0.85 + 0.15 * Math.sin(time * 0.9 + e.phase) : 1;
-          const op = (0.35 + e.weight * 0.45) * breathe; // 0.35..0.8
+          const op = (0.4 + e.weight * 0.6) * breathe; // 0.4..1.0
           const [cr, cg, cb] = e.hero ? [220, 180, 255] : e.body;
           const wUnits = Math.min(5, e.weight * 5);
           const w = Math.max(2, wUnits * s); // rendered thickness (px), floor 2
