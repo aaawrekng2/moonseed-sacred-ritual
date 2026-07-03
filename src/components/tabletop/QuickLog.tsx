@@ -2929,13 +2929,12 @@ export function OverlapStrip({
                               style: "solid",
                               color: traceColor,
                             });
-                          } else if (hoverStrokeHit) {
-                            rings.push({
-                              thickness: 3,
-                              style: "solid",
-                              color: `color-mix(in oklab, ${traceColor} 55%, transparent)`,
-                            });
                           }
+                          // v2.62 — hovering a constellation card no longer adds
+                          // a teal ring to its drawn days (that stroke is reserved
+                          // for the actual asterism/teal SELECTION). Hover still
+                          // reveals the day number and keeps its gentle pulse; the
+                          // day otherwise keeps exactly the markings it had.
                           let off = 0;
                           return rings.map((r, i) => {
                             const node = (
