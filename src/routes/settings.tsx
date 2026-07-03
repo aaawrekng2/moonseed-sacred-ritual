@@ -454,6 +454,25 @@ function SettingsLayout() {
               <span>Sign out</span>
             </button>
           </div>
+          {/* v2.69 — Legal links (Privacy / Terms) in Settings */}
+          <div
+            className="flex items-center justify-center gap-2 pt-2"
+            style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-caption)" }}
+          >
+            <Link
+              to="/privacy"
+              style={{ color: "var(--foreground)", opacity: 0.45, textDecoration: "none", fontStyle: "italic" }}
+            >
+              Privacy
+            </Link>
+            <span style={{ color: "var(--foreground)", opacity: 0.3 }}>&middot;</span>
+            <Link
+              to="/terms"
+              style={{ color: "var(--foreground)", opacity: 0.45, textDecoration: "none", fontStyle: "italic" }}
+            >
+              Terms
+            </Link>
+          </div>
           {/* v2.36 — dim version footer. Tapping 7× toggles the dev chip
               on this device (Android "developer options" style). */}
           <div className="flex flex-col items-center gap-1 pb-10">
