@@ -15,6 +15,7 @@
  *   • Otherwise → signup-form directly.
  */
 import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
 import { X, Eye, EyeOff } from "lucide-react";
 import { createBackup, type BackupProgress } from "@/lib/backup-export";
@@ -786,6 +787,54 @@ export function AuthScreen({
                   ? "Don't have an account? Create one"
                   : "Already have an account? Sign in"}
               </button>
+            </div>
+
+            {/* v2.69 — Privacy / Terms links under the auth form (both modes) */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 14,
+              }}
+            >
+              <Link
+                to="/privacy"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--foreground)",
+                  opacity: 0.4,
+                  textDecoration: "none",
+                }}
+              >
+                Privacy
+              </Link>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--foreground)",
+                  opacity: 0.3,
+                }}
+              >
+                &middot;
+              </span>
+              <Link
+                to="/terms"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--foreground)",
+                  opacity: 0.4,
+                  textDecoration: "none",
+                }}
+              >
+                Terms
+              </Link>
             </div>
           </>
         )}
