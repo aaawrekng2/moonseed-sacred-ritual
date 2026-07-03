@@ -145,6 +145,7 @@ export function AuthScreen({
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
   // Q82 — Login-screen resend confirmation flow.
   const [showResend, setShowResend] = useState(false);
   const [resendEmail, setResendEmail] = useState<string>("");
@@ -276,6 +277,28 @@ export function AuthScreen({
       setMode("download-modal");
     } else {
       setMode("signup-form");
+    }
+  };
+
+  // v2.65 — Google sign-in via Supabase OAuth (provider is enabled/managed in
+  // the Lovable Cloud backend). On success the browser redirects to Google and
+  // back to the app; Supabase creates the account on first sign-in.
+  const handleGoogle = async () => {
+    setError(null);
+    setGoogleBusy(true);
+    try {
+      const { error: oauthErr } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      if (oauthErr) {
+        setError(oauthErr.message);
+        setGoogleBusy(false);
+      }
+      // success path redirects away; nothing else to do here
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Google sign-in failed. Please try again.");
+      setGoogleBusy(false);
     }
   };
 
@@ -475,6 +498,60 @@ export function AuthScreen({
 
         {(formMode === "signin" || formMode === "signup-form") && (
           <>
+            {/* v2.65 — Google sign-in above the email fields, on both sign-in
+                and create-account, with an "or continue with email" divider. */}
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={googleBusy}
+              className="w-full rounded-lg px-4 py-2.5 flex items-center justify-center gap-2.5"
+              style={{
+                background: "var(--surface-elevated, #fff)",
+                border: "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+                color: "var(--color-foreground, #1a1a1a)",
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body)",
+                cursor: googleBusy ? "default" : "pointer",
+                opacity: googleBusy ? 0.6 : 1,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden style={{ flexShrink: 0 }}>
+                <path
+                  fill="#4285F4"
+                  d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"
+                />
+              </svg>
+              {googleBusy ? "Redirecting\u2026" : "Continue with Google"}
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
+              <span style={{ flex: 1, height: 1, background: "color-mix(in oklab, var(--gold) 18%, transparent)" }} />
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--foreground)",
+                  opacity: 0.55,
+                }}
+              >
+                or continue with email
+              </span>
+              <span style={{ flex: 1, height: 1, background: "color-mix(in oklab, var(--gold) 18%, transparent)" }} />
+            </div>
+
             <div className="flex flex-col gap-3">
               <input
                 type="email"
