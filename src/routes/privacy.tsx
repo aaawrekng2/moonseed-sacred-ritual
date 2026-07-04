@@ -31,7 +31,9 @@ function PrivacyPage() {
   return (
     <div
       style={{
-        minHeight: "100dvh",
+        height: "100dvh",
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
         background: "var(--color-background, #12061f)",
         color: "var(--color-foreground)",
         padding: "40px 20px 80px",
@@ -115,27 +117,54 @@ function PolicyBody() {
       </p>
 
       <Section title="Information we collect">
-        <p>We collect the following categories of information:</p>
+        <p>We collect the following, most of which you enter yourself:</p>
         <ul style={{ paddingLeft: 20, marginTop: 8 }}>
           <li>
-            <strong>Account information.</strong> When you create an account, we collect your email
-            address and, if you sign in with Google, your name, email, and profile picture as provided
-            by Google.
+            <strong>Account &amp; identity.</strong> Your email address (from email or Google
+            sign-up); if you use Google, your Google name, email, and profile picture; a display name
+            you choose; and, if you enable it, multi-factor authentication with recovery codes.
           </li>
           <li style={{ marginTop: 6 }}>
-            <strong>Your readings and journal content.</strong> The cards you log, spreads, questions,
-            notes, tags, and other content you create in the Service.
+            <strong>Birth &amp; astrology details (optional).</strong> If you use the astrology
+            features, the birth date, time, place, and name you provide, and derived details such as
+            sun and rising signs.
           </li>
           <li style={{ marginTop: 6 }}>
-            <strong>Payment information.</strong> If you purchase credits or a subscription, payments
-            are processed by Stripe. We do not store your full card number; Stripe handles that
-            directly. We receive limited transaction details (such as amount, status, and a customer
-            identifier).
+            <strong>Readings &amp; journal content.</strong> The cards you log and their orientations,
+            the deck used, your questions and intentions, free-text notes, tags, spread type,
+            favorites, and the moon phase at draw time; reflections and revisit answers; and the AI
+            interpretations generated for your readings.
           </li>
           <li style={{ marginTop: 6 }}>
-            <strong>Usage and device data.</strong> Basic technical information such as your device
-            type, browser, time zone, and how you interact with the Service, used to operate and
-            improve it.
+            <strong>Photos &amp; uploads.</strong> Spread photos you upload (and any captions); custom
+            deck images and the deck/card names, descriptions, prompts, and dimensions you enter; and
+            content you bring in through bulk imports from other apps.
+          </li>
+          <li style={{ marginTop: 6 }}>
+            <strong>Patterns &amp; memory.</strong> Information the Service derives from your activity —
+            card frequencies, recurring tags, co-occurrence patterns, streaks, and summaries of your
+            patterns used to personalize the experience.
+          </li>
+          <li style={{ marginTop: 6 }}>
+            <strong>Preferences &amp; settings.</strong> Your theme, fonts, sizes, and display options;
+            AI and moon feature settings; default spread and related choices; and your time zone.
+          </li>
+          <li style={{ marginTop: 6 }}>
+            <strong>Payments.</strong> If you buy credits, a Stripe customer identifier and your
+            subscription/premium status. Full card details are handled by Stripe and are not stored by
+            us.
+          </li>
+          <li style={{ marginTop: 6 }}>
+            <strong>Communications.</strong> An optional notification email you provide, and records of
+            transactional emails we send you (with unsubscribe options).
+          </li>
+          <li style={{ marginTop: 6 }}>
+            <strong>Feedback.</strong> Any feedback posts or votes you submit.
+          </li>
+          <li style={{ marginTop: 6 }}>
+            <strong>Technical data.</strong> Timestamps and your device time zone, and browser local
+            storage used to keep your preferences and in-progress question. We do not use third-party
+            advertising or cross-site tracking.
           </li>
         </ul>
       </Section>
@@ -154,13 +183,44 @@ function PolicyBody() {
         </ul>
       </Section>
 
-      <Section title="AI processing of your content">
+      <Section title="How AI features use your data">
         <p>
-          When you request an interpretation or reading, the relevant content (such as the cards drawn
-          and your question) is sent to our AI provider, Anthropic, to generate a response. This
-          content is transmitted securely and used to produce your reading. We do not sell your
-          content, and we ask our providers to handle it in accordance with their terms and applicable
-          law.
+          Some features use artificial intelligence (provided by Anthropic) to generate readings,
+          reflections, and prompts. AI is only involved <strong>when you choose to use an AI feature</strong>.
+          If you do not use AI features, none of your content is sent to the AI provider.
+        </p>
+        <p style={{ marginTop: 10 }}>
+          <strong>What may be sent to the AI, only when you use AI features:</strong>
+        </p>
+        <ul style={{ paddingLeft: 20, marginTop: 6 }}>
+          <li>The reading you are working with — the cards and orientations, spread, and the moon phase.</li>
+          <li style={{ marginTop: 4 }}>The question and notes you typed for that reading.</li>
+          <li style={{ marginTop: 4 }}>
+            A memory summary (card frequencies, recent tags, and pattern summaries) &mdash; only if you
+            have turned on the memory permission in settings.
+          </li>
+          <li style={{ marginTop: 4 }}>
+            For deep readings only: your birth date and time, and your birth place as a city name.
+          </li>
+        </ul>
+        <p style={{ marginTop: 12 }}>
+          <strong>What is never sent to the AI.</strong> The following are blocked from AI requests in
+          our software and are never transmitted to the AI provider:
+        </p>
+        <ul style={{ paddingLeft: 20, marginTop: 6 }}>
+          <li>Your name (real name, display name, or birth name);</li>
+          <li style={{ marginTop: 4 }}>Your email address or any contact address;</li>
+          <li style={{ marginTop: 4 }}>Your password, login tokens, or MFA recovery codes;</li>
+          <li style={{ marginTop: 4 }}>Any payment or card data, and your Stripe/billing identifiers;</li>
+          <li style={{ marginTop: 4 }}>Precise geographic coordinates (exact latitude/longitude);</li>
+          <li style={{ marginTop: 4 }}>Your account identifiers, IP address, and device identifiers;</li>
+          <li style={{ marginTop: 4 }}>Your uploaded photos and deck images.</li>
+        </ul>
+        <p style={{ marginTop: 12 }}>
+          <strong>Your controls.</strong> You can turn AI features on or off, and turn the memory
+          permission on or off, in Settings. Turning AI features off means your content is not sent to
+          the AI provider. AI output is generated automatically and may be inaccurate; it is provided
+          for reflection and entertainment, not professional advice.
         </p>
       </Section>
 

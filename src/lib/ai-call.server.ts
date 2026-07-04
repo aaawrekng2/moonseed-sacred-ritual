@@ -14,6 +14,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { redactForAI, redactContent } from "@/lib/ai-redact";
 
 // USD per million tokens. Refine as providers publish new rates.
 const MODEL_RATES: Record<string, { input: number; output: number; cached: number }> = {
@@ -562,6 +563,15 @@ export async function callAI(params: CallAIParams): Promise<CallAIResult> {
   let responseContent = "";
   let usage = { input_tokens: 0, output_tokens: 0, cached_input_tokens: 0 };
 
+  // v2.70 — never-share guard. Scrub email/card/coordinate/token patterns from
+  // everything before it leaves for ANY provider. Applied once here at the
+  // single gateway so no caller can bypass it.
+  const safeSystem = params.system ? redactForAI(params.system) : params.system;
+  const safeMessages = params.messages.map((m) => ({
+    ...m,
+    content: redactContent(m.content),
+  }));
+
   try {
     if (params.provider === "anthropic") {
       const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -579,8 +589,8 @@ export async function callAI(params: CallAIParams): Promise<CallAIResult> {
           body: JSON.stringify({
             model: params.model,
             max_tokens: params.maxTokens,
-            system: params.system,
-            messages: params.messages,
+            system: safeSystem,
+            messages: safeMessages,
           }),
         });
         providerStatus = resp.status;
@@ -613,9 +623,9 @@ export async function callAI(params: CallAIParams): Promise<CallAIResult> {
         errorCode = "missing_api_key";
       } else {
         // Gateway expects messages with system as a first message.
-        const messages = params.system
-          ? [{ role: "system", content: params.system }, ...params.messages]
-          : params.messages;
+        const messages = safeSystem
+          ? [{ role: "system", content: safeSystem }, ...safeMessages]
+          : safeMessages;
         const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
