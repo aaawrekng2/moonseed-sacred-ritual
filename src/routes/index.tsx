@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
 import {
@@ -385,7 +384,6 @@ function Index() {
       cancelled = true;
     };
   }, [user?.id]);
-  const isAnonymous = !user?.email;
   // CV — Live moon prefs so the master toggle / carousel sub-toggle
   // actually control rendering on the home page.
   const moon = useMoonPrefs();
@@ -524,29 +522,6 @@ function Index() {
   }, [computedCardWidth]);
   // CX — Streak under-card only in mobile hero mode.
   const streakUnderCard = isMobile && !showMoonCarousel;
-  const [nudgeDismissed, setNudgeDismissed] = useState(true);
-  // Hydrate dismissed state on the client only to avoid SSR mismatch.
-  useEffect(() => {
-    try {
-      const d = localStorage.getItem("auth-nudge-dismissed-date");
-      const dismissed =
-        d === "permanent" || d === new Date().toDateString();
-      setNudgeDismissed(dismissed);
-    } catch {
-      setNudgeDismissed(false);
-    }
-  }, []);
-  const dismissNudge = () => {
-    try {
-      localStorage.setItem(
-        "auth-nudge-dismissed-date",
-        new Date().toDateString(),
-      );
-    } catch {
-      // ignore
-    }
-    setNudgeDismissed(true);
-  };
   // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
   // day flips so the gateway re-queries today's card and sibling UI
   // (the QuestionBox) can show a quiet "new day" affordance.
@@ -862,56 +837,6 @@ function Index() {
       }}
     >
       <section className="px-6 pointer-events-auto">
-        {isAnonymous && !nudgeDismissed && (
-          <div
-            className="flex items-center justify-center gap-3 px-5 py-2.5"
-            style={{
-              borderTop:
-                "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
-              boxShadow:
-                "0 -4px 24px -8px color-mix(in oklab, var(--gold) 12%, transparent)",
-              animation: "breathe-glow 4s ease-in-out infinite",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                navigate({ to: "/settings/profile" })
-              }
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-body-sm)",
-                color: "var(--foreground)",
-                opacity: 0.45,
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                textAlign: "center",
-                flex: 1,
-              }}
-            >
-              Your readings are not yet bound to an account
-            </button>
-            <button
-              type="button"
-              onClick={dismissNudge}
-              aria-label="Dismiss"
-              className="flex items-center justify-center flex-shrink-0"
-              style={{
-                color: "var(--foreground)",
-                opacity: 0.2,
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
-            >
-              <X size={13} strokeWidth={1.5} />
-            </button>
-          </div>
-        )}
         <RevisitTodayLine />
         <div ref={drawTypeRowRef}>
           <SpreadIconsRow
