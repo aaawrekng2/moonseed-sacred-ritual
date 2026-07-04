@@ -149,6 +149,8 @@ export type HintProps = {
   pointerAlign?: HintPointerAlign;
   /** v2.76 — render three downward/upward pointers (left, center, right). */
   triplePointer?: boolean;
+  /** v2.78 — gap (px) between the hint and its anchor. Default 12. */
+  distance?: number;
   onDismiss?: () => void;
 };
 
@@ -164,6 +166,7 @@ export function Hint({
   position = "top",
   pointerAlign = "center",
   triplePointer = false,
+  distance = 12,
   onDismiss,
 }: HintProps) {
   const { user } = useAuth();
@@ -180,7 +183,7 @@ export function Hint({
     const r = el.getBoundingClientRect();
     const ownW = own?.offsetWidth ?? 240;
     const ownH = own?.offsetHeight ?? 80;
-    const gap = 12;
+    const gap = distance;
     let top = r.top;
     let left = r.left;
     if (position === "top") {

@@ -131,7 +131,7 @@ export function SpreadIconsRow({
   return (
     <>
     <div
-      className="flex justify-center gap-5 px-4 pb-4"
+      className="flex justify-between px-4 pb-4"
       style={{
         opacity: "var(--ro-plus-20)",
         maxWidth: 480,
