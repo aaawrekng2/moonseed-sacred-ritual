@@ -1,0 +1,2 @@
+alter table public.user_preferences add column if not exists ai_opted_out boolean not null default false;
+alter table public.user_preferences add column if not exists never_send_personal_to_ai boolean not null default false;

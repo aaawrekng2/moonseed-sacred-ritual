@@ -1487,6 +1487,7 @@ export type Database = {
           ai_blocked: boolean
           ai_blocked_reason: string | null
           ai_features_enabled: boolean | null
+          ai_opted_out: boolean
           ai_tone: string
           allow_reversed_cards: boolean
           archive_deepening_unlocked: boolean
@@ -1536,6 +1537,7 @@ export type Database = {
           moon_features_enabled: boolean
           moon_show_carousel: boolean
           moon_void_warning: boolean
+          never_send_personal_to_ai: boolean
           oracle_mode: boolean
           outcome_reminder_days: number
           outcome_reminders_enabled: boolean
@@ -1579,6 +1581,7 @@ export type Database = {
           ai_blocked?: boolean
           ai_blocked_reason?: string | null
           ai_features_enabled?: boolean | null
+          ai_opted_out?: boolean
           ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
@@ -1628,6 +1631,7 @@ export type Database = {
           moon_features_enabled?: boolean
           moon_show_carousel?: boolean
           moon_void_warning?: boolean
+          never_send_personal_to_ai?: boolean
           oracle_mode?: boolean
           outcome_reminder_days?: number
           outcome_reminders_enabled?: boolean
@@ -1671,6 +1675,7 @@ export type Database = {
           ai_blocked?: boolean
           ai_blocked_reason?: string | null
           ai_features_enabled?: boolean | null
+          ai_opted_out?: boolean
           ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
@@ -1720,6 +1725,7 @@ export type Database = {
           moon_features_enabled?: boolean
           moon_show_carousel?: boolean
           moon_void_warning?: boolean
+          never_send_personal_to_ai?: boolean
           oracle_mode?: boolean
           outcome_reminder_days?: number
           outcome_reminders_enabled?: boolean
