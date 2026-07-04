@@ -33,7 +33,9 @@ function TermsPage() {
   return (
     <div
       style={{
-        minHeight: "100dvh",
+        height: "100dvh",
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
         background: "var(--color-background, #12061f)",
         color: "var(--color-foreground)",
         padding: "40px 20px 80px",
@@ -187,7 +189,9 @@ function TermsBody() {
           You retain ownership of the readings, notes, and other content you create in the Service. You
           grant us a limited license to store, process, and display that content solely to operate and
           provide the Service to you (including sending relevant content to our AI provider to generate
-          your readings). See our{" "}
+          your readings, only when you use AI features). The content that can be sent to the AI is
+          limited, and identifying details &mdash; such as your name, email, payment data, and precise
+          location &mdash; are never sent to the AI. See our{" "}
           <Link to="/privacy" style={{ color: "var(--accent, var(--gold))", textDecoration: "none" }}>
             Privacy Policy
           </Link>{" "}
