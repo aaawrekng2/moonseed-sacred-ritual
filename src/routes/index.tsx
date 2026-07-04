@@ -636,19 +636,25 @@ function Index() {
   // gateway is ready, then the fade is invisible.
   const gatewayLoading =
     !hasCheckedTodayDraw || (todayCard === null && showSkeleton);
+  // v2.82 — Absolute settle cap. Scheduled once when "settling" begins and
+  // keyed ONLY on splashPhase, so it can NOT be restarted by gatewayLoading
+  // churn. The previous single-effect version cleared+restarted this 6s timer
+  // on every loading-state change; in slow/incognito loads that stretched the
+  // splash to ~15s. This guarantees it clears by ~6.4s no matter what.
   useEffect(() => {
     if (splashPhase !== "settling") return;
-    if (gatewayLoading) {
-      // Gateway not painted yet — keep the splash covering the slot, but
-      // never hang: hard cap at 6s.
-      const cap = window.setTimeout(() => setSplashFading(true), 6000);
-      const capDone = window.setTimeout(() => setSplashPhase("done"), 6420);
-      return () => {
-        window.clearTimeout(cap);
-        window.clearTimeout(capDone);
-      };
-    }
-    // Gateway is ready — give its image one beat to paint, then fade out.
+    const cap = window.setTimeout(() => setSplashFading(true), 6000);
+    const capDone = window.setTimeout(() => setSplashPhase("done"), 6420);
+    return () => {
+      window.clearTimeout(cap);
+      window.clearTimeout(capDone);
+    };
+  }, [splashPhase]);
+  // v2.82 — Fast path: the instant the gateway is actually ready, fade early
+  // (well before the absolute cap). Keyed on gatewayLoading so it fires as
+  // soon as loading resolves; the cap above is the independent worst case.
+  useEffect(() => {
+    if (splashPhase !== "settling" || gatewayLoading) return;
     const t1 = window.setTimeout(() => setSplashFading(true), 220);
     const t2 = window.setTimeout(() => setSplashPhase("done"), 640);
     return () => {
@@ -1191,7 +1197,13 @@ function Index() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          cursor: "pointer",
+          cursor: splashPhase === "showing" ? "pointer" : "default",
+          // v2.82 — once past the initial tap the overlay must NOT intercept
+          // clicks: after "showing" it has no interactive job (dismissSplash
+          // early-returns), and leaving it click-blocking for the whole
+          // settle/fade is what made the shrunk card sit on top of the home
+          // content (and eat taps) until it finally unmounted.
+          pointerEvents: splashPhase === "showing" ? "auto" : "none",
           background:
             splashPhase === "showing" ? "var(--background)" : "transparent",
           transition: "background 620ms ease-out",
