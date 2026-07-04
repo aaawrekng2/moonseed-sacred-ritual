@@ -35,7 +35,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: "stories-and-memory",
     name: "Stories & Memory",
-    blurb: "How Tarot Seed remembers you across readings.",
+    blurb: "How your readings build on each other over time.",
   },
   {
     id: "sharing",
@@ -72,7 +72,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Getting Started",
     category: "getting-started",
     summary: "Your first reading, and what makes Tarot Seed different.",
-    body: `Tarot Seed is tarot that remembers you. It is a daily ritual app built around three small movements — a *draw*, a *reading*, and a *journal* — that, together, become a record of your inner weather over time.
+    body: `Tarot Seed puts you in the driver's seat — you draw your own cards, one at a time, and reclaim your agency. It is a daily ritual app built around three small movements — a *draw*, a *reading*, and a *journal* — that, together, become a record of your inner weather over time.
 
 ## A first reading
 
@@ -85,7 +85,7 @@ Tap the deck on the home screen. Choose a spread (start with a single card if yo
 - A **reading** is the interpretation that follows — what the cards seem to say *here, now, to you*.
 - The **journal** holds every reading you keep, so you can return to them later.
 
-## "Tarot that remembers you"
+## Readings that build on each other
 
 Most tarot apps treat each reading as a fresh stranger. Tarot Seed does not. As you accumulate readings, recurring themes surface as [Stories](#stories), and your guide grows more specific to the patterns of your life. The cards stay the same; the conversation deepens.`,
     related: ["how-interpretation-works", "stories"],
@@ -113,7 +113,7 @@ The guide system is shaped around three knobs:
 
 ## Why interpretations evolve
 
-The more you journal, the more the system knows about your patterns. Future readings can quietly reference what came before — a card returning, a question still open. This is the *memory* in tarot that remembers you.`,
+The more you journal, the more the system knows about your patterns. Future readings can quietly reference what came before — a card returning, a question still open. This is the *memory* that lets each reading build on the last.`,
     related: ["mirror-artifact", "stories"],
   },
   {
