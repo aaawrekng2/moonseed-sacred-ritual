@@ -147,6 +147,8 @@ export type HintProps = {
   position?: HintPosition;
   /** EA-4 — horizontal anchoring of the pointer arrow on top/bottom hints. */
   pointerAlign?: HintPointerAlign;
+  /** v2.76 — render three downward/upward pointers (left, center, right). */
+  triplePointer?: boolean;
   onDismiss?: () => void;
 };
 
@@ -161,6 +163,7 @@ export function Hint({
   anchorRef,
   position = "top",
   pointerAlign = "center",
+  triplePointer = false,
   onDismiss,
 }: HintProps) {
   const { user } = useAuth();
@@ -243,32 +246,38 @@ export function Hint({
         ? "rotate(45deg)"
         : "translateX(-100%) rotate(45deg)";
 
-  const arrow: Record<HintPosition, React.CSSProperties> = {
-    top: {
-      position: "absolute",
-      bottom: -6,
-      left: arrowLeft,
-      transform: arrowTransform,
-      width: 12,
-      height: 12,
-      background: "var(--surface-card, #15131f)",
-      borderRight: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
-      borderBottom: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
-    },
-    bottom: {
-      position: "absolute",
-      top: -6,
-      left: arrowLeft,
-      transform: arrowTransform,
-      width: 12,
-      height: 12,
-      background: "var(--surface-card, #15131f)",
-      borderLeft: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
-      borderTop: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
-    },
-    left: { display: "none" },
-    right: { display: "none" },
-  };
+  const arrowBase: React.CSSProperties =
+    position === "top"
+      ? {
+          position: "absolute",
+          bottom: -6,
+          width: 12,
+          height: 12,
+          background: "var(--surface-card, #15131f)",
+          borderRight:
+            "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+          borderBottom:
+            "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+        }
+      : position === "bottom"
+        ? {
+            position: "absolute",
+            top: -6,
+            width: 12,
+            height: 12,
+            background: "var(--surface-card, #15131f)",
+            borderLeft:
+              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+            borderTop:
+              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+          }
+        : { display: "none" };
+
+  const arrowStyle = (leftVal: string, transformVal: string): React.CSSProperties => ({
+    ...arrowBase,
+    left: leftVal,
+    transform: transformVal,
+  });
 
   return (
     <div
@@ -297,7 +306,15 @@ export function Hint({
           "opacity 300ms ease-out, transform 300ms cubic-bezier(0.22,1,0.36,1)",
       }}
     >
-      <span aria-hidden style={arrow[position]} />
+      {triplePointer && (position === "top" || position === "bottom") ? (
+        <>
+          <span aria-hidden style={arrowStyle("22px", "rotate(45deg)")} />
+          <span aria-hidden style={arrowStyle("50%", "translateX(-50%) rotate(45deg)")} />
+          <span aria-hidden style={arrowStyle("calc(100% - 22px)", "translateX(-100%) rotate(45deg)")} />
+        </>
+      ) : (
+        <span aria-hidden style={arrowStyle(arrowLeft, arrowTransform)} />
+      )}
       <div className="flex items-start gap-3">
         <p
           style={{
