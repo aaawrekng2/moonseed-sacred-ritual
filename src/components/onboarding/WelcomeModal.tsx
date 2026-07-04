@@ -8,9 +8,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Wand2, BookOpen, Settings as SettingsIcon } from "lucide-react";
 
-type Props = { open: boolean; onClose: () => void };
+type Props = { open: boolean; onClose: () => void; onDontShowAgain: () => void };
 
-export function WelcomeModal({ open, onClose }: Props) {
+export function WelcomeModal({ open, onClose, onDontShowAgain }: Props) {
   const [slide, setSlide] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [fade, setFade] = useState(1);
@@ -218,7 +218,24 @@ export function WelcomeModal({ open, onClose }: Props) {
           ))}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={onDontShowAgain}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption, 0.75rem)",
+              color: "var(--color-foreground, var(--foreground))",
+              opacity: 0.5,
+              padding: "4px 0",
+            }}
+          >
+            Don't show again
+          </button>
           <button
             type="button"
             onClick={next}
