@@ -35,6 +35,10 @@ export type Prefs = {
   moon_ai_sign: boolean;
   moon_void_warning: boolean;
   memory_ai_permission: boolean;
+  // v2.71 — AI access + privacy controls
+  ai_features_enabled: boolean | null; // admin grant (read-only to seeker)
+  ai_opted_out: boolean; // seeker turned AI off for themselves
+  never_send_personal_to_ai: boolean; // block identifiable data from AI
   show_question_prompt: boolean;
   allow_reversed_cards: boolean;
   /** EJ47 — per-seeker reversal probability (1-99). Only used when
@@ -75,6 +79,9 @@ const DEFAULT_PREFS: Prefs = {
   moon_ai_sign: false,
   moon_void_warning: true,
   memory_ai_permission: true,
+  ai_features_enabled: null,
+  ai_opted_out: false,
+  never_send_personal_to_ai: false,
   show_question_prompt: true,
   allow_reversed_cards: false,
   reversal_chance_pct: 50,
@@ -117,7 +124,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, birth_latitude, birth_longitude, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, reversal_chance_pct, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, birth_latitude, birth_longitude, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, ai_features_enabled, ai_opted_out, never_send_personal_to_ai, show_question_prompt, allow_reversed_cards, reversal_chance_pct, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -160,6 +167,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         moon_ai_sign: b("moon_ai_sign", false),
         moon_void_warning: b("moon_void_warning", true),
         memory_ai_permission: b("memory_ai_permission", true),
+        ai_features_enabled:
+          d.ai_features_enabled === true
+            ? true
+            : d.ai_features_enabled === false
+              ? false
+              : null,
+        ai_opted_out: b("ai_opted_out", false),
+        never_send_personal_to_ai: b("never_send_personal_to_ai", false),
         show_question_prompt: b("show_question_prompt", true),
         allow_reversed_cards: b("allow_reversed_cards", false),
         reversal_chance_pct: (() => {

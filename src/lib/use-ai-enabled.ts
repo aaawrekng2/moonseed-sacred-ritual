@@ -56,12 +56,16 @@ export const getAIFeaturesEnabled = createServerFn({ method: "GET" })
     // level grant.
     const { data: userRow } = await supa
       .from("user_preferences" as never)
-      .select("ai_features_enabled")
+      .select("ai_features_enabled, ai_opted_out")
       .eq("user_id", userId as never)
       .maybeSingle();
-    const override = (userRow as { ai_features_enabled?: boolean | null } | null)
-      ?.ai_features_enabled;
-    return { enabled: override === true };
+    const row = userRow as
+      | { ai_features_enabled?: boolean | null; ai_opted_out?: boolean | null }
+      | null;
+    const override = row?.ai_features_enabled;
+    // v2.71 — the seeker's own opt-out only ever turns AI OFF.
+    const optedOut = row?.ai_opted_out === true;
+    return { enabled: override === true && !optedOut };
   });
 
 /**

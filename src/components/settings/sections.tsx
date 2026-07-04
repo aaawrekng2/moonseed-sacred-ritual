@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
+import { AIPrivacySection } from "./AIPrivacySection";
 import { AIToneSection } from "./AIToneSection";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { FeatureGate } from "@/components/feature-gate/FeatureGate";
@@ -943,6 +944,7 @@ export function PreferencesTab() {
   const aiEnabled = useAIEnabled();
   return (
     <div className="space-y-12" key={loaded ? "loaded" : "empty"}>
+      <AIPrivacySection />
       <ReadingPreferencesSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MoonFeaturesSection />
       <FeatureGate enabled={aiEnabled === true}>

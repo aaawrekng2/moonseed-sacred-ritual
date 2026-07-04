@@ -120,15 +120,14 @@ function SettingsLayout() {
   const navigate = useNavigate();
   const activeTab = tabFromPath(location.pathname);
 
-  // EK69 / v2.30 — Guides, Usage, and Blueprint are AI surfaces; hide them
-  // from the settings nav unless the seeker has AI access (hidden while
-  // loading too). Their routes are also guarded (AIRouteGuard) so a direct
-  // URL can't reach them.
+  // EK69 / v2.30 — Guides and Usage are AI surfaces; hide them from the
+  // settings nav unless the seeker has AI access (hidden while loading too).
+  // v2.71 — Blueprint is NO LONGER gated: numerology/blueprint is local math
+  // (Life Path, Personal Year, signs) with no AI calls, so birth-data entry
+  // stays reachable whether AI is on or off.
   const aiEnabled = useAIEnabled();
   const visibleTabs = TABS.filter((t) =>
-    t.key === "guides" || t.key === "usage" || t.key === "blueprint"
-      ? aiEnabled === true
-      : true,
+    t.key === "guides" || t.key === "usage" ? aiEnabled === true : true,
   );
 
   // Register the X close affordance with the global FloatingMenu so

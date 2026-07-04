@@ -409,11 +409,15 @@ async function checkQuota(userId: string | null, callType: AICallType): Promise<
   try {
     const { data: prefsRow } = await supabaseAdmin
       .from("user_preferences" as never)
-      .select("ai_features_enabled")
+      .select("ai_features_enabled, ai_opted_out")
       .eq("user_id", userId)
       .maybeSingle();
-    const override = (prefsRow as { ai_features_enabled?: boolean | null } | null)
-      ?.ai_features_enabled;
+    const row = prefsRow as
+      | { ai_features_enabled?: boolean | null; ai_opted_out?: boolean | null }
+      | null;
+    const override = row?.ai_features_enabled;
+    // v2.71 — seeker opt-out hard-blocks AI for themselves, regardless of grant.
+    if (row?.ai_opted_out === true) return { allowed: false, reason: "ai_disabled" };
     let effective: boolean;
     if (override === true) effective = true;
     else if (override === false) effective = false;
