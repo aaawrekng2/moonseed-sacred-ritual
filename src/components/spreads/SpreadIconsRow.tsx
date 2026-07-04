@@ -146,7 +146,7 @@ export function SpreadIconsRow({
           onClick={() => handleSelect(id)}
           aria-describedby={`spread-hint-${id}`}
           className={cn(
-            "flex flex-col items-center justify-center gap-1.5 py-2 transition-colors",
+            "flex flex-1 basis-0 min-w-0 flex-col items-center justify-center gap-1.5 py-2 transition-colors",
             "text-muted-foreground hover:text-gold focus:text-gold focus:outline-none",
           )}
         >

@@ -885,9 +885,9 @@ function Index() {
         hintId="home_draw_type_select"
         text="Choose a spread"
         anchorRef={drawTypeRowRef}
-        position="top"
-        pointerAlign="center"
-        triplePointer
+        position="bottom"
+        dense
+        hideArrow
         distance={6}
         onDismiss={() => setShowDrawTypeHint(false)}
       />
