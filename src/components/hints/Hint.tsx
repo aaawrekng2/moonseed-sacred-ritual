@@ -151,6 +151,10 @@ export type HintProps = {
   triplePointer?: boolean;
   /** v2.78 — gap (px) between the hint and its anchor. Default 12. */
   distance?: number;
+  /** v2.79 — compact padding so the box sits shorter. */
+  dense?: boolean;
+  /** v2.79 — render no pointer arrow at all (caption mode). */
+  hideArrow?: boolean;
   onDismiss?: () => void;
 };
 
@@ -167,6 +171,8 @@ export function Hint({
   pointerAlign = "center",
   triplePointer = false,
   distance = 12,
+  dense = false,
+  hideArrow = false,
   onDismiss,
 }: HintProps) {
   const { user } = useAuth();
@@ -297,7 +303,7 @@ export function Hint({
         background: "var(--surface-card, #15131f)",
         border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
         borderRadius: "var(--radius-md, 12px)",
-        padding: 16,
+        padding: dense ? "8px 12px" : 16,
         boxShadow: "0 12px 36px -10px rgba(0,0,0,0.6)",
         opacity: closing ? 0 : coords ? 1 : 0,
         transform: closing
@@ -309,7 +315,7 @@ export function Hint({
           "opacity 300ms ease-out, transform 300ms cubic-bezier(0.22,1,0.36,1)",
       }}
     >
-      {triplePointer && (position === "top" || position === "bottom") ? (
+      {hideArrow ? null : triplePointer && (position === "top" || position === "bottom") ? (
         <>
           <span aria-hidden style={arrowStyle("22px", "rotate(45deg)")} />
           <span aria-hidden style={arrowStyle("50%", "translateX(-50%) rotate(45deg)")} />
@@ -347,7 +353,7 @@ export function Hint({
           <X size={14} strokeWidth={1.5} />
         </button>
       </div>
-      <div className="mt-2 flex">
+      <div className={dense ? "mt-1 flex" : "mt-2 flex"}>
         <button
           type="button"
           onClick={dismissHard}
