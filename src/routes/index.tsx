@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
@@ -61,6 +61,16 @@ import {
 type IndexSearch = { question?: string };
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Tarot Seed — Tarot that remembers you" },
+      {
+        name: "description",
+        content:
+          "Tarot Seed is a sacred tarot journaling app that tracks your card draws over time to reveal patterns and themes. For adults 18+.",
+      },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): IndexSearch => ({
     question:
       typeof s.question === "string" && s.question.trim().length > 0 ? s.question : undefined,
@@ -1309,37 +1319,110 @@ function Index() {
             />
           </div>
         </div>
-        {/* EK125 — Don't show again. Low-opacity line at the bottom; sets the
-            persistent preference and dismisses. */}
+        {/* v2.73 — splash landing copy. Google OAuth verification requires the
+            home page to explain the app's purpose; this describes Tarot Seed
+            (with 18+ and Privacy/Terms links) beneath the card. The lone
+            "Don't show again" now lives at the bottom of this stack. */}
         {splashPhase === "showing" && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSplashDisabled(true);
-              dismissSplash();
-            }}
+          <div
             style={{
               position: "absolute",
-              bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px 12px",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              color: "var(--color-foreground)",
-              opacity: 0.45,
-              transition: "opacity 200ms ease-out",
+              bottom: "calc(18px + env(safe-area-inset-bottom, 0px))",
+              left: 0,
+              right: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              padding: "0 24px",
+              textAlign: "center",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.45")}
           >
-            Don&rsquo;t show again
-          </button>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body)",
+                color: "var(--color-foreground)",
+                opacity: 0.9,
+              }}
+            >
+              The patterns were always there. This is your map.
+            </div>
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground-muted)",
+                maxWidth: 540,
+                margin: 0,
+                lineHeight: 1.5,
+              }}
+            >
+              Tarot Seed is a sacred tarot journaling app that tracks your card draws over time to
+              reveal patterns and themes. For adults 18+.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-caption)",
+              }}
+            >
+              <Link
+                to="/privacy"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  color: "var(--color-foreground)",
+                  opacity: 0.55,
+                  textDecoration: "none",
+                  fontStyle: "italic",
+                }}
+              >
+                Privacy
+              </Link>
+              <span style={{ color: "var(--color-foreground)", opacity: 0.35 }}>&middot;</span>
+              <Link
+                to="/terms"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  color: "var(--color-foreground)",
+                  opacity: 0.55,
+                  textDecoration: "none",
+                  fontStyle: "italic",
+                }}
+              >
+                Terms
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSplashDisabled(true);
+                dismissSplash();
+              }}
+              style={{
+                marginTop: 2,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px 12px",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.45,
+                transition: "opacity 200ms ease-out",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.45")}
+            >
+              Don&rsquo;t show again
+            </button>
+          </div>
         )}
       </div>
     )}
