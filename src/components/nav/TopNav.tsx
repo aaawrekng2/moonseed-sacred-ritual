@@ -25,6 +25,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
 import { Home, BookOpen, Settings, Hash, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,8 @@ const EXPANDED_HEIGHT = 56;
 
 export function TopNav() {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAnonymous = !user?.email;
   const hideMenu = useDevHideMenu();
   const [visible, setVisible] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -224,6 +227,32 @@ export function TopNav() {
         >
           v{APP_VERSION_LETTER}
         </span>
+        {/* v2.75 — "Sign in" in the top-right (big-tech convention), shown only
+            to anonymous visitors. Routes to the sign-in / create-account entry. */}
+        {isAnonymous && (
+          <Link
+            to="/settings/profile"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              right: 14,
+              top: 0,
+              height: COMPACT_HEIGHT,
+              display: "flex",
+              alignItems: "center",
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 13,
+              letterSpacing: "0.02em",
+              color: "var(--color-foreground)",
+              opacity: 0.7,
+              textDecoration: "none",
+              zIndex: 1,
+            }}
+          >
+            Sign in
+          </Link>
+        )}
         {/* EJ65 — Pure centered nav. Removed the 80px left rail and
             80px right spacer that were squeezing the icons on narrow
             mobile viewports. The 5 icons now use the full available
