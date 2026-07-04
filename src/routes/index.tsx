@@ -887,6 +887,7 @@ function Index() {
         anchorRef={drawTypeRowRef}
         position="top"
         pointerAlign="center"
+        triplePointer
         onDismiss={() => setShowDrawTypeHint(false)}
       />
     )}

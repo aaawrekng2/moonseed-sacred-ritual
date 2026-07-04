@@ -235,7 +235,20 @@ html, body {
   overscroll-behavior-y: none; /* BO Fix 3 — disable browser pull-to-refresh app-wide. */
   position: fixed;
   width: 100%;
-  background: var(--bg-gradient-left);
+  /* v2.76 — extend the gradient's edge colors out to the screen edges. The
+     centered app column (max-width 1280 => half = 640px) paints the actual
+     left->right cosmos fall; here we hold the left color left of the column
+     and the right color right of it, so the side gutters continue the fall to
+     the edges instead of showing a flat dark band. The transition sits under
+     the column (hidden), so the visible fall is unchanged. On screens <=1280
+     the column fills the width and this has no effect. */
+  background: linear-gradient(
+    to right,
+    var(--bg-gradient-left) 0%,
+    var(--bg-gradient-left) calc(50% - 640px),
+    var(--bg-gradient-right) calc(50% + 640px),
+    var(--bg-gradient-right) 100%
+  );
   color: var(--color-foreground);
   font-family: var(--font-sans);
   /* Base font-size that every `em`/inherited size scales from.
