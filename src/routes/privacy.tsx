@@ -258,12 +258,31 @@ function PolicyBody() {
         </p>
       </Section>
 
-      <Section title="Data retention and deletion">
+      <Section title="How to download your data">
+        <p>
+          You can export your data at any time. In the app, go to <strong>Settings &rarr; Data</strong>
+          and use <strong>Full backup</strong> to choose what to include and download a ZIP file
+          containing your readings, journal content, and related data. If you need help, contact us at
+          the address below.
+        </p>
+      </Section>
+
+      <Section title="How to delete your data">
+        <p>
+          You are in control of your data. In the app, go to <strong>Settings &rarr; Data</strong> and
+          use <strong>Delete selected data</strong> to remove chosen categories, or delete your account
+          to remove your data entirely. For security, deletion may require verifying your identity. You
+          can also email us at the address below to request deletion. When you delete data, we remove it
+          from our active systems; some information may persist briefly in backups before being
+          overwritten.
+        </p>
+      </Section>
+
+      <Section title="Data retention">
         <p>
           We keep your information for as long as your account is active or as needed to provide the
-          Service. You can delete your readings and data, or request deletion of your account, from
-          within the app&rsquo;s settings or by contacting us. When you delete data, we remove it from
-          our active systems; some information may persist briefly in backups before being overwritten.
+          Service. After you delete data or your account, we remove it from our active systems as
+          described above.
         </p>
       </Section>
 
@@ -284,11 +303,14 @@ function PolicyBody() {
         </p>
       </Section>
 
-      <Section title="Children">
+      <Section title="Adults only (18+)">
         <p>
-          The Service is not directed to children under 13 (or the minimum age required in your
-          jurisdiction), and we do not knowingly collect personal information from them. If you believe
-          a child has provided us information, please contact us and we will take appropriate steps.
+          Tarot Seed is intended for <strong>adults aged 18 and older</strong>. The Service is not
+          directed to anyone under 18, and we do not knowingly collect personal information from anyone
+          under 18. If a birthday you enter indicates you are under 18, access to the Service is turned
+          off except for your settings, where you can correct the date or download or delete your data.
+          If you believe someone under 18 has provided us information, please contact us and we will
+          take appropriate steps.
         </p>
       </Section>
 

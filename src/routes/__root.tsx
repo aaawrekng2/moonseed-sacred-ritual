@@ -7,6 +7,8 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { useAgeGate } from "@/lib/use-age-gate";
+import { AgeLockout } from "@/components/feature-gate/AgeLockout";
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -245,6 +247,12 @@ function RootComponent() {
   // Anonymous-first auth: ensure every visitor has a Supabase session
   // before any feature reads/writes user-scoped data.
   const { user } = useAuth();
+  const isSettingsRoute = location.pathname.startsWith("/settings");
+  // v2.72 — adults-only gate. Under-18 (per entered Blueprint birthday) sees a
+  // lockout on every route except Settings. Revalidate only across the Settings
+  // boundary (not every navigation) so a corrected birthday clears the lock on
+  // leaving Settings, without a query on each page.
+  const { underage } = useAgeGate(isSettingsRoute ? "settings" : "app");
   // 26-05-08-Q4 — one-time best-effort cleanup of orphan storage
   // folders left behind from the pre-cascade-delete era.
   useEffect(() => {
@@ -375,7 +383,7 @@ function RootComponent() {
                 exclusively in Settings now (sanctuaries, moon
                 carousel toggle, etc.). */}
             <TopNavGate />
-            <Outlet />
+            {underage && !isSettingsRoute ? <AgeLockout /> : <Outlet />}
             <BottomNavGate />
             <UpdateBanner />
             <DevOverlay />
