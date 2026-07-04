@@ -1137,12 +1137,13 @@ function CenterCard({
                 lineHeight: 1.2,
                 marginTop: 2,
                 color: "var(--accent)",
+                opacity: 0.4,
                 textDecoration: "underline",
                 textUnderlineOffset: "3px",
                 cursor: "pointer",
               }}
             >
-              Set location for moon times
+              Set location
             </span>
           )}
         </div>

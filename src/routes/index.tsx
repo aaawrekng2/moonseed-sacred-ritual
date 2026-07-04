@@ -883,11 +883,12 @@ function Index() {
     {showDrawTypeHint && (
       <Hint
         hintId="home_draw_type_select"
-        text="Tap a draw type to begin."
+        text="Choose a spread"
         anchorRef={drawTypeRowRef}
         position="top"
         pointerAlign="center"
         triplePointer
+        distance={6}
         onDismiss={() => setShowDrawTypeHint(false)}
       />
     )}
