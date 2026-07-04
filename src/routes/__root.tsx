@@ -6,7 +6,7 @@ import {
   Scripts,
   useLocation,
 } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAgeGate } from "@/lib/use-age-gate";
 import { AgeLockout } from "@/components/feature-gate/AgeLockout";
 
@@ -330,20 +330,41 @@ function RootComponent() {
     void cleanupStaleSessions();
   }, []);
   // Q69 — premium tier removed; tarotseed:open-premium listener gone.
-  // Q35b — Welcome modal: show once per signed-in (non-anonymous) seeker.
+  // v2.80 — Welcome sequence greets EVERYONE on every visit (anonymous
+  // included). It stops ONLY when the seeker taps "Don't show again";
+  // finishing the slides just closes it for this visit and it re-greets
+  // next load. Opt-out persists in localStorage (any browser, covers
+  // anonymous) AND in welcome_modal_seen (signed-in, cross-device).
+  const WELCOME_DISMISS_KEY = "tarotseed:welcome-dismissed";
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  // Open at most once per page load, but on every fresh load/visit.
+  const welcomeShownThisLoadRef = useRef(false);
   useEffect(() => {
-    if (!user?.id || !user.email) return;
+    if (welcomeShownThisLoadRef.current) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase
-        .from("user_preferences")
-        .select("welcome_modal_seen")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      const seen = (data as { welcome_modal_seen?: boolean } | null)?.welcome_modal_seen;
-      if (!seen) setWelcomeOpen(true);
+      let dismissed = false;
+      try {
+        dismissed = localStorage.getItem(WELCOME_DISMISS_KEY) === "1";
+      } catch {
+        /* storage blocked — treat as not dismissed so it still greets */
+      }
+      if (!dismissed && user?.id && user.email) {
+        const { data } = await supabase
+          .from("user_preferences")
+          .select("welcome_modal_seen")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (
+          (data as { welcome_modal_seen?: boolean } | null)?.welcome_modal_seen
+        ) {
+          dismissed = true;
+        }
+      }
+      if (!cancelled && !dismissed) {
+        welcomeShownThisLoadRef.current = true;
+        setWelcomeOpen(true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -354,8 +375,18 @@ function RootComponent() {
     window.addEventListener("tarotseed:show-welcome", handler);
     return () => window.removeEventListener("tarotseed:show-welcome", handler);
   }, []);
+  // Finish / tap-through: close for THIS visit only (re-greets next load).
   const handleWelcomeClose = () => {
     setWelcomeOpen(false);
+  };
+  // Explicit opt-out: persist so it never returns (until storage/prefs reset).
+  const handleWelcomeDontShowAgain = () => {
+    setWelcomeOpen(false);
+    try {
+      localStorage.setItem(WELCOME_DISMISS_KEY, "1");
+    } catch {
+      /* storage blocked — best effort */
+    }
     if (user?.id)
       void updateUserPreferences(user.id, {
         welcome_modal_seen: true,
@@ -390,7 +421,11 @@ function RootComponent() {
             <DevChip />
             {mounted && <Toaster />}
             <TimezoneMismatchDialog />
-            <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
+            <WelcomeModal
+              open={welcomeOpen}
+              onClose={handleWelcomeClose}
+              onDontShowAgain={handleWelcomeDontShowAgain}
+            />
           </div>
         </ConfirmProvider>
       </ActiveDeckProvider>
