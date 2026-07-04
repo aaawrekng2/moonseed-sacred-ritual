@@ -960,6 +960,34 @@ export function Tabletop({
     }
   }, []);
 
+  // v2.82 — First-visit shuffle-video window. A small modal on the draw
+  // table that plays Cori's Tella clip (embedded, muted, looping, chrome
+  // hidden) with a "Press and hold to shuffle" caption. Shows on every
+  // visit to the table until the seeker taps "Don't show again" (matching
+  // the welcome-sequence behavior). Closing normally re-shows next visit.
+  const SHUFFLE_VIDEO_KEY = "tarotseed:tabletop:shuffle-video-dismissed";
+  const [showShuffleVideo, setShowShuffleVideo] = useState(false);
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      if (window.localStorage.getItem(SHUFFLE_VIDEO_KEY) !== "1") {
+        setShowShuffleVideo(true);
+      }
+    } catch {
+      // localStorage blocked — still greet (fail open)
+      setShowShuffleVideo(true);
+    }
+  }, []);
+  const closeShuffleVideo = useCallback(() => setShowShuffleVideo(false), []);
+  const dismissShuffleVideoForever = useCallback(() => {
+    setShowShuffleVideo(false);
+    try {
+      window.localStorage.setItem(SHUFFLE_VIDEO_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
+
   /**
    * Apply a DragAction to the cards array in the "do/redo" direction.
    * The reverse direction (undo) is computed inline in `undo()` below
@@ -2447,6 +2475,161 @@ export function Tabletop({
 
       {/* Undo / Redo moved into the upper-right cluster below so all
           tabletop chrome sits in one row at the top-right. */}
+
+      {/* v2.82 — First-visit shuffle-video window. Tella clip embedded
+          muted/looping/chrome-hidden, with a press-and-hold caption. */}
+      {showShuffleVideo &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="modal-scrim"
+            role="dialog"
+            aria-modal="true"
+            aria-label="How to shuffle"
+            onClick={closeShuffleVideo}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: "var(--z-modal-nested, 200)" as unknown as number,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "var(--space-4, 16px)",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "92vw",
+                maxWidth: 460,
+                background: "var(--surface-card)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-xl, 20px)",
+                padding: "var(--space-5, 20px)",
+                display: "grid",
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <h2
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-heading-md, 20px)",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  Welcome to the table
+                </h2>
+                <button
+                  type="button"
+                  onClick={closeShuffleVideo}
+                  aria-label="Close"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 4,
+                    cursor: "pointer",
+                    color: "var(--color-foreground)",
+                    opacity: 0.6,
+                  }}
+                >
+                  <X size={16} strokeWidth={1.5} />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  paddingBottom: "56.25%",
+                  borderRadius: "var(--radius-md, 12px)",
+                  overflow: "hidden",
+                  background: "#000",
+                }}
+              >
+                <iframe
+                  src="https://www.tella.tv/video/coris-video-08d8/embed?autoPlay=true&loop=1&title=0&b=0&wt=0"
+                  title="How to shuffle"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    border: 0,
+                  }}
+                />
+              </div>
+
+              <p
+                style={{
+                  margin: 0,
+                  textAlign: "center",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body, 16px)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                }}
+              >
+                Press and hold to shuffle.
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={dismissShuffleVideoForever}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: "4px 0",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption, 0.75rem)",
+                    color: "var(--color-foreground)",
+                    opacity: 0.5,
+                  }}
+                >
+                  Don't show again
+                </button>
+                <button
+                  type="button"
+                  onClick={closeShuffleVideo}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: "4px 0",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body, 16px)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  Got it →
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* First-visit onboarding hint. Explains the hold-to-drag gesture
           and dropping onto slots. Auto-fades after the first successful
