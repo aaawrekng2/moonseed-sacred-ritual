@@ -94,7 +94,7 @@ export const Route = createRootRoute({
         content:
           "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover",
       },
-      { title: "Tarot Seed — Tarot that remembers you" },
+      { title: "Tarot Seed — Reclaim your agency, one card at a time" },
       {
         name: "description",
         content: "A daily tarot ritual. Sacred, luminous, and calm.",
@@ -105,14 +105,14 @@ export const Route = createRootRoute({
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Tarot Seed" },
-      { property: "og:title", content: "Tarot Seed — Tarot that remembers you" },
+      { property: "og:title", content: "Tarot Seed — Reclaim your agency, one card at a time" },
       {
         property: "og:description",
         content: "A daily tarot ritual. Sacred, luminous, and calm.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Tarot Seed — Tarot that remembers you" },
+      { name: "twitter:title", content: "Tarot Seed — Reclaim your agency, one card at a time" },
       {
         name: "description",
         content:

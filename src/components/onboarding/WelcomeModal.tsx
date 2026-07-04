@@ -86,8 +86,8 @@ export function WelcomeModal({ open, onClose, onDontShowAgain }: Props) {
     <div key="s0" style={{ display: "grid", gap: 18 }}>
       <h2 style={titleStyle}>Welcome to Tarot Seed.</h2>
       <p style={bodyStyle}>
-        Tarot that remembers you. Draw cards, reflect, and watch your
-        patterns emerge over time.
+        Reclaim your agency, one card at a time. You shuffle, you draw, you
+        write the meaning — and your patterns emerge over time.
       </p>
       <div
         style={{

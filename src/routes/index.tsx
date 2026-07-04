@@ -62,11 +62,11 @@ type IndexSearch = { question?: string };
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Tarot Seed — Tarot that remembers you" },
+      { title: "Tarot Seed — Reclaim your agency, one card at a time" },
       {
         name: "description",
         content:
-          "Tarot Seed is a sacred tarot journaling app that tracks your card draws over time to reveal patterns and themes. For adults 18+.",
+          "Tarot Seed is a sacred tarot journaling app where you draw your own cards and watch your patterns emerge over time. For adults 18+.",
       },
     ],
   }),
@@ -1271,6 +1271,17 @@ function Index() {
               style={{
                 fontFamily: "var(--font-display)",
                 fontStyle: "italic",
+                fontSize: "var(--text-body-lg)",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+              }}
+            >
+              Reclaim your agency, one card at a time.
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
                 fontSize: "var(--text-body)",
                 color: "var(--color-foreground)",
                 opacity: 0.55,
@@ -1289,8 +1300,8 @@ function Index() {
                 lineHeight: 1.5,
               }}
             >
-              Tarot Seed is a sacred tarot journaling app that tracks your card draws over time to
-              reveal patterns and themes.
+              Tarot Seed is a sacred tarot journaling app where you draw your own cards and watch
+              your patterns emerge over time.
             </p>
             <div
               style={{
