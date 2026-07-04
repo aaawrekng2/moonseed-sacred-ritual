@@ -99,7 +99,7 @@ export const interpretDeepReading = createServerFn({ method: "POST" })
       const { data: prefs } = await supabase
         .from("user_preferences")
         .select(
-          "is_premium, archive_deepening_unlocked, memory_ai_permission, birth_date, birth_time, birth_place",
+          "is_premium, archive_deepening_unlocked, memory_ai_permission, never_send_personal_to_ai, birth_date, birth_time, birth_place",
         )
         .eq("user_id", userId)
         .maybeSingle();
@@ -174,9 +174,13 @@ export const interpretDeepReading = createServerFn({ method: "POST" })
         }
       }
 
-      // 5. Natal context (optional).
+      // 5. Natal context (optional). v2.71 — withheld entirely when the seeker
+      // has turned on "never send my personal data to AI".
       let natalPreamble = "";
-      if (prefsRow.birth_date) {
+      const blockPersonal =
+        (prefsRow as { never_send_personal_to_ai?: boolean | null }).never_send_personal_to_ai ===
+        true;
+      if (!blockPersonal && prefsRow.birth_date) {
         const parts = [`Birth date: ${prefsRow.birth_date}`];
         if (prefsRow.birth_time) parts.push(`Birth time: ${prefsRow.birth_time}`);
         if (prefsRow.birth_place)
