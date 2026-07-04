@@ -1300,6 +1300,8 @@ function Index() {
               "transform 800ms cubic-bezier(0.4, 0, 0.2, 1), opacity 380ms ease-out",
             transformOrigin: "center center",
             willChange: "transform, opacity",
+            // v2.74 — lift the card a bit so it sits above the text block.
+            marginBottom: "12vh",
           }}
         >
           {/* EK124 — breathing (scale + glow) on an inner element so it
@@ -1344,7 +1346,7 @@ function Index() {
                 fontStyle: "italic",
                 fontSize: "var(--text-body)",
                 color: "var(--color-foreground)",
-                opacity: 0.9,
+                opacity: 0.55,
               }}
             >
               The patterns were always there. This is your map.
@@ -1353,14 +1355,15 @@ function Index() {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontSize: "var(--text-body-sm)",
-                color: "var(--color-foreground-muted)",
+                color: "var(--color-foreground)",
+                opacity: 0.55,
                 maxWidth: 540,
                 margin: 0,
                 lineHeight: 1.5,
               }}
             >
               Tarot Seed is a sacred tarot journaling app that tracks your card draws over time to
-              reveal patterns and themes. For adults 18+.
+              reveal patterns and themes.
             </p>
             <div
               style={{
