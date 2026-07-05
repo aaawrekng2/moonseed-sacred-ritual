@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown, Camera, BellRing } from "lucide-react";
-import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
+import { isHintHardDismissed, markHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { TabletopCloseButton } from "@/components/tabletop/TabletopCloseButton";
+import { TableOnboarding } from "@/components/tabletop/TableOnboarding";
 import { useAuth } from "@/lib/auth";
 import { setDevFaces } from "@/components/dev/DevOverlay";
 import { SlotLabel } from "@/components/tabletop/SlotLabel";
@@ -124,34 +125,6 @@ export function Tabletop({
     ro.observe(el);
     return () => ro.disconnect();
   }, [question]);
-  const [showEntryHint, setShowEntryHint] = useState(false);
-  const [showCountHint, setShowCountHint] = useState(false);
-  useEffect(() => {
-    if (authLoading) return;
-    let cancelled = false;
-    const timers: number[] = [];
-    void (async () => {
-      // Q20 Fix 3 — Hint B: surface toggle (always relevant on table).
-      if (onSwitchToManual) {
-        const dismissedB = await isHintHardDismissed("entry_mode_toggle", authUser?.id ?? null);
-        if (!cancelled && !dismissedB) {
-          timers.push(window.setTimeout(() => setShowEntryHint(true), 400));
-        }
-      }
-      // Q20 Fix 3 — Hint A: count stepper (custom only).
-      if (spread === "custom" && onCustomCountChange) {
-        const dismissedA = await isHintHardDismissed("custom_count_stepper", authUser?.id ?? null);
-        if (!cancelled && !dismissedA) {
-          timers.push(window.setTimeout(() => setShowCountHint(true), 800));
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      timers.forEach((t) => window.clearTimeout(t));
-    };
-  }, [authUser, authLoading, onSwitchToManual, onCustomCountChange, spread]);
-
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Q67 — lock device orientation while the draw table is active so
   // accidental rotation doesn't scramble the scatter.
@@ -935,58 +908,63 @@ export function Tabletop({
   // pointerup are treated as "just exited" and given new positions.
   const currentlyClusteredRef = useRef<Set<number>>(new Set());
 
-  // ---- Onboarding hint --------------------------------------------------
-  // Show a small hint on the tabletop that explains the hold-to-drag
-  // gesture and dropping onto slots. Persists "seen" via localStorage so
-  // returning users aren't nagged. Fades out after the first successful
-  // drop into a slot (or any drop, for spreads without slots).
-  const HINT_STORAGE_KEY = "tarotseed:tabletop:drag-hint-seen";
-  const [showDragHint, setShowDragHint] = useState(false);
+  // ---- Consolidated draw-table onboarding (v2.83) ----------------------
+  // One stepped popup replaces the old shuffle video, hold-to-drag hint,
+  // entry-toggle hint, and custom-count hint. Tiered dismiss:
+  //  - anonymous  → "Remind me later" (24h). Finishing the steps = 24h.
+  //  - logged-in  → "Don't show again" (permanent) + "Remind me later"
+  //    (48h). Finishing the steps = permanent.
+  // Snoozes are localStorage expiry timestamps; the permanent flag reuses
+  // the hint system's user_preferences.dismissed_hints store.
+  const ONBOARD_UNTIL_KEY = "tarotseed:tabletop:onboarding-until";
+  const ONBOARD_HINT_ID = "table_onboarding";
+  const isLoggedIn = !!authUser?.email;
+  const [showOnboarding, setShowOnboarding] = useState(false);
   useEffect(() => {
-    try {
-      if (typeof window === "undefined") return;
-      const seen = window.localStorage.getItem(HINT_STORAGE_KEY);
-      if (!seen) setShowDragHint(true);
-    } catch {
-      // localStorage may be blocked — silently skip the hint.
-    }
-  }, []);
-  const dismissDragHint = useCallback(() => {
-    setShowDragHint(false);
-    try {
-      window.localStorage.setItem(HINT_STORAGE_KEY, "1");
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // v2.82 — First-visit shuffle-video window. A small modal on the draw
-  // table that plays Cori's Tella clip (embedded, muted, looping, chrome
-  // hidden) with a "Press and hold to shuffle" caption. Shows on every
-  // visit to the table until the seeker taps "Don't show again" (matching
-  // the welcome-sequence behavior). Closing normally re-shows next visit.
-  const SHUFFLE_VIDEO_KEY = "tarotseed:tabletop:shuffle-video-dismissed";
-  const [showShuffleVideo, setShowShuffleVideo] = useState(false);
-  useEffect(() => {
-    try {
-      if (typeof window === "undefined") return;
-      if (window.localStorage.getItem(SHUFFLE_VIDEO_KEY) !== "1") {
-        setShowShuffleVideo(true);
+    if (authLoading) return;
+    let cancelled = false;
+    void (async () => {
+      let blocked = false;
+      try {
+        if (typeof window !== "undefined") {
+          const until = Number(
+            window.localStorage.getItem(ONBOARD_UNTIL_KEY) || 0,
+          );
+          if (Number.isFinite(until) && Date.now() < until) blocked = true;
+        }
+      } catch {
+        // storage blocked — fail open (still greet)
       }
-    } catch {
-      // localStorage blocked — still greet (fail open)
-      setShowShuffleVideo(true);
-    }
-  }, []);
-  const closeShuffleVideo = useCallback(() => setShowShuffleVideo(false), []);
-  const dismissShuffleVideoForever = useCallback(() => {
-    setShowShuffleVideo(false);
+      if (!blocked && authUser?.email) {
+        const dismissed = await isHintHardDismissed(ONBOARD_HINT_ID, authUser.id);
+        if (dismissed) blocked = true;
+      }
+      if (!cancelled && !blocked) setShowOnboarding(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, authUser?.id, authUser?.email]);
+  const snoozeOnboarding = useCallback(() => {
+    setShowOnboarding(false);
     try {
-      window.localStorage.setItem(SHUFFLE_VIDEO_KEY, "1");
+      const hours = authUser?.email ? 48 : 24;
+      window.localStorage.setItem(
+        ONBOARD_UNTIL_KEY,
+        String(Date.now() + hours * 60 * 60 * 1000),
+      );
     } catch {
       // ignore
     }
-  }, []);
+  }, [authUser?.email]);
+  const dismissOnboardingForever = useCallback(() => {
+    setShowOnboarding(false);
+    void markHintHardDismissed(ONBOARD_HINT_ID, authUser?.id ?? null);
+  }, [authUser?.id]);
+  const finishOnboarding = useCallback(() => {
+    if (authUser?.email) dismissOnboardingForever();
+    else snoozeOnboarding();
+  }, [authUser?.email, dismissOnboardingForever, snoozeOnboarding]);
 
   /**
    * Apply a DragAction to the cards array in the "do/redo" direction.
@@ -1242,8 +1220,6 @@ export function Tabletop({
         applyAction(action);
         setUndoStack((s) => [...s, action]);
         setRedoStack([]);
-        // First successful slot drop → fade the onboarding hint.
-        dismissDragHint();
         return;
       }
       // Dropping on the table.
@@ -1274,10 +1250,8 @@ export function Tabletop({
       applyAction(action);
       setUndoStack((s) => [...s, action]);
       setRedoStack([]);
-      // For spreads without slots, any successful move dismisses the hint.
-      if (!usesSlots) dismissDragHint();
     },
-    [applyAction, cards, required, slotIndexAtPoint, usesSlots, dismissDragHint],
+    [applyAction, cards, required, slotIndexAtPoint, usesSlots],
   );
 
   /** Called continuously while dragging so we can light up a slot. */
@@ -1836,7 +1810,7 @@ export function Tabletop({
             return merged;
           });
         }, 90);
-      }, 880);
+      }, 480);
     }
     gatheredOriginsRef.current = new Map();
     currentlyClusteredRef.current = new Set();
@@ -1852,7 +1826,7 @@ export function Tabletop({
     setGatherCenter({ x: -10000, y: -10000 });
     window.setTimeout(() => {
       setGatherCenter(null);
-    }, 1000);
+    }, 600);
   }, [gatherCenter, gridParams, cards, cellIndexForPosition, placeCardInFreeCell]);
 
   // EK25 — On-the-fly cluster transition tracking. Every time
@@ -2421,255 +2395,157 @@ export function Tabletop({
           <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
       </div>
-      {showEntryHint && onSwitchToManual && (
-        <Hint
-          hintId="entry_mode_toggle"
-          text={
-            <>
-              <span style={{ display: "block" }}>
-                Already drew your cards elsewhere? Tap the{" "}
-                <Keyboard
-                  className="h-4 w-4"
-                  strokeWidth={1.5}
-                  style={{
-                    display: "inline-block",
-                    verticalAlign: "text-bottom",
-                    margin: "0 1px",
-                  }}
-                  aria-hidden="true"
-                />{" "}
-                above to record them.
-              </span>
-              <span style={{ display: "block", marginTop: 8 }}>
-                Tap the{" "}
-                <MessageCircle
-                  className="h-4 w-4"
-                  strokeWidth={1.5}
-                  style={{
-                    display: "inline-block",
-                    verticalAlign: "text-bottom",
-                    margin: "0 1px",
-                  }}
-                  aria-hidden="true"
-                />{" "}
-                above to add or edit your question.
-              </span>
-            </>
-          }
-          anchorRef={entryToggleRef}
-          position="bottom"
-          pointerAlign="center"
-          onDismiss={() => setShowEntryHint(false)}
-        />
-      )}
-      {showCountHint && spread === "custom" && onCustomCountChange && (
-        <Hint
-          hintId="custom_count_stepper"
-          text="Pick how many cards. Tap the chevrons to change how many cards you draw."
-          anchorRef={stepperRef}
-          position="bottom"
-          pointerAlign="center"
-          onDismiss={() => setShowCountHint(false)}
-        />
-      )}
-
       {/* Undo / Redo moved into the upper-right cluster below so all
           tabletop chrome sits in one row at the top-right. */}
 
-      {/* v2.82 — First-visit shuffle-video window. Tella clip embedded
-          muted/looping/chrome-hidden, with a press-and-hold caption. */}
-      {showShuffleVideo &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="modal-scrim"
-            role="dialog"
-            aria-modal="true"
-            aria-label="How to shuffle"
-            onClick={closeShuffleVideo}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: "var(--z-modal-nested, 200)" as unknown as number,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "var(--space-4, 16px)",
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
+      {/* v2.83 — Consolidated draw-table onboarding (stepped popup). */}
+      <TableOnboarding
+        open={showOnboarding}
+        isLoggedIn={isLoggedIn}
+        onFinish={finishOnboarding}
+        onSnooze={snoozeOnboarding}
+        onDontShowAgain={dismissOnboardingForever}
+        steps={[
+          <div key="shuffle" style={{ display: "grid", gap: 14 }}>
+            <h2
               style={{
-                width: "92vw",
-                maxWidth: 460,
-                background: "var(--surface-card)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-xl, 20px)",
-                padding: "var(--space-5, 20px)",
-                display: "grid",
-                gap: 16,
+                margin: 0,
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-md, 20px)",
+                color: "var(--color-foreground)",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <h2
-                  style={{
-                    margin: 0,
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-heading-md, 20px)",
-                    color: "var(--color-foreground)",
-                  }}
-                >
-                  Welcome to the table
-                </h2>
-                <button
-                  type="button"
-                  onClick={closeShuffleVideo}
-                  aria-label="Close"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 4,
-                    cursor: "pointer",
-                    color: "var(--color-foreground)",
-                    opacity: 0.6,
-                  }}
-                >
-                  <X size={16} strokeWidth={1.5} />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  paddingBottom: "56.25%",
-                  borderRadius: "var(--radius-md, 12px)",
-                  overflow: "hidden",
-                  background: "#000",
-                }}
-              >
-                <iframe
-                  src="https://www.tella.tv/video/coris-video-08d8/embed?autoPlay=true&loop=1&title=0&b=0&wt=0"
-                  title="How to shuffle"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  allowFullScreen
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    border: 0,
-                  }}
-                />
-              </div>
-
-              <p
-                style={{
-                  margin: 0,
-                  textAlign: "center",
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-body, 16px)",
-                  color: "var(--color-foreground)",
-                  opacity: 0.85,
-                }}
-              >
-                Press and hold to shuffle.
-              </p>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={dismissShuffleVideoForever}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: "4px 0",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption, 0.75rem)",
-                    color: "var(--color-foreground)",
-                    opacity: 0.5,
-                  }}
-                >
-                  Don't show again
-                </button>
-                <button
-                  type="button"
-                  onClick={closeShuffleVideo}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: "4px 0",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body, 16px)",
-                    color: "var(--accent)",
-                  }}
-                >
-                  Got it →
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* First-visit onboarding hint. Explains the hold-to-drag gesture
-          and dropping onto slots. Auto-fades after the first successful
-          drop (handled in handleDragEnd via dismissDragHint). */}
-      {showDragHint && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed",
-            left: "50%",
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
-            transform: "translateX(-50%)",
-            zIndex: 55,
-            maxWidth: "min(92vw, 360px)",
-          }}
-          className="pointer-events-auto animate-fade-in"
-        >
-          <div className="flex items-start gap-2 rounded-2xl border border-gold/30 bg-cosmos/85 px-4 py-3 text-center shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md">
-            <p className="flex-1 text-[13px] leading-snug text-foreground/85">
-              <span className="text-gold">Hold</span> a card to lift it, then{" "}
-              {usesSlots ? (
-                <>
-                  drag it onto a <span className="text-gold">slot</span> to place it.
-                </>
-              ) : (
-                <>drag it anywhere on the table.</>
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={dismissDragHint}
-              aria-label="Dismiss hint"
-              className="-mr-1 -mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/60 transition hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              Welcome to the table
+            </h2>
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                paddingBottom: "100%",
+                borderRadius: "var(--radius-md, 12px)",
+                overflow: "hidden",
+                background: "#000",
+              }}
             >
-              <X className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      )}
+              <iframe
+                src="https://www.tella.tv/video/coris-video-08d8/embed?autoPlay=true&loop=1&title=0&b=0&wt=0"
+                title="How to shuffle"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  border: 0,
+                }}
+              />
+            </div>
+            <p
+              style={{
+                margin: 0,
+                textAlign: "center",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body, 16px)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+              }}
+            >
+              Press and hold an empty spot on the table to shuffle.
+            </p>
+          </div>,
+          <div key="place" style={{ display: "grid", gap: 12 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-md, 20px)",
+                color: "var(--color-foreground)",
+              }}
+            >
+              Place your cards
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body, 16px)",
+                lineHeight: 1.6,
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+              }}
+            >
+              {usesSlots
+                ? "Hold a card to lift it, then drag it onto a slot to place it."
+                : "Hold a card to lift it, then drag it anywhere on the table."}
+            </p>
+          </div>,
+          ...(onSwitchToManual
+            ? [
+                <div key="question" style={{ display: "grid", gap: 12 }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-heading-md, 20px)",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    Bring a question
+                  </h2>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "var(--text-body, 16px)",
+                      lineHeight: 1.6,
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                    }}
+                  >
+                    Tap the note icon up top to add or edit your question — or the
+                    keyboard icon if you already drew your cards elsewhere and want
+                    to record them.
+                  </p>
+                </div>,
+              ]
+            : []),
+          ...(spread === "custom" && onCustomCountChange
+            ? [
+                <div key="count" style={{ display: "grid", gap: 12 }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-heading-md, 20px)",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    Choose how many
+                  </h2>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "var(--text-body, 16px)",
+                      lineHeight: 1.6,
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                    }}
+                  >
+                    Tap the chevrons up top to change how many cards you draw.
+                  </p>
+                </div>,
+              ]
+            : []),
+        ]}
+      />
 
       {/* Per design: all chrome lives in the upper-right cluster. The
           old left-side opacity slider has been removed — opacity is

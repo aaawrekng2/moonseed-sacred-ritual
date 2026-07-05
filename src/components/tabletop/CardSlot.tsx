@@ -978,7 +978,7 @@ export function CardSlot({
               // 200ms (EK24), so any given card has 400-600ms of
               // overlap between successive transitions — motion
               // never stops. Looks like fluid stirring, not stepped.
-              transition: "transform 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+              transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
               willChange: "transform",
               ["--card-hit-inset" as string]: `${hitInset}px`,
               ["--card-rotation" as string]: `${card.rotation + rotJitter}deg`,
@@ -1019,7 +1019,8 @@ export function CardSlot({
               transform: `translate3d(${rdx}px, ${rdy}px, 0) rotate(${releaseTarget.rotation}deg)`,
               // EK118 — gentle ease-out (decelerate into the spot) so
               // the card glides in and stops; no terminal acceleration.
-              transition: `transform 800ms cubic-bezier(0.22, 1, 0.36, 1) ${releaseDelay}ms`,
+              // v2.83 — flight halved 800→400ms for snappier shuffle.
+              transition: `transform 400ms cubic-bezier(0.22, 1, 0.36, 1) ${releaseDelay}ms`,
               willChange: "transform",
               animation: "none",
             };
@@ -1041,7 +1042,7 @@ export function CardSlot({
             // teleports by `(NEW - OLD)` and slides back over 800ms.
             transition: suppressTransition
               ? "none"
-              : `transform 800ms cubic-bezier(0.22, 1, 0.36, 1) ${releaseDelay}ms`,
+              : `transform 400ms cubic-bezier(0.22, 1, 0.36, 1) ${releaseDelay}ms`,
             willChange: "transform",
             animation: "none",
           };

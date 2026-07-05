@@ -81,7 +81,7 @@ export async function isHintHardDismissed(
   return !!map[hintId];
 }
 
-async function markHintHardDismissed(
+export async function markHintHardDismissed(
   hintId: string,
   userId: string | null,
 ): Promise<void> {
