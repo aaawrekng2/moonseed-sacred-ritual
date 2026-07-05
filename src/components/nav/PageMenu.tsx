@@ -39,6 +39,8 @@ export type PageMenuItem = {
   on?: boolean;
   /** For cycle items — the visible step label (e.g. "2 rows"). */
   cycleLabel?: string;
+  /** v2.89 — optional desktop hover-preview video (Tella embed URL). */
+  hoverPreviewUrl?: string;
   /** Click handler. */
   onClick: () => void;
 };
@@ -247,11 +249,36 @@ export function PageMenu({ open, onClose, sections, title }: PageMenuProps) {
 }
 
 function PageMenuRow({ item }: { item: PageMenuItem }) {
-  const { Icon, label, description, mode, on, cycleLabel, onClick } = item;
+  const {
+    Icon,
+    label,
+    description,
+    mode,
+    on,
+    cycleLabel,
+    onClick,
+    hoverPreviewUrl,
+  } = item;
   // Visual state — toggles dim when off, cycles show their step label.
   const isOff = mode === "toggle" && on === false;
+  // v2.89 — desktop hover-preview video for items that supply hoverPreviewUrl.
+  const [preview, setPreview] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const openPreview = (el: HTMLButtonElement) => {
+    if (!hoverPreviewUrl) return;
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(pointer: coarse)").matches
+    ) {
+      return; // touch devices have no hover
+    }
+    const r = el.getBoundingClientRect();
+    setPreview({ top: Math.max(8, r.top), left: r.right + 8 });
+  };
   return (
-    <button
+    <>
+      <button
       type="button"
       onClick={onClick}
       style={{
@@ -272,9 +299,11 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
       onMouseEnter={(e) => {
         e.currentTarget.style.background =
           "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)";
+        openPreview(e.currentTarget);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";
+        setPreview(null);
       }}
     >
       <Icon size={18} strokeWidth={1.6} aria-hidden />
@@ -334,6 +363,50 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
           {on ? "On" : "Off"}
         </span>
       )}
-    </button>
+      </button>
+      {preview &&
+        hoverPreviewUrl &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: preview.top,
+              left: preview.left,
+              zIndex: 400,
+              width: 260,
+              borderRadius: 12,
+              overflow: "hidden",
+              border: "1px solid var(--border-subtle)",
+              background: "#000",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                paddingBottom: "100%",
+              }}
+            >
+              <iframe
+                src={hoverPreviewUrl}
+                title="Hover tips preview"
+                allow="autoplay; fullscreen"
+                allowFullScreen
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  border: 0,
+                }}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
