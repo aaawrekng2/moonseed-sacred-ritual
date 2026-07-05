@@ -36,8 +36,8 @@ export function BottomNav() {
       }}
     >
       <ul
-        className="mx-auto flex items-center justify-center px-4"
-        style={{ height: 72, maxWidth: 440, gap: 28, paddingTop: 8 }}
+        className="mx-auto flex items-center justify-center px-4 gap-4 sm:gap-7"
+        style={{ height: 72, maxWidth: 440, paddingTop: 8 }}
       >
         {TABS.map(({ to, label, Icon, primary }) => {
           const path = location.pathname;
