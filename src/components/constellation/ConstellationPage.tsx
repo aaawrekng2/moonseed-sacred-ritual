@@ -2762,21 +2762,11 @@ export function ConstellationPage({
     return spanFrom(earliest);
   }, [globalFilters.timeRange, effectiveTz, overlap]);
 
-  // v2.85 — Restore range-driven calendar rows in Insights → Patterns.
-  // On the manual-entry surface the seeker cycles rows via the PageMenu
-  // (recent / older), but insightsMode hides that menu — so the collapsed
-  // "recent 6 months" default left Patterns stuck at 6 with no way to
-  // expand. Here the visible rows follow the selected range again: the
-  // older row shows automatically whenever the range spans more than 6
-  // months (365d → all 12). The draw surface keeps its manual cycler.
-  const effectiveShowOlder = insightsMode
-    ? calendarMonthsToShow > 6
-    : showOlder;
-  const effectiveCalendarState: "none" | "recent" | "both" = insightsMode
-    ? calendarMonthsToShow > 6
-      ? "both"
-      : "recent"
-    : calendarState;
+  // v2.88 — reverted the v2.85 range-driven row override. Insights → Patterns
+  // now follows the same showOlder cycler as the draw table, toggled by the
+  // new eyeball on the calendar (previously Patterns had no visible control).
+  // The v2.87 range sync stays, so the range selector still sets how many
+  // months the eyeball can reveal (365d → up to 12).
 
   // EK62 — full/new moon day sets (UTC keys), used to add a moon header to
   // the day-readings modal. Same source as the EK59 calendar icons.
@@ -5608,7 +5598,7 @@ export function ConstellationPage({
           EJ65 — Hidden entirely when calendarState === "none" (0 rows
           showing). The PageMenu's calendar cycle button advances
           through none → recent → both → none. */}
-      {effectiveCalendarState !== "none" && (
+      {calendarState !== "none" && (
         <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
           <OverlapStrip
             overlap={overlap}
@@ -5636,7 +5626,7 @@ export function ConstellationPage({
             previewYmds={atlasMode ? atlasHoverYmds : undefined}
             layout="grid12"
             onDayClick={(date) => setDayPopover({ open: true, date })}
-            showOlder={effectiveShowOlder}
+            showOlder={showOlder}
             onShowOlderChange={setShowOlder}
             // EJ65 — Hide the inline "Show older" pill since the
             // calendar visibility is now driven by the PageMenu
