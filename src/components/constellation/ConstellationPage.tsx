@@ -73,7 +73,7 @@ import {
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
-import { Eye, Hash, Layers, LayoutGrid, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Hash, Layers, LayoutGrid, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
@@ -3352,6 +3352,8 @@ export function ConstellationPage({
           Icon: Eye,
           mode: "cycle",
           cycleLabel: hoverTipsEnabled ? "On" : "Off",
+          hoverPreviewUrl:
+            "https://www.tella.tv/video/vid_cmr88c3i0000909hxdwtif5y4/embed?autoPlay=true&loop=1&title=0&b=0&a=0&t=0&muted=1&wt=0&o=0",
           onClick: () => {
             toggleHoverTips();
           },
@@ -5598,6 +5600,66 @@ export function ConstellationPage({
           EJ65 — Hidden entirely when calendarState === "none" (0 rows
           showing). The PageMenu's calendar cycle button advances
           through none → recent → both → none. */}
+      {/* v2.89 — always-visible eyeball cycler above the calendar. Tap cycles
+          12 → 6 → hidden → 12 (both → recent → none), mirroring the PageMenu
+          "Calendars" item. Stays put even when hidden so the calendar can
+          always be brought back — the only visible control on Insights →
+          Patterns. */}
+      <div style={{ position: "relative", height: 22, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (calendarState === "both") {
+              setShowOlder(false);
+            } else if (calendarState === "recent") {
+              setShowRecent(false);
+              setShowOlder(false);
+            } else {
+              setShowRecent(true);
+              setShowOlder(true);
+            }
+          }}
+          aria-label="Cycle calendar view: 12 months, 6 months, hidden"
+          title={
+            calendarState === "both"
+              ? "12 months — tap for 6"
+              : calendarState === "recent"
+                ? "6 months — tap to hide"
+                : "Calendar hidden — tap to show"
+          }
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 24,
+            zIndex: 4,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 24,
+            height: 22,
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
+            color:
+              calendarState === "none"
+                ? "var(--color-foreground)"
+                : "var(--accent, var(--gold))",
+            opacity:
+              calendarState === "both"
+                ? 1
+                : calendarState === "recent"
+                  ? 0.5
+                  : 0.45,
+          }}
+        >
+          {calendarState === "none" ? (
+            <EyeOff size={16} strokeWidth={1.5} aria-hidden="true" />
+          ) : (
+            <Eye size={16} strokeWidth={1.5} aria-hidden="true" />
+          )}
+        </button>
+      </div>
       {calendarState !== "none" && (
         <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
           <OverlapStrip

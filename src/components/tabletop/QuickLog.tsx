@@ -14,7 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, differenceInCalendarDays } from "date-fns";
-import { CalendarIcon, Eye, EyeOff, Plus, RotateCw, X } from "lucide-react";
+import { CalendarIcon, Plus, RotateCw, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -2260,43 +2260,6 @@ export function OverlapStrip({
 
   return (
     <div style={{ position: "relative" }}>
-      {/* v2.88 — eyeball above the top-left month toggles the older calendar
-          row (6 ↔ 12 months). Always shown on grid12, so BOTH the draw table
-          and Insights → Patterns get a visible control (Patterns had none —
-          its cycler lived in the hidden pop-out menu). */}
-      {layout === "grid12" && (
-        <button
-          type="button"
-          onClick={() => setShowOlder(!showOlder)}
-          aria-label={showOlder ? "Show fewer months" : "Show all months"}
-          title={showOlder ? "Collapse older months" : "Show all months"}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 2,
-            zIndex: 4,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 22,
-            height: 20,
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            cursor: "pointer",
-            color: showOlder
-              ? "var(--accent, var(--gold))"
-              : "var(--color-foreground)",
-            opacity: showOlder ? 1 : 0.5,
-          }}
-        >
-          {showOlder ? (
-            <Eye size={15} strokeWidth={1.5} aria-hidden="true" />
-          ) : (
-            <EyeOff size={15} strokeWidth={1.5} aria-hidden="true" />
-          )}
-        </button>
-      )}
       {/* EF3 — Legacy absolute pill bar. Rendered ONLY when uncontrolled
           (no `onShowOlderChange` prop). When controlled, the parent owns
           the pills and renders them via <OverlapPills/> wherever it
@@ -2429,7 +2392,7 @@ export function OverlapStrip({
                 // is rendered (uncontrolled mode). When controlled, the
                 // pills live outside this component, so the calendar
                 // can sit flush at the top.
-                paddingTop: isControlled ? 22 : 26,
+                paddingTop: isControlled ? 0 : 26,
                 display: "grid",
                 gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
                 gridAutoRows: "auto",
