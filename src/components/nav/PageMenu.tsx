@@ -262,9 +262,11 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
   // Visual state — toggles dim when off, cycles show their step label.
   const isOff = mode === "toggle" && on === false;
   // v2.89 — desktop hover-preview video for items that supply hoverPreviewUrl.
-  const [preview, setPreview] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  const [preview, setPreview] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const openPreview = (el: HTMLButtonElement) => {
     if (!hoverPreviewUrl) return;
     if (
@@ -273,8 +275,21 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
     ) {
       return; // touch devices have no hover
     }
-    const r = el.getBoundingClientRect();
-    setPreview({ top: Math.max(8, r.top), left: r.right + 8 });
+    // v2.90 — anchor the preview to the TOP of the fly-out panel (above the
+    // menu items), rather than to the right of the hovered row.
+    const panel = el.closest('[aria-label="Page menu"]') as HTMLElement | null;
+    if (panel) {
+      const pr = panel.getBoundingClientRect();
+      const padTop = parseFloat(getComputedStyle(panel).paddingTop) || 60;
+      setPreview({
+        top: pr.top + padTop,
+        left: pr.left + 12,
+        width: Math.min(pr.width - 24, 280),
+      });
+    } else {
+      const r = el.getBoundingClientRect();
+      setPreview({ top: Math.max(8, r.top), left: r.right + 8, width: 260 });
+    }
   };
   return (
     <>
@@ -373,8 +388,8 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
               position: "fixed",
               top: preview.top,
               left: preview.left,
-              zIndex: 400,
-              width: 260,
+              zIndex: 700,
+              width: preview.width,
               borderRadius: 12,
               overflow: "hidden",
               border: "1px solid var(--border-subtle)",

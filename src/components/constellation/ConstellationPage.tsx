@@ -3352,8 +3352,6 @@ export function ConstellationPage({
           Icon: Eye,
           mode: "cycle",
           cycleLabel: hoverTipsEnabled ? "On" : "Off",
-          hoverPreviewUrl:
-            "https://www.tella.tv/video/vid_cmr88c3i0000909hxdwtif5y4/embed?autoPlay=true&loop=1&title=0&b=0&a=0&t=0&muted=1&wt=0&o=0",
           onClick: () => {
             toggleHoverTips();
           },
@@ -3365,6 +3363,8 @@ export function ConstellationPage({
           Icon: Sparkles,
           mode: "toggle" as const,
           on: pulseHoverDays,
+          hoverPreviewUrl:
+            "https://www.tella.tv/video/vid_cmr88c3i0000909hxdwtif5y4/embed?autoPlay=true&loop=1&title=0&b=0&a=0&t=0&muted=1&wt=0&o=0",
           onClick: () => {
             setPulseHoverDays((v) => {
               const next = !v;

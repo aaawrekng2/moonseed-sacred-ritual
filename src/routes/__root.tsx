@@ -6,7 +6,7 @@ import {
   Scripts,
   useLocation,
 } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useAgeGate } from "@/lib/use-age-gate";
 import { AgeLockout } from "@/components/feature-gate/AgeLockout";
 
@@ -36,9 +36,6 @@ import { cleanupStaleSessions } from "@/lib/import-session";
 import { runQ4StorageCleanup } from "@/lib/q4-storage-cleanup";
 import { maybeRunTarotpulseImport } from "@/lib/tarotpulse-import";
 import { ConfirmProvider } from "@/hooks/use-confirm";
-import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
-import { supabase } from "@/integrations/supabase/client";
-import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { claimStarterCredits } from "@/lib/starter-credits.functions";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -330,99 +327,8 @@ function RootComponent() {
     void cleanupStaleSessions();
   }, []);
   // Q69 — premium tier removed; tarotseed:open-premium listener gone.
-  // v2.80 — Welcome sequence greets EVERYONE on every visit (anonymous
-  // included). It stops ONLY when the seeker taps "Don't show again";
-  // finishing the slides just closes it for this visit and it re-greets
-  // next load. Opt-out persists in localStorage (any browser, covers
-  // anonymous) AND in welcome_modal_seen (signed-in, cross-device).
-  const WELCOME_DISMISS_KEY = "tarotseed:welcome-dismissed";
-  const [welcomeOpen, setWelcomeOpen] = useState(false);
-  // Open at most once per page load, but on every fresh load/visit.
-  const welcomeShownThisLoadRef = useRef(false);
-  useEffect(() => {
-    if (welcomeShownThisLoadRef.current) return;
-    let cancelled = false;
-    let clearedHandler: (() => void) | null = null;
-    let safetyTimer: number | null = null;
-    void (async () => {
-      let dismissed = false;
-      try {
-        dismissed = localStorage.getItem(WELCOME_DISMISS_KEY) === "1";
-      } catch {
-        /* storage blocked — treat as not dismissed so it still greets */
-      }
-      if (!dismissed && user?.id && user.email) {
-        const { data } = await supabase
-          .from("user_preferences")
-          .select("welcome_modal_seen")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (
-          (data as { welcome_modal_seen?: boolean } | null)?.welcome_modal_seen
-        ) {
-          dismissed = true;
-        }
-      }
-      if (!cancelled && !dismissed) {
-        welcomeShownThisLoadRef.current = true;
-        // v2.87 — safe-by-default sequencing. On the home route a splash may
-        // play; the welcome must NOT open until the splash signals it's gone.
-        // The default (flag unset) is to WAIT, so the welcome can never render
-        // over the splash. Off the home route (no splash) it opens now. A
-        // safety timer guarantees it never waits forever.
-        const w = window as { __tsSplashCleared?: boolean };
-        const onHome =
-          typeof window !== "undefined" && window.location.pathname === "/";
-        if (onHome && !w.__tsSplashCleared) {
-          clearedHandler = () => {
-            if (safetyTimer !== null) window.clearTimeout(safetyTimer);
-            setWelcomeOpen(true);
-          };
-          window.addEventListener("tarotseed:splash-cleared", clearedHandler, {
-            once: true,
-          });
-          safetyTimer = window.setTimeout(() => {
-            if (clearedHandler)
-              window.removeEventListener(
-                "tarotseed:splash-cleared",
-                clearedHandler,
-              );
-            setWelcomeOpen(true);
-          }, 8000);
-        } else {
-          setWelcomeOpen(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (clearedHandler)
-        window.removeEventListener("tarotseed:splash-cleared", clearedHandler);
-      if (safetyTimer !== null) window.clearTimeout(safetyTimer);
-    };
-  }, [user?.id, user?.email]);
-  useEffect(() => {
-    const handler = () => setWelcomeOpen(true);
-    window.addEventListener("tarotseed:show-welcome", handler);
-    return () => window.removeEventListener("tarotseed:show-welcome", handler);
-  }, []);
-  // Finish / tap-through: close for THIS visit only (re-greets next load).
-  const handleWelcomeClose = () => {
-    setWelcomeOpen(false);
-  };
-  // Explicit opt-out: persist so it never returns (until storage/prefs reset).
-  const handleWelcomeDontShowAgain = () => {
-    setWelcomeOpen(false);
-    try {
-      localStorage.setItem(WELCOME_DISMISS_KEY, "1");
-    } catch {
-      /* storage blocked — best effort */
-    }
-    if (user?.id)
-      void updateUserPreferences(user.id, {
-        welcome_modal_seen: true,
-      } as never);
-  };
+  // v2.90 — the old WelcomeModal is retired; the home-screen WelcomeTour
+  // (mounted in index.tsx, gated on the splash landing) replaces it.
   return (
     <FloatingMenuProvider>
       <ActiveDeckProvider>
@@ -452,11 +358,6 @@ function RootComponent() {
             <DevChip />
             {mounted && <Toaster />}
             <TimezoneMismatchDialog />
-            <WelcomeModal
-              open={welcomeOpen}
-              onClose={handleWelcomeClose}
-              onDontShowAgain={handleWelcomeDontShowAgain}
-            />
           </div>
         </ConfirmProvider>
       </ActiveDeckProvider>
