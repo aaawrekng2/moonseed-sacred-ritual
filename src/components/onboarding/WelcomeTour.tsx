@@ -52,7 +52,6 @@ export function WelcomeTour({
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const [tick, setTick] = useState(0);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -97,26 +96,49 @@ export function WelcomeTour({
   const total = steps.length;
   const current = steps[Math.min(step, total - 1)];
 
+  const targetSel = current?.target ?? "";
   useLayoutEffect(() => {
-    if (!open || !current) return;
+    if (!open || !targetSel) return;
     let raf = 0;
     let count = 0;
-    const measure = () => {
-      const el = document.querySelector(current.target);
-      setRect(el ? el.getBoundingClientRect() : null);
-      count += 1;
-      if (count < 8) raf = requestAnimationFrame(measure);
+    // v2.91 — measure into state ONLY when the rect actually changed, so an
+    // identical measurement can't trigger a re-render. That self-feeding
+    // setRect, plus the old tick/scroll cycle and the fresh `current` object
+    // in the deps, caused React #185 (max update depth) on load.
+    const measureOnce = () => {
+      const el = document.querySelector(targetSel);
+      const r = el ? el.getBoundingClientRect() : null;
+      setRect((prev) => {
+        if (!r) return prev === null ? prev : null;
+        if (
+          prev &&
+          prev.top === r.top &&
+          prev.left === r.left &&
+          prev.width === r.width &&
+          prev.height === r.height
+        ) {
+          return prev;
+        }
+        return r;
+      });
     };
-    measure();
-    const onWin = () => setTick((t) => t + 1);
-    window.addEventListener("resize", onWin);
-    window.addEventListener("scroll", onWin, true);
+    const loop = () => {
+      measureOnce();
+      count += 1;
+      if (count < 8) raf = requestAnimationFrame(loop);
+    };
+    loop();
+    // Passive remeasure on real resize/scroll; measureOnce bails when nothing
+    // changed, so these can never feed themselves.
+    const onWin = () => measureOnce();
+    window.addEventListener("resize", onWin, { passive: true });
+    window.addEventListener("scroll", onWin, { passive: true, capture: true });
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onWin);
       window.removeEventListener("scroll", onWin, true);
     };
-  }, [open, step, current, tick]);
+  }, [open, step, targetSel]);
 
   if (!open || !mounted || typeof document === "undefined" || !current) {
     return null;
@@ -134,12 +156,11 @@ export function WelcomeTour({
   boxLeft = Math.max(16, Math.min(boxLeft, vw - boxW - 16));
 
   const arrow: "up" | "down" = current.placement === "below" ? "up" : "down";
-  const boxVertical: React.CSSProperties =
-    rect && current.placement === "below"
-      ? { top: Math.min(rect.bottom + gap, vh - 120) }
-      : rect && current.placement === "above"
-        ? { bottom: Math.min(vh - rect.top + gap, vh - 120) }
-        : { top: vh / 2 - 90 };
+  const boxVertical: React.CSSProperties = !rect
+    ? { top: Math.max(16, vh / 2 - 90) }
+    : current.placement === "below"
+      ? { top: Math.max(16, Math.min(rect.bottom + gap, vh - 200)) }
+      : { bottom: Math.max(16, Math.min(vh - rect.top + gap, vh - 200)) };
 
   const arrowLeft = Math.max(
     14,
