@@ -160,9 +160,7 @@ export function WelcomeModal({ open, onClose, onDontShowAgain }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        // v2.86 — sit above the splash overlay (z-index 9999) so even a
-        // one-frame overlap during the splash fade can't hide the welcome.
-        zIndex: 10000 as unknown as number,
+        zIndex: "var(--z-modal, 1000)" as unknown as number,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

@@ -622,7 +622,10 @@ function InsightsRoute() {
           )}
           {tab === "patterns" && (
             <div className="pb-12 -mt-4">
-              <ConstellationPage insightsMode />
+              <ConstellationPage
+                insightsMode
+                insightsTimeRange={shared.timeRange}
+              />
             </div>
           )}
           {tab === "cards" && (
