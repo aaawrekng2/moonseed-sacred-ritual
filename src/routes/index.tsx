@@ -1,13 +1,18 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
+import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
 import {
   streakPhaseState,
   STREAK_ELEMENT_COLORS,
   type StreakElement,
 } from "@/lib/streak-phase";
-import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
+import {
+  Hint,
+  isHintHardDismissed,
+  markHintHardDismissed,
+} from "@/components/hints/Hint";
 import { CardImage } from "@/components/card/CardImage";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
@@ -373,6 +378,34 @@ function Index() {
   const [customCountOpen, setCustomCountOpen] = useState(false);
   const [customCount, setCustomCount] = useState<number>(3);
   const { user, loading: authLoading } = useAuth();
+  // v2.90 — welcome tour: opens once the splash hero card has landed
+  // (splashPhase "done"); shows every visit until "Don't show again"
+  // (hard-dismissed via the shared hint store — localStorage for anon,
+  // user_preferences for signed-in).
+  const [tourOpen, setTourOpen] = useState(false);
+  const tourShownThisLoadRef = useRef(false);
+  useEffect(() => {
+    if (splashPhase !== "done" || authLoading) return;
+    if (tourShownThisLoadRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      const dismissed = await isHintHardDismissed(
+        "welcome_tour",
+        user?.id ?? null,
+      );
+      if (!cancelled && !dismissed) {
+        tourShownThisLoadRef.current = true;
+        setTourOpen(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [splashPhase, authLoading, user?.id]);
+  const dismissTourForever = () => {
+    setTourOpen(false);
+    void markHintHardDismissed("welcome_tour", user?.id ?? null);
+  };
   // 9-6-P — hydrate last-used custom card count for this user.
   // 9-6-X — diagnostic logging on read path.
   useEffect(() => {
@@ -725,7 +758,11 @@ function Index() {
     >
       {/* DH-1 Pane 1 — Carousel (auto-sized row). Empty when hidden. */}
       <section className="px-2 pt-1">
-        {showMoonCarousel && <MoonCarousel size={moon.moon_carousel_size} />}
+        {showMoonCarousel && (
+          <div data-tour="moon-carousel">
+            <MoonCarousel size={moon.moon_carousel_size} />
+          </div>
+        )}
       </section>
 
       {/* DH-1 Pane 2 — Hero card centered in remaining vertical space,
@@ -863,7 +900,7 @@ function Index() {
     >
       <section className="px-6 pointer-events-auto">
         <RevisitTodayLine />
-        <div ref={drawTypeRowRef}>
+        <div ref={drawTypeRowRef} data-tour="draw-types">
           <SpreadIconsRow
             onSelect={(spread) => {
               setShowDrawTypeHint(false);
@@ -1200,6 +1237,12 @@ function Index() {
         the gateway slot (measured live) while home fades in behind.
         EK125 — card holds in the slot ("settling") then fades; a low-opacity
         "Don't show again" line turns the splash off for good. */}
+    <WelcomeTour
+      open={tourOpen}
+      showCarousel={showMoonCarousel}
+      onFinish={() => setTourOpen(false)}
+      onDontShowAgain={dismissTourForever}
+    />
     {splashActive && (
       <div
         onClick={dismissSplash}

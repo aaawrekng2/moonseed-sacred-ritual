@@ -184,6 +184,7 @@ export function TopNav() {
   return (
     <nav
       aria-label="Primary"
+      data-tour="top-menu"
       className="fixed inset-x-0 top-0 border-b backdrop-blur-xl"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
