@@ -898,6 +898,14 @@ export function Tabletop({
   const gatherActiveRef = useRef(false);
   const gatherHoldTimerRef = useRef<number | null>(null);
   const gatherStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  // v2.84 — mobile shuffle perf. Cache the container rect at gather-start
+  // (so pointer-move doesn't force a layout via getBoundingClientRect every
+  // event) and coalesce gather-center updates to one per animation frame on
+  // touch devices (the raw pointer-move rate re-rendered all 78 cards, which
+  // is what made shuffling lag on phones).
+  const gatherRectRef = useRef<DOMRect | null>(null);
+  const gatherRafRef = useRef<number | null>(null);
+  const gatherPendingRef = useRef<{ x: number; y: number } | null>(null);
   // EK22 — Tracks which cards are inside the 1.75 × cardH radius RIGHT
   // NOW (this frame), so we can detect transitions from in→out and
   // dispatch a new random position to each exiting card. This is the
@@ -1446,6 +1454,7 @@ export function Tabletop({
       if (ready) return;
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
+      gatherRectRef.current = rect; // v2.84 — reuse for the whole gesture
       const startX = e.clientX - rect.left;
       const startY = e.clientY - rect.top;
       gatherStartPosRef.current = { x: startX, y: startY };
@@ -1474,7 +1483,10 @@ export function Tabletop({
     (e: React.PointerEvent<HTMLDivElement>) => {
       const start = gatherStartPosRef.current;
       if (!start) return;
-      const rect = containerRef.current?.getBoundingClientRect();
+      // v2.84 — reuse the rect captured at gather-start instead of forcing a
+      // layout with getBoundingClientRect on every pointer-move.
+      const rect =
+        gatherRectRef.current ?? containerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -1483,7 +1495,22 @@ export function Tabletop({
       // or initiate something else. After gather is active, movement
       // is the gesture, so we just update the center.
       if (gatherActiveRef.current) {
-        setGatherCenter({ x, y });
+        // v2.84 — on touch, coalesce updates to one per animation frame. The
+        // raw pointer-move rate re-rendered all 78 cards per event, which is
+        // what made shuffling lag on phones. Desktop keeps the immediate
+        // per-event path (fast enough, and feels crisp).
+        if (isCoarsePointer) {
+          gatherPendingRef.current = { x, y };
+          if (gatherRafRef.current === null) {
+            gatherRafRef.current = window.requestAnimationFrame(() => {
+              gatherRafRef.current = null;
+              const p = gatherPendingRef.current;
+              if (p) setGatherCenter(p);
+            });
+          }
+        } else {
+          setGatherCenter({ x, y });
+        }
       } else {
         const dx = x - start.x;
         const dy = y - start.y;
@@ -1496,7 +1523,7 @@ export function Tabletop({
         }
       }
     },
-    [],
+    [isCoarsePointer],
   );
 
   // EK23 — Within-cluster drift epoch. While gather is active, this
@@ -1720,6 +1747,14 @@ export function Tabletop({
     }
     gatherActiveRef.current = false;
     gatherStartPosRef.current = null;
+    // v2.84 — cancel any pending coalesced update and drop the cached rect
+    // so the next gather re-measures fresh.
+    if (gatherRafRef.current !== null) {
+      window.cancelAnimationFrame(gatherRafRef.current);
+      gatherRafRef.current = null;
+    }
+    gatherPendingRef.current = null;
+    gatherRectRef.current = null;
     // EK25 — On release, each card STILL in the cluster needs a new
     // home (cards that exited mid-gesture were already placed in a
     // free cell, see the transition tracker below). For each still-

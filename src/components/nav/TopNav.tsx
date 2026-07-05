@@ -229,7 +229,7 @@ export function TopNav() {
         </span>
         {/* v2.75 — "Sign in" in the top-right (big-tech convention), shown only
             to anonymous visitors. Routes to the sign-in / create-account entry. */}
-        {isAnonymous && (
+        {isAnonymous && !location.pathname.startsWith("/draw") && (
           <Link
             to="/settings/profile"
             onClick={(e) => e.stopPropagation()}
