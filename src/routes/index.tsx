@@ -182,8 +182,21 @@ function Index() {
       /* localStorage unavailable — fall back to once-per-load behavior. */
     }
     splashShownThisLoad = true;
+    // v2.86 — tell the welcome modal (in __root) to WAIT until the splash
+    // finishes, so it never mounts behind the splash card.
+    (window as { __tsSplashPending?: boolean }).__tsSplashPending = true;
     setSplashPhase("showing");
   }, [effectiveTz]);
+  // v2.86 — when the splash reaches "done", release the welcome modal.
+  useEffect(() => {
+    if (splashPhase !== "done") return;
+    if (typeof window === "undefined") return;
+    const w = window as { __tsSplashPending?: boolean };
+    if (w.__tsSplashPending) {
+      w.__tsSplashPending = false;
+      window.dispatchEvent(new Event("tarotseed:splash-cleared"));
+    }
+  }, [splashPhase]);
   const [splashTransform, setSplashTransform] = useState("none");
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);
   const splashCardRef = useRef<HTMLDivElement | null>(null);

@@ -342,6 +342,7 @@ function RootComponent() {
   useEffect(() => {
     if (welcomeShownThisLoadRef.current) return;
     let cancelled = false;
+    let clearedHandler: (() => void) | null = null;
     void (async () => {
       let dismissed = false;
       try {
@@ -363,11 +364,26 @@ function RootComponent() {
       }
       if (!cancelled && !dismissed) {
         welcomeShownThisLoadRef.current = true;
-        setWelcomeOpen(true);
+        // v2.86 — if a splash is playing, wait until it clears before
+        // opening, so the welcome never mounts behind the splash card
+        // (which used to trap it for ~10s). No splash pending → open now.
+        const splashPending =
+          typeof window !== "undefined" &&
+          !!(window as { __tsSplashPending?: boolean }).__tsSplashPending;
+        if (splashPending) {
+          clearedHandler = () => setWelcomeOpen(true);
+          window.addEventListener("tarotseed:splash-cleared", clearedHandler, {
+            once: true,
+          });
+        } else {
+          setWelcomeOpen(true);
+        }
       }
     })();
     return () => {
       cancelled = true;
+      if (clearedHandler)
+        window.removeEventListener("tarotseed:splash-cleared", clearedHandler);
     };
   }, [user?.id, user?.email]);
   useEffect(() => {
