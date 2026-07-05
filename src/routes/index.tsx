@@ -168,7 +168,11 @@ function Index() {
   const [splashFading, setSplashFading] = useState(false);
   useLayoutEffect(() => {
     if (splashShownThisLoad) return;
-    if (isSplashDisabled()) return;
+    const w = window as { __tsSplashCleared?: boolean };
+    if (isSplashDisabled()) {
+      w.__tsSplashCleared = true;
+      return;
+    }
     // v2.16 — show the splash at most once per calendar day in the seeker's
     // timezone. Any later home-button tap or app reopen the same day skips
     // straight to the gateway (no re-pop). The "Don't show again" preference
@@ -176,26 +180,28 @@ function Index() {
     // `tarotseed:` prefix so Clear Data wipes it and the splash returns.
     try {
       const today = nowYmdInTz(currentTzOrFallback(effectiveTz));
-      if (localStorage.getItem("tarotseed:splash-shown-date") === today) return;
+      if (localStorage.getItem("tarotseed:splash-shown-date") === today) {
+        w.__tsSplashCleared = true;
+        return;
+      }
       localStorage.setItem("tarotseed:splash-shown-date", today);
     } catch {
       /* localStorage unavailable — fall back to once-per-load behavior. */
     }
     splashShownThisLoad = true;
-    // v2.86 — tell the welcome modal (in __root) to WAIT until the splash
-    // finishes, so it never mounts behind the splash card.
-    (window as { __tsSplashPending?: boolean }).__tsSplashPending = true;
+    // v2.87 — a splash WILL play; the welcome (in __root) must stay closed
+    // until it hears "splash-cleared". Safe-by-default: while this flag is
+    // false (or unset on the home route) the welcome waits, so it can never
+    // render over the splash.
+    w.__tsSplashCleared = false;
     setSplashPhase("showing");
   }, [effectiveTz]);
-  // v2.86 — when the splash reaches "done", release the welcome modal.
+  // v2.87 — when the splash reaches "done", release the welcome modal.
   useEffect(() => {
     if (splashPhase !== "done") return;
     if (typeof window === "undefined") return;
-    const w = window as { __tsSplashPending?: boolean };
-    if (w.__tsSplashPending) {
-      w.__tsSplashPending = false;
-      window.dispatchEvent(new Event("tarotseed:splash-cleared"));
-    }
+    (window as { __tsSplashCleared?: boolean }).__tsSplashCleared = true;
+    window.dispatchEvent(new Event("tarotseed:splash-cleared"));
   }, [splashPhase]);
   const [splashTransform, setSplashTransform] = useState("none");
   const gatewayCardRef = useRef<HTMLDivElement | null>(null);

@@ -343,6 +343,7 @@ function RootComponent() {
     if (welcomeShownThisLoadRef.current) return;
     let cancelled = false;
     let clearedHandler: (() => void) | null = null;
+    let safetyTimer: number | null = null;
     void (async () => {
       let dismissed = false;
       try {
@@ -364,17 +365,30 @@ function RootComponent() {
       }
       if (!cancelled && !dismissed) {
         welcomeShownThisLoadRef.current = true;
-        // v2.86 — if a splash is playing, wait until it clears before
-        // opening, so the welcome never mounts behind the splash card
-        // (which used to trap it for ~10s). No splash pending → open now.
-        const splashPending =
-          typeof window !== "undefined" &&
-          !!(window as { __tsSplashPending?: boolean }).__tsSplashPending;
-        if (splashPending) {
-          clearedHandler = () => setWelcomeOpen(true);
+        // v2.87 — safe-by-default sequencing. On the home route a splash may
+        // play; the welcome must NOT open until the splash signals it's gone.
+        // The default (flag unset) is to WAIT, so the welcome can never render
+        // over the splash. Off the home route (no splash) it opens now. A
+        // safety timer guarantees it never waits forever.
+        const w = window as { __tsSplashCleared?: boolean };
+        const onHome =
+          typeof window !== "undefined" && window.location.pathname === "/";
+        if (onHome && !w.__tsSplashCleared) {
+          clearedHandler = () => {
+            if (safetyTimer !== null) window.clearTimeout(safetyTimer);
+            setWelcomeOpen(true);
+          };
           window.addEventListener("tarotseed:splash-cleared", clearedHandler, {
             once: true,
           });
+          safetyTimer = window.setTimeout(() => {
+            if (clearedHandler)
+              window.removeEventListener(
+                "tarotseed:splash-cleared",
+                clearedHandler,
+              );
+            setWelcomeOpen(true);
+          }, 8000);
         } else {
           setWelcomeOpen(true);
         }
@@ -384,6 +398,7 @@ function RootComponent() {
       cancelled = true;
       if (clearedHandler)
         window.removeEventListener("tarotseed:splash-cleared", clearedHandler);
+      if (safetyTimer !== null) window.clearTimeout(safetyTimer);
     };
   }, [user?.id, user?.email]);
   useEffect(() => {

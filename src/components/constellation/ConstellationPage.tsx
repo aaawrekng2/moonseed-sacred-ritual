@@ -554,6 +554,10 @@ type ConstellationPageProps = {
    *  journal-entry block (question, notes, Save to Journal, backdate)
    *  and reserves the left column for the pattern chip cluster. */
   insightsMode?: boolean;
+  /** v2.87 — in insightsMode, the Insights range selector's value, so the
+   *  Patterns tab (calendar + data) follows the range the seeker picks
+   *  instead of ConstellationPage's own hidden/persisted range. */
+  insightsTimeRange?: string;
 };
 
 // EK107 — atlas group helpers. An asterism is a list of OR-groups; a day
@@ -756,6 +760,7 @@ export function ConstellationPage({
   onSwitchToTable,
   atlasMode = false,
   insightsMode = false,
+  insightsTimeRange,
 }: ConstellationPageProps = {}) {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -1018,6 +1023,18 @@ export function ConstellationPage({
     if (persisted.question) setQuestion(persisted.question);
     if (persisted.note) setNote(persisted.note);
   }, []);
+  // v2.87 — in the Insights › Patterns tab, follow the Insights range
+  // selector instead of ConstellationPage's own hidden/persisted range, so
+  // the calendar (and the tab's data) reflect the range the seeker actually
+  // picks. Overrides the persisted hydration above when in insightsMode.
+  useEffect(() => {
+    if (!insightsMode || !insightsTimeRange) return;
+    setGlobalFilters((prev) =>
+      prev.timeRange === insightsTimeRange
+        ? prev
+        : { ...prev, timeRange: insightsTimeRange },
+    );
+  }, [insightsMode, insightsTimeRange]);
   // DX — controlled drawer-open state so the "· N FILTER(S)" link in the
   // data header can open the same fly-out that the toolbar icon drives.
   const [globalDrawerOpen, setGlobalDrawerOpen] = useState(false);
