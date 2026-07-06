@@ -16,6 +16,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as NumerologyRouteImport } from './routes/numerology'
+import { Route as LunationsRouteImport } from './routes/lunations'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
@@ -24,7 +25,6 @@ import { Route as DrawRouteImport } from './routes/draw'
 import { Route as ConstellationRouteImport } from './routes/constellation'
 import { Route as CardNumberingRouteImport } from './routes/card-numbering'
 import { Route as AtlasRouteImport } from './routes/atlas'
-import { Route as LunationsRouteImport } from './routes/lunations'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreditsIndexRouteImport } from './routes/credits.index'
@@ -92,6 +92,11 @@ const NumerologyRoute = NumerologyRouteImport.update({
   path: '/numerology',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LunationsRoute = LunationsRouteImport.update({
+  id: '/lunations',
+  path: '/lunations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JournalRoute = JournalRouteImport.update({
   id: '/journal',
   path: '/journal',
@@ -130,11 +135,6 @@ const CardNumberingRoute = CardNumberingRouteImport.update({
 const AtlasRoute = AtlasRouteImport.update({
   id: '/atlas',
   path: '/atlas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LunationsRoute = LunationsRouteImport.update({
-  id: '/lunations',
-  path: '/lunations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -301,7 +301,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/atlas': typeof AtlasRoute
-  '/lunations': typeof LunationsRoute
   '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
@@ -309,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/lunations': typeof LunationsRoute
   '/numerology': typeof NumerologyRoute
   '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -349,7 +349,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/atlas': typeof AtlasRoute
-  '/lunations': typeof LunationsRoute
   '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
@@ -357,6 +356,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/lunations': typeof LunationsRoute
   '/numerology': typeof NumerologyRoute
   '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -399,7 +399,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/atlas': typeof AtlasRoute
-  '/lunations': typeof LunationsRoute
   '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
@@ -407,6 +406,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/lunations': typeof LunationsRoute
   '/numerology': typeof NumerologyRoute
   '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -450,7 +450,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/atlas'
-    | '/lunations'
     | '/card-numbering'
     | '/constellation'
     | '/draw'
@@ -458,6 +457,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/lunations'
     | '/numerology'
     | '/privacy'
     | '/scatter-test'
@@ -498,7 +498,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/atlas'
-    | '/lunations'
     | '/card-numbering'
     | '/constellation'
     | '/draw'
@@ -506,6 +505,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/lunations'
     | '/numerology'
     | '/privacy'
     | '/scatter-test'
@@ -547,7 +547,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/atlas'
-    | '/lunations'
     | '/card-numbering'
     | '/constellation'
     | '/draw'
@@ -555,6 +554,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/lunations'
     | '/numerology'
     | '/privacy'
     | '/scatter-test'
@@ -597,7 +597,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AtlasRoute: typeof AtlasRoute
-  LunationsRoute: typeof LunationsRoute
   CardNumberingRoute: typeof CardNumberingRoute
   ConstellationRoute: typeof ConstellationRoute
   DrawRoute: typeof DrawRoute
@@ -605,6 +604,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRouteWithChildren
   InsightsRoute: typeof InsightsRouteWithChildren
   JournalRoute: typeof JournalRoute
+  LunationsRoute: typeof LunationsRoute
   NumerologyRoute: typeof NumerologyRoute
   PrivacyRoute: typeof PrivacyRoute
   ScatterTestRoute: typeof ScatterTestRoute
@@ -673,6 +673,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NumerologyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lunations': {
+      id: '/lunations'
+      path: '/lunations'
+      fullPath: '/lunations'
+      preLoaderRoute: typeof LunationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/journal': {
       id: '/journal'
       path: '/journal'
@@ -727,13 +734,6 @@ declare module '@tanstack/react-router' {
       path: '/atlas'
       fullPath: '/atlas'
       preLoaderRoute: typeof AtlasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lunations': {
-      id: '/lunations'
-      path: '/lunations'
-      fullPath: '/lunations'
-      preLoaderRoute: typeof LunationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1087,7 +1087,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AtlasRoute: AtlasRoute,
-  LunationsRoute: LunationsRoute,
   CardNumberingRoute: CardNumberingRoute,
   ConstellationRoute: ConstellationRoute,
   DrawRoute: DrawRoute,
@@ -1095,6 +1094,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRouteWithChildren,
   InsightsRoute: InsightsRouteWithChildren,
   JournalRoute: JournalRoute,
+  LunationsRoute: LunationsRoute,
   NumerologyRoute: NumerologyRoute,
   PrivacyRoute: PrivacyRoute,
   ScatterTestRoute: ScatterTestRoute,
