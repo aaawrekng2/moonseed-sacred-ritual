@@ -333,6 +333,9 @@ export const TOP_NAV_ROUTES = [
   // the top like Home, and BottomNavGate suppresses the bottom bar —
   // freeing the bottom of the atlas for the calendar strip.
   "/atlas",
+  // v2.100 — /lunations joins the top-nav routes so the top bar (nav +
+  // version pill) shows there like every other page.
+  "/lunations",
 ] as const;
 
 /** True when the current pathname is one of the TopNav routes. */

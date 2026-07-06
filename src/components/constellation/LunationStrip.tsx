@@ -46,6 +46,7 @@ type Cell = {
   isNew: boolean;
   readingIds: string[];
   tooltipText: string;
+  hoverStrokeHit: boolean;
 };
 type Row = { key: string; label: string; cells: Cell[] };
 
@@ -61,6 +62,8 @@ type Props = {
   timeRange: string;
   effectiveTz: string;
   heroName: string;
+  hoverStrokeYmds: Set<string>;
+  pulseHoverDays: boolean;
   onDayClick?: (ymd: string) => void;
   onDayHover?: (info: {
     date: string;
@@ -125,6 +128,8 @@ export function LunationStrip({
   timeRange,
   effectiveTz,
   heroName,
+  hoverStrokeYmds,
+  pulseHoverDays,
   onDayClick,
   onDayHover,
   onDayHoverEnd,
@@ -211,6 +216,7 @@ export function LunationStrip({
       const hasReading = (readingsByDate[ymd]?.length ?? 0) > 0;
       const isFull = fullSet.has(ymd);
       const isNew = newSet.has(ymd);
+      const hoverStrokeHit = hoverStrokeYmds.has(ymd);
       // v2.98 — drop cells that would render as only a faint base wash. With a
       // hero set, a non-hero / non-match reading day is visual clutter, so it
       // isn't drawn (this declutters the strip AND lets the alignment read). With
@@ -222,6 +228,7 @@ export function LunationStrip({
         !teal &&
         !isFull &&
         !isNew &&
+        !hoverStrokeHit &&
         !(markReadingDays && hasReading)
       ) {
         return null;
@@ -302,6 +309,7 @@ export function LunationStrip({
         isNew,
         readingIds: (readingsByDate[ymd] ?? []).map((r) => r.id),
         tooltipText: lines.join("\n"),
+        hoverStrokeHit,
       };
     };
 
@@ -377,6 +385,8 @@ export function LunationStrip({
     birthDate,
     timeRange,
     effectiveTz,
+    heroName,
+    hoverStrokeYmds,
   ]);
 
   const rows = lens === "moon" ? moonRows : dayRows;
@@ -482,12 +492,12 @@ export function LunationStrip({
                     isPerfectMatch={c.isPerfectMatch}
                     isBestAvailable={c.isBestAvailable}
                     tealTraceHit={c.tealTraceHit}
-                    hoverStrokeHit={false}
+                    hoverStrokeHit={c.hoverStrokeHit}
                     traceColor="var(--trace-color, #5cead4)"
                     heroName={heroName}
                     effectivePullSize={pullSize}
                     tooltipText={c.tooltipText}
-                    pulseHoverDays={false}
+                    pulseHoverDays={pulseHoverDays}
                     asterismBadgeHovered={false}
                     dayReadingIds={c.readingIds}
                     isFullMoon={c.isFull}
