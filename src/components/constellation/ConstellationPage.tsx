@@ -73,6 +73,7 @@ import {
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { LunationStrip } from "@/components/constellation/LunationStrip";
 import { Eye, EyeOff, Hash, Layers, LayoutGrid, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
@@ -558,6 +559,9 @@ type ConstellationPageProps = {
    *  Patterns tab (calendar + data) follows the range the seeker picks
    *  instead of ConstellationPage's own hidden/persisted range. */
   insightsTimeRange?: string;
+  /** v2.92 — render the /lunations page: swaps the calendar strip for the
+   *  two-lens LunationStrip. The draw table + Insights never pass this. */
+  lunationMode?: boolean;
 };
 
 // EK107 — atlas group helpers. An asterism is a list of OR-groups; a day
@@ -761,6 +765,7 @@ export function ConstellationPage({
   atlasMode = false,
   insightsMode = false,
   insightsTimeRange,
+  lunationMode = false,
 }: ConstellationPageProps = {}) {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -5600,6 +5605,16 @@ export function ConstellationPage({
           EJ65 — Hidden entirely when calendarState === "none" (0 rows
           showing). The PageMenu's calendar cycle button advances
           through none → recent → both → none. */}
+      {lunationMode && (
+        <LunationStrip
+          readingsByDate={overlap?.readingsByDate ?? {}}
+          timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
+          effectiveTz={effectiveTz}
+          onDayClick={(date) => setDayPopover({ open: true, date })}
+        />
+      )}
+      {!lunationMode && (
+        <>
       {/* v2.89 — always-visible eyeball cycler above the calendar. Tap cycles
           12 → 6 → hidden → 12 (both → recent → none), mirroring the PageMenu
           "Calendars" item. Stays put even when hidden so the calendar can
@@ -5716,6 +5731,8 @@ export function ConstellationPage({
             birthDate={birthDate}
           />
         </div>
+      )}
+        </>
       )}
 
       {/* Phase 20 Fix 13 — THIS PULL → YOUR PRACTICE → question → Get Reading */}

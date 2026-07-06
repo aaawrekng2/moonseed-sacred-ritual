@@ -24,6 +24,7 @@ import { Route as DrawRouteImport } from './routes/draw'
 import { Route as ConstellationRouteImport } from './routes/constellation'
 import { Route as CardNumberingRouteImport } from './routes/card-numbering'
 import { Route as AtlasRouteImport } from './routes/atlas'
+import { Route as LunationsRouteImport } from './routes/lunations'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreditsIndexRouteImport } from './routes/credits.index'
@@ -129,6 +130,11 @@ const CardNumberingRoute = CardNumberingRouteImport.update({
 const AtlasRoute = AtlasRouteImport.update({
   id: '/atlas',
   path: '/atlas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LunationsRoute = LunationsRouteImport.update({
+  id: '/lunations',
+  path: '/lunations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/atlas': typeof AtlasRoute
+  '/lunations': typeof LunationsRoute
   '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
@@ -342,6 +349,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/atlas': typeof AtlasRoute
+  '/lunations': typeof LunationsRoute
   '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/atlas': typeof AtlasRoute
+  '/lunations': typeof LunationsRoute
   '/card-numbering': typeof CardNumberingRoute
   '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
@@ -441,6 +450,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/atlas'
+    | '/lunations'
     | '/card-numbering'
     | '/constellation'
     | '/draw'
@@ -488,6 +498,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/atlas'
+    | '/lunations'
     | '/card-numbering'
     | '/constellation'
     | '/draw'
@@ -536,6 +547,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/atlas'
+    | '/lunations'
     | '/card-numbering'
     | '/constellation'
     | '/draw'
@@ -585,6 +597,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AtlasRoute: typeof AtlasRoute
+  LunationsRoute: typeof LunationsRoute
   CardNumberingRoute: typeof CardNumberingRoute
   ConstellationRoute: typeof ConstellationRoute
   DrawRoute: typeof DrawRoute
@@ -714,6 +727,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas'
       fullPath: '/atlas'
       preLoaderRoute: typeof AtlasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lunations': {
+      id: '/lunations'
+      path: '/lunations'
+      fullPath: '/lunations'
+      preLoaderRoute: typeof LunationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1067,6 +1087,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AtlasRoute: AtlasRoute,
+  LunationsRoute: LunationsRoute,
   CardNumberingRoute: CardNumberingRoute,
   ConstellationRoute: ConstellationRoute,
   DrawRoute: DrawRoute,
@@ -1093,13 +1114,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
