@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 
 // v2.0 — EK letter scheme retired; the stamp now holds a semantic version
 // string (renders as "v2.0" wherever the pill prepends the v).
-export const APP_VERSION_LETTER = "2.94";
+export const APP_VERSION_LETTER = "2.95";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 // v2.36 — device-local "developer options" unlock so the owner can use
 // the dev chip on a non-admin account. Set by the 7-tap version gesture
