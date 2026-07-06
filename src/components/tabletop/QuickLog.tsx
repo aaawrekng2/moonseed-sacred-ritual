@@ -1987,6 +1987,9 @@ type CalendarDayCellProps = {
   dayReadingIds: string[];
   isFullMoon: boolean;
   isNewMoon: boolean;
+  /** v3.00 — dims the full-moon disc only (default 1 = unchanged; the lunation
+   *  strip passes a lower value; the calendar grid never passes it). */
+  fullMoonOpacity?: number;
   onDayClick?: (date: string, readingIds: string[]) => void;
   onDayHover?: (info: {
     date: string;
@@ -2029,6 +2032,7 @@ export function CalendarDayCell({
   dayReadingIds,
   isFullMoon,
   isNewMoon,
+  fullMoonOpacity = 1,
   onDayClick,
   onDayHover,
   onDayHoverEnd,
@@ -2255,6 +2259,7 @@ export function CalendarDayCell({
             right: 1,
             width: 10,
             height: 10,
+            opacity: fullMoonOpacity,
             pointerEvents: "none",
             zIndex: 4,
           }}

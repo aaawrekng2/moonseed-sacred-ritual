@@ -247,6 +247,10 @@ export function LunationStrip({
       } else if (markReadingDays && hasReading) {
         bg = "var(--accent, var(--gold))";
         opacity = 0.4;
+      } else if (isFull || isNew) {
+        // v3.00 — moon-only cell: a very faint box behind the moon disc.
+        bg = "var(--color-foreground)";
+        opacity = 0.08;
       }
       let textColor: string;
       if (heroDrawn && heroCardId != null) {
@@ -448,8 +452,8 @@ export function LunationStrip({
                 position: "absolute",
                 left: 0,
                 top: 8,
-                width: 34,
-                textAlign: "right",
+                width: 46,
+                textAlign: "left",
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 fontSize: 9,
@@ -462,14 +466,14 @@ export function LunationStrip({
             <div
               style={{
                 position: "absolute",
-                left: 40,
+                left: 50,
                 right: 4,
                 top: 13,
                 height: 1,
                 background: "var(--border-subtle)",
               }}
             />
-            <div style={{ position: "absolute", left: 40, right: 4, top: 0, height: 26 }}>
+            <div style={{ position: "absolute", left: 50, right: 4, top: 0, height: 26 }}>
               {row.cells.map((c) => (
                 <span
                   key={c.ymd}
@@ -502,6 +506,7 @@ export function LunationStrip({
                     dayReadingIds={c.readingIds}
                     isFullMoon={c.isFull}
                     isNewMoon={c.isNew}
+                    fullMoonOpacity={0.5}
                     onDayClick={onDayClick ? (date) => onDayClick(date) : undefined}
                     onDayHover={onDayHover}
                     onDayHoverEnd={onDayHoverEnd}
