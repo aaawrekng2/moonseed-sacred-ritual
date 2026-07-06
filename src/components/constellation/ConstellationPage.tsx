@@ -51,6 +51,10 @@ import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
 import { TAROT_DECK } from "@/lib/tarot";
 import {
+  decodeLunationView,
+  encodeLunationView,
+} from "@/lib/lunation-url";
+import {
   useAnyDeckCardName,
   useActiveDeck,
   useActiveDeckCornerRadius,
@@ -1040,6 +1044,67 @@ export function ConstellationPage({
         : { ...prev, timeRange: insightsTimeRange },
     );
   }, [insightsMode, insightsTimeRange]);
+  // v3.03 — /lunations bookmarkable view. The lens (moon/day) is lifted here so
+  // it can be serialized (the strip is controlled). On /lunations only, the view
+  // (slot cards + order, lens, asterism, range, hero) is hydrated from the URL
+  // once on mount and written back to the URL on every change via replaceState —
+  // so bookmarking/copying the URL captures the current view. Every other surface
+  // is untouched (lunationMode is false there).
+  const [lunationLens, setLunationLens] = useState<"moon" | "day">("moon");
+  const [lunationHydrated, setLunationHydrated] = useState(false);
+  useEffect(() => {
+    if (!lunationMode || lunationHydrated) return;
+    if (typeof window !== "undefined") {
+      const v = decodeLunationView(window.location.search);
+      if (v.cards && v.cards.length) {
+        const now = Date.now();
+        setPicks(
+          v.cards.map((c, i) => ({
+            id: now + i,
+            cardIndex: c.cardIndex,
+            isReversed: c.isReversed,
+            deckId: null,
+            cardName: TAROT_DECK[c.cardIndex] ?? null,
+          })),
+        );
+        setFocusedSlotIdx(
+          v.heroIdx != null && v.heroIdx < v.cards.length ? v.heroIdx : 0,
+        );
+      }
+      if (v.stars) setTealSelectedIds(v.stars);
+      if (v.range) {
+        const r = v.range;
+        setGlobalFilters((prev) => ({ ...prev, timeRange: r }));
+      }
+      if (v.lens) setLunationLens(v.lens);
+    }
+    setLunationHydrated(true);
+  }, [lunationMode, lunationHydrated]);
+  useEffect(() => {
+    if (!lunationMode || !lunationHydrated || typeof window === "undefined") {
+      return;
+    }
+    const search = encodeLunationView({
+      cards: picks.map((p) => ({
+        cardIndex: p.cardIndex,
+        isReversed: p.isReversed,
+      })),
+      lens: lunationLens,
+      stars: tealSelectedIds,
+      range: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+      heroIdx: focusedSlotIdx,
+    });
+    const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    window.history.replaceState(null, "", url);
+  }, [
+    lunationMode,
+    lunationHydrated,
+    picks,
+    lunationLens,
+    tealSelectedIds,
+    globalFilters.timeRange,
+    focusedSlotIdx,
+  ]);
   // DX — controlled drawer-open state so the "· N FILTER(S)" link in the
   // data header can open the same fly-out that the toolbar icon drives.
   const [globalDrawerOpen, setGlobalDrawerOpen] = useState(false);
@@ -5617,6 +5682,8 @@ export function ConstellationPage({
           birthDate={birthDate}
           timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
           effectiveTz={effectiveTz}
+          lens={lunationLens}
+          onLensChange={setLunationLens}
           heroName={
             heroPick?.cardIndex != null
               ? resolveCardName(heroPick.cardIndex)
