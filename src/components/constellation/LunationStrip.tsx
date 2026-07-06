@@ -268,11 +268,20 @@ export function LunationStrip({
       const start = newMoons[i];
       const end = newMoons[i + 1];
       if (end.getTime() < cutoff.getTime()) continue;
+      // v2.97 — bucket by CALENDAR DAY over the half-open span
+      // [thisNewMoonDay, nextNewMoonDay): each new moon OPENS exactly one
+      // lunation and is not repeated as the previous row's closing day.
+      // (Stepping 24h off the raw instant let the boundary new-moon day land
+      // in both rows — the "May 16 shows twice" bug.)
+      const startYmd = isoDayInTz(start, tz);
+      const endYmd = isoDayInTz(end, tz);
       const ymds: string[] = [];
-      let cur = new Date(start.getTime());
-      while (cur.getTime() < end.getTime()) {
-        ymds.push(isoDayInTz(cur, tz));
-        cur = new Date(cur.getTime() + DAY_MS);
+      let stepper = new Date(`${startYmd}T12:00:00Z`);
+      let curYmd = startYmd;
+      while (curYmd < endYmd) {
+        ymds.push(curYmd);
+        stepper = new Date(stepper.getTime() + DAY_MS);
+        curYmd = isoDayInTz(stepper, "UTC");
       }
       const len = Math.max(1, ymds.length);
       const cells: Cell[] = [];
