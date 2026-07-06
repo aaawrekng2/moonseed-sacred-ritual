@@ -4382,7 +4382,7 @@ export function ConstellationPage({
                 width: "100%",
               }}
             >
-              {!insightsMode && (
+              {!insightsMode && !lunationMode && (
               <Popover open={dateOpen} onOpenChange={setDateOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -5141,7 +5141,7 @@ export function ConstellationPage({
               when no picks.
               EK120 — on atlas, lives in the Draw tab. /constellation
               (non-atlas) shows it unconditionally as before. */}
-          {insightsMode && picks.length > 0 && heroPick && (
+          {(insightsMode || lunationMode) && picks.length > 0 && heroPick && (
             <div
               style={{
                 order: 4,
@@ -5174,7 +5174,7 @@ export function ConstellationPage({
               )}
             </div>
           )}
-          {picks.length > 0 && (!atlasMode || atlasTab === "draw") && !insightsMode && (
+          {picks.length > 0 && (!atlasMode || atlasTab === "draw") && !insightsMode && !lunationMode && (
             <div
               style={{
                 order: 4,
@@ -5820,7 +5820,7 @@ export function ConstellationPage({
             ))}
           </div>
           {/* Get AI Reading button — hidden on insights Patterns (v2.27) */}
-          {!insightsMode && (
+          {!insightsMode && !lunationMode && (
           <button
             type="button"
             onClick={() => void handleGetAIReading()}
