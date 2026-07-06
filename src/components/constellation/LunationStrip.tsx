@@ -525,15 +525,16 @@ export function LunationStrip({
                 title="Next new moon"
                 style={{
                   position: "absolute",
-                  top: 4,
-                  left: "calc(100% - 9px)",
-                  width: 18,
+                  bottom: 12,
+                  left: "calc(100% - 13px)",
+                  width: 26,
                   textAlign: "center",
-                  fontSize: 13,
+                  fontSize: 26,
                   lineHeight: 1,
                   color: "var(--color-foreground)",
                   opacity: 0.3,
                   transform: "scaleY(-1)",
+                  transformOrigin: "bottom",
                   pointerEvents: "none",
                 }}
               >

@@ -53,6 +53,7 @@ import { TAROT_DECK } from "@/lib/tarot";
 import {
   decodeLunationView,
   encodeLunationView,
+  type LunationView,
 } from "@/lib/lunation-url";
 import {
   useAnyDeckCardName,
@@ -78,6 +79,7 @@ import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { LunationStrip } from "@/components/constellation/LunationStrip";
+import { LunationBookmarks } from "@/components/constellation/LunationBookmarks";
 import { Eye, EyeOff, Hash, Layers, LayoutGrid, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
@@ -1052,34 +1054,56 @@ export function ConstellationPage({
   // is untouched (lunationMode is false there).
   const [lunationLens, setLunationLens] = useState<"moon" | "day">("moon");
   const [lunationHydrated, setLunationHydrated] = useState(false);
+  const applyLunationView = useCallback((v: Partial<LunationView>) => {
+    if (v.cards && v.cards.length) {
+      const now = Date.now();
+      setPicks(
+        v.cards.map((c, i) => ({
+          id: now + i,
+          cardIndex: c.cardIndex,
+          isReversed: c.isReversed,
+          deckId: null,
+          cardName: TAROT_DECK[c.cardIndex] ?? null,
+        })),
+      );
+      setFocusedSlotIdx(
+        v.heroIdx != null && v.heroIdx < v.cards.length ? v.heroIdx : 0,
+      );
+    }
+    if (v.stars) setTealSelectedIds(v.stars);
+    if (v.range) {
+      const r = v.range;
+      setGlobalFilters((prev) => ({ ...prev, timeRange: r }));
+    }
+    if (v.lens) setLunationLens(v.lens);
+  }, []);
+  const getLunationViewState = useCallback(
+    () =>
+      encodeLunationView({
+        cards: picks.map((p) => ({
+          cardIndex: p.cardIndex,
+          isReversed: p.isReversed,
+        })),
+        lens: lunationLens,
+        stars: tealSelectedIds,
+        range: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+        heroIdx: focusedSlotIdx,
+      }),
+    [
+      picks,
+      lunationLens,
+      tealSelectedIds,
+      globalFilters.timeRange,
+      focusedSlotIdx,
+    ],
+  );
   useEffect(() => {
     if (!lunationMode || lunationHydrated) return;
     if (typeof window !== "undefined") {
-      const v = decodeLunationView(window.location.search);
-      if (v.cards && v.cards.length) {
-        const now = Date.now();
-        setPicks(
-          v.cards.map((c, i) => ({
-            id: now + i,
-            cardIndex: c.cardIndex,
-            isReversed: c.isReversed,
-            deckId: null,
-            cardName: TAROT_DECK[c.cardIndex] ?? null,
-          })),
-        );
-        setFocusedSlotIdx(
-          v.heroIdx != null && v.heroIdx < v.cards.length ? v.heroIdx : 0,
-        );
-      }
-      if (v.stars) setTealSelectedIds(v.stars);
-      if (v.range) {
-        const r = v.range;
-        setGlobalFilters((prev) => ({ ...prev, timeRange: r }));
-      }
-      if (v.lens) setLunationLens(v.lens);
+      applyLunationView(decodeLunationView(window.location.search));
     }
     setLunationHydrated(true);
-  }, [lunationMode, lunationHydrated]);
+  }, [lunationMode, lunationHydrated, applyLunationView]);
   useEffect(() => {
     if (!lunationMode || !lunationHydrated || typeof window === "undefined") {
       return;
@@ -3829,6 +3853,13 @@ export function ConstellationPage({
             }}
           />
             </div>
+            {lunationMode && (
+              <LunationBookmarks
+                userId={user?.id ?? null}
+                getViewState={getLunationViewState}
+                onApply={(vs) => applyLunationView(decodeLunationView(vs))}
+              />
+            )}
           </div>
           {/* EJ21 — right-side data card removed entirely. The "1
               Year of Data on..." header and the ChipGrid below it
