@@ -16,6 +16,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as NumerologyRouteImport } from './routes/numerology'
+import { Route as LunationsRouteImport } from './routes/lunations'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
@@ -89,6 +90,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const NumerologyRoute = NumerologyRouteImport.update({
   id: '/numerology',
   path: '/numerology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LunationsRoute = LunationsRouteImport.update({
+  id: '/lunations',
+  path: '/lunations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JournalRoute = JournalRouteImport.update({
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/lunations': typeof LunationsRoute
   '/numerology': typeof NumerologyRoute
   '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -349,6 +356,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/lunations': typeof LunationsRoute
   '/numerology': typeof NumerologyRoute
   '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -398,6 +406,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/lunations': typeof LunationsRoute
   '/numerology': typeof NumerologyRoute
   '/privacy': typeof PrivacyRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/lunations'
     | '/numerology'
     | '/privacy'
     | '/scatter-test'
@@ -495,6 +505,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/lunations'
     | '/numerology'
     | '/privacy'
     | '/scatter-test'
@@ -543,6 +554,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/lunations'
     | '/numerology'
     | '/privacy'
     | '/scatter-test'
@@ -592,6 +604,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRouteWithChildren
   InsightsRoute: typeof InsightsRouteWithChildren
   JournalRoute: typeof JournalRoute
+  LunationsRoute: typeof LunationsRoute
   NumerologyRoute: typeof NumerologyRoute
   PrivacyRoute: typeof PrivacyRoute
   ScatterTestRoute: typeof ScatterTestRoute
@@ -658,6 +671,13 @@ declare module '@tanstack/react-router' {
       path: '/numerology'
       fullPath: '/numerology'
       preLoaderRoute: typeof NumerologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lunations': {
+      id: '/lunations'
+      path: '/lunations'
+      fullPath: '/lunations'
+      preLoaderRoute: typeof LunationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/journal': {
@@ -1074,6 +1094,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRouteWithChildren,
   InsightsRoute: InsightsRouteWithChildren,
   JournalRoute: JournalRoute,
+  LunationsRoute: LunationsRoute,
   NumerologyRoute: NumerologyRoute,
   PrivacyRoute: PrivacyRoute,
   ScatterTestRoute: ScatterTestRoute,
