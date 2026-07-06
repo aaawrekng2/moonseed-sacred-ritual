@@ -5609,7 +5609,12 @@ export function ConstellationPage({
         <LunationStrip
           months={overlap?.months ?? []}
           readingsByDate={overlap?.readingsByDate ?? {}}
-          heroSet={heroPick != null}
+          heroCardId={heroPick?.cardIndex ?? null}
+          pullCardIds={picks.map((p) => p.cardIndex)}
+          tealSelectedIds={tealSelectedIds}
+          mode={overlapMode}
+          calendarNumberMode={calendarNumberMode}
+          birthDate={birthDate}
           timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
           effectiveTz={effectiveTz}
           onDayClick={(date) => setDayPopover({ open: true, date })}
