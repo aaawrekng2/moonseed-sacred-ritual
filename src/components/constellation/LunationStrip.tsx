@@ -15,10 +15,11 @@
  */
 import { useMemo, useState } from "react";
 import { Hash, Moon } from "lucide-react";
-import { CalendarDayCell } from "@/components/tabletop/QuickLog";
+import { CalendarDayCell, type DayCellSignals } from "@/components/tabletop/QuickLog";
 import { getPhaseOccurrences } from "@/lib/moon";
 import { isoDayInTz } from "@/lib/time";
 import { personalDay } from "@/lib/numerology";
+import { formatDateLong } from "@/lib/dates";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MONTHS = [
@@ -44,6 +45,7 @@ type Cell = {
   isFull: boolean;
   isNew: boolean;
   readingIds: string[];
+  tooltipText: string;
 };
 type Row = { key: string; label: string; cells: Cell[] };
 
@@ -58,7 +60,17 @@ type Props = {
   birthDate: string | null;
   timeRange: string;
   effectiveTz: string;
+  heroName: string;
   onDayClick?: (ymd: string) => void;
+  onDayHover?: (info: {
+    date: string;
+    anchorX: number;
+    anchorY: number;
+    targetRect: DOMRect | null;
+    signals: DayCellSignals;
+    tooltipText: string;
+  }) => void;
+  onDayHoverEnd?: (date: string) => void;
 };
 
 function rangeDays(tr: string): number {
@@ -81,7 +93,10 @@ export function LunationStrip({
   birthDate,
   timeRange,
   effectiveTz,
+  heroName,
   onDayClick,
+  onDayHover,
+  onDayHoverEnd,
 }: Props) {
   const [lens, setLens] = useState<"moon" | "day">("moon");
 
@@ -203,6 +218,31 @@ export function LunationStrip({
         calendarNumberMode === "numerology" && birthDate
           ? personalDay(birthDate, parts[0], parts[1], parts[2]).digit
           : parts[2];
+      // Replicate the calendar's multi-line tooltip so the shared popover
+      // shows identical text on hover.
+      const lines: string[] = [formatDateLong(`${ymd}T00:00:00`)];
+      if (heroDrawn && heroCardId != null && heroName) {
+        lines.push(`You drew ${heroName} here.`);
+      }
+      if (matchCount > 0) {
+        if (isPerfectMatch) {
+          lines.push(
+            `Your full spread (all ${pullCardIds.length} cards) was drawn here.`,
+          );
+        } else if (isBestAvailable) {
+          lines.push(
+            `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here — the best match in your calendar.`,
+          );
+        } else {
+          lines.push(
+            `${matchCount} of ${pullCardIds.length} cards in your spread were drawn here.`,
+          );
+        }
+      }
+      if (teal && tealSet.size >= 2) {
+        const starWord = tealSet.size === 1 ? "star" : "stars";
+        lines.push(`Your asterism (${tealSet.size} ${starWord}) all met here.`);
+      }
       return {
         ymd,
         frac,
@@ -218,6 +258,7 @@ export function LunationStrip({
         isFull,
         isNew,
         readingIds: (readingsByDate[ymd] ?? []).map((r) => r.id),
+        tooltipText: lines.join("\n"),
       };
     };
 
@@ -331,12 +372,12 @@ export function LunationStrip({
 
       <div>
         {rows.map((row) => (
-          <div key={row.key} style={{ position: "relative", height: 20, marginBottom: 4 }}>
+          <div key={row.key} style={{ position: "relative", height: 26, marginBottom: 5 }}>
             <span
               style={{
                 position: "absolute",
                 left: 0,
-                top: 5,
+                top: 8,
                 width: 34,
                 textAlign: "right",
                 fontFamily: "var(--font-serif)",
@@ -353,21 +394,21 @@ export function LunationStrip({
                 position: "absolute",
                 left: 40,
                 right: 4,
-                top: 10,
+                top: 13,
                 height: 1,
                 background: "var(--border-subtle)",
               }}
             />
-            <div style={{ position: "absolute", left: 40, right: 4, top: 0, height: 20 }}>
+            <div style={{ position: "absolute", left: 40, right: 4, top: 0, height: 26 }}>
               {row.cells.map((c) => (
                 <span
                   key={c.ymd}
                   style={{
                     position: "absolute",
-                    top: 3,
-                    left: `calc(${(c.frac * 100).toFixed(2)}% - 7px)`,
-                    width: 14,
-                    height: 14,
+                    top: 2,
+                    left: `calc(${(c.frac * 100).toFixed(2)}% - 11px)`,
+                    width: 22,
+                    height: 22,
                   }}
                 >
                   <CalendarDayCell
@@ -383,15 +424,17 @@ export function LunationStrip({
                     tealTraceHit={c.tealTraceHit}
                     hoverStrokeHit={false}
                     traceColor="var(--trace-color, #5cead4)"
-                    heroName=""
+                    heroName={heroName}
                     effectivePullSize={pullSize}
-                    tooltipText={c.ymd}
+                    tooltipText={c.tooltipText}
                     pulseHoverDays={false}
                     asterismBadgeHovered={false}
                     dayReadingIds={c.readingIds}
                     isFullMoon={c.isFull}
                     isNewMoon={c.isNew}
                     onDayClick={onDayClick ? (date) => onDayClick(date) : undefined}
+                    onDayHover={onDayHover}
+                    onDayHoverEnd={onDayHoverEnd}
                   />
                 </span>
               ))}
