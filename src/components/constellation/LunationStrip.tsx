@@ -14,7 +14,7 @@
  * new/full moon) are drawn. Newest on top. Two lenses: moon phase / day of month.
  */
 import { useMemo } from "react";
-import { Hash, Moon } from "lucide-react";
+import { CalendarDays, Hash, Moon, Sparkles } from "lucide-react";
 import { CalendarDayCell, type DayCellSignals } from "@/components/tabletop/QuickLog";
 import { getPhaseOccurrences } from "@/lib/moon";
 import { isoDayInTz } from "@/lib/time";
@@ -61,8 +61,8 @@ type Props = {
   birthDate: string | null;
   timeRange: string;
   effectiveTz: string;
-  lens: "moon" | "day";
-  onLensChange: (lens: "moon" | "day") => void;
+  lens: "moon" | "day" | "numerology" | "weekday";
+  onLensChange: (lens: "moon" | "day" | "numerology" | "weekday") => void;
   heroName: string;
   hoverStrokeYmds: Set<string>;
   pulseHoverDays: boolean;
@@ -118,6 +118,16 @@ function phaseFrac(idx: number, fullIdx: number, len: number): number {
     : clampFrac(1 - beforeNextNew * PHASE_STEP, 0.5, 1);
 }
 
+function reduceTo1to9(n: number): number {
+  let x = Math.abs(Math.floor(n));
+  while (x > 9) {
+    x = String(x)
+      .split("")
+      .reduce((sum, c) => sum + Number(c), 0);
+  }
+  return x < 1 ? 9 : x;
+}
+
 export function LunationStrip({
   months,
   readingsByDate,
@@ -139,7 +149,7 @@ export function LunationStrip({
   onDayHoverEnd,
 }: Props) {
 
-  const { moonRows, dayRows } = useMemo(() => {
+  const { moonRows, dayRows, numerologyRows, weekdayRows } = useMemo(() => {
     const tz = effectiveTz || "UTC";
     const now = new Date();
     const spanDays = rangeDays(timeRange);
@@ -360,8 +370,11 @@ export function LunationStrip({
     }
     moon.reverse();
 
-    // Day lens
+    // Day-of-month / numerology / day-of-week lenses — all month-bucketed;
+    // only the column position (frac) differs per lens.
     const day: Row[] = [];
+    const numerology: Row[] = [];
+    const weekday: Row[] = [];
     const nowYmd = isoDayInTz(now, tz);
     const [ny, nmo] = nowYmd.split("-").map(Number);
     const monthCount = Math.min(13, Math.ceil(spanDays / 30) + 1);
@@ -371,16 +384,37 @@ export function LunationStrip({
       while (mo < 1) { mo += 12; y -= 1; }
       // eslint-disable-next-line no-restricted-syntax -- pure month-length arithmetic
       const dim = new Date(y, mo, 0).getDate();
-      const cells: Cell[] = [];
+      const dayCells: Cell[] = [];
+      const numCells: Cell[] = [];
+      const dowCells: Cell[] = [];
       for (let d = 1; d <= dim; d++) {
         const ymd = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-        const c = build(ymd, (d - 1) / 30);
-        if (c) cells.push(c);
+        const base = build(ymd, 0);
+        if (!base) continue;
+        // by day of month: date 1-31 across the row
+        dayCells.push({ ...base, frac: (d - 1) / 30 });
+        // by numerology: personal-day number 1-9 (master numbers reduced)
+        if (birthDate) {
+          const digit = reduceTo1to9(personalDay(birthDate, y, mo, d).digit);
+          numCells.push({ ...base, frac: (digit - 0.5) / 9 });
+        }
+        // by day of week: Sun(0)-Sat(6); noon-UTC avoids tz drift
+        const dow = new Date(`${ymd}T12:00:00Z`).getUTCDay();
+        dowCells.push({ ...base, frac: (dow + 0.5) / 7 });
       }
-      day.push({ key: `${y}-${mo}`, label: MONTHS[mo - 1], cells });
+      const key = `${y}-${mo}`;
+      const label = MONTHS[mo - 1];
+      day.push({ key, label, cells: dayCells });
+      if (birthDate) numerology.push({ key, label, cells: numCells });
+      weekday.push({ key, label, cells: dowCells });
     }
 
-    return { moonRows: moon, dayRows: day };
+    return {
+      moonRows: moon,
+      dayRows: day,
+      numerologyRows: numerology,
+      weekdayRows: weekday,
+    };
   }, [
     months,
     readingsByDate,
@@ -396,7 +430,36 @@ export function LunationStrip({
     hoverStrokeYmds,
   ]);
 
-  const rows = lens === "moon" ? moonRows : dayRows;
+  const rows =
+    lens === "moon"
+      ? moonRows
+      : lens === "day"
+        ? dayRows
+        : lens === "numerology"
+          ? numerologyRows
+          : weekdayRows;
+  const nextLens: Record<string, "moon" | "day" | "numerology" | "weekday"> = {
+    moon: "day",
+    day: "numerology",
+    numerology: "weekday",
+    weekday: "moon",
+  };
+  const lensLabel =
+    lens === "moon"
+      ? "By moon phase"
+      : lens === "day"
+        ? "By day of month"
+        : lens === "numerology"
+          ? "By numerology"
+          : "By day of week";
+  const lensNote =
+    lens === "moon"
+      ? "new \u2192 new"
+      : lens === "day"
+        ? "day 1 \u2192 31"
+        : lens === "numerology"
+          ? "1 \u2192 9"
+          : "Sun \u2192 Sat";
   const pullSize = new Set(pullCardIds).size;
 
   return (
@@ -411,7 +474,7 @@ export function LunationStrip({
       >
         <button
           type="button"
-          onClick={() => onLensChange(lens === "moon" ? "day" : "moon")}
+          onClick={() => onLensChange(nextLens[lens])}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -429,10 +492,14 @@ export function LunationStrip({
         >
           {lens === "moon" ? (
             <Moon size={14} strokeWidth={1.5} aria-hidden="true" />
-          ) : (
+          ) : lens === "day" ? (
             <Hash size={14} strokeWidth={1.5} aria-hidden="true" />
+          ) : lens === "numerology" ? (
+            <Sparkles size={14} strokeWidth={1.5} aria-hidden="true" />
+          ) : (
+            <CalendarDays size={14} strokeWidth={1.5} aria-hidden="true" />
           )}
-          {lens === "moon" ? "By moon phase" : "By day of month"}
+          {lensLabel}
         </button>
         <span
           style={{
@@ -443,10 +510,27 @@ export function LunationStrip({
             opacity: 0.55,
           }}
         >
-          {lens === "moon" ? "new \u2192 new" : "day 1 \u2192 31"}
+          {lensNote}
         </span>
       </div>
 
+      {lens === "numerology" && !birthDate ? (
+        <div
+          style={{
+            padding: "18px 8px",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+            textAlign: "center",
+          }}
+        >
+          Add your birthday in Settings to use the numerology lens — it needs your
+          birth data to give each day a personal number.
+        </div>
+      ) : (
       <div>
         {rows.map((row) => (
           <div key={row.key} style={{ position: "relative", height: 24, marginBottom: 2 }}>
@@ -544,6 +628,7 @@ export function LunationStrip({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
