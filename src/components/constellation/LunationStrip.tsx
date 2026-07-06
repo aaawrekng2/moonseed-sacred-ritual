@@ -1,17 +1,20 @@
 /**
- * v2.92 — LunationStrip. Replaces the calendar strip on the /lunations page.
+ * v2.93 — LunationStrip. Behaves like the Insights -> Patterns calendar cell,
+ * just laid out along a per-lunation / per-month LINE instead of a 7-column
+ * grid. It reuses the calendar's REAL per-day data (heroDrawn) and replicates
+ * its exact display rules:
+ *   - hero-drawn days get the gold fill (var(--gold), ~0.9), like the calendar;
+ *   - the day number shows ONLY when there's a real signal (hero) — never on
+ *     every cell;
+ *   - other reading days get the faint wash the calendar uses;
+ *   - new/full moons render as the real MoonPhaseIcon.
+ * Sparse: only days that carry something (hero, a reading, or a moon) are
+ * drawn. Newest on top. Two lenses: by moon phase / by day of month.
  *
- * Two lenses (one toggle):
- *  - "By moon phase": rows are lunations (new moon → next new moon), cells
- *    placed by phase fraction so full moons land in the same band across rows.
- *  - "By day of month": rows are calendar months, cells placed by date number
- *    (1–31), so the same date stacks in a column — the numerology view the
- *    day-of-week-offset calendars can't give.
- *
- * Sparse: a faint per-row track with ONLY notable cells drawn — days with
- * draws (heat-colored, day number) plus new/full moon markers (the real
- * MoonPhaseIcon). Newest on top. v1 renders draws + moons; the gold-match /
- * teal-asterism rings are a fast follow.
+ * NOT extracted from OverlapStrip: the pull-match tints and perfect/best/
+ * asterism rings live inside that component's pull-match closure, which is too
+ * entangled to share without risking the live calendar. Those rings are the
+ * fast follow.
  */
 import { useMemo, useState } from "react";
 import { Hash, Moon } from "lucide-react";
@@ -25,17 +28,21 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+type DayInfo = { date: string; heroDrawn: boolean };
 type Cell = {
   ymd: string;
   frac: number;
-  count: number;
+  hero: boolean;
+  reading: boolean;
   isNew: boolean;
   isFull: boolean;
 };
 type Row = { key: string; label: string; cells: Cell[] };
 
 type Props = {
+  months: Array<{ days: DayInfo[] }>;
   readingsByDate: Record<string, unknown[]>;
+  heroSet: boolean;
   timeRange: string;
   effectiveTz: string;
   onDayClick?: (ymd: string) => void;
@@ -46,16 +53,10 @@ function rangeDays(tr: string): number {
   return m ? Number(m[1]) : 365;
 }
 
-function heatColor(count: number): string {
-  return count <= 1
-    ? "color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)"
-    : count === 2
-      ? "color-mix(in oklab, var(--accent, var(--gold)) 58%, transparent)"
-      : "var(--accent, var(--gold))";
-}
-
 export function LunationStrip({
+  months,
   readingsByDate,
+  heroSet,
   timeRange,
   effectiveTz,
   onDayClick,
@@ -79,9 +80,23 @@ export function LunationStrip({
         isoDayInTz(d, tz),
       ),
     );
-    const countOf = (ymd: string) => readingsByDate[ymd]?.length ?? 0;
+    const heroDays = new Set<string>();
+    for (const m of months) {
+      for (const d of m.days) if (d.heroDrawn) heroDays.add(d.date);
+    }
+    const hasReading = (ymd: string) =>
+      (readingsByDate[ymd]?.length ?? 0) > 0;
 
-    // ---- Moon lens: new-moon → next-new-moon buckets ----
+    const mk = (ymd: string, frac: number): Cell | null => {
+      const hero = heroDays.has(ymd);
+      const reading = hasReading(ymd);
+      const isNew = newSet.has(ymd);
+      const isFull = fullSet.has(ymd);
+      if (!hero && !reading && !isNew && !isFull) return null;
+      return { ymd, frac, hero, reading, isNew, isFull };
+    };
+
+    // ---- Moon lens: new-moon -> next-new-moon buckets ----
     const moon: Row[] = [];
     for (let i = 0; i < newMoons.length - 1; i++) {
       const start = newMoons[i];
@@ -96,25 +111,13 @@ export function LunationStrip({
       const len = Math.max(1, dayYmds.length);
       const cells: Cell[] = [];
       dayYmds.forEach((ymd, idx) => {
-        const count = countOf(ymd);
-        const isNew = idx === 0;
-        const isFull = fullSet.has(ymd);
-        if (count > 0 || isNew || isFull) {
-          cells.push({
-            ymd,
-            frac: len > 1 ? idx / (len - 1) : 0,
-            count,
-            isNew,
-            isFull,
-          });
-        }
+        const c = mk(ymd, len > 1 ? idx / (len - 1) : 0);
+        if (c) cells.push(c);
       });
+      const [, mm, dd] = isoDayInTz(start, tz).split("-").map(Number);
       moon.push({
         key: isoDayInTz(start, tz),
-        label: (() => {
-          const [, m, d] = isoDayInTz(start, tz).split("-").map(Number);
-          return `${MONTHS[m - 1]} ${d}`;
-        })(),
+        label: `${MONTHS[mm - 1]} ${dd}`,
         cells,
       });
     }
@@ -137,18 +140,14 @@ export function LunationStrip({
       const cells: Cell[] = [];
       for (let d = 1; d <= dim; d++) {
         const ymd = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-        const count = countOf(ymd);
-        const isNew = newSet.has(ymd);
-        const isFull = fullSet.has(ymd);
-        if (count > 0 || isNew || isFull) {
-          cells.push({ ymd, frac: (d - 1) / 30, count, isNew, isFull });
-        }
+        const c = mk(ymd, (d - 1) / 30);
+        if (c) cells.push(c);
       }
-      day.push({ key: `${y}-${mo}`, label: `${MONTHS[mo - 1]}`, cells });
+      day.push({ key: `${y}-${mo}`, label: MONTHS[mo - 1], cells });
     }
 
     return { moonRows: moon, dayRows: day };
-  }, [readingsByDate, timeRange, effectiveTz]);
+  }, [months, readingsByDate, timeRange, effectiveTz]);
 
   const rows = lens === "moon" ? moonRows : dayRows;
 
@@ -235,69 +234,79 @@ export function LunationStrip({
             <div
               style={{ position: "absolute", left: 40, right: 4, top: 0, height: 20 }}
             >
-              {row.cells.map((c) => (
-                <button
-                  key={c.ymd}
-                  type="button"
-                  onClick={() => onDayClick?.(c.ymd)}
-                  title={
-                    c.ymd + (c.count ? ` \u00b7 ${c.count} draw${c.count > 1 ? "s" : ""}` : "")
-                  }
-                  style={{
-                    position: "absolute",
-                    top: c.count > 0 ? 2 : 4,
-                    left: `calc(${(c.frac * 100).toFixed(2)}% - ${c.count > 0 ? 7.5 : 6}px)`,
-                    width: c.count > 0 ? 15 : 12,
-                    height: c.count > 0 ? 15 : 12,
-                    padding: 0,
-                    border: "none",
-                    background:
-                      c.count > 0 ? heatColor(c.count) : "transparent",
-                    borderRadius: c.count > 0 ? 2 : "50%",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 8,
-                    color:
-                      c.count >= 2 ? "#160f2c" : "var(--color-foreground)",
-                    zIndex: c.count > 0 ? 2 : 3,
-                  }}
-                >
-                  {c.count > 0 ? (
-                    Number(c.ymd.split("-")[2])
-                  ) : c.isFull ? (
-                    <MoonPhaseIcon phase="Full Moon" size={12} />
-                  ) : (
-                    <MoonPhaseIcon phase="New Moon" size={12} />
-                  )}
-                </button>
-              ))}
-              {/* Moon markers for days that ALSO have draws — a small disc
-                  above the heat cell so the phase still reads. */}
-              {row.cells
-                .filter((c) => c.count > 0 && (c.isFull || c.isNew))
-                .map((c) => (
-                  <div
-                    key={`m-${c.ymd}`}
-                    aria-hidden="true"
+              {row.cells.map((c) => {
+                // Match the calendar fill rules (QuickLog OverlapStrip):
+                //   hero        -> gold, ~0.9
+                //   reading only -> accent 0.4 when NO hero, else faint 0.18
+                // Day number shows ONLY on hero days (v1 signal set).
+                const fill = c.hero
+                  ? { background: "var(--gold, var(--accent))", opacity: 0.9 }
+                  : heroSet
+                    ? { background: "var(--color-foreground)", opacity: 0.18 }
+                    : { background: "var(--accent, var(--gold))", opacity: 0.4 };
+                const showCell = c.hero || c.reading;
+                return (
+                  <span
+                    key={c.ymd}
                     style={{
                       position: "absolute",
-                      top: -4,
-                      left: `calc(${(c.frac * 100).toFixed(2)}% - 4px)`,
-                      width: 8,
-                      height: 8,
-                      pointerEvents: "none",
-                      zIndex: 4,
+                      top: 3,
+                      left: `calc(${(c.frac * 100).toFixed(2)}% - 7px)`,
+                      width: 14,
+                      height: 14,
                     }}
                   >
-                    <MoonPhaseIcon
-                      phase={c.isFull ? "Full Moon" : "New Moon"}
-                      size={8}
-                    />
-                  </div>
-                ))}
+                    {showCell && (
+                      <button
+                        type="button"
+                        onClick={() => onDayClick?.(c.ymd)}
+                        title={c.ymd}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          padding: "0 0 1px 2px",
+                          cursor: "pointer",
+                          border:
+                            "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+                          borderRadius: 3,
+                          ...fill,
+                          display: "flex",
+                          alignItems: "flex-end",
+                          justifyContent: "flex-start",
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 9,
+                          lineHeight: 1,
+                          color: c.hero
+                            ? "var(--background)"
+                            : "var(--color-foreground)",
+                        }}
+                      >
+                        {c.hero ? Number(c.ymd.split("-")[2]) : ""}
+                      </button>
+                    )}
+                    {(c.isFull || c.isNew) && (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          top: -3,
+                          right: -3,
+                          width: 9,
+                          height: 9,
+                          pointerEvents: "none",
+                          zIndex: 4,
+                        }}
+                      >
+                        <MoonPhaseIcon
+                          phase={c.isFull ? "Full Moon" : "New Moon"}
+                          size={9}
+                        />
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </div>
         ))}

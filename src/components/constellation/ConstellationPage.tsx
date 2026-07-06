@@ -5607,7 +5607,9 @@ export function ConstellationPage({
           through none → recent → both → none. */}
       {lunationMode && (
         <LunationStrip
+          months={overlap?.months ?? []}
           readingsByDate={overlap?.readingsByDate ?? {}}
+          heroSet={heroPick != null}
           timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
           effectiveTz={effectiveTz}
           onDayClick={(date) => setDayPopover({ open: true, date })}
