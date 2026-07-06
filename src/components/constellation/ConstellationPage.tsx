@@ -5622,6 +5622,8 @@ export function ConstellationPage({
               ? resolveCardName(heroPick.cardIndex)
               : ""
           }
+          hoverStrokeYmds={hoverStrokeYmds}
+          pulseHoverDays={pulseHoverDays}
           onDayClick={(date) => setDayPopover({ open: true, date })}
           onDayHover={(info) => {
             cancelPopoverDismiss();
