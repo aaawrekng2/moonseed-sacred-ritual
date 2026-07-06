@@ -370,11 +370,8 @@ export function LunationStrip({
     }
     moon.reverse();
 
-    // Day-of-month / numerology / day-of-week lenses — all month-bucketed;
-    // only the column position (frac) differs per lens.
+    // Day-of-month lens — month-bucketed (date 1-31 across the row).
     const day: Row[] = [];
-    const numerology: Row[] = [];
-    const weekday: Row[] = [];
     const nowYmd = isoDayInTz(now, tz);
     const [ny, nmo] = nowYmd.split("-").map(Number);
     const monthCount = Math.min(13, Math.ceil(spanDays / 30) + 1);
@@ -385,28 +382,64 @@ export function LunationStrip({
       // eslint-disable-next-line no-restricted-syntax -- pure month-length arithmetic
       const dim = new Date(y, mo, 0).getDate();
       const dayCells: Cell[] = [];
-      const numCells: Cell[] = [];
-      const dowCells: Cell[] = [];
       for (let d = 1; d <= dim; d++) {
         const ymd = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         const base = build(ymd, 0);
-        if (!base) continue;
-        // by day of month: date 1-31 across the row
-        dayCells.push({ ...base, frac: (d - 1) / 30 });
-        // by numerology: personal-day number 1-9 (master numbers reduced)
-        if (birthDate) {
-          const digit = reduceTo1to9(personalDay(birthDate, y, mo, d).digit);
-          numCells.push({ ...base, frac: (digit - 0.5) / 9 });
-        }
-        // by day of week: Sun(0)-Sat(6); noon-UTC avoids tz drift
-        const dow = new Date(`${ymd}T12:00:00Z`).getUTCDay();
-        dowCells.push({ ...base, frac: (dow + 0.5) / 7 });
+        if (base) dayCells.push({ ...base, frac: (d - 1) / 30 });
       }
-      const key = `${y}-${mo}`;
-      const label = MONTHS[mo - 1];
-      day.push({ key, label, cells: dayCells });
-      if (birthDate) numerology.push({ key, label, cells: numCells });
-      weekday.push({ key, label, cells: dowCells });
+      day.push({ key: `${y}-${mo}`, label: MONTHS[mo - 1], cells: dayCells });
+    }
+
+    // Numerology & day-of-week lenses — WRAPPED grids. Walk every calendar day in
+    // the range in order; a numerology row is one 1-9 personal-day cycle (column =
+    // the number, new row when the number returns to 1), a weekday row is one
+    // Sun-Sat week (column = the weekday, new row each Sunday). One day per cell,
+    // so no collisions. Each row is labelled by the month its first day falls in.
+    // Newest row on top.
+    const allYmds: string[] = [];
+    {
+      const firstYmd = isoDayInTz(cutoff, tz);
+      let stepper = new Date(`${firstYmd}T12:00:00Z`);
+      let cy = firstYmd;
+      while (cy <= nowYmd) {
+        allYmds.push(cy);
+        stepper = new Date(stepper.getTime() + DAY_MS);
+        cy = isoDayInTz(stepper, "UTC");
+      }
+    }
+
+    const weekday: Row[] = [];
+    {
+      let cur: Row | null = null;
+      for (const ymd of allYmds) {
+        const dow = new Date(`${ymd}T12:00:00Z`).getUTCDay();
+        if (dow === 0 || cur === null) {
+          if (cur) weekday.push(cur);
+          const mm = Number(ymd.split("-")[1]);
+          cur = { key: ymd, label: MONTHS[mm - 1], cells: [] };
+        }
+        const base = build(ymd, 0);
+        if (base) cur!.cells.push({ ...base, frac: (dow + 0.5) / 7 });
+      }
+      if (cur) weekday.push(cur);
+      weekday.reverse();
+    }
+
+    const numerology: Row[] = [];
+    if (birthDate) {
+      let cur: Row | null = null;
+      for (const ymd of allYmds) {
+        const [yy, mm, dd] = ymd.split("-").map(Number);
+        const digit = reduceTo1to9(personalDay(birthDate, yy, mm, dd).digit);
+        if (digit === 1 || cur === null) {
+          if (cur) numerology.push(cur);
+          cur = { key: ymd, label: MONTHS[mm - 1], cells: [] };
+        }
+        const base = build(ymd, 0);
+        if (base) cur!.cells.push({ ...base, frac: (digit - 0.5) / 9 });
+      }
+      if (cur) numerology.push(cur);
+      numerology.reverse();
     }
 
     return {
@@ -460,6 +493,17 @@ export function LunationStrip({
         : lens === "numerology"
           ? "1 \u2192 9"
           : "Sun \u2192 Sat";
+  // Numerology / weekday are wrapped fixed-column grids: narrow band = cols * step
+  // (22px cell + gap), left-aligned; the other lenses keep the wide band.
+  const cols = lens === "numerology" ? 9 : lens === "weekday" ? 7 : 0;
+  const bandWidth =
+    cols > 0 ? `${cols * 24}px` : "min(680px, calc(100% - 54px))";
+  const headerLabels =
+    lens === "numerology"
+      ? ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+      : lens === "weekday"
+        ? ["S", "M", "T", "W", "T", "F", "S"]
+        : [];
   const pullSize = new Set(pullCardIds).size;
 
   return (
@@ -532,6 +576,41 @@ export function LunationStrip({
         </div>
       ) : (
       <div>
+        {headerLabels.length > 0 && (
+          <div style={{ position: "relative", height: 15, marginBottom: 2 }}>
+            <div
+              style={{
+                position: "absolute",
+                left: 50,
+                width: bandWidth,
+                top: 0,
+                height: 15,
+              }}
+            >
+              {headerLabels.map((lbl, i) => (
+                <span
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: `calc(${(
+                      ((i + 0.5) / headerLabels.length) *
+                      100
+                    ).toFixed(2)}% - 8px)`,
+                    width: 16,
+                    textAlign: "center",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 10,
+                    color: "var(--color-foreground)",
+                    opacity: 0.5,
+                  }}
+                >
+                  {lbl}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {rows.map((row) => (
           <div key={row.key} style={{ position: "relative", height: 24, marginBottom: 2 }}>
             <span
@@ -554,13 +633,13 @@ export function LunationStrip({
               style={{
                 position: "absolute",
                 left: 50,
-                width: "min(680px, calc(100% - 54px))",
+                width: bandWidth,
                 top: 12,
                 height: 1,
                 background: "var(--border-subtle)",
               }}
             />
-            <div style={{ position: "absolute", left: 50, width: "min(680px, calc(100% - 54px))", top: 0, height: 24 }}>
+            <div style={{ position: "absolute", left: 50, width: bandWidth, top: 0, height: 24 }}>
               {row.cells.map((c) => (
                 <span
                   key={c.ymd}
@@ -604,6 +683,7 @@ export function LunationStrip({
                   cycle loops up to the next row's new moon. Flipped vertically so
                   it reads as wrapping UP, and dim so it's not mistaken for a
                   logged day. */}
+              {lens === "moon" && (
               <span
                 aria-hidden="true"
                 title="Next new moon"
@@ -624,6 +704,7 @@ export function LunationStrip({
               >
                 {"\u21B5"}
               </span>
+              )}
             </div>
           </div>
         ))}
