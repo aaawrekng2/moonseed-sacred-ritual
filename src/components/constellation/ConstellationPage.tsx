@@ -5617,7 +5617,26 @@ export function ConstellationPage({
           birthDate={birthDate}
           timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
           effectiveTz={effectiveTz}
+          heroName={
+            heroPick?.cardIndex != null
+              ? resolveCardName(heroPick.cardIndex)
+              : ""
+          }
           onDayClick={(date) => setDayPopover({ open: true, date })}
+          onDayHover={(info) => {
+            cancelPopoverDismiss();
+            setActivePopover({
+              kind: "day-cell",
+              key: info.date,
+              anchorX: info.anchorX,
+              anchorY: info.anchorY,
+              targetRect: info.targetRect,
+              date: info.date,
+              signals: info.signals,
+              tooltipText: info.tooltipText,
+            });
+          }}
+          onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
         />
       )}
       {!lunationMode && (
