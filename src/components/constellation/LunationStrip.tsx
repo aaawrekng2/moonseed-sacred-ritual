@@ -47,6 +47,7 @@ type Cell = {
   readingIds: string[];
   tooltipText: string;
   hoverStrokeHit: boolean;
+  split?: "left" | "right";
 };
 type Row = { key: string; label: string; cells: Cell[] };
 
@@ -126,6 +127,31 @@ function reduceTo1to9(n: number): number {
       .reduce((sum, c) => sum + Number(c), 0);
   }
   return x < 1 ? 9 : x;
+}
+
+function splitCollisions(cells: Cell[]): Cell[] {
+  // v3.11 — when exactly two notable cells resolve to the same slot position
+  // (e.g. two days at the same day-distance from a moon, like the March 9 & 10
+  // overlap), split that slot: one cell to the left half, one to the right, so
+  // both stay visible instead of stacking. 3+ in one slot stay stacked (rare on
+  // a sparse strip).
+  const groups = new Map<string, Cell[]>();
+  for (const c of cells) {
+    const key = c.frac.toFixed(3);
+    const arr = groups.get(key);
+    if (arr) arr.push(c);
+    else groups.set(key, [c]);
+  }
+  const out: Cell[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 2) {
+      out.push({ ...group[0], split: "left" });
+      out.push({ ...group[1], split: "right" });
+    } else {
+      for (const c of group) out.push(c);
+    }
+  }
+  return out;
 }
 
 export function LunationStrip({
@@ -366,7 +392,11 @@ export function LunationStrip({
         if (c) cells.push(c);
       });
       const [, mm, dd] = isoDayInTz(start, tz).split("-").map(Number);
-      moon.push({ key: isoDayInTz(start, tz), label: `${MONTHS[mm - 1]} ${dd}`, cells });
+      moon.push({
+        key: isoDayInTz(start, tz),
+        label: `${MONTHS[mm - 1]} ${dd}`,
+        cells: splitCollisions(cells),
+      });
     }
     moon.reverse();
 
@@ -387,7 +417,11 @@ export function LunationStrip({
         const base = build(ymd, 0);
         if (base) dayCells.push({ ...base, frac: (d - 1) / 30 });
       }
-      day.push({ key: `${y}-${mo}`, label: MONTHS[mo - 1], cells: dayCells });
+      day.push({
+        key: `${y}-${mo}`,
+        label: MONTHS[mo - 1],
+        cells: splitCollisions(dayCells),
+      });
     }
 
     // Numerology & day-of-week lenses — WRAPPED grids. Walk every calendar day in
@@ -662,8 +696,11 @@ export function LunationStrip({
                   style={{
                     position: "absolute",
                     top: cellTop,
-                    left: `calc(${(c.frac * 100).toFixed(2)}% - 11px)`,
-                    width: 22,
+                    left:
+                      c.split === "right"
+                        ? `calc(${(c.frac * 100).toFixed(2)}%)`
+                        : `calc(${(c.frac * 100).toFixed(2)}% - 11px)`,
+                    width: c.split ? 11 : 22,
                     height: cellH,
                   }}
                 >
@@ -689,7 +726,7 @@ export function LunationStrip({
                     isFullMoon={c.isFull}
                     isNewMoon={c.isNew}
                     fullMoonOpacity={0.5}
-                    fillHeight={compact}
+                    fillHeight={compact || !!c.split}
                     onDayClick={onDayClick ? (date) => onDayClick(date) : undefined}
                     onDayHover={onDayHover}
                     onDayHoverEnd={onDayHoverEnd}
