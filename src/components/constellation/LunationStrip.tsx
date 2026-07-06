@@ -525,7 +525,7 @@ export function LunationStrip({
                 title="Next new moon"
                 style={{
                   position: "absolute",
-                  bottom: 12,
+                  bottom: 16,
                   left: "calc(100% - 13px)",
                   width: 26,
                   textAlign: "center",

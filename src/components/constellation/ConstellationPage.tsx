@@ -4403,7 +4403,9 @@ export function ConstellationPage({
                   justifyContent: "flex-end",
                 }}
               >
-                <SpreadDropdown value={spreadKey} onChange={setSpreadKeyPersisted} />
+                {!lunationMode && (
+                  <SpreadDropdown value={spreadKey} onChange={setSpreadKeyPersisted} />
+                )}
               </div>
               <div
                 style={{
