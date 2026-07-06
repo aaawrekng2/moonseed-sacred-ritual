@@ -1990,6 +1990,10 @@ type CalendarDayCellProps = {
   /** v3.00 — dims the full-moon disc only (default 1 = unchanged; the lunation
    *  strip passes a lower value; the calendar grid never passes it). */
   fullMoonOpacity?: number;
+  /** v3.10 — when true, the cell fills its wrapper height instead of forcing a
+   *  square (1:1) aspect. Default false = square (calendar surfaces unchanged);
+   *  the lunation strip passes true for its half-height numerology/weekday cells. */
+  fillHeight?: boolean;
   onDayClick?: (date: string, readingIds: string[]) => void;
   onDayHover?: (info: {
     date: string;
@@ -2033,6 +2037,7 @@ export function CalendarDayCell({
   isFullMoon,
   isNewMoon,
   fullMoonOpacity = 1,
+  fillHeight = false,
   onDayClick,
   onDayHover,
   onDayHoverEnd,
@@ -2127,7 +2132,9 @@ export function CalendarDayCell({
       style={{
         position: "relative",
         ...(layout === "grid12"
-          ? { width: "100%", aspectRatio: "1 / 1" }
+          ? fillHeight
+            ? { width: "100%", height: "100%" }
+            : { width: "100%", aspectRatio: "1 / 1" }
           : { width: 20, height: 20 }),
         ...(pulseHoverDays &&
         (asterismBadgeHovered ? tealTraceHit : hoverStrokeHit)
