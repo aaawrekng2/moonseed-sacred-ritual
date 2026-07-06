@@ -427,14 +427,22 @@ export function LunationStrip({
 
     const numerology: Row[] = [];
     if (birthDate) {
+      // A row runs until a personal number would REPEAT — then the next day
+      // starts a fresh row. Because the personal-day number jumps at month
+      // boundaries (it only marches 1->9 cleanly within a month), rows aren't
+      // fixed 1-9 cycles; breaking on repeat is what guarantees column = the
+      // personal number with never two days in one square.
       let cur: Row | null = null;
+      let used = new Set<number>();
       for (const ymd of allYmds) {
         const [yy, mm, dd] = ymd.split("-").map(Number);
         const digit = reduceTo1to9(personalDay(birthDate, yy, mm, dd).digit);
-        if (digit === 1 || cur === null) {
+        if (cur === null || used.has(digit)) {
           if (cur) numerology.push(cur);
           cur = { key: ymd, label: MONTHS[mm - 1], cells: [] };
+          used = new Set<number>();
         }
+        used.add(digit);
         const base = build(ymd, 0);
         if (base) cur!.cells.push({ ...base, frac: (digit - 0.5) / 9 });
       }
@@ -504,6 +512,14 @@ export function LunationStrip({
       : lens === "weekday"
         ? ["S", "M", "T", "W", "T", "F", "S"]
         : [];
+  // v3.10 — numerology & weekday use half-height cells so their many wrapped
+  // rows pack compactly. Other lenses keep the full 22px square cell.
+  const compact = cols > 0;
+  const cellH = compact ? 11 : 22;
+  const rowH = compact ? 13 : 24;
+  const rowGap = compact ? 1 : 2;
+  const trackTop = compact ? 6 : 12;
+  const cellTop = compact ? 1 : 2;
   const pullSize = new Set(pullCardIds).size;
 
   return (
@@ -612,7 +628,7 @@ export function LunationStrip({
           </div>
         )}
         {rows.map((row) => (
-          <div key={row.key} style={{ position: "relative", height: 24, marginBottom: 2 }}>
+          <div key={row.key} style={{ position: "relative", height: rowH, marginBottom: rowGap }}>
             <span
               style={{
                 position: "absolute",
@@ -634,21 +650,21 @@ export function LunationStrip({
                 position: "absolute",
                 left: 50,
                 width: bandWidth,
-                top: 12,
+                top: trackTop,
                 height: 1,
                 background: "var(--border-subtle)",
               }}
             />
-            <div style={{ position: "absolute", left: 50, width: bandWidth, top: 0, height: 24 }}>
+            <div style={{ position: "absolute", left: 50, width: bandWidth, top: 0, height: rowH }}>
               {row.cells.map((c) => (
                 <span
                   key={c.ymd}
                   style={{
                     position: "absolute",
-                    top: 2,
+                    top: cellTop,
                     left: `calc(${(c.frac * 100).toFixed(2)}% - 11px)`,
                     width: 22,
-                    height: 22,
+                    height: cellH,
                   }}
                 >
                   <CalendarDayCell
@@ -673,6 +689,7 @@ export function LunationStrip({
                     isFullMoon={c.isFull}
                     isNewMoon={c.isNew}
                     fullMoonOpacity={0.5}
+                    fillHeight={compact}
                     onDayClick={onDayClick ? (date) => onDayClick(date) : undefined}
                     onDayHover={onDayHover}
                     onDayHoverEnd={onDayHoverEnd}
