@@ -446,12 +446,12 @@ export function LunationStrip({
 
       <div>
         {rows.map((row) => (
-          <div key={row.key} style={{ position: "relative", height: 26, marginBottom: 5 }}>
+          <div key={row.key} style={{ position: "relative", height: 24, marginBottom: 2 }}>
             <span
               style={{
                 position: "absolute",
                 left: 0,
-                top: 8,
+                top: 7,
                 width: 46,
                 textAlign: "left",
                 fontFamily: "var(--font-serif)",
@@ -467,13 +467,13 @@ export function LunationStrip({
               style={{
                 position: "absolute",
                 left: 50,
-                right: 4,
-                top: 13,
+                width: "min(680px, calc(100% - 54px))",
+                top: 12,
                 height: 1,
                 background: "var(--border-subtle)",
               }}
             />
-            <div style={{ position: "absolute", left: 50, right: 4, top: 0, height: 26 }}>
+            <div style={{ position: "absolute", left: 50, width: "min(680px, calc(100% - 54px))", top: 0, height: 24 }}>
               {row.cells.map((c) => (
                 <span
                   key={c.ymd}
@@ -513,6 +513,29 @@ export function LunationStrip({
                   />
                 </span>
               ))}
+              {/* v3.01 — faint wrap marker at the next-new-moon end (x=1): the
+                  cycle loops up to the next row's new moon. Flipped vertically so
+                  it reads as wrapping UP, and dim so it's not mistaken for a
+                  logged day. */}
+              <span
+                aria-hidden="true"
+                title="Next new moon"
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  left: "calc(100% - 9px)",
+                  width: 18,
+                  textAlign: "center",
+                  fontSize: 13,
+                  lineHeight: 1,
+                  color: "var(--color-foreground)",
+                  opacity: 0.3,
+                  transform: "scaleY(-1)",
+                  pointerEvents: "none",
+                }}
+              >
+                {"\u21B5"}
+              </span>
             </div>
           </div>
         ))}
