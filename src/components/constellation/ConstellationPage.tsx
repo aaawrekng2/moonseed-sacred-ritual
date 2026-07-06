@@ -1052,7 +1052,9 @@ export function ConstellationPage({
   // once on mount and written back to the URL on every change via replaceState —
   // so bookmarking/copying the URL captures the current view. Every other surface
   // is untouched (lunationMode is false there).
-  const [lunationLens, setLunationLens] = useState<"moon" | "day">("moon");
+  const [lunationLens, setLunationLens] = useState<
+    "moon" | "day" | "numerology" | "weekday"
+  >("moon");
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
     if (v.cards && v.cards.length) {
