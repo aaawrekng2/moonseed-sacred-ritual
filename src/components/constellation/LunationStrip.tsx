@@ -13,7 +13,7 @@
  * Sparse: only days carrying a signal (hero, match, asterism, a reading, or a
  * new/full moon) are drawn. Newest on top. Two lenses: moon phase / day of month.
  */
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Hash, Moon } from "lucide-react";
 import { CalendarDayCell, type DayCellSignals } from "@/components/tabletop/QuickLog";
 import { getPhaseOccurrences } from "@/lib/moon";
@@ -61,6 +61,8 @@ type Props = {
   birthDate: string | null;
   timeRange: string;
   effectiveTz: string;
+  lens: "moon" | "day";
+  onLensChange: (lens: "moon" | "day") => void;
   heroName: string;
   hoverStrokeYmds: Set<string>;
   pulseHoverDays: boolean;
@@ -127,6 +129,8 @@ export function LunationStrip({
   birthDate,
   timeRange,
   effectiveTz,
+  lens,
+  onLensChange,
   heroName,
   hoverStrokeYmds,
   pulseHoverDays,
@@ -134,7 +138,6 @@ export function LunationStrip({
   onDayHover,
   onDayHoverEnd,
 }: Props) {
-  const [lens, setLens] = useState<"moon" | "day">("moon");
 
   const { moonRows, dayRows } = useMemo(() => {
     const tz = effectiveTz || "UTC";
@@ -408,7 +411,7 @@ export function LunationStrip({
       >
         <button
           type="button"
-          onClick={() => setLens((l) => (l === "moon" ? "day" : "moon"))}
+          onClick={() => onLensChange(lens === "moon" ? "day" : "moon")}
           style={{
             display: "inline-flex",
             alignItems: "center",
