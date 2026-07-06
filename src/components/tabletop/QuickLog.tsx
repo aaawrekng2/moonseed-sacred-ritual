@@ -12,7 +12,7 @@
  * `ManualEntryBuilder` surface from draw.tsx. Prop signature matches
  * the old builder so the swap is mechanical.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { CalendarIcon, Plus, RotateCw, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
@@ -1966,6 +1966,322 @@ export function OverlapPills({
   );
 }
 
+type CalendarDayCellProps = {
+  day: { date: string; heroDrawn?: boolean };
+  layout: "scroll" | "grid12";
+  bg: string;
+  opacity: number;
+  textColor: string;
+  displayNumber: ReactNode;
+  matchCount: number;
+  isPerfectMatch: boolean;
+  isBestAvailable: boolean;
+  tealTraceHit: boolean;
+  hoverStrokeHit: boolean;
+  traceColor: string;
+  heroName: string;
+  effectivePullSize: number;
+  tooltipText: string;
+  pulseHoverDays: boolean;
+  asterismBadgeHovered: boolean;
+  dayReadingIds: string[];
+  isFullMoon: boolean;
+  isNewMoon: boolean;
+  onDayClick?: (date: string, readingIds: string[]) => void;
+  onDayHover?: (info: {
+    date: string;
+    anchorX: number;
+    anchorY: number;
+    targetRect: DOMRect | null;
+    signals: DayCellSignals;
+    tooltipText: string;
+  }) => void;
+  onDayHoverEnd?: (date: string) => void;
+};
+
+/**
+ * v2.94 — the calendar day cell, extracted VERBATIM from OverlapStrip so the
+ * lunation strip can render the EXACT same cell (gold hero fill, match tints,
+ * perfect/best/asterism rings, conditional day number, moon markers, hover +
+ * click/long-press). The month grid renders this too; its output is unchanged.
+ * The only difference from the inline version: this owns its own long-press
+ * refs (one per cell instead of one shared timer — behaviour is identical since
+ * only one cell is pressed at a time), and reads moon/reading state via props.
+ */
+export function CalendarDayCell({
+  day,
+  layout,
+  bg,
+  opacity,
+  textColor,
+  displayNumber,
+  matchCount,
+  isPerfectMatch,
+  isBestAvailable,
+  tealTraceHit,
+  hoverStrokeHit,
+  traceColor,
+  heroName,
+  effectivePullSize,
+  tooltipText,
+  pulseHoverDays,
+  asterismBadgeHovered,
+  dayReadingIds,
+  isFullMoon,
+  isNewMoon,
+  onDayClick,
+  onDayHover,
+  onDayHoverEnd,
+}: CalendarDayCellProps) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
+  const clickable = !!onDayClick && dayReadingIds.length > 0;
+  return (
+    <div
+      title={onDayHover ? undefined : tooltipText}
+      onMouseEnter={
+        onDayHover
+          ? (e) => {
+              const rect = (
+                e.currentTarget as HTMLDivElement
+              ).getBoundingClientRect();
+              onDayHover({
+                date: day.date,
+                anchorX: e.clientX,
+                anchorY: e.clientY,
+                targetRect: rect,
+                signals: {
+                  heroDrawn: !!day.heroDrawn,
+                  heroName,
+                  matchCount,
+                  pullSize: effectivePullSize,
+                  isPerfectMatch,
+                  isBestAvailable,
+                  tealTraceHit,
+                },
+                tooltipText,
+              });
+            }
+          : undefined
+      }
+      onMouseLeave={onDayHoverEnd ? () => onDayHoverEnd(day.date) : undefined}
+      onPointerDown={
+        onDayHover
+          ? (e) => {
+              if (e.pointerType !== "touch") return;
+              longPressFiredRef.current = false;
+              if (longPressTimerRef.current !== null) {
+                window.clearTimeout(longPressTimerRef.current);
+              }
+              const startX = e.clientX;
+              const startY = e.clientY;
+              const startRect = (
+                e.currentTarget as HTMLDivElement
+              ).getBoundingClientRect();
+              longPressTimerRef.current = window.setTimeout(() => {
+                longPressFiredRef.current = true;
+                onDayHover({
+                  date: day.date,
+                  anchorX: startX,
+                  anchorY: startY,
+                  targetRect: startRect,
+                  signals: {
+                    heroDrawn: !!day.heroDrawn,
+                    heroName,
+                    matchCount,
+                    pullSize: effectivePullSize,
+                    isPerfectMatch,
+                    isBestAvailable,
+                    tealTraceHit,
+                  },
+                  tooltipText,
+                });
+              }, 500);
+            }
+          : undefined
+      }
+      onPointerUp={
+        onDayHover
+          ? () => {
+              if (longPressTimerRef.current !== null) {
+                window.clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            }
+          : undefined
+      }
+      onPointerCancel={
+        onDayHover
+          ? () => {
+              if (longPressTimerRef.current !== null) {
+                window.clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            }
+          : undefined
+      }
+      style={{
+        position: "relative",
+        ...(layout === "grid12"
+          ? { width: "100%", aspectRatio: "1 / 1" }
+          : { width: 20, height: 20 }),
+        ...(pulseHoverDays &&
+        (asterismBadgeHovered ? tealTraceHit : hoverStrokeHit)
+          ? {
+              animation: "tarotseed-day-pulse 1.4s ease-in-out infinite",
+            }
+          : null),
+      }}
+    >
+      {(() => {
+        const inner = null;
+        const shared = {
+          width: "100%",
+          height: "100%",
+          borderRadius: 3,
+          background: bg,
+          opacity,
+          border:
+            "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+          boxSizing: "border-box" as const,
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "flex-start",
+          padding: "0 0 1px 2px",
+          fontFamily: "var(--font-serif)",
+          fontSize: 11,
+          fontStyle: "italic",
+          lineHeight: 1,
+          color: textColor,
+        };
+        if (clickable) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDayClick?.(day.date, dayReadingIds);
+              }}
+              aria-label={`Show ${dayReadingIds.length} readings on ${day.date}`}
+              style={{
+                ...shared,
+                cursor: "pointer",
+              }}
+            >
+              {inner}
+            </button>
+          );
+        }
+        return <div style={shared}>{inner}</div>;
+      })()}
+      {(day.heroDrawn ||
+        matchCount > 0 ||
+        tealTraceHit ||
+        hoverStrokeHit) && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "flex-start",
+            padding: "0 0 1px 2px",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 11,
+            lineHeight: 1,
+            color: textColor,
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        >
+          {displayNumber}
+        </div>
+      )}
+      {(() => {
+        const rings: {
+          thickness: number;
+          style: string;
+          color: string;
+        }[] = [];
+        if (isPerfectMatch) {
+          rings.push({
+            thickness: 3,
+            style: "solid",
+            color: "var(--accent, var(--gold))",
+          });
+        } else if (isBestAvailable) {
+          rings.push({
+            thickness: 2.5,
+            style: "dashed",
+            color: "var(--accent, var(--gold))",
+          });
+        }
+        if (tealTraceHit) {
+          rings.push({
+            thickness: 3,
+            style: "solid",
+            color: traceColor,
+          });
+        }
+        let off = 0;
+        return rings.map((r, i) => {
+          const node = (
+            <div
+              key={i}
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: off,
+                borderRadius: Math.max(2, 3 - off),
+                border: `${r.thickness}px ${r.style} ${r.color}`,
+                boxSizing: "border-box" as const,
+                pointerEvents: "none",
+                zIndex: 3,
+              }}
+            />
+          );
+          off += r.thickness;
+          return node;
+        });
+      })()}
+      {layout === "grid12" && isFullMoon && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 1,
+            right: 1,
+            width: 10,
+            height: 10,
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          <MoonPhaseIcon phase="Full Moon" size={10} />
+        </div>
+      )}
+      {layout === "grid12" && isNewMoon && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 1,
+            right: 1,
+            width: 10,
+            height: 10,
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          <MoonPhaseIcon phase="New Moon" size={10} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function OverlapStrip({
   overlap,
   heroCardId,
@@ -2692,306 +3008,32 @@ export function OverlapStrip({
                     }
                     const tooltipText = lines.join("\n");
                     return (
-                      <div
+                      <CalendarDayCell
                         key={day.date}
-                        // EG — drop native title="" when the parent has
-                        // wired the rich-popover callbacks. Otherwise keep
-                        // for legacy /draw/classic.
-                        title={onDayHover ? undefined : tooltipText}
-                        onMouseEnter={
-                          onDayHover
-                            ? (e) => {
-                                // EJ28 — capture the cell's own bounding
-                                // rect so the parent can place the
-                                // popover with preferred-placement
-                                // (above the cell) instead of cursor-
-                                // anchored. Fixes calendar click bug:
-                                // cursor-anchored popover at cursorY+8
-                                // overlapped 20px-tall cells and
-                                // intercepted clicks on the inner button.
-                                const rect = (
-                                  e.currentTarget as HTMLDivElement
-                                ).getBoundingClientRect();
-                                onDayHover({
-                                  date: day.date,
-                                  anchorX: e.clientX,
-                                  anchorY: e.clientY,
-                                  targetRect: rect,
-                                  signals: {
-                                    heroDrawn: !!day.heroDrawn,
-                                    heroName,
-                                    matchCount,
-                                    pullSize: effectivePullSize,
-                                    isPerfectMatch,
-                                    isBestAvailable,
-                                    tealTraceHit,
-                                  },
-                                  tooltipText,
-                                });
-                              }
-                            : undefined
-                        }
-                        onMouseLeave={onDayHoverEnd ? () => onDayHoverEnd(day.date) : undefined}
-                        // EG — long-press support for touch. Only the
-                        // touch pointer type triggers the timer; mouse
-                        // pointers already get hover via onMouseEnter.
-                        onPointerDown={
-                          onDayHover
-                            ? (e) => {
-                                if (e.pointerType !== "touch") return;
-                                longPressFiredRef.current = false;
-                                if (longPressTimerRef.current !== null) {
-                                  window.clearTimeout(longPressTimerRef.current);
-                                }
-                                const startX = e.clientX;
-                                const startY = e.clientY;
-                                // EJ28 — capture targetRect for touch path too.
-                                const startRect = (
-                                  e.currentTarget as HTMLDivElement
-                                ).getBoundingClientRect();
-                                longPressTimerRef.current = window.setTimeout(() => {
-                                  longPressFiredRef.current = true;
-                                  onDayHover({
-                                    date: day.date,
-                                    anchorX: startX,
-                                    anchorY: startY,
-                                    targetRect: startRect,
-                                    signals: {
-                                      heroDrawn: !!day.heroDrawn,
-                                      heroName,
-                                      matchCount,
-                                      pullSize: effectivePullSize,
-                                      isPerfectMatch,
-                                      isBestAvailable,
-                                      tealTraceHit,
-                                    },
-                                    tooltipText,
-                                  });
-                                }, 500);
-                              }
-                            : undefined
-                        }
-                        onPointerUp={
-                          onDayHover
-                            ? () => {
-                                if (longPressTimerRef.current !== null) {
-                                  window.clearTimeout(longPressTimerRef.current);
-                                  longPressTimerRef.current = null;
-                                }
-                                // If the long-press fired, suppress click
-                                // (parent dismisses on outside-tap).
-                                // Otherwise let the click event do its
-                                // normal thing.
-                              }
-                            : undefined
-                        }
-                        onPointerCancel={
-                          onDayHover
-                            ? () => {
-                                if (longPressTimerRef.current !== null) {
-                                  window.clearTimeout(longPressTimerRef.current);
-                                  longPressTimerRef.current = null;
-                                }
-                              }
-                            : undefined
-                        }
-                        style={{
-                          position: "relative",
-                          ...(layout === "grid12"
-                            ? { width: "100%", aspectRatio: "1 / 1" }
-                            : { width: 20, height: 20 }),
-                          ...(pulseHoverDays &&
-                          (asterismBadgeHovered ? tealTraceHit : hoverStrokeHit)
-                            ? {
-                                animation:
-                                  "tarotseed-day-pulse 1.4s ease-in-out infinite",
-                              }
-                            : null),
-                        }}
-                      >
-                        {(() => {
-                          // DZ — collect reading ids for this day. When the
-                          // caller wires onDayClick AND at least one reading
-                          // exists, the cell becomes a button.
-                          const dayReadings = overlap?.readingsByDate?.[day.date] ?? [];
-                          const dayReadingIds = dayReadings.map((r) => r.id);
-                          const clickable = !!onDayClick && dayReadingIds.length > 0;
-                          // EK116 — the day number no longer lives inside the
-                          // base cell (which sits under the ring layer). It is
-                          // rendered as a top overlay below, ABOVE the rings, so
-                          // ring strokes never cross the digit.
-                          const inner = null;
-                          const shared = {
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: 3,
-                            background: bg,
-                            opacity,
-                            border:
-                              "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
-                            boxSizing: "border-box" as const,
-                            display: "flex",
-                            // EK101 — day number sits in the bottom-left
-                            // corner of the cell (was centered, which read
-                            // as up-and-right). Small padding keeps it off
-                            // the very edge.
-                            alignItems: "flex-end",
-                            justifyContent: "flex-start",
-                            padding: "0 0 1px 2px",
-                            fontFamily: "var(--font-serif)",
-                            fontSize: 11,
-                            fontStyle: "italic",
-                            lineHeight: 1,
-                            color: textColor,
-                          };
-                          if (clickable) {
-                            return (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDayClick(day.date, dayReadingIds);
-                                }}
-                                aria-label={`Show ${dayReadingIds.length} readings on ${day.date}`}
-                                style={{
-                                  ...shared,
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {inner}
-                              </button>
-                            );
-                          }
-                          return <div style={shared}>{inner}</div>;
-                        })()}
-                        {/* EK117 — the day number shows ONLY when the cell
-                            carries a real signal: filled (hero gold or a spread
-                            match) or stroked (asterism / hover trace; perfect &
-                            best rings imply matchCount > 0). Pulse flashing only
-                            fires on stroked days, so it's already covered. Empty
-                            cells (faint base wash) stay bare. Still on its top
-                            layer ABOVE the rings (EK116). */}
-                        {(day.heroDrawn ||
-                          matchCount > 0 ||
-                          tealTraceHit ||
-                          hoverStrokeHit) && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              display: "flex",
-                              // EK101 — match the base cell: bottom-left.
-                              alignItems: "flex-end",
-                              justifyContent: "flex-start",
-                              padding: "0 0 1px 2px",
-                              fontFamily: "var(--font-serif)",
-                              fontStyle: "italic",
-                              fontSize: 11,
-                              lineHeight: 1,
-                              color: textColor,
-                              pointerEvents: "none",
-                              zIndex: 5,
-                            }}
-                          >
-                            {displayNumber}
-                          </div>
-                        )}
-                        {/* EK90 — day strokes nest INWARD as inset rings: no
-                            outward room, flush to the fill, no gap. Slot model:
-                            present rings fill slots outermost-in by priority —
-                            perfect (solid accent) > best (dashed accent) >
-                            asterism (solid teal; hover preview = lighter teal).
-                            Each +1px over the prior design; full opacity so they
-                            read on dim days. Absent rings reserve no slot. */}
-                        {(() => {
-                          const rings: {
-                            thickness: number;
-                            style: string;
-                            color: string;
-                          }[] = [];
-                          if (isPerfectMatch) {
-                            rings.push({
-                              thickness: 3,
-                              style: "solid",
-                              color: "var(--accent, var(--gold))",
-                            });
-                          } else if (isBestAvailable) {
-                            rings.push({
-                              thickness: 2.5,
-                              style: "dashed",
-                              color: "var(--accent, var(--gold))",
-                            });
-                          }
-                          if (tealTraceHit) {
-                            rings.push({
-                              thickness: 3,
-                              style: "solid",
-                              color: traceColor,
-                            });
-                          }
-                          // v2.62 — hovering a constellation card no longer adds
-                          // a teal ring to its drawn days (that stroke is reserved
-                          // for the actual asterism/teal SELECTION). Hover still
-                          // reveals the day number and keeps its gentle pulse; the
-                          // day otherwise keeps exactly the markings it had.
-                          let off = 0;
-                          return rings.map((r, i) => {
-                            const node = (
-                              <div
-                                key={i}
-                                aria-hidden
-                                style={{
-                                  position: "absolute",
-                                  inset: off,
-                                  borderRadius: Math.max(2, 3 - off),
-                                  border: `${r.thickness}px ${r.style} ${r.color}`,
-                                  boxSizing: "border-box" as const,
-                                  pointerEvents: "none",
-                                  zIndex: 3,
-                                }}
-                              />
-                            );
-                            off += r.thickness;
-                            return node;
-                          });
-                        })()}
-                        {/* EK59 — full/new moon indicator, top-right
-                            corner, non-interactive, above fills + strokes.
-                            A day is never both, so two guards are fine. */}
-                        {layout === "grid12" && moonDayYmds.full.has(day.date) && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              top: 1,
-                              right: 1,
-                              width: 10,
-                              height: 10,
-                              pointerEvents: "none",
-                              zIndex: 4,
-                            }}
-                          >
-                            <MoonPhaseIcon phase="Full Moon" size={10} />
-                          </div>
-                        )}
-                        {layout === "grid12" && moonDayYmds.nw.has(day.date) && (
-                          <div
-                            aria-hidden
-                            style={{
-                              position: "absolute",
-                              top: 1,
-                              right: 1,
-                              width: 10,
-                              height: 10,
-                              pointerEvents: "none",
-                              zIndex: 4,
-                            }}
-                          >
-                            <MoonPhaseIcon phase="New Moon" size={10} />
-                          </div>
-                        )}
-                      </div>
+                        day={day}
+                        layout={layout}
+                        bg={bg}
+                        opacity={opacity}
+                        textColor={textColor}
+                        displayNumber={displayNumber}
+                        matchCount={matchCount}
+                        isPerfectMatch={isPerfectMatch}
+                        isBestAvailable={isBestAvailable}
+                        tealTraceHit={tealTraceHit}
+                        hoverStrokeHit={hoverStrokeHit}
+                        traceColor={traceColor}
+                        heroName={heroName}
+                        effectivePullSize={effectivePullSize}
+                        tooltipText={tooltipText}
+                        pulseHoverDays={pulseHoverDays}
+                        asterismBadgeHovered={asterismBadgeHovered}
+                        dayReadingIds={(overlap?.readingsByDate?.[day.date] ?? []).map((r) => r.id)}
+                        isFullMoon={moonDayYmds.full.has(day.date)}
+                        isNewMoon={moonDayYmds.nw.has(day.date)}
+                        onDayClick={onDayClick}
+                        onDayHover={onDayHover}
+                        onDayHoverEnd={onDayHoverEnd}
+                      />
                     );
                   })}
                 </div>
