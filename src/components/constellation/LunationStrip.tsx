@@ -82,6 +82,37 @@ function matchOpacity(matches: number, pullSize: number): number {
   return 0.15 + (matches / pullSize) * 0.8;
 }
 
+// v2.99 — INTEGER day-distance alignment for the moon-phase lens. Each day sits
+// a FIXED step from its NEAREST moon, so co-occurring days stack exactly by their
+// day-distance: "new + n" always lands in one column; "full - n" and "full + n"
+// always land in one column. New moon pins at x=0, full moon at x=0.5, next new
+// moon at x=1. The only fuzzy spot is the dead-center day of a half — a 14- vs
+// 15-day half makes "new + 7" and "full - 7" different days, off by one step —
+// which is invisible now that the empty cells are gone. Ties (equidistant) count
+// from the near anchor (new for the first half's start, full for its end).
+const PHASE_STEP = 0.5 / 14.765; // one day as a fraction of half a synodic month
+function clampFrac(x: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, x));
+}
+function phaseFrac(idx: number, fullIdx: number, len: number): number {
+  if (fullIdx <= 0 || fullIdx >= len) {
+    // Partial edge row with no full moon: anchor new-left at the fixed step.
+    return clampFrac(idx * PHASE_STEP, 0, 1);
+  }
+  if (idx <= fullIdx) {
+    const afterNew = idx;
+    const beforeFull = fullIdx - idx;
+    return afterNew <= beforeFull
+      ? clampFrac(afterNew * PHASE_STEP, 0, 0.5)
+      : clampFrac(0.5 - beforeFull * PHASE_STEP, 0, 0.5);
+  }
+  const afterFull = idx - fullIdx;
+  const beforeNextNew = len - idx; // next new moon sits at idx === len
+  return afterFull <= beforeNextNew
+    ? clampFrac(0.5 + afterFull * PHASE_STEP, 0.5, 1)
+    : clampFrac(1 - beforeNextNew * PHASE_STEP, 0.5, 1);
+}
+
 export function LunationStrip({
   months,
   readingsByDate,
@@ -306,16 +337,7 @@ export function LunationStrip({
       const fullIdx = ymds.findIndex((y) => fullSet.has(y));
       const cells: Cell[] = [];
       ymds.forEach((ymd, idx) => {
-        let frac: number;
-        if (fullIdx > 0 && fullIdx < len) {
-          frac =
-            idx <= fullIdx
-              ? 0.5 * (idx / fullIdx)
-              : 0.5 + 0.5 * ((idx - fullIdx) / (len - fullIdx));
-        } else {
-          frac = Math.min(1, idx / 29.53);
-        }
-        const c = build(ymd, frac);
+        const c = build(ymd, phaseFrac(idx, fullIdx, len));
         if (c) cells.push(c);
       });
       const [, mm, dd] = isoDayInTz(start, tz).split("-").map(Number);
