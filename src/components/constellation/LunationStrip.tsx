@@ -180,7 +180,19 @@ export function LunationStrip({
       const hasReading = (readingsByDate[ymd]?.length ?? 0) > 0;
       const isFull = fullSet.has(ymd);
       const isNew = newSet.has(ymd);
-      if (!heroDrawn && matchCount === 0 && !teal && !hasReading && !isFull && !isNew) {
+      // v2.98 — drop cells that would render as only a faint base wash. With a
+      // hero set, a non-hero / non-match reading day is visual clutter, so it
+      // isn't drawn (this declutters the strip AND lets the alignment read). With
+      // no hero, reading days still show (matches the calendar's markReadingDays).
+      // Hero / match / asterism / moon days always draw.
+      if (
+        !heroDrawn &&
+        matchCount === 0 &&
+        !teal &&
+        !isFull &&
+        !isNew &&
+        !(markReadingDays && hasReading)
+      ) {
         return null;
       }
       let bg = "var(--color-foreground)";
@@ -284,9 +296,26 @@ export function LunationStrip({
         curYmd = isoDayInTz(stepper, "UTC");
       }
       const len = Math.max(1, ymds.length);
+      // v2.98 — proportional half-normalization: new moon pins at x=0, full moon
+      // at x=0.5, next new moon at x=1. Each half is spread evenly over its own
+      // day count, so full moons stack in the center column and new moons on the
+      // left, regardless of the ~1-day variance in half length — that variance
+      // disappears into the dropped empty cells. If no full moon falls in the row
+      // (edge-of-window partial), anchor new-left and scale against a standard
+      // 29.53-day cycle.
+      const fullIdx = ymds.findIndex((y) => fullSet.has(y));
       const cells: Cell[] = [];
       ymds.forEach((ymd, idx) => {
-        const c = build(ymd, len > 1 ? idx / (len - 1) : 0);
+        let frac: number;
+        if (fullIdx > 0 && fullIdx < len) {
+          frac =
+            idx <= fullIdx
+              ? 0.5 * (idx / fullIdx)
+              : 0.5 + 0.5 * ((idx - fullIdx) / (len - fullIdx));
+        } else {
+          frac = Math.min(1, idx / 29.53);
+        }
+        const c = build(ymd, frac);
         if (c) cells.push(c);
       });
       const [, mm, dd] = isoDayInTz(start, tz).split("-").map(Number);
