@@ -571,7 +571,7 @@ export function LunationStrip({
   const pullSize = new Set(pullCardIds).size;
 
   return (
-    <div style={{ padding: "0 20px 24px", flexShrink: 0 }}>
+    <div style={{ padding: "0 20px 24px 0", flexShrink: 0 }}>
       {showToggle && (
       <div
         style={{

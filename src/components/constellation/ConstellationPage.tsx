@@ -4527,6 +4527,9 @@ export function ConstellationPage({
                 </PopoverContent>
               </Popover>
               )}
+              {lunationMode && (
+                <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <SmartCardInput
                   positionLabels={[]}
@@ -5244,9 +5247,6 @@ export function ConstellationPage({
               (non-atlas) shows it unconditionally as before. */}
           {lunationMode && (
             <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: -4 }}>
-                <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
-              </div>
         <LunationStrip
           months={overlap?.months ?? []}
           readingsByDate={overlap?.readingsByDate ?? {}}
@@ -5745,7 +5745,7 @@ export function ConstellationPage({
             <div
               style={{
                 marginTop: 12,
-                width: SVG_W,
+                width: 440,
                 maxWidth: "100%",
               }}
             >
