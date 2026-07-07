@@ -1994,6 +1994,9 @@ type CalendarDayCellProps = {
    *  square (1:1) aspect. Default false = square (calendar surfaces unchanged);
    *  the lunation strip passes true for its half-height numerology/weekday cells. */
   fillHeight?: boolean;
+  /** v3.13 — day-number font size (default 11). The lunation strip passes a
+   *  smaller size for half-width split cells so two digits fit without spilling. */
+  numberFontSize?: number;
   onDayClick?: (date: string, readingIds: string[]) => void;
   onDayHover?: (info: {
     date: string;
@@ -2038,6 +2041,7 @@ export function CalendarDayCell({
   isNewMoon,
   fullMoonOpacity = 1,
   fillHeight = false,
+  numberFontSize = 11,
   onDayClick,
   onDayHover,
   onDayHoverEnd,
@@ -2200,7 +2204,7 @@ export function CalendarDayCell({
             padding: "0 0 1px 2px",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 11,
+            fontSize: numberFontSize,
             lineHeight: 1,
             color: textColor,
             pointerEvents: "none",
