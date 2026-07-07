@@ -5299,8 +5299,8 @@ export function ConstellationPage({
             asterismBadgeHovered={asterismBadgeHovered}
             hoverStrokeYmds={hoverStrokeYmds}
             pulseHoverDays={pulseHoverDays}
-            monthsToShow={calendarRows * 3}
-            gridCols={3}
+            monthsToShow={calendarRows * 4}
+            gridCols={4}
             calendarNumberMode={calendarNumberMode}
             birthDate={birthDate}
           />
@@ -5314,10 +5314,10 @@ export function ConstellationPage({
                 Show less
               </button>
             )}
-            {calendarRows < 4 && (
+            {calendarRows < 3 && (
               <button
                 type="button"
-                onClick={() => setCalendarRows((r) => Math.min(4, r + 1))}
+                onClick={() => setCalendarRows((r) => Math.min(3, r + 1))}
                 style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 13, color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "4px" }}
               >
                 Show more
