@@ -46,6 +46,7 @@ import {
 } from "@/components/tabletop/SmartCardInput";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
 import { LunationLensToggle } from "@/components/constellation/LunationLensToggle";
+import { DrawCalendar } from "@/components/insights/DrawCalendar";
 import { AtlasWeb } from "@/components/constellation/AtlasWeb";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
@@ -1054,7 +1055,7 @@ export function ConstellationPage({
   // so bookmarking/copying the URL captures the current view. Every other surface
   // is untouched (lunationMode is false there).
   const [lunationLens, setLunationLens] = useState<
-    "moon" | "day" | "numerology" | "weekday"
+    "moon" | "day" | "calendar" | "numerology" | "weekday"
   >("moon");
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
@@ -5247,6 +5248,16 @@ export function ConstellationPage({
               (non-atlas) shows it unconditionally as before. */}
           {lunationMode && (
             <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+{lunationLens === "calendar" ? (
+        <DrawCalendar
+          appearances={(overlap?.months ?? [])
+            .flatMap((m) => m.days)
+            .filter((d) => d.heroDrawn)
+            .map((d) => ({ date: d.date }))}
+          monthsBack={12}
+          tz={effectiveTz}
+        />
+        ) : (
         <LunationStrip
           months={overlap?.months ?? []}
           readingsByDate={overlap?.readingsByDate ?? {}}
@@ -5284,6 +5295,7 @@ export function ConstellationPage({
           }}
           onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
         />
+        )}
             </div>
           )}
           {insightsMode && picks.length > 0 && heroPick && (

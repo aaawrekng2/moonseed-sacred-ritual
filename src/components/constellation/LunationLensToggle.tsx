@@ -3,13 +3,14 @@
  * as the "Type or paste card names…" input instead of at the top of the strip.
  * Cycles: moon phase -> day of month -> numerology -> day of week.
  */
-import { CalendarDays, Hash, Moon, Sparkles } from "lucide-react";
+import { Calendar, CalendarDays, Hash, Moon, Sparkles } from "lucide-react";
 
-type Lens = "moon" | "day" | "numerology" | "weekday";
+type Lens = "moon" | "day" | "calendar" | "numerology" | "weekday";
 
 const NEXT: Record<Lens, Lens> = {
   moon: "day",
-  day: "numerology",
+  day: "calendar",
+  calendar: "numerology",
   numerology: "weekday",
   weekday: "moon",
 };
@@ -26,9 +27,11 @@ export function LunationLensToggle({
       ? "By moon phase"
       : lens === "day"
         ? "By day of month"
-        : lens === "numerology"
-          ? "By numerology"
-          : "By day of week";
+        : lens === "calendar"
+          ? "By calendar"
+          : lens === "numerology"
+            ? "By numerology"
+            : "By day of week";
   return (
     <button
       type="button"
@@ -54,6 +57,8 @@ export function LunationLensToggle({
         <Moon size={15} strokeWidth={1.5} aria-hidden="true" />
       ) : lens === "day" ? (
         <Hash size={15} strokeWidth={1.5} aria-hidden="true" />
+      ) : lens === "calendar" ? (
+        <Calendar size={15} strokeWidth={1.5} aria-hidden="true" />
       ) : lens === "numerology" ? (
         <Sparkles size={15} strokeWidth={1.5} aria-hidden="true" />
       ) : (
