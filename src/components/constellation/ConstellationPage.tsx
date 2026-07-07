@@ -3652,7 +3652,7 @@ export function ConstellationPage({
           display: insightsMode ? "none" : "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: lunationMode ? "0 6px 0 24px" : "0 24px 0",
+          padding: "0 24px 0",
           gap: 12,
         }}
       >
@@ -3748,7 +3748,7 @@ export function ConstellationPage({
           display: "grid",
           gridTemplateColumns: `minmax(0, 1fr) ${SVG_W}px`,
           gap: 24,
-          padding: "0 24px 0",
+          padding: lunationMode ? "0 0 0 24px" : "0 24px 0",
         }}
       >
         {/* EJ25 — LEFT column (was RIGHT pre-EJ25): slot row + chips +
@@ -5744,8 +5744,9 @@ export function ConstellationPage({
           {lunationMode && picks.length > 0 && heroPick && (
             <div
               style={{
-                order: 4,
                 marginTop: 12,
+                width: SVG_W,
+                maxWidth: "100%",
               }}
             >
               {cardStats ? (
