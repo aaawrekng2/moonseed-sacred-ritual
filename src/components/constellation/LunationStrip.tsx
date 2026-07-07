@@ -130,25 +130,28 @@ function reduceTo1to9(n: number): number {
 }
 
 function splitCollisions(cells: Cell[]): Cell[] {
-  // v3.11 — when exactly two notable cells resolve to the same slot position
-  // (e.g. two days at the same day-distance from a moon, like the March 9 & 10
-  // overlap), split that slot: one cell to the left half, one to the right, so
-  // both stay visible instead of stacking. 3+ in one slot stay stacked (rare on
-  // a sparse strip).
-  const groups = new Map<string, Cell[]>();
-  for (const c of cells) {
-    const key = c.frac.toFixed(3);
-    const arr = groups.get(key);
-    if (arr) arr.push(c);
-    else groups.set(key, [c]);
-  }
+  // v3.12 — two cells "collide" when their centres are closer than one day-step.
+  // Normal adjacent days sit exactly one step apart (no overlap), but the SEAM
+  // pairs — where the count flips from one moon to the other — compress below a
+  // cell width (e.g. Mar 18's 9 & 10, Sep 21's 13 & 14). Sort by position,
+  // greedily pair any two within the threshold, and render the pair as two
+  // half-width cells left/right of their shared midpoint. Non-colliding cells are
+  // untouched; a rare third in a cluster is left un-split.
+  const THRESH = PHASE_STEP * 0.98;
+  const sorted = [...cells].sort((a, b) => a.frac - b.frac);
   const out: Cell[] = [];
-  for (const group of groups.values()) {
-    if (group.length === 2) {
-      out.push({ ...group[0], split: "left" });
-      out.push({ ...group[1], split: "right" });
+  let i = 0;
+  while (i < sorted.length) {
+    const a = sorted[i];
+    const b = i + 1 < sorted.length ? sorted[i + 1] : null;
+    if (b && b.frac - a.frac < THRESH) {
+      const mid = (a.frac + b.frac) / 2;
+      out.push({ ...a, frac: mid, split: "left" });
+      out.push({ ...b, frac: mid, split: "right" });
+      i += 2;
     } else {
-      for (const c of group) out.push(c);
+      out.push(a);
+      i += 1;
     }
   }
   return out;
