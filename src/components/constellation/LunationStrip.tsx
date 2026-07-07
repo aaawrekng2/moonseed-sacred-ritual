@@ -102,21 +102,16 @@ function clampFrac(x: number, lo: number, hi: number): number {
 }
 function phaseFrac(idx: number, fullIdx: number, len: number): number {
   if (fullIdx <= 0 || fullIdx >= len) {
-    // Partial edge row with no full moon: anchor new-left at the fixed step.
-    return clampFrac(idx * PHASE_STEP, 0, 1);
+    // No full moon in range (partial edge row): lay days out from the new moon.
+    return clampFrac(idx / 30, 0, 1);
   }
-  if (idx <= fullIdx) {
-    const afterNew = idx;
-    const beforeFull = fullIdx - idx;
-    return afterNew <= beforeFull
-      ? clampFrac(afterNew * PHASE_STEP, 0, 0.5)
-      : clampFrac(0.5 - beforeFull * PHASE_STEP, 0, 0.5);
-  }
-  const afterFull = idx - fullIdx;
-  const beforeNextNew = len - idx; // next new moon sits at idx === len
-  return afterFull <= beforeNextNew
-    ? clampFrac(0.5 + afterFull * PHASE_STEP, 0.5, 1)
-    : clampFrac(1 - beforeNextNew * PHASE_STEP, 0.5, 1);
+  // v3.15 — ONE UNIFORM column grid centred on the full moon. Every day sits a
+  // fixed 1/30 step from full, so "N days from full" is the identical x on every
+  // row: full dead-centre (0.5), new near the left, next-new near the right,
+  // every column the same width, nothing compressed in the middle. Each day is
+  // centred in its own column; if a column ever ends up with two days,
+  // splitCollisions splits that column in place.
+  return clampFrac(0.5 + (idx - fullIdx) / 30, 0, 1);
 }
 
 function reduceTo1to9(n: number): number {
