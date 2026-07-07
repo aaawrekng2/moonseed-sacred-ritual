@@ -145,9 +145,15 @@ function splitCollisions(cells: Cell[]): Cell[] {
     const a = sorted[i];
     const b = i + 1 < sorted.length ? sorted[i + 1] : null;
     if (b && b.frac - a.frac < THRESH) {
+      // v3.13 — order the pair by day-number: lower number takes the LEFT half,
+      // higher the RIGHT (not by frac — the seam can invert frac vs date order).
       const mid = (a.frac + b.frac) / 2;
-      out.push({ ...a, frac: mid, split: "left" });
-      out.push({ ...b, frac: mid, split: "right" });
+      const dayA = Number(a.ymd.split("-")[2]);
+      const dayB = Number(b.ymd.split("-")[2]);
+      const lo = dayA <= dayB ? a : b;
+      const hi = dayA <= dayB ? b : a;
+      out.push({ ...lo, frac: mid, split: "left" });
+      out.push({ ...hi, frac: mid, split: "right" });
       i += 2;
     } else {
       out.push(a);
@@ -730,6 +736,7 @@ export function LunationStrip({
                     isNewMoon={c.isNew}
                     fullMoonOpacity={0.5}
                     fillHeight={compact || !!c.split}
+                    numberFontSize={c.split ? 8 : 11}
                     onDayClick={onDayClick ? (date) => onDayClick(date) : undefined}
                     onDayHover={onDayHover}
                     onDayHoverEnd={onDayHoverEnd}
