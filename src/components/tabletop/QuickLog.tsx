@@ -2371,6 +2371,9 @@ export function OverlapStrip({
   // v2.27 — when true (and no card hero), fills every day that has any
   // reading so the no-hero Insights Calendar tab shows draw activity.
   markReadingDays = false,
+  // v3.26 — grid12 month-column count. Default 6 (draw table + Insights
+  // unchanged); /lunations passes 3 for a real 3-across month grid.
+  gridCols = 6,
   // EK68 — calendar number mode + birthdate for the numerology display.
   calendarNumberMode = "dates",
   birthDate = null,
@@ -2447,6 +2450,8 @@ export function OverlapStrip({
   monthsToShow?: number;
   /** v2.27 — fill days that have any reading (used by the no-hero Calendar tab). */
   markReadingDays?: boolean;
+  /** v3.26 — grid12 month-column count. Default 6. */
+  gridCols?: number;
   calendarNumberMode?: "dates" | "numerology";
   birthDate?: string | null;
   /** EJ65 — accepted for API symmetry with <OverlapPills/>. OverlapStrip
@@ -2726,7 +2731,7 @@ export function OverlapStrip({
                 // can sit flush at the top.
                 paddingTop: isControlled ? 0 : 26,
                 display: "grid",
-                gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+                gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
                 gridAutoRows: "auto",
                 gap: 8,
                 alignItems: "start",

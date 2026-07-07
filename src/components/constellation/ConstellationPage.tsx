@@ -5276,7 +5276,7 @@ export function ConstellationPage({
             previewYmds={atlasMode ? atlasHoverYmds : undefined}
             layout="grid12"
             onDayClick={(date) => setDayPopover({ open: true, date })}
-            showOlder={showOlder}
+            showOlder
             onShowOlderChange={setShowOlder}
             // EJ65 — Hide the inline "Show older" pill since the
             // calendar visibility is now driven by the PageMenu
@@ -5300,6 +5300,7 @@ export function ConstellationPage({
             hoverStrokeYmds={hoverStrokeYmds}
             pulseHoverDays={pulseHoverDays}
             monthsToShow={calendarRows * 3}
+            gridCols={3}
             calendarNumberMode={calendarNumberMode}
             birthDate={birthDate}
           />
