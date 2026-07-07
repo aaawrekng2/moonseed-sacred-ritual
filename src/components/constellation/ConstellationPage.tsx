@@ -46,7 +46,6 @@ import {
 } from "@/components/tabletop/SmartCardInput";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
 import { LunationLensToggle } from "@/components/constellation/LunationLensToggle";
-import { StalkerCalendar } from "@/components/insights/StalkerCalendar";
 import { AtlasWeb } from "@/components/constellation/AtlasWeb";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
@@ -5251,10 +5250,58 @@ export function ConstellationPage({
             <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
 {lunationLens === "calendar" ? (
         <div>
-          <StalkerCalendar
-            heroCardId={null}
-            markReadingDays
+          <OverlapStrip
+            overlap={overlap}
+            heroCardId={heroPick?.cardIndex ?? null}
+            pullCardIds={picks.map((p) => p.cardIndex)}
+            pullGroups={
+              atlasMode
+                ? atlasGroupSlots.flatMap((g) =>
+                    g.kind === "moon" ? [] : [g.ids],
+                  )
+                : undefined
+            }
+            pullMoonGroups={
+              atlasMode
+                ? atlasGroupSlots.flatMap((g) =>
+                    g.kind === "moon" ? [daysForMoonPhase(g.phase)] : [],
+                  )
+                : undefined
+            }
+            mode={overlapMode}
+            onModeChange={setOverlapMode}
+            showModeToggle={false}
+            tealSelectedIds={tealSelectedIds}
+            asterismYmds={atlasMode ? atlasMatch.ymds : undefined}
+            previewYmds={atlasMode ? atlasHoverYmds : undefined}
+            layout="grid12"
+            onDayClick={(date) => setDayPopover({ open: true, date })}
+            showOlder={showOlder}
+            onShowOlderChange={setShowOlder}
+            // EJ65 — Hide the inline "Show older" pill since the
+            // calendar visibility is now driven by the PageMenu
+            // cycler in the left fly-out.
+            showOlderToggle={false}
+            onDayHover={(info) => {
+              cancelPopoverDismiss();
+              setActivePopover({
+                kind: "day-cell",
+                key: info.date,
+                anchorX: info.anchorX,
+                anchorY: info.anchorY,
+                targetRect: info.targetRect,
+                date: info.date,
+                signals: info.signals,
+                tooltipText: info.tooltipText,
+              });
+            }}
+            onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
+            asterismBadgeHovered={asterismBadgeHovered}
+            hoverStrokeYmds={hoverStrokeYmds}
+            pulseHoverDays={pulseHoverDays}
             monthsToShow={calendarRows * 3}
+            calendarNumberMode={calendarNumberMode}
+            birthDate={birthDate}
           />
           <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 8 }}>
             {calendarRows > 1 && (
@@ -5879,7 +5926,7 @@ export function ConstellationPage({
           )}
         </button>
       </div>
-      {calendarState !== "none" && (
+      {!lunationMode && calendarState !== "none" && (
         <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
           <OverlapStrip
             overlap={overlap}
