@@ -21,6 +21,7 @@ export function DrawCalendar({
   monthsBack,
   tz,
   cellSize,
+  monthMinWidth,
 }: {
   appearances: DrawCalendarAppearance[];
   /** Q64 — when provided, caps the visible months from the current month
@@ -30,6 +31,10 @@ export function DrawCalendar({
    *  responsive clamp. Used by StalkerCalendar to match the manual-entry
    *  calendar's 20px cells. */
   cellSize?: string;
+  /** v3.23 — override the min month-column width (px) that drives how many
+   *  months fit per row via auto-fit. Defaults to 280. /lunations passes ~230
+   *  to fit 3 across in its narrower column; Insights uses the default. */
+  monthMinWidth?: number;
   /**
    * Phase 16 — IANA tz used to bucket appearances by the seeker's
    * calendar day. Without this the calendar drifts in negative offsets
@@ -187,7 +192,7 @@ export function DrawCalendar({
       style={{
         background: "var(--surface-card)",
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gridTemplateColumns: `repeat(auto-fit, minmax(${monthMinWidth ?? 280}px, 1fr))`,
         gap: 16,
       }}
     >

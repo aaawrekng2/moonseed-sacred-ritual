@@ -1057,6 +1057,7 @@ export function ConstellationPage({
   const [lunationLens, setLunationLens] = useState<
     "moon" | "day" | "calendar" | "numerology" | "weekday"
   >("moon");
+  const [calendarRows, setCalendarRows] = useState(2); // rows of 3 months (2 = 6 months)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
     if (v.cards && v.cards.length) {
@@ -5249,14 +5250,37 @@ export function ConstellationPage({
           {lunationMode && (
             <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
 {lunationLens === "calendar" ? (
-        <DrawCalendar
-          appearances={(overlap?.months ?? [])
-            .flatMap((m) => m.days)
-            .filter((d) => d.heroDrawn)
-            .map((d) => ({ date: d.date }))}
-          monthsBack={12}
-          tz={effectiveTz}
-        />
+        <div>
+          <DrawCalendar
+            appearances={(overlap?.months ?? [])
+              .flatMap((m) => m.days)
+              .filter((d) => d.heroDrawn)
+              .map((d) => ({ date: d.date }))}
+            monthsBack={calendarRows * 3}
+            monthMinWidth={230}
+            tz={effectiveTz}
+          />
+          <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 8 }}>
+            {calendarRows > 1 && (
+              <button
+                type="button"
+                onClick={() => setCalendarRows((r) => Math.max(1, r - 1))}
+                style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 13, color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "4px" }}
+              >
+                Show less
+              </button>
+            )}
+            {calendarRows < 4 && (
+              <button
+                type="button"
+                onClick={() => setCalendarRows((r) => Math.min(4, r + 1))}
+                style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 13, color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "4px" }}
+              >
+                Show more
+              </button>
+            )}
+          </div>
+        </div>
         ) : (
         <LunationStrip
           months={overlap?.months ?? []}
