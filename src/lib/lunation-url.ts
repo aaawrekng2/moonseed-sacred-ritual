@@ -21,7 +21,7 @@ export type LunationCard = { cardIndex: number; isReversed: boolean };
 
 export type LunationView = {
   cards: LunationCard[];
-  lens: "moon" | "day" | "numerology" | "weekday";
+  lens: "moon" | "day" | "calendar" | "numerology" | "weekday";
   stars: number[];
   range: string;
   heroIdx: number | null;
@@ -70,6 +70,7 @@ export function decodeLunationView(search: string): Partial<LunationView> {
   if (
     lens === "moon" ||
     lens === "day" ||
+    lens === "calendar" ||
     lens === "numerology" ||
     lens === "weekday"
   )

@@ -62,8 +62,10 @@ type Props = {
   birthDate: string | null;
   timeRange: string;
   effectiveTz: string;
-  lens: "moon" | "day" | "numerology" | "weekday";
-  onLensChange: (lens: "moon" | "day" | "numerology" | "weekday") => void;
+  lens: "moon" | "day" | "calendar" | "numerology" | "weekday";
+  onLensChange: (
+    lens: "moon" | "day" | "calendar" | "numerology" | "weekday",
+  ) => void;
   showToggle?: boolean;
   heroName: string;
   hoverStrokeYmds: Set<string>;
