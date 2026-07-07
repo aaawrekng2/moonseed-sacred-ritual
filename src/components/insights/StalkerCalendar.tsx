@@ -26,10 +26,12 @@ export function StalkerCalendar({
   heroCardId,
   pullCardIds,
   markReadingDays = false,
+  monthsToShow = 12,
 }: {
   heroCardId: number | null;
   pullCardIds?: number[];
   markReadingDays?: boolean;
+  monthsToShow?: number;
 }) {
   const { effectiveTz } = useTimezone();
   const fetchOverlap = useServerFn(getQuickLogOverlap);
@@ -79,7 +81,7 @@ export function StalkerCalendar({
       mode="day"
       onModeChange={() => {}}
       layout="grid12"
-      monthsToShow={12}
+      monthsToShow={monthsToShow}
       showModeToggle={false}
       showOlder
       onShowOlderChange={() => {}}

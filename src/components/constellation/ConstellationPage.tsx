@@ -46,7 +46,7 @@ import {
 } from "@/components/tabletop/SmartCardInput";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
 import { LunationLensToggle } from "@/components/constellation/LunationLensToggle";
-import { DrawCalendar } from "@/components/insights/DrawCalendar";
+import { StalkerCalendar } from "@/components/insights/StalkerCalendar";
 import { AtlasWeb } from "@/components/constellation/AtlasWeb";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
@@ -5251,14 +5251,10 @@ export function ConstellationPage({
             <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
 {lunationLens === "calendar" ? (
         <div>
-          <DrawCalendar
-            appearances={(overlap?.months ?? [])
-              .flatMap((m) => m.days)
-              .filter((d) => d.heroDrawn)
-              .map((d) => ({ date: d.date }))}
-            monthsBack={calendarRows * 3}
-            monthMinWidth={230}
-            tz={effectiveTz}
+          <StalkerCalendar
+            heroCardId={null}
+            markReadingDays
+            monthsToShow={calendarRows * 3}
           />
           <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 8 }}>
             {calendarRows > 1 && (
