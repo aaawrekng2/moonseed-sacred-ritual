@@ -3747,8 +3747,8 @@ export function ConstellationPage({
         style={{
           display: "grid",
           gridTemplateColumns: `minmax(0, 1fr) ${SVG_W}px`,
-          gap: 24,
-          padding: lunationMode ? "0 0 0 24px" : "0 24px 0",
+          gap: lunationMode ? 8 : 24,
+          padding: lunationMode ? "0 0 0 8px" : "0 24px 0",
         }}
       >
         {/* EJ25 — LEFT column (was RIGHT pre-EJ25): slot row + chips +
