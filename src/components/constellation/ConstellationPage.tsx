@@ -45,6 +45,7 @@ import {
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
+import { LunationLensToggle } from "@/components/constellation/LunationLensToggle";
 import { AtlasWeb } from "@/components/constellation/AtlasWeb";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
@@ -3651,7 +3652,7 @@ export function ConstellationPage({
           display: insightsMode ? "none" : "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px 0",
+          padding: lunationMode ? "0 6px 0 24px" : "0 24px 0",
           gap: 12,
         }}
       >
@@ -5241,7 +5242,51 @@ export function ConstellationPage({
               when no picks.
               EK120 — on atlas, lives in the Draw tab. /constellation
               (non-atlas) shows it unconditionally as before. */}
-          {(insightsMode || lunationMode) && picks.length > 0 && heroPick && (
+          {lunationMode && (
+            <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: -4 }}>
+                <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
+              </div>
+        <LunationStrip
+          months={overlap?.months ?? []}
+          readingsByDate={overlap?.readingsByDate ?? {}}
+          heroCardId={heroPick?.cardIndex ?? null}
+          pullCardIds={picks.map((p) => p.cardIndex)}
+          tealSelectedIds={tealSelectedIds}
+          mode={overlapMode}
+          calendarNumberMode={calendarNumberMode}
+          birthDate={birthDate}
+          timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
+          effectiveTz={effectiveTz}
+          lens={lunationLens}
+          onLensChange={setLunationLens}
+          showToggle={false}
+          heroName={
+            heroPick?.cardIndex != null
+              ? resolveCardName(heroPick.cardIndex)
+              : ""
+          }
+          hoverStrokeYmds={hoverStrokeYmds}
+          pulseHoverDays={pulseHoverDays}
+          onDayClick={(date) => setDayPopover({ open: true, date })}
+          onDayHover={(info) => {
+            cancelPopoverDismiss();
+            setActivePopover({
+              kind: "day-cell",
+              key: info.date,
+              anchorX: info.anchorX,
+              anchorY: info.anchorY,
+              targetRect: info.targetRect,
+              date: info.date,
+              signals: info.signals,
+              tooltipText: info.tooltipText,
+            });
+          }}
+          onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
+        />
+            </div>
+          )}
+          {insightsMode && picks.length > 0 && heroPick && (
             <div
               style={{
                 order: 4,
@@ -5696,6 +5741,39 @@ export function ConstellationPage({
             onPopoverDismissImmediate={() => closeActivePopover("card-meaning")}
           />
           )}
+          {lunationMode && picks.length > 0 && heroPick && (
+            <div
+              style={{
+                order: 4,
+                marginTop: 12,
+              }}
+            >
+              {cardStats ? (
+                <HeroPatternCluster
+                  heroCardId={heroPick.cardIndex}
+                  heroDeckId={heroPick.deckId ?? undefined}
+                  stats={cardStats}
+                  drawCounts={drawCounts}
+                  tz={effectiveTz}
+                  trackReversals={allowReversed}
+                />
+              ) : (
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 0.85rem)",
+                    color: "var(--color-foreground)",
+                    opacity: 0.55,
+                    textAlign: "center",
+                    padding: "8px 0",
+                  }}
+                >
+                  Gathering this card's patterns…
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -5705,44 +5783,6 @@ export function ConstellationPage({
           EJ65 — Hidden entirely when calendarState === "none" (0 rows
           showing). The PageMenu's calendar cycle button advances
           through none → recent → both → none. */}
-      {lunationMode && (
-        <LunationStrip
-          months={overlap?.months ?? []}
-          readingsByDate={overlap?.readingsByDate ?? {}}
-          heroCardId={heroPick?.cardIndex ?? null}
-          pullCardIds={picks.map((p) => p.cardIndex)}
-          tealSelectedIds={tealSelectedIds}
-          mode={overlapMode}
-          calendarNumberMode={calendarNumberMode}
-          birthDate={birthDate}
-          timeRange={globalFilters.timeRange ?? DEFAULT_TIMEFRAME}
-          effectiveTz={effectiveTz}
-          lens={lunationLens}
-          onLensChange={setLunationLens}
-          heroName={
-            heroPick?.cardIndex != null
-              ? resolveCardName(heroPick.cardIndex)
-              : ""
-          }
-          hoverStrokeYmds={hoverStrokeYmds}
-          pulseHoverDays={pulseHoverDays}
-          onDayClick={(date) => setDayPopover({ open: true, date })}
-          onDayHover={(info) => {
-            cancelPopoverDismiss();
-            setActivePopover({
-              kind: "day-cell",
-              key: info.date,
-              anchorX: info.anchorX,
-              anchorY: info.anchorY,
-              targetRect: info.targetRect,
-              date: info.date,
-              signals: info.signals,
-              tooltipText: info.tooltipText,
-            });
-          }}
-          onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
-        />
-      )}
       {!lunationMode && (
         <>
       {/* v2.89 — always-visible eyeball cycler above the calendar. Tap cycles

@@ -64,6 +64,7 @@ type Props = {
   effectiveTz: string;
   lens: "moon" | "day" | "numerology" | "weekday";
   onLensChange: (lens: "moon" | "day" | "numerology" | "weekday") => void;
+  showToggle?: boolean;
   heroName: string;
   hoverStrokeYmds: Set<string>;
   pulseHoverDays: boolean;
@@ -179,6 +180,7 @@ export function LunationStrip({
   effectiveTz,
   lens,
   onLensChange,
+  showToggle = true,
   heroName,
   hoverStrokeYmds,
   pulseHoverDays,
@@ -570,6 +572,7 @@ export function LunationStrip({
 
   return (
     <div style={{ padding: "0 20px 24px", flexShrink: 0 }}>
+      {showToggle && (
       <div
         style={{
           display: "flex",
@@ -619,6 +622,7 @@ export function LunationStrip({
           {lensNote}
         </span>
       </div>
+      )}
 
       {lens === "numerology" && !birthDate ? (
         <div
