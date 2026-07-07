@@ -145,15 +145,18 @@ function splitCollisions(cells: Cell[]): Cell[] {
     const a = sorted[i];
     const b = i + 1 < sorted.length ? sorted[i + 1] : null;
     if (b && b.frac - a.frac < THRESH) {
-      // v3.13 — order the pair by day-number: lower number takes the LEFT half,
-      // higher the RIGHT (not by frac — the seam can invert frac vs date order).
-      const mid = (a.frac + b.frac) / 2;
+      // v3.14 — snap the colliding pair to the LOWER-frac cell's real column (a
+      // genuine day-distance position other rows use), so the split lines up with
+      // every other row instead of drifting to an averaged midpoint. Order by
+      // day-number: lower -> left half, higher -> right (the seam can invert frac
+      // vs date order).
+      const col = a.frac;
       const dayA = Number(a.ymd.split("-")[2]);
       const dayB = Number(b.ymd.split("-")[2]);
       const lo = dayA <= dayB ? a : b;
       const hi = dayA <= dayB ? b : a;
-      out.push({ ...lo, frac: mid, split: "left" });
-      out.push({ ...hi, frac: mid, split: "right" });
+      out.push({ ...lo, frac: col, split: "left" });
+      out.push({ ...hi, frac: col, split: "right" });
       i += 2;
     } else {
       out.push(a);
