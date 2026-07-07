@@ -5745,7 +5745,8 @@ export function ConstellationPage({
             <div
               style={{
                 marginTop: 12,
-                width: 440,
+                marginLeft: 30,
+                width: SVG_W - 60,
                 maxWidth: "100%",
               }}
             >
