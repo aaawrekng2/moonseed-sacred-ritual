@@ -553,7 +553,7 @@ export function LunationStrip({
   // (22px cell + gap), left-aligned; the other lenses keep the wide band.
   const cols = lens === "numerology" ? 9 : lens === "weekday" ? 7 : 0;
   const bandWidth =
-    cols > 0 ? `${cols * 24}px` : "min(680px, calc(100% - 54px))";
+    cols > 0 ? `${cols * 24}px` : "min(720px, calc(100% - 14px))";
   const headerLabels =
     lens === "numerology"
       ? ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
