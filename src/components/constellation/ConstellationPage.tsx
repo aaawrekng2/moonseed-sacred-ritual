@@ -1102,14 +1102,19 @@ export function ConstellationPage({
     ],
   );
   useEffect(() => {
-    if (!lunationMode || lunationHydrated) return;
+    if (!lunationMode || insightsMode || lunationHydrated) return;
     if (typeof window !== "undefined") {
       applyLunationView(decodeLunationView(window.location.search));
     }
     setLunationHydrated(true);
   }, [lunationMode, lunationHydrated, applyLunationView]);
   useEffect(() => {
-    if (!lunationMode || !lunationHydrated || typeof window === "undefined") {
+    if (
+      !lunationMode ||
+      insightsMode ||
+      !lunationHydrated ||
+      typeof window === "undefined"
+    ) {
       return;
     }
     const search = encodeLunationView({
@@ -5366,7 +5371,7 @@ export function ConstellationPage({
         )}
             </div>
           )}
-          {insightsMode && picks.length > 0 && heroPick && (
+          {insightsMode && !lunationMode && picks.length > 0 && heroPick && (
             <div
               style={{
                 order: 4,

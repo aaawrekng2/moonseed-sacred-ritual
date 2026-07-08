@@ -624,6 +624,7 @@ function InsightsRoute() {
             <div className="pb-12 -mt-4">
               <ConstellationPage
                 insightsMode
+                lunationMode
                 insightsTimeRange={shared.timeRange}
               />
             </div>

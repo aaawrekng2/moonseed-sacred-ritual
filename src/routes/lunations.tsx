@@ -1,29 +1,16 @@
 /**
- * v2.92 — /lunations
+ * v3.28 — /lunations retired.
  *
- * Experimental standalone page: the manual-entry constellation (hero+companion
- * web, teal asterism selection, card picker) up top, with the calendar strip
- * swapped for the two-lens LunationStrip (by moon phase / by day of month) at
- * the bottom. Not wired into the draw table or Insights — a throwaway-safe
- * prototype so the idea can be tried before porting into Patterns.
+ * The lunations experience now lives inside Insights → Patterns
+ * (ConstellationPage rendered with insightsMode + lunationMode). This route is
+ * kept only as a redirect so any old /lunations link/bookmark lands on the new
+ * home. (Lovable can't delete route files, so the file stays as a redirect.)
  */
-import { createFileRoute } from "@tanstack/react-router";
-import { ConstellationPage } from "@/components/constellation/ConstellationPage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/lunations")({
-  component: LunationsRouteShell,
+  beforeLoad: () => {
+    throw redirect({ to: "/insights", search: { tab: "patterns" } });
+  },
+  component: () => null,
 });
-
-function LunationsRouteShell() {
-  return (
-    <div
-      style={{
-        width: "100%",
-        minHeight: "100vh",
-        background: "var(--background, transparent)",
-      }}
-    >
-      <ConstellationPage lunationMode />
-    </div>
-  );
-}
