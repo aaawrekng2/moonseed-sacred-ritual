@@ -16,7 +16,6 @@
 import { useMemo } from "react";
 import { CalendarDays, Hash, Moon, Sparkles } from "lucide-react";
 import { CalendarDayCell, type DayCellSignals } from "@/components/tabletop/QuickLog";
-import { getCardSuit } from "@/lib/tarot";
 import { getPhaseOccurrences } from "@/lib/moon";
 import { isoDayInTz } from "@/lib/time";
 import { personalDay } from "@/lib/numerology";
@@ -50,14 +49,7 @@ type Cell = {
   hoverStrokeHit: boolean;
   split?: "left" | "right";
 };
-type SuitTotals = {
-  Wands: number;
-  Cups: number;
-  Swords: number;
-  Pentacles: number;
-  Major: number;
-};
-type Row = { key: string; label: string; cells: Cell[]; suitTotals?: SuitTotals };
+type Row = { key: string; label: string; cells: Cell[] };
 
 type Props = {
   months: Array<{ days: DayInfo[] }>;
@@ -177,62 +169,6 @@ function splitCollisions(cells: Cell[]): Cell[] {
   return out;
 }
 
-const SUIT_KEYS: (keyof SuitTotals)[] = [
-  "Wands",
-  "Cups",
-  "Swords",
-  "Pentacles",
-  "Major",
-];
-const SUIT_COLORS: Record<keyof SuitTotals, string> = {
-  Wands: "#c0492f", // fire
-  Cups: "#3d6fb0", // water
-  Swords: "#d9c877", // air
-  Pentacles: "#4a9d5b", // earth
-  Major: "var(--gold)",
-};
-function emptySuit(): SuitTotals {
-  return { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0, Major: 0 };
-}
-/** v3.29 — vertical 5-way suit fill. Empty (no drawn cards) = ghost box. */
-function SuitSquare({ totals, size }: { totals: SuitTotals; size: number }) {
-  const sum = SUIT_KEYS.reduce((a, k) => a + totals[k], 0);
-  if (sum === 0) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: 3,
-          background: "var(--surface-card)",
-          border: "1px solid var(--border-subtle)",
-          opacity: 0.35,
-        }}
-      />
-    );
-  }
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 3,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        border: "1px solid var(--border-subtle)",
-      }}
-    >
-      {SUIT_KEYS.filter((k) => totals[k] > 0).map((k) => (
-        <div
-          key={k}
-          style={{ height: `${(totals[k] / sum) * 100}%`, background: SUIT_COLORS[k] }}
-        />
-      ))}
-    </div>
-  );
-}
-
 export function LunationStrip({
   months,
   readingsByDate,
@@ -255,8 +191,7 @@ export function LunationStrip({
   onDayHoverEnd,
 }: Props) {
 
-  const { moonRows, dayRows, numerologyRows, weekdayRows, dayColumnTotals } =
-    useMemo(() => {
+  const { moonRows, dayRows, numerologyRows, weekdayRows } = useMemo(() => {
     const tz = effectiveTz || "UTC";
     const now = new Date();
     const spanDays = rangeDays(timeRange);
@@ -502,12 +437,6 @@ export function LunationStrip({
         key: `${y}-${mo}`,
         label: MONTHS[mo - 1],
         cells: splitCollisions(dayCells),
-        suitTotals: (() => {
-          const t = emptySuit();
-          for (const c of dayCells)
-            for (const id of dayCards[c.ymd] ?? []) t[getCardSuit(id)] += 1;
-          return t;
-        })(),
       });
     }
 
@@ -571,23 +500,11 @@ export function LunationStrip({
       numerology.reverse();
     }
 
-    const dayColumnTotals: SuitTotals[] = Array.from({ length: 31 }, () =>
-      emptySuit(),
-    );
-    for (const r of day) {
-      for (const c of r.cells) {
-        const dt = Number(c.ymd.split("-")[2]);
-        if (dt >= 1 && dt <= 31)
-          for (const id of dayCards[c.ymd] ?? [])
-            dayColumnTotals[dt - 1][getCardSuit(id)] += 1;
-      }
-    }
     return {
       moonRows: moon,
       dayRows: day,
       numerologyRows: numerology,
       weekdayRows: weekday,
-      dayColumnTotals,
     };
   }, [
     months,
@@ -780,11 +697,6 @@ export function LunationStrip({
             >
               {row.label}
             </span>
-            {lens === "day" && row.suitTotals && (
-              <div style={{ position: "absolute", left: 24, top: 1, width: 22 }}>
-                <SuitSquare totals={row.suitTotals} size={22} />
-              </div>
-            )}
             <div
               style={{
                 position: "absolute",
@@ -869,33 +781,6 @@ export function LunationStrip({
             </div>
           </div>
         ))}
-        {lens === "day" && (
-          <div style={{ position: "relative", height: rowH, marginTop: 4 }}>
-            <div
-              style={{
-                position: "absolute",
-                left: 50,
-                width: bandWidth,
-                top: 0,
-                height: rowH,
-              }}
-            >
-              {dayColumnTotals.map((totals, i) => (
-                <div
-                  key={i}
-                  style={{
-                    position: "absolute",
-                    left: `calc(${((i / 30) * 100).toFixed(2)}% - 11px)`,
-                    top: 1,
-                    width: 22,
-                  }}
-                >
-                  <SuitSquare totals={totals} size={22} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
       )}
     </div>
