@@ -1049,9 +1049,9 @@ export function CardSlot({
         }
           return baseStyle;
         })();
-        if (devFacesOn) {
-          return { ...inner, pointerEvents: "none" as const };
-        }
+        // v3.30 — do NOT disable pointer events when the dev "Show faces"
+        // toggle is on. This button carries the click/drag/select handlers, so
+        // pointerEvents:"none" here killed all card interaction with faces up.
         return inner;
       })()}
     >
