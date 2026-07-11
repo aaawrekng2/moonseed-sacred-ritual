@@ -1585,6 +1585,7 @@ export type Database = {
           rising_sign: string | null
           role: string
           saved_themes: Json
+          seen_patterns: Json
           show_labels: boolean
           show_question_prompt: boolean
           show_reversals: boolean
@@ -1679,6 +1680,7 @@ export type Database = {
           rising_sign?: string | null
           role?: string
           saved_themes?: Json
+          seen_patterns?: Json
           show_labels?: boolean
           show_question_prompt?: boolean
           show_reversals?: boolean
@@ -1773,6 +1775,7 @@ export type Database = {
           rising_sign?: string | null
           role?: string
           saved_themes?: Json
+          seen_patterns?: Json
           show_labels?: boolean
           show_question_prompt?: boolean
           show_reversals?: boolean
