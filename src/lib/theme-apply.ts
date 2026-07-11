@@ -126,4 +126,12 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   } else {
     root.style.removeProperty("--trace-color");
   }
+  // v3.31 — pattern-highlight defaults to red (:root). Blood Moon's accent IS
+  // red, so red would vanish; swap to cyan there so the glyph + cell stroke
+  // stay legible. Other themes fall back to the :root red.
+  if (theme.key === "blood-moon") {
+    root.style.setProperty("--pattern-highlight", "#33E1FF");
+  } else {
+    root.style.removeProperty("--pattern-highlight");
+  }
 }
