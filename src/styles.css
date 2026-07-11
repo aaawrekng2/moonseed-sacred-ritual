@@ -75,6 +75,10 @@
   --ring:                      oklch(0.80 0.13 80 / 60%);
   --gold:                      oklch(0.82 0.14 82);
   --gold-foreground:           oklch(0.18 0.04 280);
+  /* v3.31 — pattern highlight. Red per request, but red vanishes on Blood
+     Moon (its accent IS red), so applyCommunityTheme overrides this token
+     with cyan when the blood-moon theme is active. Role token, not a raw color. */
+  --pattern-highlight: #E24B4A;
   /* v2.46 — Pressure-gauge palette. Theme-independent (like --gold) so the
      dial reads the same everywhere and stays clearly distinct from the
      gold / accent / teal the Patterns surface already owns. A theme may
