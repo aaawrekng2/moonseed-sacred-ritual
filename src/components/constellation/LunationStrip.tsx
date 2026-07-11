@@ -714,7 +714,10 @@ export function LunationStrip({
               }}
             />
             <div style={{ position: "absolute", left: 50, width: bandWidth, top: 0, height: rowH }}>
-              {row.cells.map((c) => (
+              {row.cells.map((c) => {
+                const isPatternCell =
+                  patternLens === lens && !!patternYmds && patternYmds.has(c.ymd);
+                return (
                 <span
                   key={c.ymd}
                   style={{
@@ -726,6 +729,13 @@ export function LunationStrip({
                         : `calc(${(c.frac * 100).toFixed(2)}% - 11px)`,
                     width: c.split ? 11 : 22,
                     height: cellH,
+                    // v3.31 — outline that never nudges layout. Only paints on
+                    // the lens that owns the pattern; other lenses scatter its
+                    // member cells which would be misleading.
+                    boxShadow: isPatternCell
+                      ? "0 0 0 2px var(--pattern-highlight)"
+                      : undefined,
+                    borderRadius: isPatternCell ? 4 : undefined,
                   }}
                 >
                   <CalendarDayCell
@@ -757,7 +767,8 @@ export function LunationStrip({
                     onDayHoverEnd={onDayHoverEnd}
                   />
                 </span>
-              ))}
+                );
+              })}
               {/* v3.01 — faint wrap marker at the next-new-moon end (x=1): the
                   cycle loops up to the next row's new moon. Flipped vertically so
                   it reads as wrapping UP, and dim so it's not mistaken for a
