@@ -1,0 +1,1 @@
+alter table public.user_preferences add column if not exists seen_patterns jsonb not null default '[]'::jsonb;

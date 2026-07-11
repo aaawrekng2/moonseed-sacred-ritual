@@ -19,7 +19,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { HeroPatternCluster } from "./HeroPatternCluster";
-import { detectPatterns, type PatternResult, type PatternReport } from "@/lib/pattern-detect";
+import { detectPatterns, detectAllPatterns, type PatternResult, type PatternReport } from "@/lib/pattern-detect";
+import { AllPatternsModal } from "./AllPatternsModal";
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
@@ -1060,6 +1061,55 @@ export function ConstellationPage({
   // v3.31 — the currently highlighted pattern (from the glyph on the hero card).
   // Null until the seeker taps the glyph; cleared whenever the hero changes.
   const [activePattern, setActivePattern] = useState<PatternResult | null>(null);
+  // v3.34 — all-patterns view.
+  const [allPatterns, setAllPatterns] = useState<PatternResult[]>([]);
+  const [seenPatterns, setSeenPatterns] = useState<Set<string>>(new Set());
+  const [patternsModalOpen, setPatternsModalOpen] = useState(false);
+  const seenHydratedRef = useRef(false);
+  useEffect(() => {
+    if (seenHydratedRef.current || !user?.id) return;
+    seenHydratedRef.current = true;
+    void supabase
+      .from("user_preferences")
+      .select("seen_patterns")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return;
+        const ids = (data as { seen_patterns?: string[] } | null)?.seen_patterns;
+        if (Array.isArray(ids)) setSeenPatterns(new Set(ids));
+      });
+  }, [user?.id]);
+  const markPatternSeen = useCallback(
+    (patternId: string) => {
+      setSeenPatterns((prev) => {
+        if (prev.has(patternId)) return prev;
+        const next = new Set(prev);
+        next.add(patternId);
+        if (user?.id) {
+          const arr = Array.from(next);
+          void supabase
+            .from("user_preferences")
+            .select("user_id")
+            .eq("user_id", user.id)
+            .maybeSingle()
+            .then(({ data: existing }) => {
+              if (existing) {
+                return supabase
+                  .from("user_preferences")
+                  .update({ seen_patterns: arr } as never)
+                  .eq("user_id", user.id);
+              }
+              return supabase
+                .from("user_preferences")
+                .insert({ user_id: user.id, seen_patterns: arr } as never);
+            });
+        }
+        return next;
+      });
+    },
+    [user?.id],
+  );
   const [calendarRows, setCalendarRows] = useState(2); // rows of 3 months (2 = 6 months)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
@@ -3361,6 +3411,7 @@ export function ConstellationPage({
         }
         if (readings.length === 0) {
           setPatternReport(null);
+          setAllPatterns([]);
           return;
         }
         const now = new Date();
@@ -3386,8 +3437,12 @@ export function ConstellationPage({
             constellationCardIds: constellationIds,
           }),
         );
+        setAllPatterns(
+          detectAllPatterns({ readings, newMoons: newMoonYmds, birthDate }),
+        );
       } catch {
         setPatternReport(null);
+        setAllPatterns([]);
       }
     }, 500);
     return () => clearTimeout(handle);
@@ -3856,6 +3911,33 @@ export function ConstellationPage({
               dot, and trend arrows. */}
           {(() => null)()}
           <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+            {(insightsMode || lunationMode) && allPatterns.length > 0 && (() => {
+              const anyUnseen = allPatterns.some((p) => !seenPatterns.has(p.patternId));
+              return (
+                <button
+                  type="button"
+                  aria-label="All patterns"
+                  title="All patterns"
+                  onClick={() => setPatternsModalOpen(true)}
+                  className={anyUnseen ? "tarotseed-pattern-glyph" : undefined}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--pattern-highlight)",
+                    opacity: anyUnseen ? 1 : 0.3,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    borderRadius: "50%",
+                  }}
+                >
+                  <Sparkles size={16} strokeWidth={2} />
+                </button>
+              );
+            })()}
             <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
               <button
                 type="button"
@@ -5770,13 +5852,17 @@ export function ConstellationPage({
             constellation={displayedConstellation}
             patternGlyph={
               (insightsMode || lunationMode) && patternReport?.primary
-                ? { title: patternReport.primary.explanation }
+                ? {
+                    title: patternReport.primary.explanation,
+                    seen: seenPatterns.has(patternReport.primary.patternId),
+                  }
                 : null
             }
             onPatternClick={() => {
               const p = patternReport?.primary;
               if (!p) return;
               setActivePattern(p);
+              markPatternSeen(p.patternId);
               if (p.lens !== "asterism") setLunationLens(p.lens);
             }}
             showPlasma
@@ -6319,6 +6405,20 @@ export function ConstellationPage({
           pull containing the hero; teal mode lists pulls/days where
           the teal selection co-occurred per the same-pull/same-day
           pill. */}
+      {patternsModalOpen && (
+        <AllPatternsModal
+          patterns={allPatterns}
+          seenIds={seenPatterns}
+          cardName={(id) => resolveCardName(id)}
+          onSelect={(p) => {
+            markPatternSeen(p.patternId);
+            if (p.lens !== "asterism") setLunationLens(p.lens);
+            if (p.cardId != null && p.cardId === heroPick?.cardIndex) setActivePattern(p);
+            setPatternsModalOpen(false);
+          }}
+          onClose={() => setPatternsModalOpen(false)}
+        />
+      )}
       <ReadingsModal
         open={readingsModalOpen}
         onClose={() => setReadingsModalOpen(false)}

@@ -42,6 +42,10 @@ export interface PatternResult {
   lens: LensKey | "asterism";
   bucketLabel: string;
   targetKey: string;
+  /** stable identity for the read/unread badge: "cardId:lens:bucket". */
+  patternId: string;
+  /** the card this pattern belongs to (null for hero-anchored / asterism). */
+  cardId: number | null;
   draws: number;
   exactHits: number;
   weightedScore: number;
@@ -171,7 +175,7 @@ function detectLens(lens: LensKey, input: PatternInput, heroDays: string[], allD
     const pValue = pValueDP(n, q3, q1, scoreInt);
     if (pValue > alpha) continue;
     if (!best || pValue < best.pValue)
-      best = { lens, bucketLabel: b.label, targetKey: b.key, draws: n, exactHits, weightedScore, lift, pValue, memberYmds: members,
+      best = { lens, bucketLabel: b.label, targetKey: b.key, patternId: `${input.heroCardId}:${b.key}`, cardId: input.heroCardId, draws: n, exactHits, weightedScore, lift, pValue, memberYmds: members,
         explanation: buildExplanation(lens, b.label, exactHits, n, lift, pValue, input, heroDays) };
   }
   return best;
@@ -205,8 +209,9 @@ function detectAsterism(input: PatternInput): PatternResult | null {
   if (support < 3 || lift < 3) return null;
   const pValue = binomTail(N, expected / N, support);
   const members = input.readings.filter((r) => full.every((c) => r.cardIds.includes(c))).map((r) => r.ymd);
+  const _tk = "asterism:" + full.slice().sort((a, b) => a - b).join(",");
   return { lens: "asterism", bucketLabel: "these cards travel together",
-    targetKey: "asterism:" + full.slice().sort((a, b) => a - b).join(","),
+    targetKey: _tk, patternId: _tk, cardId: null,
     draws: N, exactHits: support, weightedScore: support, lift, pValue, memberYmds: members,
     explanation: `These cards met on ${support} pulls — ${lift.toFixed(1)}× chance, ${fmtP(pValue)}. Tap to trace.` };
 }
@@ -222,4 +227,72 @@ export function detectPatterns(input: PatternInput): PatternReport {
   const ast = detectAsterism(input); if (ast) all.push(ast);
   all.sort((a, b) => a.pValue - b.pValue);
   return { primary: all[0] ?? null, all };
+}
+
+
+/**
+ * v3.34 — run detection across EVERY card in one pass, sharing the baseline so
+ * the all-patterns view stays cheap regardless of history size. Returns every
+ * flagged lens pattern (not asterism) with a stable patternId, sorted strongest
+ * first. This is the aggregate the all-patterns modal + read/unread badges read.
+ */
+export function detectAllPatterns(
+  input: Omit<PatternInput, "heroCardId" | "constellationCardIds">,
+): PatternResult[] {
+  const allDays = Array.from(new Set(input.readings.map((r) => r.ymd)));
+  if (allDays.length === 0) return [];
+  const cardIds = Array.from(new Set(input.readings.flatMap((r) => r.cardIds)));
+  const lenses: LensKey[] = input.birthDate
+    ? ["moon", "day", "numerology", "weekday"]
+    : ["moon", "day", "weekday"];
+  const alpha = ALPHA / lenses.length;
+  type BB = { key: string; label: string; hit: (ymd: string) => boolean; q3: number; q1: number; mu: number };
+  const baselines: Record<string, BB[]> = {};
+  for (const lens of lenses) {
+    const buckets = buildBuckets(lens, { ...input, heroCardId: 0 } as PatternInput);
+    baselines[lens] = buckets.map((b) => {
+      let q3n = 0, q1n = 0;
+      for (const d of allDays) { const w = weightInt(d, b); if (w === 3) q3n += 1; else if (w === 1) q1n += 1; }
+      const q3 = q3n / allDays.length, q1 = q1n / allDays.length;
+      return { key: b.key, label: b.label, hit: b.hit, q3, q1, mu: q3 + q1 * KERNEL_ADJ };
+    });
+  }
+  const out: PatternResult[] = [];
+  for (const cardId of cardIds) {
+    const heroDays = Array.from(
+      new Set(input.readings.filter((r) => r.cardIds.includes(cardId)).map((r) => r.ymd)),
+    );
+    const n = heroDays.length;
+    if (n < MIN_DRAWS) continue;
+    for (const lens of lenses) {
+      let best: PatternResult | null = null;
+      for (const b of baselines[lens]) {
+        if (b.mu <= 0) continue;
+        let scoreInt = 0, exactHits = 0;
+        const members: string[] = [];
+        for (const d of heroDays) {
+          const w = b.hit(d) ? 3 : b.hit(prevYmd(d)) || b.hit(nextYmd(d)) ? 1 : 0;
+          if (w > 0) members.push(d);
+          if (w === 3) exactHits += 1;
+          scoreInt += w;
+        }
+        const weightedScore = scoreInt / 3;
+        const lift = weightedScore / n / b.mu;
+        if (exactHits < MIN_EXACT || lift < MIN_LIFT) continue;
+        const pValue = pValueDP(n, b.q3, b.q1, scoreInt);
+        if (pValue > alpha) continue;
+        if (!best || pValue < best.pValue) {
+          best = {
+            lens, bucketLabel: b.label, targetKey: b.key,
+            patternId: `${cardId}:${b.key}`, cardId,
+            draws: n, exactHits, weightedScore, lift, pValue, memberYmds: members,
+            explanation: buildExplanation(lens, b.label, exactHits, n, lift, pValue, input as PatternInput, heroDays),
+          };
+        }
+      }
+      if (best) out.push(best);
+    }
+  }
+  out.sort((a, b) => a.pValue - b.pValue);
+  return out;
 }
