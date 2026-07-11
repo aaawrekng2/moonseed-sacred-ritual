@@ -167,7 +167,7 @@ type Props = {
    *  "skeleton" = the constellation-shaped ghost (popover, Insights). */
   emptyVariant?: "prompt" | "skeleton";
   /** v3.33 — pattern glyph on the hero card; null = no pattern found. */
-  patternGlyph?: { title: string } | null;
+  patternGlyph?: { title: string; seen?: boolean } | null;
   onPatternClick?: () => void;
 };
 
@@ -345,7 +345,7 @@ function ConstellationSvg({
   onPatternClick,
 }: {
   constellation: CardConstellation;
-  patternGlyph?: { title: string } | null;
+  patternGlyph?: { title: string; seen?: boolean } | null;
   onPatternClick?: () => void;
   showPlasma?: boolean;
   cardDrawCounts?: Record<number, number>;
@@ -989,7 +989,7 @@ function ConstellationSvg({
                     e.stopPropagation();
                     onPatternClick?.();
                   }}
-                  className="tarotseed-pattern-glyph"
+                  className={patternGlyph.seen ? undefined : "tarotseed-pattern-glyph"}
                   style={{
                     width: 22,
                     height: 22,
@@ -1002,6 +1002,7 @@ function ConstellationSvg({
                     placeItems: "center",
                     fontSize: 13,
                     lineHeight: 1,
+                    opacity: patternGlyph.seen ? 0.3 : 1,
                   }}
                 >
                   ✦
