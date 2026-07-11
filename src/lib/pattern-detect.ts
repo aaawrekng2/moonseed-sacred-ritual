@@ -39,13 +39,15 @@ export interface PatternInput {
   constellationCardIds?: number[];
 }
 export interface PatternResult {
-  lens: LensKey | "asterism";
+  lens: LensKey | "asterism" | "stalker";
   bucketLabel: string;
   targetKey: string;
   /** stable identity for the read/unread badge: "cardId:lens:bucket". */
   patternId: string;
   /** the card this pattern belongs to (null for hero-anchored / asterism). */
   cardId: number | null;
+  /** for asterism rows: the co-occurring group's card ids (sorted ascending). */
+  groupCardIds?: number[];
   draws: number;
   exactHits: number;
   weightedScore: number;
@@ -209,9 +211,10 @@ function detectAsterism(input: PatternInput): PatternResult | null {
   if (support < 3 || lift < 3) return null;
   const pValue = binomTail(N, expected / N, support);
   const members = input.readings.filter((r) => full.every((c) => r.cardIds.includes(c))).map((r) => r.ymd);
-  const _tk = "asterism:" + full.slice().sort((a, b) => a - b).join(",");
+  const _sorted = full.slice().sort((a, b) => a - b);
+  const _tk = "asterism:" + _sorted.join(",");
   return { lens: "asterism", bucketLabel: "these cards travel together",
-    targetKey: _tk, patternId: _tk, cardId: null,
+    targetKey: _tk, patternId: _tk, cardId: null, groupCardIds: _sorted,
     draws: N, exactHits: support, weightedScore: support, lift, pValue, memberYmds: members,
     explanation: `These cards met on ${support} pulls — ${lift.toFixed(1)}× chance, ${fmtP(pValue)}. Tap to trace.` };
 }
@@ -232,9 +235,18 @@ export function detectPatterns(input: PatternInput): PatternReport {
 
 /**
  * v3.34 — run detection across EVERY card in one pass, sharing the baseline so
- * the all-patterns view stays cheap regardless of history size. Returns every
- * flagged lens pattern (not asterism) with a stable patternId, sorted strongest
- * first. This is the aggregate the all-patterns modal + read/unread badges read.
+ * the all-patterns view stays cheap regardless of history size.
+ *
+ * v3.36 — the aggregate the all-patterns modal + read/unread badges read now
+ * carries THREE kinds of pattern, each qualifying on its own signal (no lens/
+ * filter match required):
+ *   • per-card lens patterns (moon / day / numerology / weekday),
+ *   • asterisms — pairs & triplets that co-occur far more than chance
+ *     (detectAllAsterisms, support ≥ 3, lift ≥ 3), independent of the current
+ *     constellation, and
+ *   • stalkers — single cards that keep showing up (detectAllStalkers, ≥ 3
+ *     readings, matching the Insights → Stalkers tab definition).
+ * All three share stable patternIds and are returned strongest-first.
  */
 export function detectAllPatterns(
   input: Omit<PatternInput, "heroCardId" | "constellationCardIds">,
@@ -292,6 +304,100 @@ export function detectAllPatterns(
       }
       if (best) out.push(best);
     }
+  }
+  // v3.36 — fold in the two non-lens signals so the red all-patterns feed shows
+  // co-occurrence (asterism) and recurrence (stalker) patterns too.
+  const asterisms = detectAllAsterisms({ readings: input.readings });
+  const stalkers = detectAllStalkers({ readings: input.readings });
+  const combined = [...out, ...asterisms, ...stalkers];
+  combined.sort((a, b) => a.pValue - b.pValue);
+  return combined;
+}
+
+/**
+ * v3.36 — global co-occurrence pass. Scans every pair and triplet that actually
+ * appears together across the filtered readings and keeps the ones that travel
+ * together far more than independence predicts (support ≥ 3 pulls, lift ≥ 3×).
+ * Independent of the current constellation set, so it can feed the all-patterns
+ * modal. Emits asterism rows (cardId null; group carried in groupCardIds).
+ */
+export function detectAllAsterisms(input: Pick<PatternInput, "readings">): PatternResult[] {
+  const readings = input.readings;
+  const N = readings.length;
+  if (N === 0) return [];
+  const cardCount = new Map<number, number>();
+  for (const r of readings) {
+    for (const c of Array.from(new Set(r.cardIds))) cardCount.set(c, (cardCount.get(c) ?? 0) + 1);
+  }
+  const sup = new Map<string, number>();
+  const mem = new Map<string, string[]>();
+  const bump = (k: string, ymd: string) => {
+    sup.set(k, (sup.get(k) ?? 0) + 1);
+    let m = mem.get(k); if (!m) { m = []; mem.set(k, m); } m.push(ymd);
+  };
+  for (const r of readings) {
+    const ids = Array.from(new Set(r.cardIds)).sort((a, b) => a - b);
+    const L = ids.length;
+    for (let i = 0; i < L; i += 1) {
+      for (let j = i + 1; j < L; j += 1) {
+        bump(`${ids[i]},${ids[j]}`, r.ymd);
+        for (let m = j + 1; m < L; m += 1) bump(`${ids[i]},${ids[j]},${ids[m]}`, r.ymd);
+      }
+    }
+  }
+  const out: PatternResult[] = [];
+  for (const [key, support] of sup) {
+    if (support < 3) continue;
+    const ids = key.split(",").map(Number);
+    const expected = ids.reduce((acc, c) => acc * ((cardCount.get(c) ?? 0) / N), N);
+    const lift = expected > 0 ? support / expected : 0;
+    if (lift < 3) continue;
+    const pValue = binomTail(N, expected / N, support);
+    const patternId = "asterism:" + ids.join(",");
+    out.push({
+      lens: "asterism", bucketLabel: "travel together",
+      targetKey: patternId, patternId, cardId: null, groupCardIds: ids,
+      draws: N, exactHits: support, weightedScore: support, lift, pValue,
+      memberYmds: mem.get(key) ?? [],
+      explanation: `These cards met on ${support} pulls — ${lift.toFixed(1)}× chance, ${fmtP(pValue)}. Tap to trace.`,
+    });
+  }
+  out.sort((a, b) => a.pValue - b.pValue);
+  return out;
+}
+
+/**
+ * v3.36 — global single-card recurrence pass. A "stalker" is a card that keeps
+ * showing up: ≥ 3 readings in the filtered window (matches the Insights →
+ * Stalkers tab). The ≥ 3 count is the gate, so membership lines up with that
+ * tab; lift (over-index vs a balanced 78-card deck) is used only for ranking.
+ */
+export function detectAllStalkers(input: Pick<PatternInput, "readings">): PatternResult[] {
+  const readings = input.readings;
+  const N = readings.length;
+  if (N === 0) return [];
+  const cardYmds = new Map<number, string[]>();
+  let totalCardReadings = 0;
+  for (const r of readings) {
+    for (const c of Array.from(new Set(r.cardIds))) {
+      let arr = cardYmds.get(c); if (!arr) { arr = []; cardYmds.set(c, arr); }
+      arr.push(r.ymd); totalCardReadings += 1;
+    }
+  }
+  const expectedPerCard = totalCardReadings / 78;
+  const out: PatternResult[] = [];
+  for (const [cardId, ymds] of cardYmds) {
+    const count = ymds.length;
+    if (count < 3) continue;
+    const lift = expectedPerCard > 0 ? count / expectedPerCard : 0;
+    const pValue = binomTail(N, expectedPerCard / N, count);
+    const patternId = `stalker:${cardId}`;
+    out.push({
+      lens: "stalker", bucketLabel: "keeps showing up",
+      targetKey: patternId, patternId, cardId,
+      draws: N, exactHits: count, weightedScore: count, lift, pValue, memberYmds: ymds,
+      explanation: `Showed up in ${count} of ${N} readings — ${lift.toFixed(1)}× a balanced deck, ${fmtP(pValue)}. Tap to isolate.`,
+    });
   }
   out.sort((a, b) => a.pValue - b.pValue);
   return out;

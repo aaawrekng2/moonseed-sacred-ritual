@@ -14,17 +14,35 @@
 import { createPortal } from "react-dom";
 import type { PatternResult, LensKey } from "@/lib/pattern-detect";
 
-const LENS_LABEL: Record<LensKey | "asterism", string> = {
+const LENS_LABEL: Record<LensKey | "asterism" | "stalker", string> = {
   moon: "Moon phase",
   day: "Day of month",
   numerology: "Numerology",
   weekday: "Weekday",
   asterism: "Together",
+  stalker: "Stalker",
 };
 
 /** Balanced bar fill 0..1 from lift — log-scaled so big lifts don't blow out. */
 function strengthFill(lift: number): number {
   return Math.max(0.08, Math.min(1, Math.log(lift) / Math.log(12)));
+}
+
+/** Row title. Asterisms show the co-occurring group; everything else the card. */
+function primaryLabel(p: PatternResult, cardName: (id: number) => string): string {
+  if (p.lens === "asterism" && p.groupCardIds && p.groupCardIds.length)
+    return p.groupCardIds.map(cardName).join(" + ");
+  if (p.cardId != null) return cardName(p.cardId);
+  return p.bucketLabel;
+}
+
+/** Row caption — the signal, phrased per pattern kind. */
+function captionLine(p: PatternResult): string {
+  if (p.lens === "asterism")
+    return `Together · ${p.exactHits} pulls · ${p.lift.toFixed(1)}× chance`;
+  if (p.lens === "stalker")
+    return `Stalker · ${p.exactHits} of ${p.draws} readings`;
+  return `${LENS_LABEL[p.lens]} · ${p.bucketLabel} · ${p.exactHits} of ${p.draws}`;
 }
 
 export function AllPatternsModal({
@@ -169,7 +187,7 @@ export function AllPatternsModal({
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {p.cardId != null ? cardName(p.cardId) : p.bucketLabel}
+                      {primaryLabel(p, cardName)}
                     </span>
                     <span
                       style={{
@@ -178,7 +196,7 @@ export function AllPatternsModal({
                         color: "var(--color-foreground-muted)",
                       }}
                     >
-                      {LENS_LABEL[p.lens]} · {p.bucketLabel} · {p.exactHits} of {p.draws}
+                      {captionLine(p)}
                     </span>
                   </span>
                   <span
