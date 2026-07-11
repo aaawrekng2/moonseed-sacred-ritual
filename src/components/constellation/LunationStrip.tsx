@@ -80,6 +80,10 @@ type Props = {
     tooltipText: string;
   }) => void;
   onDayHoverEnd?: (date: string) => void;
+  /** v3.31 — pattern highlight. When patternLens === current lens, member
+   *  ymds get a colored box-shadow ring so the pattern reads at a glance. */
+  patternLens?: "moon" | "day" | "numerology" | "weekday" | null;
+  patternYmds?: Set<string> | null;
 };
 
 function rangeDays(tr: string): number {
@@ -189,6 +193,8 @@ export function LunationStrip({
   onDayClick,
   onDayHover,
   onDayHoverEnd,
+  patternLens = null,
+  patternYmds = null,
 }: Props) {
 
   const { moonRows, dayRows, numerologyRows, weekdayRows } = useMemo(() => {
