@@ -3367,7 +3367,6 @@ export function ConstellationPage({
         ]
       : [heroPick.cardIndex];
     return detectPatterns({
-      tz: effectiveTz,
       heroCardId: heroPick.cardIndex,
       readings,
       newMoons: newMoonYmds,
