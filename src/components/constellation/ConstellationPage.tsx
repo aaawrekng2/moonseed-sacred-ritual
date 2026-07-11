@@ -3458,9 +3458,13 @@ export function ConstellationPage({
     draggingGroup,
   ]);
 
-  // Reset the active pattern selection whenever the hero changes.
+  // Reset the active pattern when the hero changes — UNLESS the new hero is the
+  // very card that pattern belongs to (the all-patterns drill-down loads a card
+  // as hero and wants its pattern to stay isolated instead of being cleared).
   useEffect(() => {
-    setActivePattern(null);
+    setActivePattern((cur) =>
+      cur && cur.cardId === heroPick?.cardIndex ? cur : null,
+    );
   }, [heroPick?.cardIndex]);
 
   // DV — clear all picks (header button). No confirm — the localStorage
@@ -6412,9 +6416,27 @@ export function ConstellationPage({
           cardName={(id) => resolveCardName(id)}
           onSelect={(p) => {
             markPatternSeen(p.patternId);
-            if (p.lens !== "asterism") setLunationLens(p.lens);
-            if (p.cardId != null && p.cardId === heroPick?.cardIndex) setActivePattern(p);
             setPatternsModalOpen(false);
+            if (p.cardId == null) {
+              if (p.lens !== "asterism") setLunationLens(p.lens);
+              return;
+            }
+            const heroCardId = p.cardId;
+            requestNavigate(() => {
+              setPicks([
+                {
+                  id: Date.now(),
+                  cardIndex: heroCardId,
+                  isReversed: false,
+                  deckId: null,
+                  cardName: TAROT_DECK[heroCardId] ?? null,
+                },
+              ]);
+              setFocusedSlotIdx(0);
+              setTealSelectedIds([]);
+              if (p.lens !== "asterism") setLunationLens(p.lens);
+              setActivePattern(p);
+            });
           }}
           onClose={() => setPatternsModalOpen(false)}
         />
