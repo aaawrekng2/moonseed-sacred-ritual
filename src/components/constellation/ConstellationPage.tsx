@@ -4336,6 +4336,43 @@ export function ConstellationPage({
                         selected={isFocused}
                       />
                     </button>
+                    {/* v3.31 — pattern glyph on the hero slot. Only shows for
+                        the focused hero AND only in insights/lunation mode
+                        where the strip below can be filtered. */}
+                    {isFocused &&
+                      (insightsMode || lunationMode) &&
+                      patternReport?.primary && (
+                        <button
+                          type="button"
+                          aria-label="Pattern found — tap to isolate"
+                          title={patternReport.primary.explanation}
+                          onClick={() => {
+                            const p = patternReport.primary!;
+                            setActivePattern(p);
+                            if (p.lens !== "asterism") setLunationLens(p.lens);
+                          }}
+                          className="tarotseed-pattern-glyph"
+                          style={{
+                            position: "absolute",
+                            top: -8,
+                            right: -8,
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            border: "none",
+                            cursor: "pointer",
+                            background: "var(--pattern-highlight)",
+                            color: "var(--background)",
+                            display: "grid",
+                            placeItems: "center",
+                            fontSize: 13,
+                            lineHeight: 1,
+                            zIndex: 5,
+                          }}
+                        >
+                          ✦
+                        </button>
+                      )}
                     {/* DV — hover/focus X remove control, top-right of slot. */}
                     {showControls && (
                       <button
