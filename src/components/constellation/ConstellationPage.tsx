@@ -1416,12 +1416,24 @@ export function ConstellationPage({
   // changes the positions map to different companions, so the overrides
   // wouldn't make sense to carry forward.
   const heroInitRef = useRef(true);
+  // v3.37 — when an asterism row is tapped in All Patterns, its group is stashed
+  // here so this hero-change effect RE-APPLIES the teal selection instead of
+  // wiping it. Loading the group makes its first card the hero, which fires this
+  // effect; without the stash it would clear teal a beat after the drill-down
+  // set it, killing the green trace. Mirrors the activePattern-preservation
+  // exception on the hero-change effect above.
+  const pendingAsterismTealRef = useRef<number[] | null>(null);
   useEffect(() => {
     if (heroInitRef.current) {
       heroInitRef.current = false;
       return;
     }
-    setTealSelectedIds([]);
+    if (pendingAsterismTealRef.current) {
+      setTealSelectedIds(pendingAsterismTealRef.current);
+      pendingAsterismTealRef.current = null;
+    } else {
+      setTealSelectedIds([]);
+    }
     setCompanionOverrides(new Map());
   }, [heroPick?.cardIndex]);
 
@@ -6432,6 +6444,9 @@ export function ConstellationPage({
             if (p.lens === "asterism" && p.groupCardIds && p.groupCardIds.length) {
               const group = p.groupCardIds;
               requestNavigate(() => {
+                // Stash the group so the hero-change effect re-applies the teal
+                // selection instead of wiping it when the first card becomes hero.
+                pendingAsterismTealRef.current = group;
                 setPicks(
                   group.map((cid, i) => ({
                     id: Date.now() + i,
