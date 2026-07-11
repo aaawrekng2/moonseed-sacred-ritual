@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { HeroPatternCluster } from "./HeroPatternCluster";
+import { detectPatterns, type PatternResult } from "@/lib/pattern-detect";
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
