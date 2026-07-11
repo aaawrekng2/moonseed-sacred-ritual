@@ -5418,6 +5418,12 @@ export function ConstellationPage({
             });
           }}
           onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
+          patternLens={
+            activePattern && activePattern.lens !== "asterism"
+              ? activePattern.lens
+              : null
+          }
+          patternYmds={activePattern ? new Set(activePattern.memberYmds) : null}
         />
         )}
             </div>
