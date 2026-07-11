@@ -3341,6 +3341,53 @@ export function ConstellationPage({
     };
   }, [user?.id]);
 
+  // v3.31 — Pattern detection over the filtered universe. Runs whenever the
+  // hero, filtered readings, tz, or birth date change. New moons are derived
+  // the same way LunationStrip derives them so cell strokes line up exactly.
+  const patternReport = useMemo(() => {
+    if (heroPick?.cardIndex == null || !overlap?.readingsByDate) return null;
+    const readings: { ymd: string; cardIds: number[] }[] = [];
+    for (const [ymd, list] of Object.entries(overlap.readingsByDate)) {
+      for (const r of list) readings.push({ ymd, cardIds: r.cardIds ?? [] });
+    }
+    if (readings.length === 0) return null;
+    // Match LunationStrip's window so the detected moons cover every visible day.
+    const now = new Date();
+    const rangeM = /^(\d+)d$/.exec(globalFilters.timeRange ?? DEFAULT_TIMEFRAME);
+    const spanDays = rangeM ? Number(rangeM[1]) : 365;
+    const from = new Date(now.getTime() - (spanDays + 45) * 86400000);
+    const monthsAhead = Math.ceil((spanDays + 60) / 30);
+    const newMoonYmds = getPhaseOccurrences("New Moon", from, monthsAhead)
+      .map((d) => isoDayInTz(d, effectiveTz))
+      .sort();
+    const constellationIds = displayedConstellation
+      ? [
+          displayedConstellation.heroCardId,
+          ...displayedConstellation.companions.map((c) => c.cardId),
+        ]
+      : [heroPick.cardIndex];
+    return detectPatterns({
+      tz: effectiveTz,
+      heroCardId: heroPick.cardIndex,
+      readings,
+      newMoons: newMoonYmds,
+      birthDate,
+      constellationCardIds: constellationIds,
+    });
+  }, [
+    heroPick?.cardIndex,
+    overlap?.readingsByDate,
+    effectiveTz,
+    birthDate,
+    globalFilters.timeRange,
+    displayedConstellation,
+  ]);
+
+  // Reset the active pattern selection whenever the hero changes.
+  useEffect(() => {
+    setActivePattern(null);
+  }, [heroPick?.cardIndex]);
+
   // DV — clear all picks (header button). No confirm — the localStorage
   // state still persists across navigation, this just resets the current
   // /constellation surface.
