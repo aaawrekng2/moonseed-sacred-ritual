@@ -1811,3 +1811,10 @@ button:focus-visible .moon-rung-glow {
      still the trigger; TipLayer reads it. */
   position: relative;
 }
+
+/* v3.31 — pattern-detected glyph on the hero card pulses gently to draw the eye. */
+.tarotseed-pattern-glyph { animation: tarotseed-pattern-pulse 2.4s ease-in-out infinite; }
+@keyframes tarotseed-pattern-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--surface-card); }
+  50%      { box-shadow: 0 0 0 2px var(--surface-card), 0 0 8px 1px var(--pattern-highlight); }
+}
