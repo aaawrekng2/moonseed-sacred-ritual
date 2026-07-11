@@ -1057,6 +1057,9 @@ export function ConstellationPage({
   const [lunationLens, setLunationLens] = useState<
     "moon" | "day" | "calendar" | "numerology" | "weekday"
   >("moon");
+  // v3.31 — the currently highlighted pattern (from the glyph on the hero card).
+  // Null until the seeker taps the glyph; cleared whenever the hero changes.
+  const [activePattern, setActivePattern] = useState<PatternResult | null>(null);
   const [calendarRows, setCalendarRows] = useState(2); // rows of 3 months (2 = 6 months)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
