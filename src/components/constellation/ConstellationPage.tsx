@@ -5525,7 +5525,11 @@ export function ConstellationPage({
           }}
           onDayHoverEnd={(date) => schedulePopoverDismiss("day-cell", date)}
           patternLens={
-            activePattern && activePattern.lens !== "asterism"
+            activePattern &&
+            (activePattern.lens === "moon" ||
+              activePattern.lens === "day" ||
+              activePattern.lens === "numerology" ||
+              activePattern.lens === "weekday")
               ? activePattern.lens
               : null
           }
@@ -6417,8 +6421,35 @@ export function ConstellationPage({
           onSelect={(p) => {
             markPatternSeen(p.patternId);
             setPatternsModalOpen(false);
+            // "stalker" is a valid pattern lens but NOT a lunation lens — only
+            // the four ordinal lenses drive the strip toggle.
+            const isRealLens =
+              p.lens === "moon" ||
+              p.lens === "day" ||
+              p.lens === "numerology" ||
+              p.lens === "weekday";
+            // Asterism has no single hero — load the whole co-occurring group
+            // into the slot row and teal-trace it so its shared days stroke.
+            if (p.lens === "asterism" && p.groupCardIds && p.groupCardIds.length) {
+              const group = p.groupCardIds;
+              requestNavigate(() => {
+                setPicks(
+                  group.map((cid, i) => ({
+                    id: Date.now() + i,
+                    cardIndex: cid,
+                    isReversed: false,
+                    deckId: null,
+                    cardName: TAROT_DECK[cid] ?? null,
+                  })),
+                );
+                setFocusedSlotIdx(0);
+                setTealSelectedIds(group);
+                setActivePattern(p);
+              });
+              return;
+            }
             if (p.cardId == null) {
-              if (p.lens !== "asterism") setLunationLens(p.lens);
+              if (isRealLens) setLunationLens(p.lens);
               return;
             }
             const heroCardId = p.cardId;
@@ -6434,7 +6465,7 @@ export function ConstellationPage({
               ]);
               setFocusedSlotIdx(0);
               setTealSelectedIds([]);
-              if (p.lens !== "asterism") setLunationLens(p.lens);
+              if (isRealLens) setLunationLens(p.lens);
               setActivePattern(p);
             });
           }}
