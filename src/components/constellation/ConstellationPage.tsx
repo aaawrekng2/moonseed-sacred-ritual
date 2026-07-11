@@ -5871,7 +5871,7 @@ export function ConstellationPage({
               if (!p) return;
               setActivePattern(p);
               markPatternSeen(p.patternId);
-              if (p.lens !== "asterism") setLunationLens(p.lens);
+              if (p.lens === "moon" || p.lens === "day" || p.lens === "numerology" || p.lens === "weekday") setLunationLens(p.lens);
             }}
             showPlasma
             cardDrawCounts={webCardCounts}
@@ -6423,11 +6423,10 @@ export function ConstellationPage({
             setPatternsModalOpen(false);
             // "stalker" is a valid pattern lens but NOT a lunation lens — only
             // the four ordinal lenses drive the strip toggle.
-            const isRealLens =
-              p.lens === "moon" ||
-              p.lens === "day" ||
-              p.lens === "numerology" ||
-              p.lens === "weekday";
+            const realLens: "moon" | "day" | "numerology" | "weekday" | null =
+              p.lens === "moon" || p.lens === "day" || p.lens === "numerology" || p.lens === "weekday"
+                ? p.lens
+                : null;
             // Asterism has no single hero — load the whole co-occurring group
             // into the slot row and teal-trace it so its shared days stroke.
             if (p.lens === "asterism" && p.groupCardIds && p.groupCardIds.length) {
@@ -6449,7 +6448,7 @@ export function ConstellationPage({
               return;
             }
             if (p.cardId == null) {
-              if (isRealLens) setLunationLens(p.lens);
+              if (realLens) setLunationLens(realLens);
               return;
             }
             const heroCardId = p.cardId;
@@ -6465,7 +6464,7 @@ export function ConstellationPage({
               ]);
               setFocusedSlotIdx(0);
               setTealSelectedIds([]);
-              if (isRealLens) setLunationLens(p.lens);
+              if (realLens) setLunationLens(realLens);
               setActivePattern(p);
             });
           }}
