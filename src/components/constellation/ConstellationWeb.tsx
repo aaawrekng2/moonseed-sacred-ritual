@@ -166,6 +166,9 @@ type Props = {
    *  "prompt" (default) = "add a card to begin" text (manual-entry page).
    *  "skeleton" = the constellation-shaped ghost (popover, Insights). */
   emptyVariant?: "prompt" | "skeleton";
+  /** v3.33 — pattern glyph on the hero card; null = no pattern found. */
+  patternGlyph?: { title: string } | null;
+  onPatternClick?: () => void;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -226,6 +229,8 @@ export function ConstellationWeb({
   dragOverTargetId = null,
   onConstellationDragOver = undefined,
   emptyVariant = "prompt",
+  patternGlyph = null,
+  onPatternClick = undefined,
 }: Props) {
   // EJ35 — resolve oracle card names through the active deck's
   // card_name overrides so the pair-line tooltip and any other
@@ -304,6 +309,8 @@ export function ConstellationWeb({
           onConstellationDrop={onConstellationDrop}
           dragOverTargetId={dragOverTargetId}
           onConstellationDragOver={onConstellationDragOver}
+          patternGlyph={patternGlyph}
+          onPatternClick={onPatternClick}
         />
       )}
     </div>
@@ -334,8 +341,12 @@ function ConstellationSvg({
   onConstellationDrop,
   dragOverTargetId,
   onConstellationDragOver,
+  patternGlyph,
+  onPatternClick,
 }: {
   constellation: CardConstellation;
+  patternGlyph?: { title: string } | null;
+  onPatternClick?: () => void;
   showPlasma?: boolean;
   cardDrawCounts?: Record<number, number>;
   onCardClick: (cardId: number) => void;
@@ -962,6 +973,41 @@ function ConstellationSvg({
                 whose aspect was shorter than the slot's 1.7 ceiling
                 because they floated in the empty space below the
                 image. */}
+            {patternGlyph && (
+              <foreignObject
+                x={pos.x - 6}
+                y={pos.y - 6}
+                width={24}
+                height={24}
+                style={{ overflow: "visible" }}
+              >
+                <button
+                  type="button"
+                  aria-label="Pattern found — tap to isolate"
+                  title={patternGlyph.title}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPatternClick?.();
+                  }}
+                  className="tarotseed-pattern-glyph"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    border: "none",
+                    cursor: "pointer",
+                    background: "var(--pattern-highlight)",
+                    color: "var(--background)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 13,
+                    lineHeight: 1,
+                  }}
+                >
+                  ✦
+                </button>
+              </foreignObject>
+            )}
           </g>
         );
       })()}

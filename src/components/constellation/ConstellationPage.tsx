@@ -19,7 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { HeroPatternCluster } from "./HeroPatternCluster";
-import { detectPatterns, type PatternResult } from "@/lib/pattern-detect";
+import { detectPatterns, type PatternResult, type PatternReport } from "@/lib/pattern-detect";
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
@@ -3344,35 +3344,54 @@ export function ConstellationPage({
   // v3.31 — Pattern detection over the filtered universe. Runs whenever the
   // hero, filtered readings, tz, or birth date change. New moons are derived
   // the same way LunationStrip derives them so cell strokes line up exactly.
-  const patternReport = useMemo(() => {
-    if (heroPick?.cardIndex == null || !overlap?.readingsByDate) return null;
-    const readings: { ymd: string; cardIds: number[] }[] = [];
-    for (const [ymd, list] of Object.entries(overlap.readingsByDate)) {
-      for (const r of list) readings.push({ ymd, cardIds: r.cardIds ?? [] });
+  const [patternReport, setPatternReport] = useState<PatternReport | null>(null);
+  // v3.33 — detection is DEFERRED and isolated: never runs mid-drag, debounced
+  // 500ms after the pull settles, wrapped so it can never surface an error.
+  useEffect(() => {
+    if (heroPick?.cardIndex == null || !overlap?.readingsByDate) {
+      setPatternReport(null);
+      return;
     }
-    if (readings.length === 0) return null;
-    // Match LunationStrip's window so the detected moons cover every visible day.
-    const now = new Date();
-    const rangeM = /^(\d+)d$/.exec(globalFilters.timeRange ?? DEFAULT_TIMEFRAME);
-    const spanDays = rangeM ? Number(rangeM[1]) : 365;
-    const from = new Date(now.getTime() - (spanDays + 45) * 86400000);
-    const monthsAhead = Math.ceil((spanDays + 60) / 30);
-    const newMoonYmds = getPhaseOccurrences("New Moon", from, monthsAhead)
-      .map((d) => isoDayInTz(d, effectiveTz))
-      .sort();
-    const constellationIds = displayedConstellation
-      ? [
-          displayedConstellation.heroCardId,
-          ...displayedConstellation.companions.map((c) => c.cardId),
-        ]
-      : [heroPick.cardIndex];
-    return detectPatterns({
-      heroCardId: heroPick.cardIndex,
-      readings,
-      newMoons: newMoonYmds,
-      birthDate,
-      constellationCardIds: constellationIds,
-    });
+    if (draggingCardId !== null || draggingGroup) return;
+    const handle = setTimeout(() => {
+      try {
+        const readings: { ymd: string; cardIds: number[] }[] = [];
+        for (const [ymd, list] of Object.entries(overlap.readingsByDate)) {
+          for (const r of list) readings.push({ ymd, cardIds: r.cardIds ?? [] });
+        }
+        if (readings.length === 0) {
+          setPatternReport(null);
+          return;
+        }
+        const now = new Date();
+        const rangeM = /^(\d+)d$/.exec(globalFilters.timeRange ?? DEFAULT_TIMEFRAME);
+        const spanDays = rangeM ? Number(rangeM[1]) : 365;
+        const from = new Date(now.getTime() - (spanDays + 45) * 86400000);
+        const monthsAhead = Math.ceil((spanDays + 60) / 30);
+        const newMoonYmds = getPhaseOccurrences("New Moon", from, monthsAhead)
+          .map((d) => isoDayInTz(d, effectiveTz))
+          .sort();
+        const constellationIds = displayedConstellation
+          ? [
+              displayedConstellation.heroCardId,
+              ...displayedConstellation.companions.map((c) => c.cardId),
+            ]
+          : [heroPick.cardIndex];
+        setPatternReport(
+          detectPatterns({
+            heroCardId: heroPick.cardIndex,
+            readings,
+            newMoons: newMoonYmds,
+            birthDate,
+            constellationCardIds: constellationIds,
+          }),
+        );
+      } catch {
+        setPatternReport(null);
+      }
+    }, 500);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     heroPick?.cardIndex,
     overlap?.readingsByDate,
@@ -3380,6 +3399,8 @@ export function ConstellationPage({
     birthDate,
     globalFilters.timeRange,
     displayedConstellation,
+    draggingCardId,
+    draggingGroup,
   ]);
 
   // Reset the active pattern selection whenever the hero changes.
@@ -4335,43 +4356,6 @@ export function ConstellationPage({
                         selected={isFocused}
                       />
                     </button>
-                    {/* v3.31 — pattern glyph on the hero slot. Only shows for
-                        the focused hero AND only in insights/lunation mode
-                        where the strip below can be filtered. */}
-                    {isFocused &&
-                      (insightsMode || lunationMode) &&
-                      patternReport?.primary && (
-                        <button
-                          type="button"
-                          aria-label="Pattern found — tap to isolate"
-                          title={patternReport.primary.explanation}
-                          onClick={() => {
-                            const p = patternReport.primary!;
-                            setActivePattern(p);
-                            if (p.lens !== "asterism") setLunationLens(p.lens);
-                          }}
-                          className="tarotseed-pattern-glyph"
-                          style={{
-                            position: "absolute",
-                            top: -8,
-                            right: -8,
-                            width: 22,
-                            height: 22,
-                            borderRadius: "50%",
-                            border: "none",
-                            cursor: "pointer",
-                            background: "var(--pattern-highlight)",
-                            color: "var(--background)",
-                            display: "grid",
-                            placeItems: "center",
-                            fontSize: 13,
-                            lineHeight: 1,
-                            zIndex: 5,
-                          }}
-                        >
-                          ✦
-                        </button>
-                      )}
                     {/* DV — hover/focus X remove control, top-right of slot. */}
                     {showControls && (
                       <button
@@ -5784,6 +5768,17 @@ export function ConstellationPage({
           <ConstellationWeb
             heroPick={heroPick}
             constellation={displayedConstellation}
+            patternGlyph={
+              (insightsMode || lunationMode) && patternReport?.primary
+                ? { title: patternReport.primary.explanation }
+                : null
+            }
+            onPatternClick={() => {
+              const p = patternReport?.primary;
+              if (!p) return;
+              setActivePattern(p);
+              if (p.lens !== "asterism") setLunationLens(p.lens);
+            }}
             showPlasma
             cardDrawCounts={webCardCounts}
             onCardClick={(cardId) =>
