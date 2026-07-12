@@ -366,37 +366,57 @@ export function detectAllAsterisms(input: Pick<PatternInput, "readings">): Patte
   return out;
 }
 
+/* ---------- stalker (single-card recurrence) thresholds ---------- */
+const STALKER_DECK = 78;
+// Need a reasonable amount of history before "more than chance" means anything
+// (matches pattern-engine's DEFAULT_MIN_SLOTS).
+const STALKER_MIN_SLOTS = 60;
+// Bonferroni-corrected significance bar — the same 0.005 the validated
+// pattern-engine uses.
+const STALKER_ALPHA = 0.005;
+// And an intuitive floor: a stalker must appear at least twice its expected rate.
+const STALKER_MIN_OVERINDEX = 2;
+
 /**
- * v3.36 — global single-card recurrence pass. A "stalker" is a card that keeps
- * showing up: ≥ 3 readings in the filtered window (matches the Insights →
- * Stalkers tab). The ≥ 3 count is the gate, so membership lines up with that
- * tab; lift (over-index vs a balanced 78-card deck) is used only for ranking.
+ * v3.38 — global single-card recurrence pass, rewritten to a real significance
+ * test (the v3.36 "≥ 3 appearances" floor let in cards that actually appear
+ * LESS than chance). A "stalker" is a card whose observed count is:
+ *   • ≥ 2× its expected rate (expected = total card-slots ÷ 78), AND
+ *   • statistically significant — binomial P(≥ observed) under a uniform-deck
+ *     null, Bonferroni-corrected across every candidate card, below 0.005.
+ * On a ~273-reading history that lands the bar around ~25 appearances, not 3.
+ * Pure arithmetic — no Date, consistent with the rest of this module.
  */
 export function detectAllStalkers(input: Pick<PatternInput, "readings">): PatternResult[] {
   const readings = input.readings;
   const N = readings.length;
   if (N === 0) return [];
   const cardYmds = new Map<number, string[]>();
-  let totalCardReadings = 0;
+  let totalSlots = 0;
   for (const r of readings) {
     for (const c of Array.from(new Set(r.cardIds))) {
       let arr = cardYmds.get(c); if (!arr) { arr = []; cardYmds.set(c, arr); }
-      arr.push(r.ymd); totalCardReadings += 1;
+      arr.push(r.ymd); totalSlots += 1;
     }
   }
-  const expectedPerCard = totalCardReadings / 78;
+  if (totalSlots < STALKER_MIN_SLOTS) return [];
+  const expectedPerCard = totalSlots / STALKER_DECK;
+  const p0 = 1 / STALKER_DECK;
+  const nTests = cardYmds.size; // Bonferroni across the candidate cards
   const out: PatternResult[] = [];
   for (const [cardId, ymds] of cardYmds) {
-    const count = ymds.length;
-    if (count < 3) continue;
-    const lift = expectedPerCard > 0 ? count / expectedPerCard : 0;
-    const pValue = binomTail(N, expectedPerCard / N, count);
+    const observed = ymds.length;
+    const overIndex = expectedPerCard > 0 ? observed / expectedPerCard : 0;
+    if (overIndex < STALKER_MIN_OVERINDEX) continue;
+    const rawP = binomTail(totalSlots, p0, observed);
+    const adjustedP = Math.min(1, rawP * nTests);
+    if (adjustedP >= STALKER_ALPHA) continue;
     const patternId = `stalker:${cardId}`;
     out.push({
       lens: "stalker", bucketLabel: "keeps showing up",
       targetKey: patternId, patternId, cardId,
-      draws: N, exactHits: count, weightedScore: count, lift, pValue, memberYmds: ymds,
-      explanation: `Showed up in ${count} of ${N} readings — ${lift.toFixed(1)}× a balanced deck, ${fmtP(pValue)}. Tap to isolate.`,
+      draws: N, exactHits: observed, weightedScore: observed, lift: overIndex, pValue: adjustedP, memberYmds: ymds,
+      explanation: `Showed up ${observed}× vs ~${expectedPerCard.toFixed(0)} expected — ${overIndex.toFixed(1)}× your norm, ${fmtP(adjustedP)}. Tap to isolate.`,
     });
   }
   out.sort((a, b) => a.pValue - b.pValue);
