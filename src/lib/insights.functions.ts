@@ -381,11 +381,18 @@ export const getStalkerCards = createServerFn({ method: "GET" })
     const topCard = sorted[0]
       ? { cardId: sorted[0][0], count: sorted[0][1].count }
       : null;
+    // v3.38 — drop cards at or below their expected (average) rate. A card seen
+    // fewer times than total-slots ÷ 78 is appearing LESS than chance and is not
+    // a stalker. expectedPerCard is the average appearances a card would get if
+    // draws were spread evenly across the 78-card deck.
+    let totalSlots = 0;
+    for (const v of counts.values()) totalSlots += v.count;
+    const expectedPerCard = totalSlots / 78;
     const stalkers =
       rows.length < STALKER_MIN_WINDOW
         ? []
         : sorted
-            .filter(([, v]) => v.count >= STALKER_THRESHOLD)
+            .filter(([, v]) => v.count >= STALKER_THRESHOLD && v.count > expectedPerCard)
             .slice(0, 10)
             .map(([cardId, v]) => ({
               cardId,
@@ -2082,8 +2089,13 @@ export const getReversedStalkers = createServerFn({ method: "GET" })
       });
     }
 
+    // v3.38 — same average cutoff as the Stalker Cards list, on reversed counts:
+    // drop cards appearing reversed at or below the average reversed rate.
+    let totalReversedSlots = 0;
+    for (const v of counts.values()) totalReversedSlots += v.reversedCount;
+    const expectedReversedPerCard = totalReversedSlots / 78;
     const reversedStalkers = [...counts.entries()]
-      .filter(([, v]) => v.reversedCount >= STALKER_THRESHOLD)
+      .filter(([, v]) => v.reversedCount >= STALKER_THRESHOLD && v.reversedCount > expectedReversedPerCard)
       .sort((a, b) => b[1].reversedCount - a[1].reversedCount)
       .slice(0, 10)
       .map(([cardId, v]) => ({
