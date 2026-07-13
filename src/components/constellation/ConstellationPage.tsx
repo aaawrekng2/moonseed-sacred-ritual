@@ -1110,7 +1110,7 @@ export function ConstellationPage({
     },
     [user?.id],
   );
-  const [calendarRows, setCalendarRows] = useState(2); // rows of 3 months (2 = 6 months)
+  const [calendarRows, setCalendarRows] = useState(3); // rows of 4 months (3 = 12 months, the default; Show less drops to 2/1)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
     if (v.cards && v.cards.length) {
