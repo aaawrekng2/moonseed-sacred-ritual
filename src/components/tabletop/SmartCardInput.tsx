@@ -53,6 +53,12 @@ type Props = {
    * "100%" for QuickLog so the input fills its flex cell.
    */
   maxWidth?: number | string;
+  /**
+   * v3.41 — render the input at full visibility (solid gold border, clearer
+   * cell fill, more legible placeholder) instead of the default faint style.
+   * Used on the Insights → Patterns / constellation surface.
+   */
+  emphasis?: boolean;
 };
 
 export function SmartCardInput({
@@ -63,6 +69,7 @@ export function SmartCardInput({
   placedCardIds,
   deckCards,
   maxWidth,
+  emphasis,
 }: Props) {
   const index = useMemo(() => buildSearchIndex(deckCards), [deckCards]);
   const [value, setValue] = useState("");
@@ -201,7 +208,12 @@ export function SmartCardInput({
           }
         }}
         placeholder="Type or paste card names — e.g. The Tower, Three of Wands"
-        className="w-full rounded-lg border border-gold/30 bg-foreground/[0.04] px-3 py-2 text-sm focus:border-gold/60 focus:outline-none placeholder:opacity-50"
+        className={
+          "w-full rounded-lg border px-3 py-2 text-sm focus:outline-none " +
+          (emphasis
+            ? "border-gold bg-foreground/[0.08] focus:border-gold placeholder:opacity-70"
+            : "border-gold/30 bg-foreground/[0.04] focus:border-gold/60 placeholder:opacity-50")
+        }
         style={{ fontFamily: "var(--font-serif)" }}
       />
       {(unmatched.length > 0 || overflow > 0) && (
