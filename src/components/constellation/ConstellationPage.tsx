@@ -20,7 +20,60 @@ import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { HeroPatternCluster } from "./HeroPatternCluster";
 import { detectPatterns, detectAllPatterns, type PatternResult, type PatternReport } from "@/lib/pattern-detect";
+import { detectPatterns as detectEnginePatterns } from "@/lib/pattern-engine";
 import { AllPatternsModal } from "./AllPatternsModal";
+
+/* ---------------------------------------------------------------------------
+ * v3.40 — structural group-frequency patterns (suit / number / court).
+ * Surfaces the already-validated pattern-engine significance test in the
+ * all-patterns feed. Card-dimension results are skipped (they'd duplicate the
+ * per-card stalker rows). Group rows are informational — no single hero to load.
+ * ------------------------------------------------------------------------- */
+function humanizeGroupLabel(dim: "suit" | "number" | "court", key: string): string {
+  if (dim === "suit") return key === "majors" ? "Major Arcana" : key.charAt(0).toUpperCase() + key.slice(1);
+  if (dim === "court")
+    return ({ page: "Pages", knight: "Knights", queen: "Queens", king: "Kings" } as Record<string, string>)[key] ?? key;
+  const NUM = ["Aces", "Twos", "Threes", "Fours", "Fives", "Sixes", "Sevens", "Eights", "Nines", "Tens"];
+  const idx = Number(key.replace("n", "")) - 1;
+  return NUM[idx] ?? key;
+}
+
+function detectGroupPatterns(readings: { ymd: string; cardIds: number[] }[], nowMs: number): PatternResult[] {
+  const draws: { cardId: number; timestamp: number }[] = [];
+  for (const r of readings) {
+    const t = Date.parse(r.ymd + "T00:00:00");
+    if (Number.isNaN(t)) continue;
+    for (const c of r.cardIds) draws.push({ cardId: c, timestamp: t });
+  }
+  const res = detectEnginePatterns(draws, { topN: 200, now: nowMs });
+  if (res.status !== "ok") return [];
+  const out: PatternResult[] = [];
+  for (const p of res.patterns) {
+    if (p.dimension === "card") continue; // don't duplicate the per-card stalker rows
+    const dim = p.dimension as "suit" | "number" | "court";
+    const label = humanizeGroupLabel(dim, p.label);
+    const lift = p.expected && p.expected > 0 ? p.observed / p.expected : 0;
+    const patternId = `${dim}:${p.label}`;
+    const windowTxt = p.window ? ` (last ${p.window}d)` : "";
+    const detail =
+      p.type === "streak" ? `a ${p.observed}-session streak` : `${p.observed} vs ~${(p.expected ?? 0).toFixed(0)} expected`;
+    out.push({
+      lens: dim,
+      bucketLabel: label,
+      targetKey: patternId,
+      patternId,
+      cardId: null,
+      draws: p.observed,
+      exactHits: p.observed,
+      weightedScore: p.observed,
+      lift,
+      pValue: p.adjustedP,
+      memberYmds: [],
+      explanation: `${label} are running ${lift ? lift.toFixed(1) + "×" : "above"} your norm${windowTxt} — ${detail}.`,
+    });
+  }
+  return out;
+}
 import { TAROT_MEANINGS, type CardMeaning, type YesNo } from "@/lib/tarot-meanings";
 import { getCardMeta } from "@/lib/card-astrology";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
@@ -3449,9 +3502,16 @@ export function ConstellationPage({
             constellationCardIds: constellationIds,
           }),
         );
-        setAllPatterns(
-          detectAllPatterns({ readings, newMoons: newMoonYmds, birthDate }),
-        );
+        {
+          // v3.40 — merge the structural group-frequency rows (suit / number /
+          // court) in with the lens / asterism / stalker rows, strongest-first.
+          const merged = [
+            ...detectAllPatterns({ readings, newMoons: newMoonYmds, birthDate }),
+            ...detectGroupPatterns(readings, now.getTime()),
+          ];
+          merged.sort((a, b) => a.pValue - b.pValue);
+          setAllPatterns(merged);
+        }
       } catch {
         setPatternReport(null);
         setAllPatterns([]);
