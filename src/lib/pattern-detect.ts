@@ -39,7 +39,9 @@ export interface PatternInput {
   constellationCardIds?: number[];
 }
 export interface PatternResult {
-  lens: LensKey | "asterism" | "stalker";
+  // v3.40 — "suit" | "number" | "court" carry the structural group-frequency
+  // rows sourced from pattern-engine and merged into the all-patterns feed.
+  lens: LensKey | "asterism" | "stalker" | "suit" | "number" | "court";
   bucketLabel: string;
   targetKey: string;
   /** stable identity for the read/unread badge: "cardId:lens:bucket". */

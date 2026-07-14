@@ -14,13 +14,16 @@
 import { createPortal } from "react-dom";
 import type { PatternResult, LensKey } from "@/lib/pattern-detect";
 
-const LENS_LABEL: Record<LensKey | "asterism" | "stalker", string> = {
+const LENS_LABEL: Record<LensKey | "asterism" | "stalker" | "suit" | "number" | "court", string> = {
   moon: "Moon phase",
   day: "Day of month",
   numerology: "Numerology",
   weekday: "Weekday",
   asterism: "Together",
   stalker: "Stalker",
+  suit: "Suit",
+  number: "Number",
+  court: "Court",
 };
 
 /** Balanced bar fill 0..1 from lift — log-scaled so big lifts don't blow out. */
@@ -42,6 +45,8 @@ function captionLine(p: PatternResult): string {
     return `Together · ${p.exactHits} pulls · ${p.lift.toFixed(1)}× chance`;
   if (p.lens === "stalker")
     return `Stalker · ${p.exactHits} of ${p.draws} readings`;
+  if (p.lens === "suit" || p.lens === "number" || p.lens === "court")
+    return `${LENS_LABEL[p.lens]} · ${p.lift.toFixed(1)}× your norm`;
   return `${LENS_LABEL[p.lens]} · ${p.bucketLabel} · ${p.exactHits} of ${p.draws}`;
 }
 
