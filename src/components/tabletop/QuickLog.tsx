@@ -28,6 +28,8 @@ import {
   type PasteOutcome,
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
+import { SpreadStructureStrip } from "@/components/tabletop/SpreadStructureStrip";
+import { analyzeSpread } from "@/lib/spread-structure";
 import { useActiveDeck, useActiveDeckCardName, useActiveDeckCornerRadius } from "@/lib/active-deck";
 // EK59 — moon-phase indicators on the grid12 calendar.
 import { getPhaseOccurrences } from "@/lib/moon";
@@ -1162,6 +1164,15 @@ export function QuickLog({
               <SectionDivider />
               <SectionOverline label="YOUR SPREAD" />
               <ThisPullTiles picks={picks} />
+            </div>
+          )}
+
+          {/* v3.41 — live structural read-out of the current cast (suit
+              dominance/absence, rank multiples, court density, major/minor,
+              reversal density). Renders nothing when there's nothing notable. */}
+          {picks.length >= 2 && (
+            <div style={{ padding: "0 24px", marginTop: 16 }}>
+              <SpreadStructureStrip signals={analyzeSpread(picks).signals} />
             </div>
           )}
 

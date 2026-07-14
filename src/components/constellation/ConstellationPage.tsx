@@ -4774,6 +4774,7 @@ export function ConstellationPage({
                   placedCardIds={picks.map((p) => p.cardIndex)}
                   deckCards={deckCards}
                   maxWidth="100%"
+                  emphasis
                 />
               </div>
             </div>
