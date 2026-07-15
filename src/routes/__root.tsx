@@ -51,12 +51,9 @@ function useApplyRestingOpacityEarly() {
   const location = useLocation();
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("tarotseed:resting-opacity");
-    if (raw == null) return;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return;
-    const pct = Math.max(25, Math.min(100, Math.round(n)));
-    document.documentElement.style.setProperty("--resting-opacity", String(pct / 100));
+    // v3.47 — resting-opacity retired; always pin to fully opaque, ignoring any
+    // previously-saved "interface fade" value so nothing renders dimmed.
+    document.documentElement.style.setProperty("--resting-opacity", "1");
   }, [location.pathname]);
 }
 
@@ -175,15 +172,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
           />
         ) : null}
         {/*
-          Synchronously apply persisted resting opacity BEFORE any CSS
-          paints. Sets --resting-opacity on <html> so all --ro-plus-N
-          tokens (computed via clamp() in styles.css) resolve to the
-          user's value on first paint — zero flash, zero jump.
+          v3.47 — resting-opacity RETIRED. This boot script used to default
+          the "interface fade" to 50% when unset, which dimmed whole surfaces.
+          It now pins --resting-opacity to 1 (fully opaque) so nothing is
+          dimmed on first paint. Kept as a stub (rather than removed) so any
+          direct reader of --resting-opacity also gets the opaque value.
         */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var v=localStorage.getItem('tarotseed:resting-opacity');var n=v?Math.max(25,Math.min(100,Math.round(Number(v)))):50;document.documentElement.style.setProperty('--resting-opacity',String(n/100));}catch(e){}",
+              "try{document.documentElement.style.setProperty('--resting-opacity','1');}catch(e){}",
           }}
         />
         {/*
