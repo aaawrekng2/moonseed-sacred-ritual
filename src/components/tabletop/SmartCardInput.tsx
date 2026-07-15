@@ -211,10 +211,16 @@ export function SmartCardInput({
         className={
           "w-full rounded-lg border px-3 py-2 text-sm focus:outline-none " +
           (emphasis
-            ? "border-gold bg-foreground/[0.08] focus:border-gold placeholder:opacity-70"
+            ? "border-gold focus:border-gold placeholder:opacity-70"
             : "border-gold/30 bg-foreground/[0.04] focus:border-gold/60 placeholder:opacity-50")
         }
-        style={{ fontFamily: "var(--font-serif)" }}
+        style={{
+          fontFamily: "var(--font-serif)",
+          // v3.45 — emphasis renders an OPAQUE filled control (the theme's
+          // popover surface) instead of a faint tint, so the box is fully
+          // visible on the Insights → Patterns surface.
+          ...(emphasis ? { background: "var(--surface-elevated)" } : {}),
+        }}
       />
       {(unmatched.length > 0 || overflow > 0) && (
         <div className="mt-2 flex flex-wrap gap-2">
