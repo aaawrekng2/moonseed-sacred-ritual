@@ -23,6 +23,7 @@ import { detectPatterns, detectAllPatterns, type PatternResult, type PatternRepo
 import { detectPatterns as detectEnginePatterns } from "@/lib/pattern-engine";
 import { SpreadStructureStrip } from "@/components/tabletop/SpreadStructureStrip";
 import { analyzeSpread } from "@/lib/spread-structure";
+import { SpreadCombinationsStrip } from "@/components/tabletop/SpreadCombinationsStrip";
 import { AllPatternsModal } from "./AllPatternsModal";
 
 /* ---------------------------------------------------------------------------
@@ -6261,6 +6262,7 @@ export function ConstellationPage({
       {picks.length >= 2 && !insightsMode && !atlasMode && (
         <div style={{ padding: "0 24px", marginTop: 16 }}>
           <SpreadStructureStrip signals={analyzeSpread(picks).signals} />
+          <SpreadCombinationsStrip cardIds={picks.map((p) => p.cardIndex)} />
         </div>
       )}
       {picks.length >= 2 && (
