@@ -128,16 +128,21 @@
   /*  exceed full opacity. Use either inline style="opacity: var(--ro-  */
   /*  plus-20)" or arbitrary Tailwind opacity-[var(--ro-plus-20)].       */
   /* ---------------------------------------------------------------- */
-  --resting-opacity: 0.85;
-  --ro-plus-0:  clamp(0, var(--resting-opacity), 1);
-  --ro-plus-10: clamp(0, calc(var(--resting-opacity) + 0.10), 1);
-  --ro-plus-20: clamp(0, calc(var(--resting-opacity) + 0.20), 1);
-  --ro-plus-30: clamp(0, calc(var(--resting-opacity) + 0.30), 1);
-  --ro-plus-40: clamp(0, calc(var(--resting-opacity) + 0.40), 1);
-  --ro-plus-50: clamp(0, calc(var(--resting-opacity) + 0.50), 1);
-  --ro-plus-60: clamp(0, calc(var(--resting-opacity) + 0.60), 1);
-  --ro-plus-70: clamp(0, calc(var(--resting-opacity) + 0.70), 1);
-  --ro-plus-80: clamp(0, calc(var(--resting-opacity) + 0.80), 1);
+  /* v3.47 — resting-opacity RETIRED. Every token is pinned to fully opaque so
+     the deprecated "interface fade" dimming has zero effect anywhere (all the
+     `opacity: var(--ro-plus-N)` call sites now resolve to 1). The var is kept
+     (not deleted) so those call sites keep compiling; the hook/slider/readout
+     that used to drive it are now dead and can be removed in a follow-up. */
+  --resting-opacity: 1;
+  --ro-plus-0:  1;
+  --ro-plus-10: 1;
+  --ro-plus-20: 1;
+  --ro-plus-30: 1;
+  --ro-plus-40: 1;
+  --ro-plus-50: 1;
+  --ro-plus-60: 1;
+  --ro-plus-70: 1;
+  --ro-plus-80: 1;
 
 }
 
