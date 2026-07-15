@@ -241,8 +241,15 @@ export function SmartCardInput({
       )}
       {showDropdown && (
         <div
-          className="absolute mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gold/30 bg-cosmos shadow-xl"
-          style={{ zIndex: 200 }}
+          className="absolute mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gold/30 shadow-xl"
+          style={{
+            zIndex: 200,
+            // v3.48 — was `bg-cosmos`, which styles.css paints TRANSPARENT
+            // (it's the full-viewport body layer), so the results list showed
+            // the page/question/notes straight through it. Use a solid,
+            // theme-aware surface so the dropdown is opaque.
+            background: "var(--surface-elevated, var(--input))",
+          }}
           onMouseDown={(e) => e.preventDefault()}
         >
           {result.groups.map((g) => (
