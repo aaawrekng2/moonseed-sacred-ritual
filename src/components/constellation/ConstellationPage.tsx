@@ -21,6 +21,8 @@ import { CardImage } from "@/components/card/CardImage";
 import { HeroPatternCluster } from "./HeroPatternCluster";
 import { detectPatterns, detectAllPatterns, type PatternResult, type PatternReport } from "@/lib/pattern-detect";
 import { detectPatterns as detectEnginePatterns } from "@/lib/pattern-engine";
+import { SpreadStructureStrip } from "@/components/tabletop/SpreadStructureStrip";
+import { analyzeSpread } from "@/lib/spread-structure";
 import { AllPatternsModal } from "./AllPatternsModal";
 
 /* ---------------------------------------------------------------------------
@@ -6252,6 +6254,13 @@ export function ConstellationPage({
           <SectionDivider />
           <SectionOverline label="YOUR SPREAD" />
           <ThisPullTiles picks={picks} />
+        </div>
+      )}
+      {/* v3.43 — live structural read-out of the current cast, on the manual-
+          entry / exploration view only (not the Insights analytics or atlas). */}
+      {picks.length >= 2 && !insightsMode && !atlasMode && (
+        <div style={{ padding: "0 24px", marginTop: 16 }}>
+          <SpreadStructureStrip signals={analyzeSpread(picks).signals} />
         </div>
       )}
       {picks.length >= 2 && (
