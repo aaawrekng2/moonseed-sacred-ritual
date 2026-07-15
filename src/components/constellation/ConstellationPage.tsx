@@ -3729,8 +3729,31 @@ export function ConstellationPage({
     const snapshot = picks;
     const existingIdx = snapshot.findIndex((p) => p.cardIndex === cardId);
     if (existingIdx !== -1) {
-      // Already on the spread — focus it, no duplicate.
-      setFocusedSlotIdx(existingIdx);
+      // v3.49 — the dragged card is already on the spread, so this is a
+      // REORDER, not an add. Dropped on its own slot → no-op (just focus).
+      // Dropped on another OCCUPIED slot → swap the two positions. Dropped on
+      // an empty (trailing) slot → move the card to the end. Slot 0 is the
+      // hero, so reordering into slot 0 re-picks the hero and re-derives the
+      // constellation.
+      if (slotIdx === existingIdx) {
+        setFocusedSlotIdx(existingIdx);
+        return;
+      }
+      setPicks((prev) => {
+        const from = prev.findIndex((p) => p.cardIndex === cardId);
+        if (from === -1) return prev;
+        const next = [...prev];
+        if (slotIdx < next.length) {
+          const tmp = next[from];
+          next[from] = next[slotIdx];
+          next[slotIdx] = tmp;
+        } else {
+          const [moved] = next.splice(from, 1);
+          next.push(moved);
+        }
+        return next;
+      });
+      setFocusedSlotIdx(slotIdx < snapshot.length ? slotIdx : snapshot.length - 1);
       return;
     }
     const occupant = snapshot[slotIdx];
