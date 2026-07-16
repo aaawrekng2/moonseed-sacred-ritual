@@ -196,7 +196,9 @@ export const getActivityFeed = createServerFn({ method: "POST" })
         .from("user_preferences")
         .select("user_id, display_name")
         .in("user_id", ids);
-      const nameById = new Map((profs ?? []).map((p: any) => [p.user_id, p.display_name]));
+      const nameById = new Map<string, string | null>(
+        (profs ?? []).map((p: any) => [p.user_id as string, (p.display_name ?? null) as string | null]),
+      );
       for (const it of trimmed) {
         if (it.user_id && nameById.has(it.user_id)) it.email = nameById.get(it.user_id) ?? null;
       }
