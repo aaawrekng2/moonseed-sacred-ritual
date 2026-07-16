@@ -12,6 +12,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+const db = supabaseAdmin as any;
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
   const { data, error } = await supabase.rpc("has_admin_role", { _user_id: userId });
@@ -26,7 +27,7 @@ function ymd(d: Date): string {
 type Row = { user_id: string | null; created_at: string };
 
 async function fetchWindow(table: string, sinceIso: string): Promise<Row[]> {
-  const { data } = await supabaseAdmin
+  const { data } = await db
     .from(table)
     .select("user_id, created_at")
     .gte("created_at", sinceIso)
@@ -119,7 +120,7 @@ export const getActivityFeed = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     const sinceIso = new Date(Date.now() - data.days * DAY).toISOString();
 
-    let evq = supabaseAdmin
+    let evq = db
       .from("activity_events")
       .select("created_at, user_id, event_name, properties, time_zone, user_agent")
       .gte("created_at", sinceIso)
@@ -144,7 +145,7 @@ export const getActivityFeed = createServerFn({ method: "POST" })
 
     // Fold in readings + AI calls unless a specific activity_event filter is set.
     if (!data.eventName) {
-      let rq = supabaseAdmin
+      let rq = db
         .from("readings")
         .select("created_at, user_id, spread_type, is_deep_reading")
         .gte("created_at", sinceIso)
@@ -164,7 +165,7 @@ export const getActivityFeed = createServerFn({ method: "POST" })
         });
       }
 
-      let aq = supabaseAdmin
+      let aq = db
         .from("ai_call_log")
         .select("created_at, user_id, call_type, status")
         .gte("created_at", sinceIso)
@@ -191,7 +192,7 @@ export const getActivityFeed = createServerFn({ method: "POST" })
     // Attach emails for the visible rows.
     const ids = Array.from(new Set(trimmed.map((i) => i.user_id).filter(Boolean))) as string[];
     if (ids.length) {
-      const { data: profs } = await supabaseAdmin
+      const { data: profs } = await db
         .from("user_preferences")
         .select("user_id, display_name")
         .in("user_id", ids);
