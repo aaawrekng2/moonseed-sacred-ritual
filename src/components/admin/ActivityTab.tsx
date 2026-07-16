@@ -6,8 +6,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { getActivityMetrics, getActivityFeed } from "@/lib/admin-activity.functions";
 
-type Metrics = Awaited<ReturnType<typeof getActivityMetrics>>;
-type Feed = Awaited<ReturnType<typeof getActivityFeed>>;
+type Metrics = {
+  activeToday: number;
+  active7d: number;
+  active30d: number;
+  totalEvents: number;
+  volume: { day: string; count: number }[];
+  topEvents: { event_name: string; count: number }[];
+};
+type FeedItem = {
+  created_at: string;
+  user_id: string | null;
+  email: string | null;
+  event_name: string;
+  detail: string;
+  time_zone: string | null;
+  user_agent: string | null;
+};
+type Feed = FeedItem[];
 
 export function ActivityTab({ userId }: { userId?: string }) {
   const [days, setDays] = useState(30);
@@ -22,20 +38,20 @@ export function ActivityTab({ userId }: { userId?: string }) {
     setLoading(true);
     void (async () => {
       try {
-        const [m, f] = await Promise.all([
-          userId ? Promise.resolve(null) : getActivityMetrics({ data: { days } }),
-          getActivityFeed({
-            data: {
-              days,
-              eventName: eventName || undefined,
-              userId: userId || userFilter || undefined,
-              limit: 200,
-            },
-          }),
-        ]);
+        const mRaw = userId
+          ? null
+          : await getActivityMetrics({ data: { days } });
+        const fRaw = await getActivityFeed({
+          data: {
+            days,
+            eventName: eventName || undefined,
+            userId: userId || userFilter || undefined,
+            limit: 200,
+          },
+        });
         if (cancelled) return;
-        setMetrics(m);
-        setFeed(f);
+        setMetrics(mRaw as unknown as Metrics | null);
+        setFeed(fRaw as unknown as Feed);
       } catch {
         if (!cancelled) {
           setMetrics(null);

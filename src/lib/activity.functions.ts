@@ -16,7 +16,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const EventInput = z.object({
   eventName: z.string().min(1).max(64),
-  properties: z.record(z.string(), z.unknown()).optional(),
+  properties: z.record(z.unknown()).optional(),
   sessionId: z.string().max(64).optional(),
   userAgent: z.string().max(400).optional(),
   timeZone: z.string().max(64).optional(),
@@ -28,7 +28,7 @@ export async function logActivityServer(
   properties: Record<string, unknown> = {},
 ): Promise<void> {
   try {
-    await supabaseAdmin.from("activity_events").insert({
+    await (supabaseAdmin as any).from("activity_events").insert({
       user_id: userId,
       event_name: eventName,
       properties,
@@ -44,7 +44,7 @@ export const recordActivityEvent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean }> => {
     try {
       const { userId } = context;
-      await supabaseAdmin.from("activity_events").insert({
+      await (supabaseAdmin as any).from("activity_events").insert({
         user_id: userId,
         session_id: data.sessionId ?? null,
         event_name: data.eventName,
