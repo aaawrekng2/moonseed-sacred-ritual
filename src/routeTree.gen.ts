@@ -45,6 +45,7 @@ import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.y
 import { Route as CreditsSuccessRouteImport } from './routes/credits.success'
 import { Route as CreditsCancelRouteImport } from './routes/credits.cancel'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
+import { Route as AdminActivityRouteImport } from './routes/admin.activity'
 import { Route as LovableEmailFeedbackDigestRouteImport } from './routes/lovable/email/feedback-digest'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
@@ -237,6 +238,11 @@ const AdminUsageRoute = AdminUsageRouteImport.update({
   path: '/usage',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminActivityRoute = AdminActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AdminRoute,
+} as any)
 const LovableEmailFeedbackDigestRoute =
   LovableEmailFeedbackDigestRouteImport.update({
     id: '/lovable/email/feedback-digest',
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/stories': typeof StoriesRouteWithChildren
   '/terms': typeof TermsRoute
   '/threads': typeof ThreadsRouteWithChildren
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
@@ -364,6 +371,7 @@ export interface FileRoutesByTo {
   '/stories': typeof StoriesRouteWithChildren
   '/terms': typeof TermsRoute
   '/threads': typeof ThreadsRouteWithChildren
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
@@ -414,6 +422,7 @@ export interface FileRoutesById {
   '/stories': typeof StoriesRouteWithChildren
   '/terms': typeof TermsRoute
   '/threads': typeof ThreadsRouteWithChildren
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/usage': typeof AdminUsageRouteWithChildren
   '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
@@ -465,6 +474,7 @@ export interface FileRouteTypes {
     | '/stories'
     | '/terms'
     | '/threads'
+    | '/admin/activity'
     | '/admin/usage'
     | '/credits/cancel'
     | '/credits/success'
@@ -513,6 +523,7 @@ export interface FileRouteTypes {
     | '/stories'
     | '/terms'
     | '/threads'
+    | '/admin/activity'
     | '/admin/usage'
     | '/credits/cancel'
     | '/credits/success'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/stories'
     | '/terms'
     | '/threads'
+    | '/admin/activity'
     | '/admin/usage'
     | '/credits/cancel'
     | '/credits/success'
@@ -876,6 +888,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsageRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/activity': {
+      id: '/admin/activity'
+      path: '/activity'
+      fullPath: '/admin/activity'
+      preLoaderRoute: typeof AdminActivityRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/lovable/email/feedback-digest': {
       id: '/lovable/email/feedback-digest'
       path: '/lovable/email/feedback-digest'
@@ -969,11 +988,13 @@ const AdminUsageRouteWithChildren = AdminUsageRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminActivityRoute: typeof AdminActivityRoute
   AdminUsageRoute: typeof AdminUsageRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminActivityRoute: AdminActivityRoute,
   AdminUsageRoute: AdminUsageRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }

@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_daily: {
+        Row: {
+          day: string
+          distinct_users: number
+          event_count: number
+          event_name: string
+        }
+        Insert: {
+          day: string
+          distinct_users?: number
+          event_count?: number
+          event_name: string
+        }
+        Update: {
+          day?: string
+          distinct_users?: number
+          event_count?: number
+          event_name?: string
+        }
+        Relationships: []
+      }
+      activity_events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: number
+          properties: Json
+          session_id: string | null
+          time_zone: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: never
+          properties?: Json
+          session_id?: string | null
+          time_zone?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: never
+          properties?: Json
+          session_id?: string | null
+          time_zone?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -1910,6 +1964,7 @@ export type Database = {
       }
     }
     Functions: {
+      activity_maintenance: { Args: never; Returns: undefined }
       ai_effective_gate: {
         Args: { _user_id: string }
         Returns: {
@@ -1965,6 +2020,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      rollup_activity: { Args: { _day: string }; Returns: undefined }
       seed_default_user_tags: { Args: { _user_id: string }; Returns: undefined }
       try_acquire_detect_weaves_slot: {
         Args: { _min_interval_seconds: number }
