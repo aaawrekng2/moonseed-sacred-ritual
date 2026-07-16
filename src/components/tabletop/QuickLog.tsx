@@ -196,6 +196,9 @@ export function OverlapPills({
   saveDisabledReason,
   saveOnly = false,
   align = "flex-end",
+  // v3.50 — optional "Get AI reading" action rendered beside Save to journal.
+  onGetAiReading,
+  aiDisabled = false,
 }: {
   mode: "pull" | "day";
   onModeChange: (m: "pull" | "day") => void;
@@ -214,6 +217,10 @@ export function OverlapPills({
   saveOnly?: boolean;
   /** flex justify-content for the row. Defaults to flex-end. */
   align?: "flex-start" | "flex-end" | "center" | "space-between";
+  /** v3.50 — opens the "Get AI reading" sheet. When omitted, no button. */
+  onGetAiReading?: () => void;
+  /** v3.50 — disables the AI-reading button (e.g. no concrete spread). */
+  aiDisabled?: boolean;
 }) {
   return (
     <div
@@ -328,6 +335,34 @@ export function OverlapPills({
             : saveStatus === "saved"
               ? "Saved ✓"
               : "Save to journal"}
+        </button>
+      )}
+      {onGetAiReading && (
+        <button
+          type="button"
+          onClick={onGetAiReading}
+          disabled={aiDisabled}
+          title={
+            aiDisabled
+              ? "Lay a concrete spread to build an AI prompt"
+              : "Build a prompt to read this spread in your AI"
+          }
+          style={{
+            height: 22,
+            padding: "0 12px",
+            borderRadius: 9999,
+            border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+            background: "var(--surface-card)",
+            color: "var(--color-foreground)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+            cursor: aiDisabled ? "not-allowed" : "pointer",
+            opacity: aiDisabled ? 0.5 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Get AI reading
         </button>
       )}
     </div>

@@ -1,8 +1,10 @@
+// v3.50 — canonical-meaning injection added below (see getCardMeaning use).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { SPREAD_META, isValidSpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
+import { getCardMeaning } from "@/lib/tarot-meanings";
 import { buildGuideSystemPrompt } from "@/lib/guides";
 import { callAI, isUserPremium } from "@/lib/ai-call.server";
 
@@ -163,8 +165,24 @@ export const interpretReading = createServerFn({ method: "POST" })
           (meta?.name && meta.name.trim()) || getCardName(p.cardIndex);
         const label = positionLabels[i] ?? `Card ${i + 1}`;
         const head = `- ${label}: ${p.isReversed ? `${name} (reversed)` : name}`;
+        const extra: string[] = [];
+        // v3.50 — anchor the model to Tarot Seed's canonical RWS meaning for
+        // the DRAWN orientation only (keeps token cost modest) so in-app
+        // readings can't drift from the Card Trace encyclopedia text.
+        const canon = getCardMeaning(p.cardIndex);
+        if (canon) {
+          const kw = p.isReversed
+            ? canon.reversedKeywords
+            : canon.uprightKeywords;
+          const mean = p.isReversed
+            ? canon.reversedMeaning
+            : canon.uprightMeaning;
+          if (kw && kw.length) extra.push(`    Keywords: ${kw.join(", ")}`);
+          if (mean) extra.push(`    Tarot Seed meaning: ${mean}`);
+        }
         const desc = meta?.description?.trim();
-        return desc ? `${head}\n    Seeker's notes on this card: ${desc}` : head;
+        if (desc) extra.push(`    Seeker's notes on this card: ${desc}`);
+        return extra.length ? `${head}\n${extra.join("\n")}` : head;
       });
       const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
       const userPromptWithQuestion = data.question
@@ -197,6 +215,12 @@ export const interpretReading = createServerFn({ method: "POST" })
       const systemPromptWithReversal = hasReversed
         ? `${systemPrompt}\n\nWhen a card is marked (reversed), interpret it with awareness of reversal — its energy may be blocked, internalized, delayed, or expressed as its shadow. Reversed does not mean negative; it means nuanced.`
         : systemPrompt;
+
+      // v3.50 — each card line now carries Tarot Seed's canonical meaning +
+      // keywords for the drawn orientation. Tell the model to honor that text
+      // as the source of truth so its prose stays consistent with the
+      // in-app Card Trace encyclopedia.
+      const systemPromptWithCanon = `${systemPromptWithReversal}\n\nEach card includes its "Tarot Seed meaning" and keywords for the orientation drawn. Treat that text as the canonical meaning of the card — weave it into your interpretation and do not contradict it.`;
 
       // ---- Memory context (Phase 7) -----------------------------------
       // If the user has memory_ai_permission enabled and a non-expired
@@ -265,7 +289,7 @@ export const interpretReading = createServerFn({ method: "POST" })
         userId,
         isPremium,
         messages: [{ role: "user", content: userPromptWithMemory }],
-        system: systemPromptWithReversal,
+        system: systemPromptWithCanon,
         maxTokens,
       });
       if (!aiResult.ok) {
