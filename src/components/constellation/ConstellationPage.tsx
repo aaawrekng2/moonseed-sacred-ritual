@@ -5811,6 +5811,7 @@ export function ConstellationPage({
                 resolveCardName={resolveCardName}
                 question={question}
                 note={note}
+                patterns={allPatterns}
               />
             </div>
           )}

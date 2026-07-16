@@ -23,6 +23,7 @@ import {
   type RecentReadingInput,
   type BigThree,
 } from "@/lib/ai-prompt-builder";
+import type { PatternResult } from "@/lib/pattern-detect";
 
 const TOGGLES_KEY = "tarotseed:ai_prompt_toggles";
 
@@ -38,6 +39,9 @@ type Props = {
   resolveCardName: (id: number) => string;
   question: string;
   note: string;
+  // v3.51 — validated pattern results from the page (already computed for
+  // the pattern strip). Optional; when empty the toggle is not shown.
+  patterns?: PatternResult[];
 };
 
 type Birth = {
@@ -79,6 +83,7 @@ export function AiReadingSheet({
   resolveCardName,
   question,
   note,
+  patterns,
 }: Props) {
   const [toggles, setToggles] = useState<PromptToggles>(() => loadToggles());
   const [birth, setBirth] = useState<Birth | null>(null);
@@ -198,6 +203,17 @@ export function AiReadingSheet({
   const moonAvailable = !!bigThree?.moon;
   const risingAvailable = !!bigThree?.rising;
 
+  // v3.51 — condense the strongest few detected patterns into prompt text.
+  // Each PatternResult carries a ready-made human sentence (.explanation)
+  // honoring the app's locked thresholds + vocabulary.
+  const patternsSummary = useMemo(() => {
+    const lines = (patterns ?? [])
+      .filter((p) => p.explanation && p.explanation.trim())
+      .slice(0, 5)
+      .map((p) => `- ${p.explanation.trim()}`);
+    return lines.length ? lines.join("\n") : null;
+  }, [patterns]);
+
   const context: PromptContext = useMemo(
     () => ({
       spreadLabel,
@@ -213,7 +229,7 @@ export function AiReadingSheet({
       birthDate: birth?.birthDate ?? null,
       birthCity: birth?.birthCity ?? null,
       recentReadings: recent,
-      patternsSummary: null,
+      patternsSummary,
     }),
     [
       spreadLabel,
@@ -225,6 +241,7 @@ export function AiReadingSheet({
       bigThree,
       birth,
       recent,
+      patternsSummary,
     ],
   );
 
@@ -430,6 +447,13 @@ export function AiReadingSheet({
             hint={recent.length === 0 ? "No saved readings yet" : undefined}
             onChange={(v) => set({ recentReadings: v })}
           />
+          {patternsSummary && (
+            <Row
+              label="Detected patterns"
+              checked={toggles.patterns}
+              onChange={(v) => set({ patterns: v })}
+            />
+          )}
         </Group>
 
         <Group label="Delivery">
