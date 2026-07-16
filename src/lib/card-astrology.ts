@@ -160,3 +160,37 @@ export function getCardRoot(cardId: number): number | null {
 export function getCardRulership(cardId: number): string | null {
   return getCardMeta(cardId)?.planetOrSign ?? null;
 }
+
+// v3.50 — Inverse of the Majors sign attributions above (Golden Dawn).
+// Maps a zodiac sign to the Major Arcana card id that rules it. Used by the
+// AI-reading prompt builder to surface a seeker's Sun/Moon/Rising cards.
+export const SIGN_TO_MAJOR_ID: Record<string, number> = {
+  Aries: 4, // The Emperor
+  Taurus: 5, // The Hierophant
+  Gemini: 6, // The Lovers
+  Cancer: 7, // The Chariot
+  Leo: 8, // Strength
+  Virgo: 9, // The Hermit
+  Libra: 11, // Justice
+  Scorpio: 13, // Death
+  Sagittarius: 14, // Temperance
+  Capricorn: 15, // The Devil
+  Aquarius: 17, // The Star
+  Pisces: 18, // The Moon
+};
+
+/** Major Arcana card id that rules the given zodiac sign, or null. */
+export function majorIdForSign(sign: string | null | undefined): number | null {
+  if (!sign) return null;
+  const key = sign.charAt(0).toUpperCase() + sign.slice(1).toLowerCase();
+  return SIGN_TO_MAJOR_ID[key] ?? null;
+}
+
+/** Element (Fire/Water/Air/Earth) associated with a zodiac sign. */
+export function elementForSign(
+  sign: string | null | undefined,
+): CardMeta["element"] | null {
+  const id = majorIdForSign(sign);
+  if (id == null) return null;
+  return getCardMeta(id)?.element ?? null;
+}

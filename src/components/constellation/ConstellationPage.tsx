@@ -25,6 +25,7 @@ import { SpreadStructureStrip } from "@/components/tabletop/SpreadStructureStrip
 import { analyzeSpread } from "@/lib/spread-structure";
 import { SpreadCombinationsStrip } from "@/components/tabletop/SpreadCombinationsStrip";
 import { AllPatternsModal } from "./AllPatternsModal";
+import { AiReadingSheet } from "@/components/reading/AiReadingSheet";
 
 /* ---------------------------------------------------------------------------
  * v3.40 — structural group-frequency patterns (suit / number / court).
@@ -3177,6 +3178,8 @@ export function ConstellationPage({
   const [question, setQuestion] = useState<string>("");
   // DY — free-form notes textarea for "Save to Journal" + AI reading.
   const [note, setNote] = useState<string>("");
+  // v3.50 — "Get AI reading" sheet (clipboard prompt builder).
+  const [aiSheetOpen, setAiSheetOpen] = useState<boolean>(false);
   // DY — journaling-prompts modal trigger.
   const [promptsModalOpen, setPromptsModalOpen] = useState(false);
   // EJ30 — which slot card's prompts are currently displayed in the
@@ -5787,8 +5790,28 @@ export function ConstellationPage({
                   // EK68 — same-spread/day and Hide-older moved into the
                   // fly-out menu; this row now shows only Save to journal.
                   saveOnly
+                  // v3.50 — "Get AI reading" sits beside Save to journal.
+                  onGetAiReading={() => setAiSheetOpen(true)}
+                  aiDisabled={
+                    !canSubmit ||
+                    (atlasMode && atlasGroupSlots.length > 0)
+                  }
                 />
               </div>
+              <AiReadingSheet
+                open={aiSheetOpen}
+                onClose={() => setAiSheetOpen(false)}
+                userId={user?.id ?? null}
+                spreadLabel={spread.label}
+                positionLabels={spread.slotNames}
+                picks={picks.map((p) => ({
+                  cardId: p.cardIndex,
+                  reversed: !!p.isReversed,
+                }))}
+                resolveCardName={resolveCardName}
+                question={question}
+                note={note}
+              />
             </div>
           )}
           {/* EK134 — patterns panel (order 5, bottom of both atlas tabs).
