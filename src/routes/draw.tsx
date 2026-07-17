@@ -176,17 +176,27 @@ function DrawPage() {
 
   // EK54 — Removed Pause A debug pause. We now understand the issue
   // (was working in the wrong file — InlineReading vs ReadingScreen).
-  // triggerPhase advances the phase immediately.
-  const triggerPhase = (next: "cast" | "reading") => {
-    setPhase(next);
-  };
-
   // EK52 — Keep Tabletop mounted for a brief overlap window after
   // setPhase("cast") fires. Without this, Tabletop unmounts before
   // SpreadLayout's first paint, producing a 1-frame gap where the
   // cards visibly disappear. With the overlap, Tabletop stays
   // mounted at z-30 while SpreadLayout mounts at z-40 on top.
   const [castOverlapActive, setCastOverlapActive] = useState(false);
+
+  // triggerPhase advances the phase immediately.
+  const triggerPhase = (next: "cast" | "reading") => {
+    // v3.60 — arm the cast overlap SYNCHRONOUSLY, in the same batched
+    // update as setPhase, so Tabletop is already mounted on the very
+    // first "cast" render. The old effect-only path left
+    // castOverlapActive false for that first frame: Tabletop unmounted,
+    // then the effect remounted it, and a fresh mount replayed the full
+    // pick-scatter deal-in animation — the "scatter reappears then
+    // vanishes" flicker Cori reported. Keeping the SAME Tabletop instance
+    // mounted (no unmount -> remount) stops the deal-in from replaying.
+    if (next === "cast") setCastOverlapActive(true);
+    setPhase(next);
+  };
+
   useEffect(() => {
     if (phase !== "cast") return;
     setCastOverlapActive(true);
