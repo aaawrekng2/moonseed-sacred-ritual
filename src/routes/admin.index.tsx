@@ -112,6 +112,8 @@ export const Route = createFileRoute("/admin/")({
 
 type Role = "user" | "admin" | "super_admin";
 
+import { getAdminUserLastActive } from "@/lib/admin-activity.functions";
+
 type AdminUser = Awaited<ReturnType<typeof listAdminUsers>>[number];
 
 type Tab = "dashboard" | "users" | "feedback" | "emails" | "backups" | "audit";
@@ -318,6 +320,17 @@ function Sidebar({ tab, setTab, myRole }: { tab: Tab; setTab: (t: Tab) => void; 
         }}
       >
         Usage
+      </Link>
+      <Link
+        to="/admin/activity"
+        className="flex items-center gap-2 px-2 py-2 text-left transition-opacity hover:opacity-80"
+        style={{
+          ...serif,
+          fontSize: "var(--text-body)",
+          color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+        }}
+      >
+        Activity
       </Link>
       <div className="mt-2">
         <Link
@@ -1813,6 +1826,46 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 /* ---------------- Users tab ---------------- */
 
+function SortTh({
+  label,
+  col,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  label: string;
+  col: string;
+  sortKey: string;
+  sortDir: "asc" | "desc";
+  onSort: (k: string) => void;
+}) {
+  const active = sortKey === col;
+  return (
+    <Th>
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          margin: 0,
+          cursor: "pointer",
+          color: "inherit",
+          font: "inherit",
+          letterSpacing: "inherit",
+          textTransform: "inherit",
+        }}
+      >
+        {label}
+        <span style={{ marginLeft: 4, opacity: active ? 0.9 : 0.25 }}>
+          {active ? (sortDir === "asc" ? "\u25B2" : "\u25BC") : "\u25BE"}
+        </span>
+      </button>
+    </Th>
+  );
+}
+
 function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1829,6 +1882,18 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
   // filters above are preserved across the transition because they're
   // colocated state on this same component.
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  // v3.54 — click-to-sort the users table. Click a header to sort by it;
+  // click the same header again to reverse the direction.
+  const [sortKey, setSortKey] = useState<string>("last_active");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: string) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -1837,19 +1902,34 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
       const headers = await authHeaders();
       // Q84 — fetch user list and reading counts in parallel so a slow
       // or failing readings query never blocks the user list.
-      const [data, countsResult] = await Promise.all([
+      const [data, countsResult, lastActiveMap] = await Promise.all([
         listAdminUsers({ headers }),
         getAdminUserReadingCounts({ headers }).catch((e) => {
           console.warn("[admin] getAdminUserReadingCounts failed:", e);
           return null as Record<string, { count: number; lastReading: string | null }> | null;
         }),
+        getAdminUserLastActive({ headers }).catch((e) => {
+          console.warn("[admin] getAdminUserLastActive failed:", e);
+          return {} as Record<string, string>;
+        }),
       ]);
-      const merged: AdminUser[] = countsResult
-        ? data.map((u) => {
-            const c = countsResult[u.user_id];
-            return c ? { ...u, reading_count: c.count, last_reading: c.lastReading } : u;
-          })
-        : data;
+      // v3.54 — "last active" = most recent of activity events / readings /
+      // AI calls (server) and the auth last_sign_in_at.
+      const merged: AdminUser[] = data.map((u) => {
+        const c = countsResult ? countsResult[u.user_id] : null;
+        const signIn =
+          (u as { last_sign_in_at?: string | null }).last_sign_in_at ?? null;
+        const evt = lastActiveMap[u.user_id] ?? null;
+        const cands = [signIn, evt, c?.lastReading ?? null].filter(
+          (x): x is string => !!x,
+        );
+        const lastActive = cands.length ? cands.sort()[cands.length - 1] : null;
+        return {
+          ...u,
+          ...(c ? { reading_count: c.count, last_reading: c.lastReading } : {}),
+          last_active: lastActive,
+        } as AdminUser;
+      });
       setUsers(merged);
     } catch (e) {
       console.error("[admin] listAdminUsers failed:", e);
@@ -1893,6 +1973,36 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
       return true;
     });
   }, [users, search, roleFilter, statusFilter, accountFilter]);
+
+  const sorted = useMemo(() => {
+    const val = (u: AdminUser, key: string): string | number => {
+      const ux = u as Record<string, unknown>;
+      switch (key) {
+        case "user":
+          return ((u.display_name || u.email || "") as string).toLowerCase();
+        case "role":
+          return (u.role as string) ?? "";
+        case "activity":
+          return (u.reading_count as number) ?? 0;
+        case "joined":
+          return (u.created_at as string) ?? "";
+        case "last_active":
+          return (ux.last_active as string) ?? "";
+        default:
+          return "";
+      }
+    };
+    const arr = [...filtered];
+    arr.sort((x, y) => {
+      const xv = val(x, sortKey);
+      const yv = val(y, sortKey);
+      let cmp = 0;
+      if (typeof xv === "number" && typeof yv === "number") cmp = xv - yv;
+      else cmp = String(xv).localeCompare(String(yv));
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
 
   const summary = useMemo(() => {
     const supers = users.filter((u) => u.role === "super_admin").length;
@@ -2022,10 +2132,11 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
           <table className="w-full" style={{ ...serif, fontSize: "var(--text-body-sm)" }}>
             <thead>
               <tr style={thRow()}>
-                <Th>User</Th>
-                <Th>Role</Th>
-                <Th>Activity</Th>
-                <Th>Joined</Th>
+                <SortTh label="User" col="user" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="Role" col="role" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="Activity" col="activity" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="Joined" col="joined" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="Last active" col="last_active" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 {/* EK37 — Per-user AI features toggle column. */}
                 <Th>AI</Th>
                 {/* v2.31 — Per-user Phase 2 (photos / Gallery) toggle column. */}
@@ -2033,7 +2144,7 @@ function UsersTab({ myRole, myUserId }: { myRole: Role; myUserId: string }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u) => (
+              {sorted.map((u) => (
                 <UserListRow
                   key={u.user_id}
                   user={u}
@@ -2141,6 +2252,13 @@ function UserListRow({
       </Td>
       <Td>{formatActivity(user.reading_count, user.last_reading)}</Td>
       <Td>{formatDateLong(user.created_at)}</Td>
+      <Td>
+        {(user as { last_active?: string | null }).last_active
+          ? formatDateLong(
+              (user as { last_active?: string | null }).last_active as string,
+            )
+          : "\u2014"}
+      </Td>
       {/* EK37 — AI features toggle column. One-tap grant/revoke. */}
       <Td>
         <button
