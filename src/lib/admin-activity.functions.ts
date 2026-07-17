@@ -205,3 +205,30 @@ export const getActivityFeed = createServerFn({ method: "POST" })
     }
     return trimmed;
   });
+
+// v3.54 — most-recent-activity timestamp per user, across the event streams.
+// Merged client-side with auth last_sign_in_at for the admin "Last active" col.
+export const getAdminUserLastActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<Record<string, string>> => {
+    await assertAdmin(context.supabase, context.userId);
+    const out: Record<string, string> = {};
+    const bump = (uid: string | null, iso: string | null) => {
+      if (!uid || !iso) return;
+      if (!out[uid] || iso > out[uid]) out[uid] = iso;
+    };
+    for (const table of ["activity_events", "readings", "ai_call_log"]) {
+      const { data } = await db
+        .from(table)
+        .select("user_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50000);
+      for (const r of (data ?? []) as Array<{
+        user_id: string | null;
+        created_at: string;
+      }>) {
+        bump(r.user_id, r.created_at);
+      }
+    }
+    return out;
+  });
