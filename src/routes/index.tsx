@@ -823,9 +823,7 @@ function Index() {
                 // you've used before restores its last-used mode (manual or
                 // table). A spread you've never opened still defaults to the
                 // table (defaultModeFor), so fresh draws land on the table.
-                // v3.61 — no longer forces "single"; opening with no spread
-                // lets /draw restore the seeker's last-used draw type.
-                search: {},
+                search: { spread: "single", entry: "table" },
               })
             }
             ariaLabel="Begin today's draw"
@@ -930,14 +928,14 @@ function Index() {
                 navigate({
                   to: "/draw",
                   // EJ63 — Force scatter-table surface from Home.
-                  search: { spread: "custom", n },
+                  search: { spread: "custom", n, entry: "table" },
                 });
                 return;
               }
               navigate({
                 to: "/draw",
                 // EJ63 — Force scatter-table surface from Home.
-                search: { spread },
+                search: { spread, entry: "table" },
               });
             }}
           />
@@ -1020,7 +1018,7 @@ function Index() {
               navigate({
                 to: "/draw",
                 // EJ63 — Force scatter-table surface from Home.
-                search: { spread: "custom", n: customCount },
+                search: { spread: "custom", n: customCount, entry: "table" },
               });
             }}
             className="px-6 py-2 italic"

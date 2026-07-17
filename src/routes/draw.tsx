@@ -53,41 +53,6 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
-  // v3.58 — remember the last draw type: on a bare /draw arrival (no spread
-  // in the URL) redirect to the seeker's last-used spread so the bottom
-  // picker opens on it. An explicit ?spread= in the URL always wins.
-  useEffect(() => {
-    if (search.spread) return;
-    if (typeof window === "undefined") return;
-    let last: string | null = null;
-    try {
-      last = window.localStorage.getItem("tarotseed:last-spread");
-    } catch {
-      last = null;
-    }
-    if (last && isValidSpreadMode(last) && last !== spread) {
-      void navigate({
-        to: "/draw",
-        search: { spread: last as SpreadMode, entry: "table" as EntryMode },
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search.spread]);
-  // v3.61 — persist the current draw type whenever the table opens on an
-  // explicit spread (Home draw-type icons, guides, the on-table picker's
-  // own navigation, etc.). Combined with the restore effect above, this
-  // means ANY generic re-entry (Home center card, bottom nav) brings back
-  // the last type used, while tapping a specific type overrides + sticks.
-  useEffect(() => {
-    if (!search.spread) return;
-    if (typeof window === "undefined") return;
-    if (!isValidSpreadMode(search.spread)) return;
-    try {
-      window.localStorage.setItem("tarotseed:last-spread", search.spread);
-    } catch {
-      /* ignore */
-    }
-  }, [search.spread]);
   const { recordDraw, recomputeStreak } = useStreak();
   const { user } = useAuth();
 
@@ -435,12 +400,6 @@ function DrawPage() {
     }
     // Any named spread restores label visibility.
     setShowLabels(true);
-    // v3.58 — remember this as the last-used draw type.
-    try {
-      window.localStorage.setItem("tarotseed:last-spread", next);
-    } catch {
-      /* ignore */
-    }
     if (next === spread) return;
     // Carry the current spread's session into the new spread so picks
     // survive the navigation. Trim selections that exceed the new slot
