@@ -38,6 +38,7 @@ import { maybeRunTarotpulseImport } from "@/lib/tarotpulse-import";
 import { ConfirmProvider } from "@/hooks/use-confirm";
 import { claimStarterCredits } from "@/lib/starter-credits.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { track, ACTIVITY } from "@/lib/track";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -311,6 +312,19 @@ function RootComponent() {
       /* localStorage access can throw in some privacy modes */
     }
   }, []);
+  // v3.53 — activity: log a page view on each route change (skips
+  // /admin, and only once auth has settled). session_start fires from
+  // track.ts on first load.
+  useEffect(() => {
+    if (!user?.id) return;
+    const p = location.pathname;
+    if (p.startsWith("/admin")) return;
+    let evt: string = "page_view";
+    if (p.startsWith("/insights")) evt = ACTIVITY.INSIGHTS_VIEWED;
+    else if (p.startsWith("/moon") || p.startsWith("/lunations"))
+      evt = ACTIVITY.MOON_VIEWED;
+    track(evt, { path: p });
+  }, [location.pathname, user?.id]);
   void location;
   // Render the sonner Toaster only after mount. Sonner injects a DOM
   // node that is not present in the SSR markup, which caused a hard
