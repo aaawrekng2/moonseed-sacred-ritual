@@ -21,6 +21,7 @@ import {
   type UserEmailRow,
 } from "@/lib/admin-usage.functions";
 import { formatDateLong, formatDateTime } from "@/lib/dates";
+import { ActivityTab } from "@/components/admin/ActivityTab";
 import { useTimezone } from "@/lib/use-timezone";
 import {
   CartesianGrid,
@@ -403,6 +404,11 @@ function SeekerPage() {
               <span style={{ color: row.kind === "ai" && row.status !== "success" ? "var(--destructive)" : "inherit", opacity: 0.7 }}>{row.kind === "ai" ? row.status : row.event_type}</span>
             </div>
           ))}
+      </div>
+
+      <h2 style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 18, margin: "0 0 12px" }}>Activity timeline</h2>
+      <div style={{ marginBottom: 32 }}>
+        <ActivityTab userId={userId} />
       </div>
 
       <h2 style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 18, margin: "0 0 12px" }}>Credit grant history</h2>

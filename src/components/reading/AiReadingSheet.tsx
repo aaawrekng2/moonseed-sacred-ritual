@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { getSunSign } from "@/lib/sun-sign";
 import { calculateMoonSignWithConfidence } from "@/lib/moon-sign";
 import { calculateRisingSignWithConfidence } from "@/lib/rising-sign";
+import { track, ACTIVITY } from "@/lib/track";
 import {
   buildAiReadingPrompt,
   DEFAULT_TOGGLES,
@@ -250,6 +251,7 @@ export function AiReadingSheet({
 
   const handleGenerate = async () => {
     const text = buildAiReadingPrompt(context, toggles);
+    track(ACTIVITY.AI_PROMPT_COPIED, { spread: spreadLabel });
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
