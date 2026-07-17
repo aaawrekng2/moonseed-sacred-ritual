@@ -11,6 +11,8 @@ import {
 import { buildDeckImageMap, resolveCardImage, type DeckImageMap } from "@/lib/custom-decks";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
+import { useShowMeanings } from "@/lib/use-show-meanings";
+import { getCardMeaning } from "@/lib/tarot-meanings";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { responsiveSlotWidth, TABLETOP_CONFIG } from "@/components/tabletop/config";
 import { SlotLabel } from "@/components/tabletop/SlotLabel";
@@ -630,6 +632,7 @@ function SpreadContent({
                   isReversed={!!pick.isReversed}
                   cardWidth={sizing.w}
                   fadeInDelayMs={1100}
+                  positionLabel={labels[i] ?? undefined}
                 />
               )}
             </div>
@@ -998,11 +1001,13 @@ function CardNameLabel({
   cardWidth,
   nameOverride,
   fadeInDelayMs,
+  positionLabel,
 }: {
   cardIndex: number;
   isReversed: boolean;
   cardWidth: number;
   nameOverride?: string;
+  positionLabel?: string;
   /**
    * EK119 — when set, the label stays hidden for this many ms after mount
    * (i.e. while the card is mid-flip), then fades in. Used on the flip
@@ -1014,6 +1019,13 @@ function CardNameLabel({
   // EJ35 — resolve oracle card names via active deck so the label
   // under each card reads "Hurricane Lamp" not "Card 1000".
   const resolveCardName = useActiveDeckCardName();
+  const { showMeanings } = useShowMeanings();
+  const meaning = (() => {
+    if (!showMeanings) return null;
+    const m = getCardMeaning(cardIndex);
+    if (!m) return null;
+    return isReversed ? m.reversedMeaning : m.uprightMeaning;
+  })();
   const delayed = typeof fadeInDelayMs === "number" && fadeInDelayMs > 0;
   const [shown, setShown] = useState(!delayed);
   useEffect(() => {
@@ -1058,6 +1070,32 @@ function CardNameLabel({
           }}
         >
           reversed
+        </span>
+      )}
+      {showMeanings && positionLabel && (
+        <span
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--accent, var(--gold))",
+            fontStyle: "italic",
+            textAlign: "center",
+            marginTop: 4,
+          }}
+        >
+          {positionLabel}
+        </span>
+      )}
+      {meaning && (
+        <span
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--foreground-muted)",
+            textAlign: "center",
+            lineHeight: 1.3,
+            marginTop: 2,
+          }}
+        >
+          {meaning}
         </span>
       )}
     </div>
