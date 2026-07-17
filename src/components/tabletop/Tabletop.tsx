@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown, Camera, BellRing } from "lucide-react";
+import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown, Camera, BellRing, Copy } from "lucide-react";
 import { isHintHardDismissed, markHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
@@ -783,8 +783,15 @@ export function Tabletop({
       file = null;
     }
 
-    // Path 1 — Web Share API (preferred on mobile).
+    // Path 1 — Web Share API (touch/mobile only). v3.56 — gate on a
+    // coarse pointer so desktop Chrome/Edge (which support Web Share)
+    // copy to the clipboard instead of opening the OS share sheet.
+    const prefersShare =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: coarse)").matches;
     if (
+      prefersShare &&
       file !== null &&
       typeof navigator !== "undefined" &&
       typeof navigator.canShare === "function" &&
@@ -2417,6 +2424,15 @@ export function Tabletop({
                 />
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => copySnapshotNow()}
+              aria-label="Copy a photo of the table"
+              style={{ opacity: restingAlpha }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            >
+              <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            </button>
           </span>
         )}
         <button
