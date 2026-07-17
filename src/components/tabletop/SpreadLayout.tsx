@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { X, BookOpen } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import {
@@ -12,6 +12,8 @@ import { buildDeckImageMap, resolveCardImage, type DeckImageMap } from "@/lib/cu
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useShowMeanings } from "@/lib/use-show-meanings";
+import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
+import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { getCardMeaning } from "@/lib/tarot-meanings";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { responsiveSlotWidth, TABLETOP_CONFIG } from "@/components/tabletop/config";
@@ -98,6 +100,29 @@ export function SpreadLayout({
   // still names the focused position so no information is lost.
   const isMobile = useIsMobile();
   const showSlotLabels = showLabels && !isMobile;
+  // v3.59 — the flip surface now carries its own hamburger so the
+  // Meanings toggle is reachable HERE (previously it lived only on the
+  // picking table, a different component). setShowMeanings drives the
+  // below-card meanings rendered further down.
+  const { showMeanings, setShowMeanings } = useShowMeanings();
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  const flipPageMenuSections: PageMenuSection[] = [
+    {
+      id: "hide-show",
+      title: "Hide / Show",
+      items: [
+        {
+          id: "meanings",
+          label: "Meanings",
+          description: showMeanings ? "Shown under cards" : "Hidden",
+          Icon: BookOpen,
+          mode: "toggle",
+          on: showMeanings,
+          onClick: () => setShowMeanings(!showMeanings),
+        },
+      ],
+    },
+  ];
   // CZ Group 3 — tap-to-zoom on flipped cards.
   const [zoomedCard, setZoomedCard] = useState<{
     cardIndex: number;
@@ -233,6 +258,15 @@ export function SpreadLayout({
       {/* EK54 — Pause B overlay removed (was an unhelpful diagnostic;
           spread content renders unconditionally). */}
       <>
+      {/* v3.59 — flip-surface hamburger. PageMenuTrigger portals to
+          document.body so it escapes this fixed z-40 container. */}
+      <PageMenuTrigger onClick={() => setPageMenuOpen(true)} />
+      <PageMenu
+        open={pageMenuOpen}
+        onClose={() => setPageMenuOpen(false)}
+        sections={flipPageMenuSections}
+        title="Reading"
+      />
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
           ReadingScreen's X isn't here yet). */}
       <button
@@ -401,6 +435,7 @@ function SpreadContent({
   const sizing = useMemo(() => spreadSizing(spread, picks.length), [spread, picks.length]);
   // CM Group 2 — reveal phase = all slots filled but not every card flipped.
   const required = picks.length;
+  const { showMeanings } = useShowMeanings();
   const revealedCount = revealedFlags.filter(Boolean).length;
   const isRevealPhase = required > 0 && revealedCount < required && picks.length === required;
 
@@ -540,7 +575,7 @@ function SpreadContent({
                         Per the styling doc + EK33 request: custom
                         spreads have no `positions` data, so they
                         render no label at all. Removed entirely. */}
-                    {showLabels && revealedFlags[i] && (
+                    {(showLabels || showMeanings) && revealedFlags[i] && (
                       <CardNameLabel
                         cardIndex={pick.cardIndex}
                         isReversed={!!pick.isReversed}
@@ -626,7 +661,7 @@ function SpreadContent({
                   {labels[i] ?? null}
                 </PositionLabel>
               )}
-              {showLabels && revealedFlags[i] && (
+              {(showLabels || showMeanings) && revealedFlags[i] && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
                   isReversed={!!pick.isReversed}
@@ -1134,6 +1169,7 @@ function SingleCard({
   const { showLabels: rawShowLabels } = useShowLabels();
   const isMobile = useIsMobile();
   const showLabels = rawShowLabels && !isMobile;
+  const { showMeanings } = useShowMeanings();
   // Q92 #7 — Yes/No: after the card flips, drop a tarot-voice saying
   // beneath it that matches the card's yes/no tendency. Computed once
   // per (cardId, reveal) so re-renders don't keep advancing the index.
@@ -1168,7 +1204,7 @@ function SingleCard({
         onZoom={onZoom}
         fromSlotRect={fromSlotRect ?? null}
       />
-      {showLabels && revealed && (
+      {(showLabels || showMeanings) && revealed && (
         <CardNameLabel
           cardIndex={pick.cardIndex}
           isReversed={!!pick.isReversed}
@@ -1240,6 +1276,7 @@ function ThreeRow({
   // labels in a separate top-aligned row below.
   // Q49 Fix 2 — cardAreaH * 2 instead of * 1.71 so taller-aspect
   // card images (oracle decks) do not overflow the cell upward.
+  const { showMeanings } = useShowMeanings();
   const cardAreaH = Math.round(sizing.w * 2);
   const cols = picks.length;
   // EJ70 — Constrain the row to a centered content-width cluster instead
@@ -1326,7 +1363,7 @@ function ThreeRow({
                 {labels[i] ?? null}
               </PositionLabel>
             )}
-            {showLabels && revealedFlags[i] && (
+            {(showLabels || showMeanings) && revealedFlags[i] && (
               <CardNameLabel
                 cardIndex={pick.cardIndex}
                 isReversed={!!pick.isReversed}
