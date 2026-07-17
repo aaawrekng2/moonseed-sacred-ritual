@@ -21,6 +21,7 @@ import {
   resolveCountFromMap,
   type SpreadEntryModes,
 } from "@/lib/use-spread-entry-modes";
+import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { isSplashDisabled, setSplashDisabled } from "@/lib/splash-pref";
 import { useEntryBack } from "@/lib/entry-back";
@@ -925,11 +926,33 @@ function Index() {
                 } catch {
                   /* fall back to local state */
                 }
-                navigate({
-                  to: "/draw",
-                  // EJ63 — Force scatter-table surface from Home.
-                  search: { spread: "custom", n, entry: "table" },
-                });
+                // v3.65 — the Custom icon RESUMES the seeker's last draw
+                // (type + table): enter via Custom, switch to 3-card with the
+                // caret, leave, click Custom -> the 3-card table returns. Reads
+                // the last-used spread saved by /draw; falls back to a custom-
+                // count draw when nothing's remembered. Only the Custom icon
+                // does this; the other icons load exactly what's tapped.
+                let last: string | null = null;
+                try {
+                  last =
+                    typeof window !== "undefined"
+                      ? window.localStorage.getItem("tarotseed:last-spread")
+                      : null;
+                } catch {
+                  last = null;
+                }
+                if (last && isValidSpreadMode(last) && last !== "custom") {
+                  navigate({
+                    to: "/draw",
+                    search: { spread: last as SpreadMode, entry: "table" },
+                  });
+                } else {
+                  navigate({
+                    to: "/draw",
+                    // EJ63 — Force scatter-table surface from Home.
+                    search: { spread: "custom", n, entry: "table" },
+                  });
+                }
                 return;
               }
               navigate({
