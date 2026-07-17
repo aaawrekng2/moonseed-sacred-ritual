@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown, Camera, BellRing, Copy } from "lucide-react";
+import { Undo2, Redo2, X, MessageCircle, HelpCircle, Keyboard, ChevronDown, Camera, BellRing, Copy, BookOpen } from "lucide-react";
 import { isHintHardDismissed, markHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
+import { useShowMeanings } from "@/lib/use-show-meanings";
 import { TabletopCloseButton } from "@/components/tabletop/TabletopCloseButton";
 import { TableOnboarding } from "@/components/tabletop/TableOnboarding";
 import { useAuth } from "@/lib/auth";
@@ -209,7 +210,23 @@ export function Tabletop({
     (): "no_snapshot" | "writing" => copyRef.current?.() ?? "no_snapshot",
     [],
   );
+  const { showMeanings, setShowMeanings } = useShowMeanings();
   const pageMenuSections: PageMenuSection[] = [];
+  pageMenuSections.push({
+    id: "hide-show",
+    title: "Hide / Show",
+    items: [
+      {
+        id: "meanings",
+        label: "Meanings",
+        description: showMeanings ? "Shown under cards" : "Hidden",
+        Icon: BookOpen,
+        mode: "toggle",
+        on: showMeanings,
+        onClick: () => setShowMeanings(!showMeanings),
+      },
+    ],
+  });
   if (onSwitchToManual) {
     pageMenuSections.push({
       id: "view-swap",
@@ -784,8 +801,7 @@ export function Tabletop({
     }
 
     // Path 1 — Web Share API (touch/mobile only). v3.56 — gate on a
-    // coarse pointer so desktop Chrome/Edge (which support Web Share)
-    // copy to the clipboard instead of opening the OS share sheet.
+    // coarse pointer so desktop copies to the clipboard.
     const prefersShare =
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&

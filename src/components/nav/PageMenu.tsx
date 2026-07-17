@@ -321,6 +321,27 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
         setPreview(null);
       }}
     >
+      {mode === "toggle" && (
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            width: 16,
+            height: 16,
+            borderRadius: 4,
+            border: `1.5px solid ${on ? "var(--accent, var(--gold))" : "var(--border-strong, var(--border-default))"}`,
+            background: on ? "var(--accent, var(--gold))" : "transparent",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--surface-card)",
+            fontSize: 11,
+            lineHeight: 1,
+          }}
+        >
+          {on ? "\u2713" : ""}
+        </span>
+      )}
       <Icon size={18} strokeWidth={1.6} aria-hidden />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -362,20 +383,6 @@ function PageMenuRow({ item }: { item: PageMenuItem }) {
           }}
         >
           {cycleLabel}
-        </span>
-      )}
-      {mode === "toggle" && (
-        <span
-          aria-hidden
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 11,
-            color: on ? "var(--accent, var(--gold))" : "var(--color-foreground-muted)",
-            opacity: 0.85,
-          }}
-        >
-          {on ? "On" : "Off"}
         </span>
       )}
       </button>
