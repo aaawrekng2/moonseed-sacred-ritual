@@ -823,7 +823,9 @@ function Index() {
                 // you've used before restores its last-used mode (manual or
                 // table). A spread you've never opened still defaults to the
                 // table (defaultModeFor), so fresh draws land on the table.
-                search: { spread: "single" },
+                // v3.61 — no longer forces "single"; opening with no spread
+                // lets /draw restore the seeker's last-used draw type.
+                search: {},
               })
             }
             ariaLabel="Begin today's draw"

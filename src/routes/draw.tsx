@@ -73,6 +73,21 @@ function DrawPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.spread]);
+  // v3.61 — persist the current draw type whenever the table opens on an
+  // explicit spread (Home draw-type icons, guides, the on-table picker's
+  // own navigation, etc.). Combined with the restore effect above, this
+  // means ANY generic re-entry (Home center card, bottom nav) brings back
+  // the last type used, while tapping a specific type overrides + sticks.
+  useEffect(() => {
+    if (!search.spread) return;
+    if (typeof window === "undefined") return;
+    if (!isValidSpreadMode(search.spread)) return;
+    try {
+      window.localStorage.setItem("tarotseed:last-spread", search.spread);
+    } catch {
+      /* ignore */
+    }
+  }, [search.spread]);
   const { recordDraw, recomputeStreak } = useStreak();
   const { user } = useAuth();
 
