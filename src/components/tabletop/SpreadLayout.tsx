@@ -814,16 +814,33 @@ function CardFace({
     (el: HTMLDivElement | null) => {
       flipRef.current = el;
       if (!el) return;
-      if (!fromSlotRect) return;
+      // v3.65 — the flip node starts at opacity 0 (see the style below) so it
+      // never flashes at the spread position before the lift-off arms. That
+      // means we MUST reveal it here no matter what, or a card whose lift-off
+      // can't run (missing / zero slot rect, throttled rAF) stays invisible —
+      // the "cards vanished on a 7-card cast" bug. So bail to a plain reveal
+      // whenever the shared-element transition can't be set up.
+      const validFrom =
+        !!fromSlotRect && fromSlotRect.width > 0 && fromSlotRect.height > 0;
+      if (!validFrom) {
+        el.style.opacity = "1";
+        el.style.transform = "translate(0, 0) scale(1, 1)";
+        return;
+      }
       if (flipPlayedRef.current) return;
       const dest = el.getBoundingClientRect();
+      if (!(dest.width > 0 && dest.height > 0)) {
+        el.style.opacity = "1";
+        el.style.transform = "translate(0, 0) scale(1, 1)";
+        return;
+      }
       // translate FROM the final spread position BACK to the rail rect,
       // and scale FROM spread size DOWN to rail size. transform-origin
       // top-left so the scale anchors where the translate targets.
       const deltaX = fromSlotRect.x - dest.left;
       const deltaY = fromSlotRect.y - dest.top;
-      const scaleX = dest.width > 0 ? fromSlotRect.width / dest.width : 1;
-      const scaleY = dest.height > 0 ? fromSlotRect.height / dest.height : 1;
+      const scaleX = fromSlotRect.width / dest.width;
+      const scaleY = fromSlotRect.height / dest.height;
       el.style.transition = "none";
       el.style.transformOrigin = "top left";
       el.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
@@ -840,6 +857,16 @@ function CardFace({
         node.style.transition = "transform 1100ms cubic-bezier(0.65, 0, 0.35, 1)";
         node.style.transform = "translate(0, 0) scale(1, 1)";
       });
+      // v3.65 — safety net: if the rAF-driven unwind never runs (background /
+      // throttled tab, interrupted paint), force the card to its final spread
+      // position + full opacity so it can never get stranded small at the rail.
+      window.setTimeout(() => {
+        const node = flipRef.current;
+        if (!node) return;
+        node.style.transition = "none";
+        node.style.transform = "translate(0, 0) scale(1, 1)";
+        node.style.opacity = "1";
+      }, 1300);
       flipPlayedRef.current = true;
     },
     [fromSlotRect],

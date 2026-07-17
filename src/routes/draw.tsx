@@ -53,6 +53,21 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
+  // v3.65 — remember the last-used draw type so the Home "Custom" icon can
+  // resume it (type + table). Saved on every draw-table load that carries a
+  // spread (icon entry, on-table caret switch, Custom resume). SAVE only —
+  // nothing here auto-restores, so the center card + other icons are
+  // unaffected; only the Custom icon consumes it.
+  useEffect(() => {
+    if (!search.spread) return;
+    if (typeof window === "undefined") return;
+    if (!isValidSpreadMode(search.spread)) return;
+    try {
+      window.localStorage.setItem("tarotseed:last-spread", search.spread);
+    } catch {
+      /* ignore */
+    }
+  }, [search.spread]);
   const { recordDraw, recomputeStreak } = useStreak();
   const { user } = useAuth();
 
