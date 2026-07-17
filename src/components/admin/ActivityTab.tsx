@@ -2,9 +2,14 @@
  * v3.52 — Activity dashboard. Filterable (date range, event type, user).
  * Pass `userId` to render it as a per-user timeline (reused on the user
  * drill-down). Self-contained; no external chart lib.
+ *
+ * v3.55 — the user filter is now a searchable picker (all seekers listed
+ * alphabetically by email, filters as you type); the feed shows each
+ * person's email in the "Who" column.
  */
 import { useEffect, useMemo, useState } from "react";
 import { getActivityMetrics, getActivityFeed } from "@/lib/admin-activity.functions";
+import { listAdminUsers } from "@/lib/admin.functions";
 
 type Metrics = {
   activeToday: number;
@@ -24,6 +29,7 @@ type FeedItem = {
   user_agent: string | null;
 };
 type Feed = FeedItem[];
+type PickUser = { user_id: string; email: string | null; display_name: string | null };
 
 export function ActivityTab({ userId }: { userId?: string }) {
   const [days, setDays] = useState(30);
@@ -32,6 +38,55 @@ export function ActivityTab({ userId }: { userId?: string }) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [feed, setFeed] = useState<Feed>([]);
   const [loading, setLoading] = useState(true);
+  // v3.55 — user picker
+  const [users, setUsers] = useState<PickUser[]>([]);
+  const [userQuery, setUserQuery] = useState("");
+  const [showList, setShowList] = useState(false);
+
+  // Load the seeker list once (dashboard mode only) for the picker + emails.
+  useEffect(() => {
+    if (userId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = (await listAdminUsers()) as unknown as PickUser[];
+        if (cancelled) return;
+        const us = list
+          .map((u) => ({
+            user_id: u.user_id,
+            email: u.email,
+            display_name: u.display_name,
+          }))
+          .sort((a, b) =>
+            (a.email ?? a.display_name ?? "")
+              .toLowerCase()
+              .localeCompare((b.email ?? b.display_name ?? "").toLowerCase()),
+          );
+        setUsers(us);
+      } catch {
+        /* non-fatal: picker falls back to a plain text field */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const emailById = useMemo(
+    () => new Map(users.map((u) => [u.user_id, u.email ?? u.display_name])),
+    [users],
+  );
+
+  const filteredUsers = useMemo(() => {
+    const q = userQuery.trim().toLowerCase();
+    const arr = users.filter(
+      (u) =>
+        !q ||
+        (u.email ?? "").toLowerCase().includes(q) ||
+        (u.display_name ?? "").toLowerCase().includes(q),
+    );
+    return arr.slice(0, 100);
+  }, [users, userQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +134,17 @@ export function ActivityTab({ userId }: { userId?: string }) {
     background: "var(--surface-card, #fff)",
   } as const;
 
+  const selectUser = (u: PickUser) => {
+    setUserFilter(u.user_id);
+    setUserQuery(u.email ?? u.display_name ?? u.user_id);
+    setShowList(false);
+  };
+  const clearUser = () => {
+    setUserFilter("");
+    setUserQuery("");
+    setShowList(false);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Filters */}
@@ -104,12 +170,66 @@ export function ActivityTab({ userId }: { userId?: string }) {
           </select>
         </label>
         {!userId && (
-          <input
-            placeholder="Filter by user id…"
-            value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value.trim())}
-            style={{ padding: "4px 8px" }}
-          />
+          <div style={{ position: "relative", minWidth: 260 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                placeholder="Filter by user (type email or name)…"
+                value={userQuery}
+                onFocus={() => setShowList(true)}
+                onBlur={() => window.setTimeout(() => setShowList(false), 150)}
+                onChange={(e) => {
+                  setUserQuery(e.target.value);
+                  setShowList(true);
+                  if (!e.target.value) setUserFilter("");
+                }}
+                style={{ padding: "5px 8px", width: "100%", boxSizing: "border-box" }}
+              />
+              {userFilter && (
+                <button
+                  type="button"
+                  onClick={clearUser}
+                  aria-label="Clear user filter"
+                  style={{ border: "none", background: "none", cursor: "pointer", fontSize: 16, opacity: 0.6 }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {showList && users.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                  maxHeight: 280,
+                  overflowY: "auto",
+                  marginTop: 4,
+                  background: "var(--surface-card, #fff)",
+                  border: "1px solid var(--border-subtle, #ccc)",
+                  borderRadius: 8,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                }}
+              >
+                {filteredUsers.map((u) => (
+                  <div
+                    key={u.user_id}
+                    onMouseDown={() => selectUser(u)}
+                    style={{ padding: "7px 10px", cursor: "pointer", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                  >
+                    {u.email ?? u.display_name ?? u.user_id.slice(0, 8)}
+                    {u.email && u.display_name && (
+                      <span style={{ opacity: 0.5 }}> · {u.display_name}</span>
+                    )}
+                  </div>
+                ))}
+                {filteredUsers.length === 0 && (
+                  <div style={{ padding: "7px 10px", opacity: 0.5, fontSize: 13 }}>No match</div>
+                )}
+              </div>
+            )}
+          </div>
         )}
         {loading && <span style={{ opacity: 0.6 }}>Loading…</span>}
       </div>
@@ -176,7 +296,7 @@ export function ActivityTab({ userId }: { userId?: string }) {
             <thead>
               <tr style={{ textAlign: "left", opacity: 0.6 }}>
                 <th style={{ padding: "4px 6px" }}>When</th>
-                <th style={{ padding: "4px 6px" }}>Who</th>
+                {!userId && <th style={{ padding: "4px 6px" }}>Who</th>}
                 <th style={{ padding: "4px 6px" }}>Event</th>
                 <th style={{ padding: "4px 6px" }}>Detail</th>
                 {!userId && <th style={{ padding: "4px 6px" }}>Where</th>}
@@ -188,9 +308,15 @@ export function ActivityTab({ userId }: { userId?: string }) {
                   <td style={{ padding: "4px 6px", whiteSpace: "nowrap" }}>
                     {new Date(f.created_at).toLocaleString()}
                   </td>
-                  <td style={{ padding: "4px 6px" }}>{f.email ?? f.user_id?.slice(0, 8) ?? "—"}</td>
+                  {!userId && (
+                    <td style={{ padding: "4px 6px" }}>
+                      {emailById.get(f.user_id ?? "") ??
+                        f.email ??
+                        (f.user_id ? `${f.user_id.slice(0, 8)}…` : "—")}
+                    </td>
+                  )}
                   <td style={{ padding: "4px 6px" }}>{f.event_name}</td>
-                  <td style={{ padding: "4px 6px", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <td style={{ padding: "4px 6px", maxWidth: 340, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {f.detail}
                   </td>
                   {!userId && <td style={{ padding: "4px 6px" }}>{f.time_zone ?? "—"}</td>}

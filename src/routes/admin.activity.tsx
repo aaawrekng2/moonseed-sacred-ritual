@@ -43,7 +43,7 @@ function AdminActivityPage() {
   if (allowed !== true) return null;
 
   return (
-    <div style={{ padding: "20px 16px", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ padding: "20px 16px", maxWidth: 1280, margin: "0 auto" }}>
       <h1 style={{ fontFamily: "var(--font-display, serif)", marginBottom: 12 }}>Activity</h1>
       <ActivityTab />
     </div>
