@@ -268,7 +268,11 @@ export function LunationStrip({
         if (m > maxMatch) maxMatch = m;
       }
     }
-    const markReadingDays = heroCardId == null;
+    // v3.63 — reading days no longer paint a purple backdrop on the sparse
+    // lenses (moon / day / numerology / weekday). Only moon markers, card
+    // matches, hero, teal and asterism days draw here. The "By calendar"
+    // lens is a separate component and keeps its own per-day grid.
+    const markReadingDays = false;
 
     const build = (ymd: string, frac: number): Cell | null => {
       const heroDrawn = heroDays.has(ymd);
