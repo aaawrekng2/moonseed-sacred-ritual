@@ -227,6 +227,12 @@ export function SpreadLayout({
       className="bg-cosmos fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto"
       aria-label={`${meta.label} spread layout`}
       style={{
+        // v3.61 — the flip surface is a TRANSPARENT full-screen layer
+        // (.bg-cosmos paints nothing) sitting over the TopNav at the same
+        // z-index, so it swallowed the nav's clicks. pointer-events:none on
+        // the root lets clicks fall through in the empty areas (nav strip,
+        // side gutters); every interactive block below re-enables them.
+        pointerEvents: "none",
         // Allow native pinch-zoom + pan without the browser snapping the
         // viewport on tap. `manipulation` would also disable double-tap
         // zoom but kills pinch on some browsers; the explicit list is
@@ -278,6 +284,7 @@ export function SpreadLayout({
           top: "calc(env(safe-area-inset-top, 0px) + 10px)",
           right: "calc(env(safe-area-inset-right, 0px) + 12px)",
           zIndex: 60,
+          pointerEvents: "auto",
           padding: 8,
           color: "var(--color-foreground)",
           opacity: 0.7,
@@ -300,7 +307,11 @@ export function SpreadLayout({
       <div
         className="flex flex-shrink-0 items-start justify-center px-4"
         style={{
-          paddingTop:
+          pointerEvents: "auto",
+          // v3.61 — top spacing as MARGIN (not padding) so this block's
+          // clickable box starts at the cards; the empty strip above (where
+          // the nav sits) stays click-through.
+          marginTop:
             spread === "celtic"
               ? "calc(var(--topbar-pad) + 48px)"
               : "calc(var(--topbar-pad) + 80px)",
@@ -331,6 +342,7 @@ export function SpreadLayout({
         <div
           className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
           style={{
+            pointerEvents: "auto",
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
             paddingTop: 8,
           }}
@@ -363,6 +375,7 @@ export function SpreadLayout({
         <div
           className="flex flex-col items-center justify-center gap-3 px-5"
           style={{
+            pointerEvents: "auto",
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
             paddingTop: 8,
           }}
@@ -390,10 +403,12 @@ export function SpreadLayout({
         </div>
       )}
       {zoomedCard && (
-        <CardTraceView
-          cardId={zoomedCard.cardIndex}
-          onClose={() => setZoomedCard(null)}
-        />
+        <div style={{ pointerEvents: "auto" }}>
+          <CardTraceView
+            cardId={zoomedCard.cardIndex}
+            onClose={() => setZoomedCard(null)}
+          />
+        </div>
       )}
       </>
     </main>
