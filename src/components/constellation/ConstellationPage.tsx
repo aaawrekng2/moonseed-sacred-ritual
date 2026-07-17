@@ -6317,7 +6317,7 @@ export function ConstellationPage({
           <PullHistoryPill picks={picks} practice={practice} constellation={constellationState} />
         </div>
       )}
-      <div style={{ padding: "0 24px", marginTop: 32 }}>
+      <div style={{ padding: "0 24px", marginTop: 12 }}>
         <SectionDivider />
         <SectionOverline label="YOUR PRACTICE" />
         <PracticeLine practice={practice} currentStreak={currentStreak} />
