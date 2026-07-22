@@ -590,7 +590,7 @@ function DrawPage() {
           loaded preference so the card never flashes for users who have
           it disabled, and on `sessionDismissed` so Skip / "Don't ask
           again" hides the quill for the rest of the session. */}
-      {phase === "select" && prefsLoaded && !sessionDismissed && (
+      {phase === "select" && entrySurface !== "manual" && prefsLoaded && !sessionDismissed && (
         <QuestionPanel
           open={questionOpen}
           question={question}
