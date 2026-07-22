@@ -5743,10 +5743,23 @@ export function ConstellationPage({
                 <button
                   type="button"
                   onClick={() => {
-                    // EJ30 — open prompts modal scoped to the current
-                    // hero. Reset the per-modal selection so the next
-                    // open starts on the hero again.
-                    setPromptsModalCardId(null);
+                    // v3.76 — open the prompts modal on the focused (hero)
+                    // card, but if that card has no journaling prompts, open on
+                    // the first card in the spread that DOES, so the modal is
+                    // never empty. Falls back to the hero when none have prompts.
+                    const heroId = heroPick?.cardIndex ?? null;
+                    const heroHasPrompts =
+                      heroId != null &&
+                      (resolvePromptsForFirstCard(heroId)?.length ?? 0) > 0;
+                    let target: number | null = null;
+                    if (!heroHasPrompts) {
+                      const withPrompts = picks.find(
+                        (p) =>
+                          (resolvePromptsForFirstCard(p.cardIndex)?.length ?? 0) > 0,
+                      );
+                      target = withPrompts ? withPrompts.cardIndex : null;
+                    }
+                    setPromptsModalCardId(target);
                     setPromptsModalOpen(true);
                   }}
                   disabled={!heroPick}

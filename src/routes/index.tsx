@@ -173,34 +173,11 @@ function Index() {
   >("done");
   const [splashFading, setSplashFading] = useState(false);
   useLayoutEffect(() => {
-    if (splashShownThisLoad) return;
+    // v3.76 — splash dropped: the intro card never plays; land straight on the
+    // home hub (splashPhase stays "done"). Mark it cleared so the welcome modal
+    // (in __root) releases immediately.
     const w = window as { __tsSplashCleared?: boolean };
-    if (isSplashDisabled()) {
-      w.__tsSplashCleared = true;
-      return;
-    }
-    // v2.16 — show the splash at most once per calendar day in the seeker's
-    // timezone. Any later home-button tap or app reopen the same day skips
-    // straight to the gateway (no re-pop). The "Don't show again" preference
-    // (isSplashDisabled) still wins outright. The date lives under the
-    // `tarotseed:` prefix so Clear Data wipes it and the splash returns.
-    try {
-      const today = nowYmdInTz(currentTzOrFallback(effectiveTz));
-      if (localStorage.getItem("tarotseed:splash-shown-date") === today) {
-        w.__tsSplashCleared = true;
-        return;
-      }
-      localStorage.setItem("tarotseed:splash-shown-date", today);
-    } catch {
-      /* localStorage unavailable — fall back to once-per-load behavior. */
-    }
-    splashShownThisLoad = true;
-    // v2.87 — a splash WILL play; the welcome (in __root) must stay closed
-    // until it hears "splash-cleared". Safe-by-default: while this flag is
-    // false (or unset on the home route) the welcome waits, so it can never
-    // render over the splash.
-    w.__tsSplashCleared = false;
-    setSplashPhase("showing");
+    w.__tsSplashCleared = true;
   }, [effectiveTz]);
   // v2.87 — when the splash reaches "done", release the welcome modal.
   useEffect(() => {
