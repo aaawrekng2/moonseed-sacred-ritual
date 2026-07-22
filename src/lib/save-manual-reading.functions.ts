@@ -125,14 +125,18 @@ export const saveManualReading = createServerFn({ method: "POST" })
           interpretation: null,
           question: data.question ?? null,
           note: data.note ?? null,
-          tags:
-            data.tags && data.tags.length > 0
-              ? Array.from(
+          // v3.88 — only include `tags` when the seeker picked some. Sending an
+          // explicit null broke the insert (the column has a default), which
+          // failed every save. Omitting the key lets the DB default apply.
+          ...(data.tags && data.tags.length > 0
+            ? {
+                tags: Array.from(
                   new Set(
                     data.tags.map((t) => t.trim()).filter((t) => t.length > 0),
                   ),
-                )
-              : null,
+                ),
+              }
+            : {}),
           ...(data.createdAt ? { created_at: data.createdAt } : {}),
         };
         const { data: inserted, error: insertErr } = await supabase
