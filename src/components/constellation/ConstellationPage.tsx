@@ -4015,7 +4015,19 @@ export function ConstellationPage({
               hover-only counts, font-weight gradient, recent-activity
               dot, and trend arrows. */}
           {(() => null)()}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+          {/* v3.73 — on the plain manual/type-in entry, drop the controls row
+              (filter + days) to the bottom of the column, just above the
+              calendar. Other surfaces (insights/lunations/atlas) keep it on top. */}
+          <div
+            style={{
+              order:
+                !insightsMode && !lunationMode && !atlasMode ? 5 : undefined,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+            }}
+          >
             {(insightsMode || lunationMode) && allPatterns.length > 0 && (() => {
               const anyUnseen = allPatterns.some((p) => !seenPatterns.has(p.patternId));
               return (
