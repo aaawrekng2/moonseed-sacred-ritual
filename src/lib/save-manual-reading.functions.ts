@@ -47,6 +47,8 @@ const SaveManualInput = z.object({
   question: z.string().max(500).optional(),
   /** Free-form notes the seeker wrote on /constellation. Optional. */
   note: z.string().max(10000).optional(),
+  /** v3.85 — tags to attach to this reading. Optional. */
+  tags: z.array(z.string()).optional(),
   /** Optional ISO timestamp for backdated entries. */
   createdAt: z.string().datetime().optional(),
   /**
@@ -123,6 +125,14 @@ export const saveManualReading = createServerFn({ method: "POST" })
           interpretation: null,
           question: data.question ?? null,
           note: data.note ?? null,
+          tags:
+            data.tags && data.tags.length > 0
+              ? Array.from(
+                  new Set(
+                    data.tags.map((t) => t.trim()).filter((t) => t.length > 0),
+                  ),
+                )
+              : null,
           ...(data.createdAt ? { created_at: data.createdAt } : {}),
         };
         const { data: inserted, error: insertErr } = await supabase
