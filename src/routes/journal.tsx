@@ -1174,6 +1174,12 @@ function ReadingCard({
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
   const hasNote = (reading.note ?? "").trim().length > 0;
+  // v3.84 — the seeker's own note body (prompt prefix, if any, stripped) for
+  // the scrollable note panel beside the cards.
+  const noteRawFull = (reading.note ?? "").trim();
+  const noteSplitIdx = noteRawFull.indexOf("\n\n");
+  const noteBody =
+    noteSplitIdx >= 0 ? noteRawFull.slice(noteSplitIdx + 2).trim() : noteRawFull;
   const hasQuestion = (reading.question ?? "").trim().length > 0;
   const hasTags = (reading.tags ?? []).length > 0;
   // Q16 Fix 3 — strip the legacy "{spread} — Tarot Seed reading" prefix
@@ -1426,7 +1432,8 @@ function ReadingCard({
 
         {/* Card thumbnails */}
         {isMobile ? (
-          // DA — Mobile: full swipeable strip with all cards.
+          // DA — Mobile: full swipeable strip with all cards + note below.
+          <>
           <div
             className="journal-thumb-strip mt-3 flex items-center gap-1.5 overflow-x-auto pb-1"
             style={{
@@ -1462,8 +1469,20 @@ function ReadingCard({
               );
             })}
           </div>
+          {noteBody && (
+            <div className="mt-2 overflow-y-auto pr-1" style={{ maxHeight: 110 }}>
+              <p
+                className="font-display text-[13px] italic leading-snug text-foreground/85 whitespace-pre-wrap"
+                style={{ opacity: "var(--ro-plus-15)" }}
+              >
+                {noteBody}
+              </p>
+            </div>
+          )}
+          </>
         ) : (
-          <div className="mt-3 flex items-center gap-1.5">
+          <div className="mt-3 flex gap-3">
+            <div className="flex flex-shrink-0 items-center gap-1.5">
             {visible.map((id) => {
               const idx = reading.card_ids.indexOf(id);
               const isReversed = idx >= 0 ? !!reading.card_orientations?.[idx] : false;
@@ -1491,69 +1510,22 @@ function ReadingCard({
                 +{overflow} more
               </span>
             )}
+            </div>
+            {noteBody && (
+              <div className="relative min-w-0 flex-1">
+                <div className="absolute inset-0 overflow-y-auto pr-1">
+                  <p
+                    className="font-display text-[13px] italic leading-snug text-foreground/85 whitespace-pre-wrap"
+                    style={{ opacity: "var(--ro-plus-15)" }}
+                  >
+                    {noteBody}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Interpretation excerpt */}
-        {hasQuestion && (
-          <p
-            className="mt-3 font-display text-[15px] italic leading-snug text-foreground"
-            style={{
-              color: "var(--gold)",
-              opacity: "var(--ro-plus-10)",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            “{reading.question!.trim()}”
-          </p>
-        )}
-        {/* EK55 — Show the first line of the seeker's note alongside the
-              question. The stored note is `"${usedPrompt}\n\n${note}"`
-              when a prompt was selected, or just the note otherwise.
-              Splitting on the first `\n\n` and taking the part AFTER
-              yields the seeker's own words (skipping the prompt); if
-              there's no `\n\n` the whole string is the seeker's note.
-              First line only (newline split) so multi-line notes
-              don't push the row down. */}
-        {(() => {
-          const raw = (reading.note ?? "").trim();
-          if (!raw) return null;
-          const splitIdx = raw.indexOf("\n\n");
-          const body = splitIdx >= 0 ? raw.slice(splitIdx + 2).trim() : raw;
-          const firstLine = body.split("\n")[0]?.trim() ?? "";
-          if (!firstLine) return null;
-          return (
-            <p
-              className="mt-2 text-[13px] leading-snug text-foreground/85"
-              style={{
-                opacity: "var(--ro-plus-15)",
-                display: "-webkit-box",
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {firstLine}
-            </p>
-          );
-        })()}
-        {interpClean && !hasQuestion && (
-          <p
-            className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
-            style={{
-              opacity: "var(--ro-plus-20)",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {interpClean}
-          </p>
-        )}
 
         {/* Tags */}
         {(reading.tags ?? []).length > 0 && (
