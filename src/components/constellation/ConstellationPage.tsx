@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Feather, Pin, RotateCcw, RotateCw, Sparkles, TrendingUp, X, BookOpen } from "lucide-react";
+import { CalendarIcon, ChevronDown, Pin, RotateCcw, RotateCw, Sparkles, TrendingUp, X, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -3331,10 +3331,22 @@ export function ConstellationPage({
         return;
       }
       setSaveStatus("saved");
-      // Surface the "Saved" affordance briefly, then reset to idle so the
-      // button is usable again. Page state itself stays — the seeker may
-      // still want to fire AI on the same pull, or save another pass.
-      window.setTimeout(() => setSaveStatus("idle"), 2400);
+      // v3.83 — after a brief "Saved", clear the entry so the page is ready
+      // for a fresh reading. The persist effect writes the cleared state, so
+      // a reload stays clean too.
+      window.setTimeout(() => {
+        setPicks([]);
+        setFocusedSlotIdx(null);
+        setTealSelectedIds([]);
+        setQuestion("");
+        setNote("");
+        setBackdate(null);
+        setAiStatus("idle");
+        setAiInterpretation(null);
+        setAiError(null);
+        setSaveStatus("idle");
+        setSaveError(null);
+      }, 1200);
     } catch (e) {
       console.error("[ConstellationPage] saveManualReading threw", e);
       setSaveStatus("error");
@@ -5737,82 +5749,6 @@ export function ConstellationPage({
                 marginTop: 12,
               }}
             >
-              {/* Row: question input + prompts trigger button.
-                  v3.72 — moved BELOW the Notes box via order. */}
-              <div
-                style={{
-                  order: 2,
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "stretch",
-                  width: "100%",
-                }}
-              >
-                <textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Tap to add your question for the cards…"
-                  rows={1}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    minHeight: 36,
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border-subtle)",
-                    background: "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
-                    color: "var(--color-foreground)",
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm, 0.85rem)",
-                    resize: "vertical",
-                    outline: "none",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    // v3.76 — open the prompts modal on the focused (hero)
-                    // card, but if that card has no journaling prompts, open on
-                    // the first card in the spread that DOES, so the modal is
-                    // never empty. Falls back to the hero when none have prompts.
-                    const heroId = heroPick?.cardIndex ?? null;
-                    const heroHasPrompts =
-                      heroId != null &&
-                      (resolvePromptsForFirstCard(heroId)?.length ?? 0) > 0;
-                    let target: number | null = null;
-                    if (!heroHasPrompts) {
-                      const withPrompts = picks.find(
-                        (p) =>
-                          (resolvePromptsForFirstCard(p.cardIndex)?.length ?? 0) > 0,
-                      );
-                      target = withPrompts ? withPrompts.cardIndex : null;
-                    }
-                    setPromptsModalCardId(target);
-                    setPromptsModalOpen(true);
-                  }}
-                  disabled={!heroPick}
-                  aria-label="Browse journaling prompts"
-                  title={heroPick ? "Browse journaling prompts" : "Focus a card to see its prompts"}
-                  style={{
-                    flexShrink: 0,
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    border: "1px solid var(--border-subtle)",
-                    background: "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
-                    color: "var(--accent, var(--gold))",
-                    cursor: heroPick ? "pointer" : "not-allowed",
-                    opacity: heroPick ? 1 : 0.4,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                  }}
-                >
-                  <Feather className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
               {/* Notes textarea — EF2: shortened to 2 rows per spec.
                   Save action moved up into the OverlapStrip pill row. */}
               <textarea
@@ -5864,7 +5800,63 @@ export function ConstellationPage({
                   journal. Sits directly under the notes textarea now,
                   decoupled from the calendar so the calendar can move
                   up to the top of its container. */}
-              <div style={{ marginTop: 6, order: 3 }}>
+              <div
+                style={{
+                  marginTop: 6,
+                  order: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* v3.83 — journaling prompt as a plain-text button, before
+                    Save to journal. Opens the prompts modal on the focused
+                    card, or the first spread card that has prompts. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const heroId = heroPick?.cardIndex ?? null;
+                    const heroHasPrompts =
+                      heroId != null &&
+                      (resolvePromptsForFirstCard(heroId)?.length ?? 0) > 0;
+                    let target: number | null = null;
+                    if (!heroHasPrompts) {
+                      const withPrompts = picks.find(
+                        (p) =>
+                          (resolvePromptsForFirstCard(p.cardIndex)?.length ?? 0) >
+                          0,
+                      );
+                      target = withPrompts ? withPrompts.cardIndex : null;
+                    }
+                    setPromptsModalCardId(target);
+                    setPromptsModalOpen(true);
+                  }}
+                  disabled={!heroPick}
+                  title={
+                    heroPick
+                      ? "Browse journaling prompts"
+                      : "Add a card to see its prompts"
+                  }
+                  style={{
+                    flexShrink: 0,
+                    height: 30,
+                    padding: "0 12px",
+                    borderRadius: 999,
+                    border: "1px solid var(--border-subtle)",
+                    background:
+                      "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
+                    color: "var(--accent, var(--gold))",
+                    cursor: heroPick ? "pointer" : "not-allowed",
+                    opacity: heroPick ? 1 : 0.4,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption, 0.75rem)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Add a prompt
+                </button>
                 <OverlapPills
                   mode={overlapMode}
                   onModeChange={setOverlapMode}
@@ -6316,6 +6308,7 @@ export function ConstellationPage({
           "Calendars" item. Stays put even when hidden so the calendar can
           always be brought back — the only visible control on Insights →
           Patterns. */}
+      {insightsMode && (
       <div style={{ position: "relative", height: 22, flexShrink: 0 }}>
         <button
           type="button"
@@ -6371,6 +6364,7 @@ export function ConstellationPage({
           )}
         </button>
       </div>
+      )}
       {!lunationMode && insightsMode && calendarState !== "none" && (
         <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
           <OverlapStrip
