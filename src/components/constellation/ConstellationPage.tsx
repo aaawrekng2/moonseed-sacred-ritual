@@ -4043,7 +4043,7 @@ export function ConstellationPage({
                 </button>
               );
             })()}
-            <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+            <div style={{ display: insightsMode || lunationMode || atlasMode ? "flex" : "none", alignItems: "center", gap: 2, flexShrink: 0 }}>
               <button
                 type="button"
                 aria-label="Undo"
@@ -5664,7 +5664,9 @@ export function ConstellationPage({
               )}
             </div>
           )}
-          {picks.length > 0 && (!atlasMode || atlasTab === "draw") && !insightsMode && !lunationMode && (
+          {/* v3.71 — no longer gated on picks so the Notes box (the paste
+              target) is available on an empty manual entry to fill the slots. */}
+          {(!atlasMode || atlasTab === "draw") && !insightsMode && !lunationMode && (
             <div
               style={{
                 order: 4,
@@ -5674,9 +5676,11 @@ export function ConstellationPage({
                 marginTop: 12,
               }}
             >
-              {/* Row: question input + prompts trigger button */}
+              {/* Row: question input + prompts trigger button.
+                  v3.72 — moved BELOW the Notes box via order. */}
               <div
                 style={{
+                  order: 2,
                   display: "flex",
                   gap: 6,
                   alignItems: "stretch",
@@ -5756,6 +5760,7 @@ export function ConstellationPage({
                 placeholder="Write or paste your reading here — your question(s) and the cards you pulled (add 'reversed' for any that were). Any cards you name get placed in the slots for you."
                 rows={6}
                 style={{
+                  order: 1,
                   width: "100%",
                   minHeight: 140,
                   padding: "8px 10px",
@@ -5773,7 +5778,7 @@ export function ConstellationPage({
                   journal. Sits directly under the notes textarea now,
                   decoupled from the calendar so the calendar can move
                   up to the top of its container. */}
-              <div style={{ marginTop: 6 }}>
+              <div style={{ marginTop: 6, order: 3 }}>
                 <OverlapPills
                   mode={overlapMode}
                   onModeChange={setOverlapMode}
