@@ -429,3 +429,97 @@ export function scanTextForCards(
   }
   return { picks, unmatched: [], overflow };
 }
+
+
+/**
+ * v3.75 — cross-deck freeform scanner. Like scanTextForCards, but each entry
+ * carries the deckId its card belongs to, and results carry that deckId so the
+ * caller can place a card from any deck. Duplicate card (same deckId + cardId)
+ * is placed only once. Callers should list custom-deck entries BEFORE standard
+ * tarot so a custom name wins a name collision.
+ */
+export function scanTextForCardsMulti(
+  entries: Array<{ cardId: number; name: string; deckId: string | null }>,
+  text: string,
+  limit: number,
+): {
+  picks: {
+    pick: {
+      cardIndex: number;
+      cardName: string;
+      isReversed: boolean;
+      deckId: string | null;
+    };
+    ambiguous: boolean;
+  }[];
+  unmatched: string[];
+  overflow: number;
+} {
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const byName = new Map<
+    string,
+    { cardId: number; name: string; deckId: string | null }
+  >();
+  for (const e of entries) {
+    if (!e || typeof e.name !== "string") continue;
+    const nm = e.name.trim();
+    if (!nm) continue;
+    const key = nm.toLowerCase();
+    if (!byName.has(key)) {
+      byName.set(key, { cardId: e.cardId, name: nm, deckId: e.deckId ?? null });
+    }
+  }
+  const uniq = [...byName.values()].sort((a, b) => b.name.length - a.name.length);
+  const pattern = uniq.map((e) => escape(e.name)).join("|");
+  if (!pattern) return { picks: [], unmatched: [], overflow: 0 };
+  const re = new RegExp(`\\b(${pattern})\\b`, "gi");
+  const found: {
+    e: { cardId: number; name: string; deckId: string | null };
+    start: number;
+    end: number;
+  }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index === re.lastIndex) re.lastIndex++;
+    const e = byName.get(m[1].toLowerCase());
+    if (e) found.push({ e, start: m.index, end: m.index + m[0].length });
+  }
+  const picks: {
+    pick: {
+      cardIndex: number;
+      cardName: string;
+      isReversed: boolean;
+      deckId: string | null;
+    };
+    ambiguous: boolean;
+  }[] = [];
+  const used = new Set<string>();
+  const cap = Math.max(0, limit);
+  let overflow = 0;
+  for (let i = 0; i < found.length; i++) {
+    const cur = found[i];
+    const dedupeKey = (cur.e.deckId ?? "std") + ":" + cur.e.cardId;
+    if (used.has(dedupeKey)) continue;
+    const nextStart = i + 1 < found.length ? found[i + 1].start : text.length;
+    const tail = text
+      .slice(cur.end, Math.min(nextStart, cur.end + 22))
+      .toLowerCase();
+    const isReversed =
+      /\b(reversed|reverse|inverted|rx)\b/.test(tail) || tail.includes("(r)");
+    if (picks.length >= cap) {
+      overflow += 1;
+      continue;
+    }
+    used.add(dedupeKey);
+    picks.push({
+      pick: {
+        cardIndex: cur.e.cardId,
+        cardName: cur.e.name,
+        isReversed,
+        deckId: cur.e.deckId ?? null,
+      },
+      ambiguous: false,
+    });
+  }
+  return { picks, unmatched: [], overflow };
+}
