@@ -4823,7 +4823,7 @@ export function ConstellationPage({
                 </PopoverContent>
               </Popover>
               )}
-              {lunationMode && (
+              {(lunationMode || (!insightsMode && !lunationMode)) && (
                 <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
               )}
               {/* v3.70 — the single-line "type or paste card names" field is
@@ -5533,7 +5533,7 @@ export function ConstellationPage({
               when no picks.
               EK120 — on atlas, lives in the Draw tab. /constellation
               (non-atlas) shows it unconditionally as before. */}
-          {lunationMode && (
+          {(lunationMode || (!insightsMode && !lunationMode)) && (
             <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
 {lunationLens === "calendar" ? (
         <div>
@@ -6303,7 +6303,7 @@ export function ConstellationPage({
           )}
         </button>
       </div>
-      {!lunationMode && calendarState !== "none" && (
+      {!lunationMode && insightsMode && calendarState !== "none" && (
         <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
           <OverlapStrip
             overlap={overlap}
