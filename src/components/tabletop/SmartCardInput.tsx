@@ -14,6 +14,7 @@ import {
   buildSearchIndex,
   parseReversed,
   resolveSegment,
+  scanTextForCards,
   searchCards,
   type CardSearchEntry,
 } from "@/lib/card-search";
@@ -107,37 +108,16 @@ export function SmartCardInput({
   };
 
   const handlePaste = (text: string) => {
-    const segments = text
-      .split(/[,\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (segments.length <= 1) return false;
-    const picks: { pick: SmartPick; ambiguous: boolean }[] = [];
-    const miss: string[] = [];
-    let over = 0;
-    for (const seg of segments) {
-      if (picks.length >= emptySlotCount) {
-        over += 1;
-        continue;
-      }
-      const r = resolveSegment(index, seg);
-      if (!r) {
-        miss.push(seg);
-        continue;
-      }
-      picks.push({
-        pick: {
-          cardIndex: r.entry.cardId,
-          cardName: r.entry.name,
-          isReversed: r.isReversed,
-        },
-        ambiguous: r.ambiguous,
-      });
-    }
-    onBulkCommit({ picks, unmatched: miss, overflow: over });
+    // v3.68 — scan the pasted reading (prose OR a comma/line list) for the
+    // cards named in it, in order, and fill the empty slots. Reversed is
+    // read from a "reversed"/"rx"/"(r)" that follows a card name. Returns
+    // false (lets the text type normally) only when no card is found.
+    const outcome = scanTextForCards(index, text, emptySlotCount);
+    if (outcome.picks.length === 0) return false;
+    onBulkCommit(outcome);
     setValue("");
-    setUnmatched(miss);
-    setOverflow(over);
+    setUnmatched(outcome.unmatched);
+    setOverflow(outcome.overflow);
     return true;
   };
 
