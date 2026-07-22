@@ -1167,6 +1167,34 @@ export function ConstellationPage({
     },
     [user?.id],
   );
+  // v3.87 — mark every detected pattern as read (clears the star to grey).
+  const markAllPatternsSeen = useCallback(() => {
+    setSeenPatterns((prev) => {
+      const next = new Set(prev);
+      for (const p of allPatterns) next.add(p.patternId);
+      if (next.size === prev.size) return prev;
+      if (user?.id) {
+        const arr = Array.from(next);
+        void supabase
+          .from("user_preferences")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data: existing }) => {
+            if (existing) {
+              return supabase
+                .from("user_preferences")
+                .update({ seen_patterns: arr } as never)
+                .eq("user_id", user.id);
+            }
+            return supabase
+              .from("user_preferences")
+              .insert({ user_id: user.id, seen_patterns: arr } as never);
+          });
+      }
+      return next;
+    });
+  }, [user?.id, allPatterns]);
   const [calendarRows, setCalendarRows] = useState(3); // rows of 4 months (3 = 12 months, the default; Show less drops to 2/1)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
@@ -4121,14 +4149,20 @@ export function ConstellationPage({
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "var(--pattern-highlight)",
-                    opacity: anyUnseen ? 1 : 0.3,
+                    color: anyUnseen
+                      ? "var(--pattern-highlight)"
+                      : "var(--color-foreground-muted)",
+                    opacity: anyUnseen ? 1 : 0.5,
                     cursor: "pointer",
                     flexShrink: 0,
                     borderRadius: "50%",
                   }}
                 >
-                  <Sparkles size={16} strokeWidth={2} />
+                  <Sparkles
+                    size={16}
+                    strokeWidth={2}
+                    fill={anyUnseen ? "currentColor" : "none"}
+                  />
                 </button>
               );
             })()}
@@ -6938,6 +6972,7 @@ export function ConstellationPage({
         <AllPatternsModal
           patterns={allPatterns}
           seenIds={seenPatterns}
+          onMarkAllSeen={markAllPatternsSeen}
           cardName={(id) => resolveCardName(id)}
           onSelect={(p) => {
             markPatternSeen(p.patternId);
