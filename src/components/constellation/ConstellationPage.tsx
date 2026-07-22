@@ -6245,6 +6245,45 @@ export function ConstellationPage({
               )}
             </div>
           )}
+          {/* v3.80 — entry chips: the Patterns stat grid (HeroPatternCluster)
+              rendered below the constellation on the plain manual entry too,
+              matching the bottom of Insights > Patterns. cardStats is already
+              fetched whenever a hero card is present. */}
+          {!insightsMode && !lunationMode && !atlasMode && picks.length > 0 && heroPick && (
+            <div
+              style={{
+                marginTop: 12,
+                marginLeft: 30,
+                width: SVG_W - 60,
+                maxWidth: "100%",
+              }}
+            >
+              {cardStats ? (
+                <HeroPatternCluster
+                  heroCardId={heroPick.cardIndex}
+                  heroDeckId={heroPick.deckId ?? undefined}
+                  stats={cardStats}
+                  drawCounts={drawCounts}
+                  tz={effectiveTz}
+                  trackReversals={allowReversed}
+                />
+              ) : (
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 0.85rem)",
+                    color: "var(--color-foreground)",
+                    opacity: 0.55,
+                    textAlign: "center",
+                    padding: "8px 0",
+                  }}
+                >
+                  Gathering this card's patterns…
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
