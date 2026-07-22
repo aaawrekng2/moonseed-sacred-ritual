@@ -873,7 +873,7 @@ function Index() {
                 onClick={() =>
                   void navigate({
                     to: "/draw",
-                    search: { spread: "three", entry: "table" },
+                    search: { spread: "three", entry: "manual" },
                   })
                 }
                 style={{
@@ -1020,94 +1020,7 @@ function Index() {
       </section>
     </main>
 
-    {/* DI-1 — Draw icons row, fixed-position above bottom nav (64px)
-        so it's always visible regardless of carousel/hero size. */}
-    <div
-      className="fixed left-0 right-0 z-30 pointer-events-none"
-      style={{
-        bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
-        paddingTop: 12,
-        paddingBottom: 4,
-      }}
-    >
-      <section className="px-6 pointer-events-auto">
-        <RevisitTodayLine />
-        <div ref={drawTypeRowRef} data-tour="draw-types">
-          <SpreadIconsRow
-            onSelect={(spread) => {
-              setShowDrawTypeHint(false);
-              if (spread === "custom") {
-                // Q19 — bypass the home count modal entirely; route to
-                // /draw with the seeker's last-used Custom count
-                // (read from the same localStorage key that
-                // useSpreadEntryModes hydrates from). The on-table
-                // CustomCountStepper lets them adjust mid-flow.
-                let n = customCount;
-                try {
-                  const raw =
-                    typeof window !== "undefined"
-                      ? window.localStorage.getItem(
-                          "tarotseed.spread_entry_modes",
-                        )
-                      : null;
-                  if (raw) {
-                    const parsed = JSON.parse(raw) as SpreadEntryModes;
-                    n = resolveCountFromMap(parsed);
-                  }
-                } catch {
-                  /* fall back to local state */
-                }
-                // v3.65 — the Custom icon RESUMES the seeker's last draw
-                // (type + table): enter via Custom, switch to 3-card with the
-                // caret, leave, click Custom -> the 3-card table returns. Reads
-                // the last-used spread saved by /draw; falls back to a custom-
-                // count draw when nothing's remembered. Only the Custom icon
-                // does this; the other icons load exactly what's tapped.
-                let last: string | null = null;
-                try {
-                  last =
-                    typeof window !== "undefined"
-                      ? window.localStorage.getItem("tarotseed:last-spread")
-                      : null;
-                } catch {
-                  last = null;
-                }
-                if (last && isValidSpreadMode(last) && last !== "custom") {
-                  navigate({
-                    to: "/draw",
-                    search: { spread: last as SpreadMode, entry: "table" },
-                  });
-                } else {
-                  navigate({
-                    to: "/draw",
-                    // EJ63 — Force scatter-table surface from Home.
-                    search: { spread: "custom", n, entry: "table" },
-                  });
-                }
-                return;
-              }
-              navigate({
-                to: "/draw",
-                // EJ63 — Force scatter-table surface from Home.
-                search: { spread, entry: "table" },
-              });
-            }}
-          />
-        </div>
-      </section>
-    </div>
-    {showDrawTypeHint && (
-      <Hint
-        hintId="home_draw_type_select"
-        text="Choose a spread"
-        anchorRef={drawTypeRowRef}
-        position="bottom"
-        dense
-        hideArrow
-        distance={6}
-        onDismiss={() => setShowDrawTypeHint(false)}
-      />
-    )}
+    {/* v3.67 — draw-type row removed from home; the destination hub is the sole entry. */}
     {/* 9-6-O — Custom spread count picker */}
     <Dialog open={customCountOpen} onOpenChange={setCustomCountOpen}>
       <DialogContent className="max-w-xs">
