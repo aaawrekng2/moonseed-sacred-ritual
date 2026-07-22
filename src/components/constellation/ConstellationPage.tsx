@@ -6,7 +6,7 @@
  * column shows the chip grid + matching readings panel. Full-width
  * 6-month overlap strip sits below.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, Pin, RotateCcw, RotateCw, Sparkles, Tag, TrendingUp, X, BookOpen } from "lucide-react";
@@ -4149,6 +4149,9 @@ export function ConstellationPage({
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    // v3.88 — force this star (and its glow) red; the theme's
+                    // --pattern-highlight is cyan, overridden locally here.
+                    ...({ "--pattern-highlight": "#E24B4A" } as unknown as CSSProperties),
                     color: anyUnseen
                       ? "var(--pattern-highlight)"
                       : "var(--color-foreground-muted)",
