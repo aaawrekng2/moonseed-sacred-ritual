@@ -4040,12 +4040,12 @@ export function ConstellationPage({
               calendar. Other surfaces (insights/lunations/atlas) keep it on top. */}
           <div
             style={{
-              // v3.79 — on the manual entry the controls row (filter + days
-              // range) sits at the BOTTOM of the column, below the lens
-              // toggle + strip. On Insights/lunations it stays at the top
-              // (undefined => first flex child).
+              // v3.82 — on the manual entry the controls row (filter + days
+              // range) rides on the "By moon phase" line, just below the
+              // Save/AI block and above the strip. On Insights/lunations it
+              // stays at the top (undefined => first flex child).
               order:
-                !insightsMode && !lunationMode && !atlasMode ? 6 : undefined,
+                !insightsMode && !lunationMode && !atlasMode ? 5 : undefined,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -4121,7 +4121,13 @@ export function ConstellationPage({
                 <RotateCw size={16} strokeWidth={2} />
               </button>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                flex:
+                  !insightsMode && !lunationMode && !atlasMode ? "0 1 auto" : 1,
+                minWidth: 0,
+              }}
+            >
           <GlobalFilterBar
             filters={globalFilters}
             onChange={setGlobalFilters}
@@ -4161,6 +4167,14 @@ export function ConstellationPage({
                 userId={user?.id ?? null}
                 getViewState={getLunationViewState}
                 onApply={(vs) => applyLunationView(decodeLunationView(vs))}
+              />
+            )}
+            {/* v3.82 — on the manual entry the "By moon phase" lens toggle
+                rides on this same row, right after the filter + days range. */}
+            {!insightsMode && !lunationMode && !atlasMode && (
+              <LunationLensToggle
+                lens={lunationLens}
+                onLensChange={setLunationLens}
               />
             )}
           </div>
@@ -5547,7 +5561,9 @@ export function ConstellationPage({
                 gap: 8,
               }}
             >
-              <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
+              {lunationMode && (
+                <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
+              )}
 {lunationLens === "calendar" ? (
         <div>
           <OverlapStrip
