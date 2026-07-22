@@ -492,7 +492,11 @@ function SpreadContent({
       />
     );
   }
-  if (spread === "custom") {
+  if (spread === "custom" || picks.length > 1) {
+    // v3.66 — any multi-card spread that isn't celtic/three (horseshoe,
+    // relationship, year_ahead, cross_of_decision) renders through this
+    // count-based grid instead of falling through to the single-card
+    // renderer, which only ever drew one card.
     const count = picks.length;
     // Q39b Fix 6 — max 5 cards per row, wrap to 2 rows beyond.
     if (count >= 5) {
