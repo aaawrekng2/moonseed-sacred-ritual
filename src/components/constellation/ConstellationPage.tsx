@@ -4040,8 +4040,12 @@ export function ConstellationPage({
               calendar. Other surfaces (insights/lunations/atlas) keep it on top. */}
           <div
             style={{
-              order:
-                !insightsMode && !lunationMode && !atlasMode ? 5 : undefined,
+              // v3.78 — controls row (filter + days range) sits at the TOP of
+              // the column in all modes so the lens toggle + strip fall
+              // directly beneath it, mirroring Insights > Patterns. (Reverts
+              // the v3.73 order:5 that pinned it above the now-removed
+              // entry calendar.)
+              order: undefined,
               display: "flex",
               alignItems: "center",
               gap: 8,
