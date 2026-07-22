@@ -365,3 +365,67 @@ export function resolveSegment(
     ambiguous,
   };
 }
+
+
+/**
+ * v3.68 — freeform card-name scanner. Given a pasted reading (prose OR a
+ * comma/line list), find the tarot cards named in it, in the order they
+ * appear, and return picks ready for onBulkCommit. Reversed is read from a
+ * "reversed" / "reverse" / "inverted" / "rx" / "(r)" that follows the card
+ * name. Full card names only (no short aliases) so stray words in prose
+ * don't match. Longest names win at each position (e.g. "Three of Wands"
+ * before "Wands").
+ */
+export function scanTextForCards(
+  index: CardSearchEntry[],
+  text: string,
+  limit: number,
+): {
+  picks: {
+    pick: { cardIndex: number; cardName: string; isReversed: boolean };
+    ambiguous: boolean;
+  }[];
+  unmatched: string[];
+  overflow: number;
+} {
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const byLen = [...index].sort((a, b) => b.name.length - a.name.length);
+  const pattern = byLen.map((e) => escape(e.name)).join("|");
+  if (!pattern) return { picks: [], unmatched: [], overflow: 0 };
+  const re = new RegExp(`\\b(${pattern})\\b`, "gi");
+  const byName = new Map(index.map((e) => [e.name.toLowerCase(), e]));
+  const picks: {
+    pick: { cardIndex: number; cardName: string; isReversed: boolean };
+    ambiguous: boolean;
+  }[] = [];
+  const found: { entry: CardSearchEntry; start: number; end: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index === re.lastIndex) re.lastIndex++;
+    const entry = byName.get(m[1].toLowerCase());
+    if (entry) found.push({ entry, start: m.index, end: m.index + m[0].length });
+  }
+  const cap = Math.max(0, limit);
+  let overflow = 0;
+  for (let i = 0; i < found.length; i++) {
+    const cur = found[i];
+    // Only look at the gap up to the NEXT card, so a following card's "rx"
+    // can't leak onto this one; capped so a long note between cards doesn't
+    // read as reversed.
+    const nextStart = i + 1 < found.length ? found[i + 1].start : text.length;
+    const tail = text
+      .slice(cur.end, Math.min(nextStart, cur.end + 22))
+      .toLowerCase();
+    const isReversed =
+      /\b(reversed|reverse|inverted|rx)\b/.test(tail) || tail.includes("(r)");
+    if (picks.length >= cap) {
+      overflow += 1;
+      continue;
+    }
+    picks.push({
+      pick: { cardIndex: cur.entry.cardId, cardName: cur.entry.name, isReversed },
+      ambiguous: false,
+    });
+  }
+  return { picks, unmatched: [], overflow };
+}
