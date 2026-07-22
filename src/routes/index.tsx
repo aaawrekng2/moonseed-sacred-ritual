@@ -34,7 +34,7 @@ import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
 import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
-import { Moon } from "lucide-react";
+import { Moon, Layers, PenLine, Sparkles, BookOpen } from "lucide-react";
 import {
   useAutoRememberQuestion,
   useRememberScope,
@@ -788,47 +788,178 @@ function Index() {
               the scanned card art reads as its own visual edge. */}
           {/* EK124 — tight wrapper so the splash FLIP lands on the card
               itself, not the column that also holds the streak marker. */}
-          <div ref={gatewayCardRef} style={{ display: "inline-flex" }}>
-          <CardImage
-            cardId={todayCard ?? undefined}
-            deckId={todayCardDeckId}
-            variant={
-              // EX-2 — while the today-draw check is still pending,
-              // render face+loading (shimmer) so we never flash the
-              // card-back during warm reopen. After the check resolves:
-              // face if drawn, back if not.
-              !hasCheckedTodayDraw
-                ? "face"
-                : todayCard !== null
-                  ? "face"
-                  : "back"
-            }
-            loading={!hasCheckedTodayDraw || (todayCard === null && showSkeleton)}
-            reversed={todayReversed}
-            // EK140 — the entry/home gateway back is Signature-or-custom-deck,
-            // decoupled from the Veil card-back theme. When no custom deck back
-            // is chosen (backImageUrl null), render the Signature webp — the
-            // same image the splash shows — instead of falling through to the
-            // Veil procedural design (which was drawing the Celestial SVG and
-            // making home disagree with the splash).
-            cardBackId="signature"
-            backImageUrl={entryBackUrl}
-            size="custom"
-            widthPx={cardWidth}
-            className="animate-breathe-glow"
-            style={{ maxWidth: "90vw", maxHeight: "100%" }}
-            onClick={() =>
-              navigate({
-                to: "/draw",
-                // EK90 — Home no longer forces the scatter-table; a spread
-                // you've used before restores its last-used mode (manual or
-                // table). A spread you've never opened still defaults to the
-                // table (defaultModeFor), so fresh draws land on the table.
-                search: { spread: "single", entry: "table" },
-              })
-            }
-            ariaLabel="Begin today's draw"
-          />
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              width: "min(92vw, 440px)",
+            }}
+          >
+            {/* v3.66 — destination hub replaces the single gateway card. The
+                featured "Draw" tile is the quick path to the table; the three
+                smaller tiles branch to the other main surfaces. gatewayCardRef
+                stays on the featured tile so the splash transition still has a
+                target. */}
+            <div
+              ref={gatewayCardRef}
+              role="button"
+              tabIndex={0}
+              aria-label="Draw a card"
+              className="animate-breathe-glow"
+              onClick={() =>
+                void navigate({
+                  to: "/draw",
+                  search: { spread: "single", entry: "table" },
+                })
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  void navigate({
+                    to: "/draw",
+                    search: { spread: "single", entry: "table" },
+                  });
+                }
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                padding: "20px 22px",
+                borderRadius: 16,
+                border: "1px solid var(--gold)",
+                background: "var(--surface-card, rgba(255, 255, 255, 0.04))",
+                cursor: "pointer",
+              }}
+            >
+              <Layers
+                size={34}
+                strokeWidth={1.4}
+                aria-hidden
+                style={{ color: "var(--gold)", flexShrink: 0 }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-heading-sm, 1.25rem)",
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  Draw a card
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--foreground)",
+                    opacity: 0.7,
+                  }}
+                >
+                  Shuffle, pick, reveal
+                </span>
+              </div>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 10,
+              }}
+            >
+              <button
+                type="button"
+                aria-label="Log a reading"
+                onClick={() =>
+                  void navigate({
+                    to: "/draw",
+                    search: { spread: "three", entry: "table" },
+                  })
+                }
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "16px 8px",
+                  borderRadius: 12,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-card, rgba(255, 255, 255, 0.03))",
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                <PenLine size={22} strokeWidth={1.5} aria-hidden style={{ color: "var(--gold)" }} />
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-caption)",
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Log a reading
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label="Insights and patterns"
+                onClick={() => void navigate({ to: "/insights" })}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "16px 8px",
+                  borderRadius: 12,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-card, rgba(255, 255, 255, 0.03))",
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                <Sparkles size={22} strokeWidth={1.5} aria-hidden style={{ color: "var(--gold)" }} />
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-caption)",
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Insights
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label="Journal"
+                onClick={() => void navigate({ to: "/journal" })}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "16px 8px",
+                  borderRadius: 12,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-card, rgba(255, 255, 255, 0.03))",
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                <BookOpen size={22} strokeWidth={1.5} aria-hidden style={{ color: "var(--gold)" }} />
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-caption)",
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Journal
+                </span>
+              </button>
+            </div>
           </div>
           {devMode && (
             <EntryBackDebug
