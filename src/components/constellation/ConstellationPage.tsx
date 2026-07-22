@@ -102,7 +102,7 @@ import {
   type PasteOutcome,
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
-import { buildSearchIndex, scanTextForCards } from "@/lib/card-search";
+import { buildSearchIndex, scanTextForCards, scanTextForCardsMulti } from "@/lib/card-search";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
 import { LunationLensToggle } from "@/components/constellation/LunationLensToggle";
 import { AtlasWeb } from "@/components/constellation/AtlasWeb";
@@ -848,7 +848,7 @@ export function ConstellationPage({
   // active deck to "Southern Oracle" should still see "Set up prompts
   // for Zombie →" — because the card was drawn from Zombie and its
   // prompts (or lack thereof) live in Zombie.
-  const { activeDeck: activeDeckForCta, allDecks: allDecksForCta, imageMap: activeImageMap } = useActiveDeck();
+  const { activeDeck: activeDeckForCta, allDecks: allDecksForCta, imageMap: activeImageMap, allDeckMaps: allDeckMapsForScan } = useActiveDeck();
   // EJ61 — Active deck corner radius (0..100 percent). Used to give the
   // slot breathe glow a deck-aware border-radius so the glow corners
   // curve with the card silhouette rather than the previous hardcoded
@@ -3397,6 +3397,26 @@ export function ConstellationPage({
     });
   };
   const deckCards = useMemo(() => TAROT_DECK.map((name, idx) => ({ cardId: idx, name })), []);
+  // v3.75 — master list of card names across ALL of the seeker's decks (each
+  // deck's custom names + standard tarot), tagged with the deck each card
+  // belongs to. Custom-deck entries come first so a custom name wins a
+  // collision. The Notes-box paste scanner matches against this, so an oracle
+  // deck's names fill their own cards even when another deck is active.
+  const scanMasterList = useMemo(() => {
+    const out: Array<{ cardId: number; name: string; deckId: string | null }> = [];
+    for (const [deckId, map] of Object.entries(allDeckMapsForScan)) {
+      const names = map?.nameByCardId ?? {};
+      for (const [id, name] of Object.entries(names)) {
+        if (typeof name === "string" && name.trim().length > 0) {
+          out.push({ cardId: Number(id), name: name.trim(), deckId });
+        }
+      }
+    }
+    for (const c of deckCards) {
+      out.push({ cardId: c.cardId, name: c.name, deckId: null });
+    }
+    return out;
+  }, [allDeckMapsForScan, deckCards]);
 
   // DP — drag-and-drop state. `draggingCardId` is set when a constellation
   // card starts being dragged. `dragOverSlotIdx` is the slot currently
@@ -5759,28 +5779,27 @@ export function ConstellationPage({
                 onPaste={(e) => {
                   const text = e.clipboardData?.getData("text") ?? "";
                   if (!text.trim()) return;
-                  // v3.74 — scan the pasted reading for the cards named in it
-                  // and drop them into the slots (reversed detected). Uses the
-                  // LOADED deck's own card names (custom_deck_cards.card_name,
-                  // surfaced via nameByCardId) so an oracle/custom deck matches
-                  // its own names; falls back to the standard tarot names. We do
-                  // NOT preventDefault, so the text still lands in the note.
-                  const customNames = Object.entries(
-                    activeImageMap.nameByCardId,
-                  )
-                    .filter(([, n]) => typeof n === "string" && n.trim().length > 0)
-                    .map(([id, name]) => ({
-                      cardId: Number(id),
-                      name: (name as string).trim(),
-                    }));
-                  const scanCards =
-                    customNames.length > 0 ? customNames : deckCards;
-                  const outcome = scanTextForCards(
-                    buildSearchIndex(scanCards),
-                    text,
-                    78,
-                  );
-                  if (outcome.picks.length > 0) handleBulk(outcome);
+                  // v3.75 — scan the pasted reading against a MASTER LIST of
+                  // every deck's card names, so an oracle deck's names match
+                  // even when another deck is active. Each filled slot is
+                  // tagged with the deck its card belongs to (deckId), and the
+                  // same card can't fill two slots. We do NOT preventDefault,
+                  // so the text still lands in the note.
+                  const outcome = scanTextForCardsMulti(scanMasterList, text, 78);
+                  if (outcome.picks.length === 0) return;
+                  setPicks((prev) => {
+                    const next = [...prev];
+                    outcome.picks.forEach((item, i) => {
+                      next.push({
+                        id: Date.now() + prev.length + i,
+                        cardIndex: item.pick.cardIndex,
+                        isReversed: item.pick.isReversed,
+                        deckId: item.pick.deckId,
+                        cardName: item.pick.cardName,
+                      });
+                    });
+                    return next;
+                  });
                 }}
                 placeholder="Write or paste your reading here — your question(s) and the cards you pulled (add 'reversed' for any that were). Any cards you name get placed in the slots for you."
                 rows={6}
