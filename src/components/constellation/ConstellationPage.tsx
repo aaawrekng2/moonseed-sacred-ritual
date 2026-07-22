@@ -3196,11 +3196,12 @@ export function ConstellationPage({
     const existing = userTags.find(
       (u) => u.name.toLowerCase() === name.toLowerCase(),
     );
-    if (!existing) {
+    const uid = user?.id;
+    if (!existing && uid) {
       try {
         const { data, error } = await supabase
           .from("user_tags")
-          .insert({ user_id: user?.id, name, usage_count: 1 })
+          .insert({ user_id: uid, name, usage_count: 1 })
           .select("id,name,usage_count")
           .single();
         if (!error && data) {
