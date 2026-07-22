@@ -11,6 +11,7 @@
  * has opened). This component is presentational — the page owns the seen set and
  * the drill-down.
  */
+import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import type { PatternResult, LensKey } from "@/lib/pattern-detect";
 
@@ -56,12 +57,14 @@ export function AllPatternsModal({
   cardName,
   onSelect,
   onClose,
+  onMarkAllSeen,
 }: {
   patterns: PatternResult[];
   seenIds: Set<string>;
   cardName: (cardId: number) => string;
   onSelect: (pattern: PatternResult) => void;
   onClose: () => void;
+  onMarkAllSeen?: () => void;
 }) {
   // patterns arrive strongest-first (sorted by pValue). Two-tier: unseen, then seen.
   const unseen = patterns.filter((p) => !seenIds.has(p.patternId));
@@ -113,23 +116,46 @@ export function AllPatternsModal({
           >
             Patterns
           </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--color-foreground)",
-              opacity: 0.7,
-              padding: 4,
-              fontSize: 18,
-              lineHeight: 1,
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {unseen.length > 0 && onMarkAllSeen && (
+              <button
+                type="button"
+                onClick={onMarkAllSeen}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                  padding: "4px 10px",
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Mark all as read
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+                padding: 4,
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {ordered.length === 0 ? (
@@ -146,12 +172,45 @@ export function AllPatternsModal({
           </div>
         ) : (
           <div style={{ maxHeight: "64vh", overflowY: "auto" }}>
-            {ordered.map((p) => {
+            {ordered.map((p, i) => {
               const isUnseen = !seenIds.has(p.patternId);
               const fill = strengthFill(p.lift);
+              const showNewLabel = i === 0 && unseen.length > 0;
+              const showClearedLabel =
+                i === unseen.length && seen.length > 0;
               return (
+                <Fragment key={p.patternId}>
+                  {showNewLabel && (
+                    <div
+                      style={{
+                        padding: "10px 18px 4px",
+                        fontFamily: "var(--font-display)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-caption)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        color: "var(--pattern-highlight)",
+                      }}
+                    >
+                      New
+                    </div>
+                  )}
+                  {showClearedLabel && (
+                    <div
+                      style={{
+                        padding: "10px 18px 4px",
+                        fontFamily: "var(--font-display)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-caption)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        color: "var(--color-foreground-muted)",
+                      }}
+                    >
+                      Cleared
+                    </div>
+                  )}
                 <button
-                  key={p.patternId}
                   type="button"
                   onClick={() => onSelect(p)}
                   style={{
@@ -226,6 +285,7 @@ export function AllPatternsModal({
                     />
                   </span>
                 </button>
+                </Fragment>
               );
             })}
           </div>
