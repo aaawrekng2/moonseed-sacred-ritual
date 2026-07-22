@@ -848,7 +848,7 @@ export function ConstellationPage({
   // active deck to "Southern Oracle" should still see "Set up prompts
   // for Zombie →" — because the card was drawn from Zombie and its
   // prompts (or lack thereof) live in Zombie.
-  const { activeDeck: activeDeckForCta, allDecks: allDecksForCta } = useActiveDeck();
+  const { activeDeck: activeDeckForCta, allDecks: allDecksForCta, imageMap: activeImageMap } = useActiveDeck();
   // EJ61 — Active deck corner radius (0..100 percent). Used to give the
   // slot breathe glow a deck-aware border-radius so the glow corners
   // curve with the card silhouette rather than the previous hardcoded
@@ -5759,11 +5759,24 @@ export function ConstellationPage({
                 onPaste={(e) => {
                   const text = e.clipboardData?.getData("text") ?? "";
                   if (!text.trim()) return;
-                  // v3.70 — scan the pasted reading for the cards named in it
-                  // and drop them into the slots (reversed detected). We do
+                  // v3.74 — scan the pasted reading for the cards named in it
+                  // and drop them into the slots (reversed detected). Uses the
+                  // LOADED deck's own card names (custom_deck_cards.card_name,
+                  // surfaced via nameByCardId) so an oracle/custom deck matches
+                  // its own names; falls back to the standard tarot names. We do
                   // NOT preventDefault, so the text still lands in the note.
+                  const customNames = Object.entries(
+                    activeImageMap.nameByCardId,
+                  )
+                    .filter(([, n]) => typeof n === "string" && n.trim().length > 0)
+                    .map(([id, name]) => ({
+                      cardId: Number(id),
+                      name: (name as string).trim(),
+                    }));
+                  const scanCards =
+                    customNames.length > 0 ? customNames : deckCards;
                   const outcome = scanTextForCards(
-                    buildSearchIndex(deckCards),
+                    buildSearchIndex(scanCards),
                     text,
                     78,
                   );
