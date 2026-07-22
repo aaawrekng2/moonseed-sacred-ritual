@@ -4014,7 +4014,20 @@ export function ConstellationPage({
               hover-only counts, font-weight gradient, recent-activity
               dot, and trend arrows. */}
           {(() => null)()}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+          {/* v3.69 — on the plain manual/type-in entry, drop the controls row
+              (undo/redo + filter + days) to the bottom of the column, just
+              above the calendar, so the slots + date + note field lead. Other
+              surfaces (insights/lunations/atlas) keep it on top. */}
+          <div
+            style={{
+              order:
+                !insightsMode && !lunationMode && !atlasMode ? 5 : undefined,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+            }}
+          >
             {(insightsMode || lunationMode) && allPatterns.length > 0 && (() => {
               const anyUnseen = allPatterns.some((p) => !seenPatterns.has(p.patternId));
               return (
@@ -6317,7 +6330,7 @@ export function ConstellationPage({
           <PullHistoryPill picks={picks} practice={practice} constellation={constellationState} />
         </div>
       )}
-      <div style={{ padding: "0 24px", marginTop: 12 }}>
+      <div style={{ padding: "0 24px", marginTop: 32 }}>
         <SectionDivider />
         <SectionOverline label="YOUR PRACTICE" />
         <PracticeLine practice={practice} currentStreak={currentStreak} />
