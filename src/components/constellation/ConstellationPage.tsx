@@ -102,6 +102,7 @@ import {
   type PasteOutcome,
   type SmartPick,
 } from "@/components/tabletop/SmartCardInput";
+import { buildSearchIndex, scanTextForCards } from "@/lib/card-search";
 import { ConstellationWeb, SVG_H, SVG_W } from "@/components/constellation/ConstellationWeb";
 import { LunationLensToggle } from "@/components/constellation/LunationLensToggle";
 import { AtlasWeb } from "@/components/constellation/AtlasWeb";
@@ -4014,20 +4015,7 @@ export function ConstellationPage({
               hover-only counts, font-weight gradient, recent-activity
               dot, and trend arrows. */}
           {(() => null)()}
-          {/* v3.69 — on the plain manual/type-in entry, drop the controls row
-              (undo/redo + filter + days) to the bottom of the column, just
-              above the calendar, so the slots + date + note field lead. Other
-              surfaces (insights/lunations/atlas) keep it on top. */}
-          <div
-            style={{
-              order:
-                !insightsMode && !lunationMode && !atlasMode ? 5 : undefined,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: "100%",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
             {(insightsMode || lunationMode) && allPatterns.length > 0 && (() => {
               const anyUnseen = allPatterns.some((p) => !seenPatterns.has(p.patternId));
               return (
@@ -4806,18 +4794,9 @@ export function ConstellationPage({
               {lunationMode && (
                 <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
               )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <SmartCardInput
-                  positionLabels={[]}
-                  emptySlotCount={78}
-                  onCommit={handleCommit}
-                  onBulkCommit={handleBulk}
-                  placedCardIds={picks.map((p) => p.cardIndex)}
-                  deckCards={deckCards}
-                  maxWidth="100%"
-                  emphasis
-                />
-              </div>
+              {/* v3.70 — the single-line "type or paste card names" field is
+                  removed; the larger Notes box below is now the one place to
+                  enter or paste a reading, and it fills the slots on paste. */}
             </div>
           </div>
           {/* EK120 — atlas left-column tab strip: Draw | Asterism. Sits
@@ -5761,11 +5740,24 @@ export function ConstellationPage({
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Notes — your reflections, observations, anything that helps you remember this spread."
-                rows={2}
+                onPaste={(e) => {
+                  const text = e.clipboardData?.getData("text") ?? "";
+                  if (!text.trim()) return;
+                  // v3.70 — scan the pasted reading for the cards named in it
+                  // and drop them into the slots (reversed detected). We do
+                  // NOT preventDefault, so the text still lands in the note.
+                  const outcome = scanTextForCards(
+                    buildSearchIndex(deckCards),
+                    text,
+                    78,
+                  );
+                  if (outcome.picks.length > 0) handleBulk(outcome);
+                }}
+                placeholder="Write or paste your reading here — your question(s) and the cards you pulled (add 'reversed' for any that were). Any cards you name get placed in the slots for you."
+                rows={6}
                 style={{
                   width: "100%",
-                  minHeight: 44,
+                  minHeight: 140,
                   padding: "8px 10px",
                   borderRadius: 8,
                   border: "1px solid var(--border-subtle)",
