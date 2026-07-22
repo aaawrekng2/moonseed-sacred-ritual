@@ -4040,12 +4040,12 @@ export function ConstellationPage({
               calendar. Other surfaces (insights/lunations/atlas) keep it on top. */}
           <div
             style={{
-              // v3.78 — controls row (filter + days range) sits at the TOP of
-              // the column in all modes so the lens toggle + strip fall
-              // directly beneath it, mirroring Insights > Patterns. (Reverts
-              // the v3.73 order:5 that pinned it above the now-removed
-              // entry calendar.)
-              order: undefined,
+              // v3.79 — on the manual entry the controls row (filter + days
+              // range) sits at the BOTTOM of the column, below the lens
+              // toggle + strip. On Insights/lunations it stays at the top
+              // (undefined => first flex child).
+              order:
+                !insightsMode && !lunationMode && !atlasMode ? 6 : undefined,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -4827,9 +4827,6 @@ export function ConstellationPage({
                 </PopoverContent>
               </Popover>
               )}
-              {(lunationMode || (!insightsMode && !lunationMode)) && (
-                <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
-              )}
               {/* v3.70 — the single-line "type or paste card names" field is
                   removed; the larger Notes box below is now the one place to
                   enter or paste a reading, and it fills the slots on paste. */}
@@ -5538,7 +5535,19 @@ export function ConstellationPage({
               EK120 — on atlas, lives in the Draw tab. /constellation
               (non-atlas) shows it unconditionally as before. */}
           {(lunationMode || (!insightsMode && !lunationMode)) && (
-            <div style={{ order: 4, marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div
+              style={{
+                // v3.79 — on the manual entry this block (lens toggle + strip)
+                // sits below the Save/AI journal block; on Patterns it keeps
+                // order 4.
+                order: !insightsMode && !lunationMode && !atlasMode ? 5 : 4,
+                marginTop: 8,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
 {lunationLens === "calendar" ? (
         <div>
           <OverlapStrip
