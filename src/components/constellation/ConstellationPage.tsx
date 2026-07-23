@@ -1227,6 +1227,36 @@ export function ConstellationPage({
     }
     if (v.lens) setLunationLens(v.lens);
   }, []);
+  // v3.100 — investigate handoff. Arriving on Insights › Patterns from a
+  // lunation's "Most pulled" section: load the chosen card(s) into the slots
+  // and flip the strip to the moon lens, then clear the one-shot handoff.
+  const investigateHydrated = useRef(false);
+  useEffect(() => {
+    if (!insightsMode || !lunationMode || investigateHydrated.current) return;
+    if (typeof window === "undefined") return;
+    investigateHydrated.current = true;
+    let raw: string | null = null;
+    try {
+      raw = window.sessionStorage.getItem("tarotseed:investigate-handoff");
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    try {
+      window.sessionStorage.removeItem("tarotseed:investigate-handoff");
+    } catch {
+      /* ignore */
+    }
+    try {
+      const h = JSON.parse(raw) as {
+        cards?: { cardIndex: number; isReversed: boolean }[];
+        lens?: LunationView["lens"];
+      };
+      applyLunationView({ cards: h.cards ?? [], lens: h.lens ?? "moon" });
+    } catch {
+      /* ignore */
+    }
+  }, [insightsMode, lunationMode, applyLunationView]);
   const getLunationViewState = useCallback(
     () =>
       encodeLunationView({

@@ -70,28 +70,28 @@ function timeRangeLabel(tr: TimeRange): string {
 }
 
 // FP-5 — Template prose generators. Deterministic, no AI.
-function singleProse(name: string, count: number, tr: TimeRange): string {
-  const w = timeRangeLabel(tr);
+function singleProse(name: string, count: number, tr: TimeRange, windowLabel?: string): string {
+  const w = windowLabel ?? timeRangeLabel(tr);
   return `${name} has appeared ${count} times in ${w}. ` +
     `When a card returns this often, it's marking the texture of this season — ` +
     `not a coincidence, but a thread. What is ${name} asking you to notice?`;
 }
-function twinProse(a: string, b: string, count: number, tr: TimeRange, mode: Cooccurrence): string {
-  const w = timeRangeLabel(tr);
+function twinProse(a: string, b: string, count: number, tr: TimeRange, mode: Cooccurrence, windowLabel?: string): string {
+  const w = windowLabel ?? timeRangeLabel(tr);
   const together = mode === "day" ? "on the same day" : "in the same spread";
   return `${a} and ${b} have arrived together ${together} ${count} times in ${w}. ` +
     `A pair speaking the same message — two cards braiding into one story. ` +
     `Sit with what these two share between them.`;
 }
-function tripletProse(names: [string, string, string], count: number, tr: TimeRange, mode: Cooccurrence): string {
-  const w = timeRangeLabel(tr);
+function tripletProse(names: [string, string, string], count: number, tr: TimeRange, mode: Cooccurrence, windowLabel?: string): string {
+  const w = windowLabel ?? timeRangeLabel(tr);
   const together = mode === "day" ? "on the same day" : "in the same spread";
   return `${names[0]}, ${names[1]}, and ${names[2]} have all appeared ${together} ${count} times in ${w}. ` +
     `Three cards arriving together is rare. ` +
     `This is a full pattern emerging — the kind of message that doesn't repeat by accident.`;
 }
-function reversedProse(name: string, count: number, tr: TimeRange): string {
-  const w = timeRangeLabel(tr);
+function reversedProse(name: string, count: number, tr: TimeRange, windowLabel?: string): string {
+  const w = windowLabel ?? timeRangeLabel(tr);
   return `${name} has appeared reversed ${count} times in ${w}. ` +
     `The reversed orientation has its own voice — blocked, withheld, or shadow. ` +
     `What's the inverted side of ${name} asking you to look at?`;
@@ -170,13 +170,23 @@ export function StalkersTab({
   title = "Stalkers",
   rangeLabel,
   fullOpacity = false,
+  onInvestigate,
 }: {
   filters: InsightsFilters;
   title?: string;
   rangeLabel?: string;
   fullOpacity?: boolean;
+  // v3.100 — when set (lunation "Most pulled"), a card/pair click asks to
+  // leave and investigate it in Patterns instead of selecting it here.
+  onInvestigate?: (
+    cards: { cardIndex: number; isReversed: boolean }[],
+    label: string,
+  ) => void;
 }) {
   const timeRange = filters.timeRange;
+  // v3.100 — when a rangeLabel is set (e.g. a lunation), the prose says
+  // "in this lunation" instead of the default "in the last N days".
+  const proseWindow = rangeLabel ? rangeLabel.toLowerCase() : undefined;
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("singles");
   // ER-9 — reversed mode/data hides when the seeker has reversals off.
@@ -370,7 +380,14 @@ export function StalkersTab({
                   cardId={s.cardId}
                   count={s.count}
                   name={getCardName(s.cardId)}
-                  onClick={() => setSelectedKey(s.cardId)}
+                  onClick={() =>
+                    onInvestigate
+                      ? onInvestigate(
+                          [{ cardIndex: s.cardId, isReversed: false }],
+                          getCardName(s.cardId),
+                        )
+                      : setSelectedKey(s.cardId)
+                  }
                 />
               </div>
             ))}
@@ -382,7 +399,17 @@ export function StalkersTab({
                 <div key={key} className="flex flex-col items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedKey(key)}
+                    onClick={() =>
+                      onInvestigate
+                        ? onInvestigate(
+                            [
+                              { cardIndex: t.cardA, isReversed: false },
+                              { cardIndex: t.cardB, isReversed: false },
+                            ],
+                            `${getCardName(t.cardA)} · ${getCardName(t.cardB)}`,
+                          )
+                        : setSelectedKey(key)
+                    }
                     className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-2 " + selClass(selectedKey, key, fullOpacity)}
                     style={{ containerType: "inline-size" }}
                   >
@@ -408,7 +435,19 @@ export function StalkersTab({
                 <div key={key} className="flex flex-col items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedKey(key)}
+                    onClick={() =>
+                      onInvestigate
+                        ? onInvestigate(
+                            t.cardIds.map((c) => ({
+                              cardIndex: c as number,
+                              isReversed: false,
+                            })),
+                            t.cardIds
+                              .map((c) => getCardName(c as number))
+                              .join(" · "),
+                          )
+                        : setSelectedKey(key)
+                    }
                     className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-3 " + selClass(selectedKey, key, fullOpacity)}
                     style={{ containerType: "inline-size" }}
                   >
@@ -440,7 +479,14 @@ export function StalkersTab({
                   cardId={r.cardId}
                   count={r.reversedCount}
                   name={getCardName(r.cardId)}
-                  onClick={() => setSelectedKey(r.cardId)}
+                  onClick={() =>
+                    onInvestigate
+                      ? onInvestigate(
+                          [{ cardIndex: r.cardId, isReversed: true }],
+                          getCardName(r.cardId),
+                        )
+                      : setSelectedKey(r.cardId)
+                  }
                 />
               </div>
             ))}
@@ -454,7 +500,7 @@ export function StalkersTab({
             <div className="w-full max-w-[560px] text-center">
               <h3 className="text-base font-serif italic mb-2">{selectedSingle.cardName}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {singleProse(selectedSingle.cardName, selectedSingle.count, timeRange)}
+                {singleProse(selectedSingle.cardName, selectedSingle.count, timeRange, proseWindow)}
               </p>
             </div>
           </div>
@@ -485,7 +531,7 @@ export function StalkersTab({
             ))}
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {twinProse(selectedTwin.cardAName, selectedTwin.cardBName, selectedTwin.count, timeRange, cooccurrence)}
+            {twinProse(selectedTwin.cardAName, selectedTwin.cardBName, selectedTwin.count, timeRange, cooccurrence, proseWindow)}
           </p>
           <StalkerCalendar heroCardId={selectedTwin.cardA} pullCardIds={[selectedTwin.cardA, selectedTwin.cardB]} />
           <StalkerOccurrenceList
@@ -523,7 +569,7 @@ export function StalkersTab({
             ))}
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence)}
+            {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence, proseWindow)}
           </p>
           <StalkerCalendar heroCardId={selectedTriplet.cardIds[0]} pullCardIds={selectedTriplet.cardIds} />
           <StalkerOccurrenceList
@@ -539,7 +585,7 @@ export function StalkersTab({
             <div className="w-full max-w-[560px] text-center">
               <h3 className="text-base font-serif italic mb-2">{selectedReversed.cardName} (reversed)</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {reversedProse(selectedReversed.cardName, selectedReversed.reversedCount, timeRange)}
+                {reversedProse(selectedReversed.cardName, selectedReversed.reversedCount, timeRange, proseWindow)}
               </p>
             </div>
           </div>
