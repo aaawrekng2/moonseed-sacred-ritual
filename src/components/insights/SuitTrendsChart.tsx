@@ -56,51 +56,16 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   );
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("pct");
-  // v2.49 — the picker defaults to the TIGHTEST window that still covers the
-  // seeker's whole history: the smallest option whose day-count spans from
-  // their first reading to now. Stays null until we know the span, so we never
-  // fire a throwaway fetch at the wrong range first.
-  const [range, setRange] = useState<string | null>(null);
-  const earliestFn = useServerFn(getEarliestReadingDate);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const headers = await getAuthHeaders();
-        const { earliest } = await earliestFn({ headers });
-        if (cancelled) return;
-        const spanDays = earliest
-          ? Math.abs(calendarDaysBetween(new Date(earliest), new Date(), effectiveTz))
-          : 0;
-        const TIERS: Array<[string, number]> = [
-          ["7d", 7],
-          ["30d", 30],
-          ["90d", 90],
-          ["180d", 180],
-          ["365d", 365],
-          ["all", Infinity],
-        ];
-        const tightest = TIERS.find(([, days]) => spanDays <= days)?.[0] ?? "all";
-        setRange((prev) => prev ?? tightest);
-      } catch {
-        if (!cancelled) setRange((prev) => prev ?? "all");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [earliestFn, effectiveTz]);
-
-  useEffect(() => {
-    if (range === null) return;
     let cancelled = false;
     void (async () => {
       setLoading(true);
       try {
         const headers = await getAuthHeaders();
         const r = await fn({
-          data: { ...filters, timeRange: range as InsightsFilters["timeRange"], tz: effectiveTz },
+          // v3.94 — use the shared top-left timeframe (filters.timeRange).
+          data: { ...filters, tz: effectiveTz },
           headers,
         });
         if (!cancelled) {
@@ -114,7 +79,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
     return () => {
       cancelled = true;
     };
-  }, [filters, fn, effectiveTz, range]);
+  }, [filters, fn, effectiveTz]);
 
   const chartData = useMemo(() => {
     if (!data || !Array.isArray(data.buckets)) return [];
@@ -192,30 +157,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <select
-          value={range ?? "90d"}
-          onChange={(e) => setRange(e.target.value)}
-          disabled={range === null}
-          aria-label="Time range"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption)",
-            color: "var(--color-foreground)",
-            background: "var(--surface-elevated)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: 8,
-            padding: "4px 8px",
-            cursor: "pointer",
-          }}
-        >
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-          <option value="180d">Last 6 months</option>
-          <option value="365d">Last 1 year</option>
-          <option value="all">All time</option>
-        </select>
+
         <div
           className="flex gap-1 rounded-full p-0.5"
           style={{ background: "var(--surface-card)" }}
