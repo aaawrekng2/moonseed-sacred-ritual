@@ -289,6 +289,7 @@ export function ConstellationWeb({
         )
       ) : (
         <ConstellationSvg
+          timeRange={timeRange}
           constellation={constellation}
           showPlasma={showPlasma}
           cardDrawCounts={cardDrawCounts}
@@ -346,7 +347,9 @@ function ConstellationSvg({
   onConstellationDragOver,
   patternGlyph,
   onPatternClick,
+  timeRange,
 }: {
+  timeRange?: string;
   constellation: CardConstellation;
   patternGlyph?: { title: string; seen?: boolean } | null;
   onPatternClick?: () => void;
