@@ -180,7 +180,7 @@ type ReadingRow = {
   is_favorite: boolean;
   tags: string[] | null;
   is_deep_reading: boolean;
-  deep_reading_lenses: Record<string, string> | null;
+  deep_reading_lenses?: Record<string, string> | null;
   mirror_saved: boolean;
   pattern_id: string | null;
   question: string | null;
@@ -413,7 +413,7 @@ function JournalPage() {
         supabase
           .from("readings")
           .select(
-            "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+            "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
           )
           .eq("user_id", user.id)
           .is("archived_at", null)
@@ -598,6 +598,49 @@ function JournalPage() {
       cancelled = true;
     };
   }, [openId, user, readings, openOverride]);
+
+  // v3.103 — the list query omits the two heaviest, detail-only columns
+  // (tailored_prompt, deep_reading_lenses) so the journal loads fast. When a
+  // LISTED reading is opened, hydrate just those two for it on demand.
+  useEffect(() => {
+    if (!openId || !user) return;
+    const row = readings.find((r) => r.id === openId);
+    if (!row) return; // not in the list -> openOverride fetches the full row
+    if (
+      row.tailored_prompt !== undefined ||
+      row.deep_reading_lenses !== undefined
+    ) {
+      return; // already hydrated
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("readings")
+        .select("id,tailored_prompt,deep_reading_lenses")
+        .eq("id", openId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const d = data as {
+        tailored_prompt: string | null;
+        deep_reading_lenses: Record<string, string> | null;
+      };
+      setReadings((prev) =>
+        prev.map((r) =>
+          r.id === openId
+            ? {
+                ...r,
+                tailored_prompt: d.tailored_prompt ?? null,
+                deep_reading_lenses: d.deep_reading_lenses ?? null,
+              }
+            : r,
+        ),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openId, user, readings]);
 
   // Stable callbacks for the EnrichmentPanel — keep the Journal list and
   // tag library in sync with edits made inside the Reading Detail overlay
@@ -1053,7 +1096,7 @@ function JournalPage() {
                   const { data: rows } = await supabase
                     .from("readings")
                     .select(
-                      "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+                      "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
                     )
                     .eq("user_id", user.id)
                     .is("archived_at", null)
@@ -1095,7 +1138,7 @@ function JournalPage() {
                 const { data: rows } = await supabase
                   .from("readings")
                   .select(
-                    "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+                    "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
                   )
                   .eq("user_id", user.id)
                   .is("archived_at", null)
