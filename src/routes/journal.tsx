@@ -168,6 +168,7 @@ type ReadingRow = {
   id: string;
   user_id: string;
   spread_type: string;
+  spread_name: string | null;
   card_ids: number[];
   card_orientations: boolean[] | null;
   interpretation: string | null;
@@ -412,7 +413,7 @@ function JournalPage() {
         supabase
           .from("readings")
           .select(
-            "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+            "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
           )
           .eq("user_id", user.id)
           .is("archived_at", null)
@@ -586,7 +587,7 @@ function JournalPage() {
       const { data } = await supabase
         .from("readings")
         .select(
-          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,archived_at,tailored_prompt,journal_prompt_used",
+          "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,archived_at,tailored_prompt,journal_prompt_used",
         )
         .eq("id", openId)
         .eq("user_id", user.id)
@@ -1043,7 +1044,7 @@ function JournalPage() {
                   const { data: rows } = await supabase
                     .from("readings")
                     .select(
-                      "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+                      "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
                     )
                     .eq("user_id", user.id)
                     .is("archived_at", null)
@@ -1084,7 +1085,7 @@ function JournalPage() {
                 const { data: rows } = await supabase
                   .from("readings")
                   .select(
-                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
+                    "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,tailored_prompt,journal_prompt_used",
                   )
                   .eq("user_id", user.id)
                   .is("archived_at", null)
@@ -1306,7 +1307,8 @@ function ReadingCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               <span style={{ opacity: "var(--ro-plus-30)" }}>
-                {formatDateShort(reading.created_at)} · {formatTimeAgo(reading.created_at)} ·{" "}
+                {formatDateShort(reading.created_at)}{reading.spread_name ? ` · ${reading.spread_name}` : ""} ·{" "}
+                {formatTimeAgo(reading.created_at)} ·{" "}
                 {spreadLabel(reading.spread_type)}
               </span>
             </div>

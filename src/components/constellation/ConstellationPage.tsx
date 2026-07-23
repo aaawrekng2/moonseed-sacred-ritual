@@ -3209,6 +3209,8 @@ export function ConstellationPage({
   const [note, setNote] = useState<string>("");
   // v3.85 — tags to attach to this reading (chosen via the tag fly-in panel).
   const [entryTags, setEntryTags] = useState<string[]>([]);
+  // v3.90 — optional name for this spread/reading.
+  const [spreadName, setSpreadName] = useState<string>("");
   const [tagPanelOpen, setTagPanelOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const toggleEntryTag = (name: string) => {
@@ -3385,6 +3387,7 @@ export function ConstellationPage({
           question: question.trim() || undefined,
           note: note.trim() || undefined,
           tags: entryTags.length > 0 ? entryTags : undefined,
+          spreadName: spreadName.trim() || undefined,
           createdAt: backdate ? backdate.toISOString() : undefined,
           // EK31 — Active deck at save time, used by the server to
           // resolve any per-pick deckId that came through as null
@@ -3404,6 +3407,7 @@ export function ConstellationPage({
       window.setTimeout(() => {
         setPicks([]);
         setEntryTags([]);
+        setSpreadName("");
         setFocusedSlotIdx(null);
         setTealSelectedIds([]);
         setQuestion("");
@@ -3651,6 +3655,7 @@ export function ConstellationPage({
   const handleClearAll = () => {
     setPicks([]);
     setEntryTags([]);
+    setSpreadName("");
     setFocusedSlotIdx(null);
     setTealSelectedIds([]);
     setQuestion("");
@@ -4971,6 +4976,28 @@ export function ConstellationPage({
                   removed; the larger Notes box below is now the one place to
                   enter or paste a reading, and it fills the slots on paste. */}
             </div>
+            {!insightsMode && !lunationMode && (
+              <input
+                value={spreadName}
+                onChange={(e) => setSpreadName(e.target.value)}
+                placeholder="Name this spread (optional)"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  marginTop: 6,
+                  height: 32,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-subtle)",
+                  background: "transparent",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption, 0.75rem)",
+                  outline: "none",
+                }}
+              />
+            )}
           </div>
           {/* EK120 — atlas left-column tab strip: Draw | Asterism. Sits
               directly under the slot row + paste. Switching collapses the
