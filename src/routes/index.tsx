@@ -361,9 +361,9 @@ function Index() {
   const { user, loading: authLoading } = useAuth();
   // v3.97 — home "new patterns" nudge. Deferred after render; detects unread
   // patterns across all readings (same detection the pattern star uses) and
-  // shows a once-per-session banner into Insights > Patterns.
+  // shows a button above "Draw a card" into Insights > Patterns while any
+  // remain unread.
   const [newPatternCount, setNewPatternCount] = useState(0);
-  const [showPatternPopup, setShowPatternPopup] = useState(false);
   useEffect(() => {
     const uid = user?.id;
     if (!uid) return;
@@ -403,27 +403,8 @@ function Index() {
             .sort();
           const all = detectAllPatterns({ readings, newMoons, birthDate });
           const unread = all.filter((p) => !seen.has(p.patternId));
-          if (cancelled || unread.length === 0) return;
-          let shownSet = new Set<string>();
-          try {
-            const raw = window.sessionStorage.getItem(
-              "tarotseed:pattern-popup-shown",
-            );
-            if (raw) shownSet = new Set<string>(JSON.parse(raw));
-          } catch {
-            /* ignore */
-          }
-          if (!unread.some((p) => !shownSet.has(p.patternId))) return;
+          if (cancelled) return;
           setNewPatternCount(unread.length);
-          setShowPatternPopup(true);
-          try {
-            window.sessionStorage.setItem(
-              "tarotseed:pattern-popup-shown",
-              JSON.stringify(unread.map((p) => p.patternId)),
-            );
-          } catch {
-            /* ignore */
-          }
         } catch {
           /* ignore */
         }
@@ -781,85 +762,6 @@ function Index() {
   // moon strip instead of floating in mid-page whitespace.
   return (
     <>
-      {showPatternPopup && (
-        <div
-          style={{
-            position: "fixed",
-            top: "calc(var(--topbar-pad, 0px) + 12px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 200,
-            width: "92%",
-            maxWidth: 440,
-            boxSizing: "border-box",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "12px 14px",
-            borderRadius: 12,
-            background: "var(--surface-card)",
-            border: "1px solid var(--accent, var(--gold))",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-          }}
-        >
-          <span
-            style={{
-              flex: 1,
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 14,
-              color: "var(--color-foreground)",
-            }}
-          >
-            You have {newPatternCount} new pattern
-            {newPatternCount === 1 ? "" : "s"} to explore.
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setShowPatternPopup(false);
-              void navigate({
-                to: "/insights",
-                search: { tab: "patterns", openPatterns: "1" },
-              });
-            }}
-            style={{
-              flexShrink: 0,
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: "1px solid var(--accent, var(--gold))",
-              background:
-                "color-mix(in oklab, var(--accent, var(--gold)) 16%, transparent)",
-              color: "var(--accent, var(--gold))",
-              cursor: "pointer",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 13,
-              whiteSpace: "nowrap",
-            }}
-          >
-            View
-          </button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            onClick={() => setShowPatternPopup(false)}
-            style={{
-              flexShrink: 0,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--color-foreground)",
-              opacity: 0.6,
-              padding: 2,
-              fontSize: 16,
-              lineHeight: 1,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
     {/* EJ65 — Left fly-out page menu trigger + panel. Home's only
         config is the moon carousel hide toggle. */}
     {!splashActive && (
@@ -930,6 +832,38 @@ function Index() {
               width: "min(92vw, 440px)",
             }}
           >
+            {/* v3.102 — new-patterns nudge. Sits above the Draw tile only when
+                the seeker has unread patterns; opens Insights > Patterns. */}
+            {newPatternCount > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  void navigate({
+                    to: "/insights",
+                    search: { tab: "patterns", openPatterns: "1" },
+                  })
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "12px 16px",
+                  borderRadius: 999,
+                  border: "1px solid var(--accent, var(--gold))",
+                  background:
+                    "color-mix(in oklab, var(--accent, var(--gold)) 16%, transparent)",
+                  color: "var(--accent, var(--gold))",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                }}
+              >
+                {newPatternCount} new pattern
+                {newPatternCount === 1 ? "" : "s"} to explore →
+              </button>
+            )}
             {/* v3.66 — destination hub replaces the single gateway card. The
                 featured "Draw" tile is the quick path to the table; the three
                 smaller tiles branch to the other main surfaces. gatewayCardRef
