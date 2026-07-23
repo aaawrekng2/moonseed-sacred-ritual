@@ -30,6 +30,9 @@ import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useDevMode } from "@/components/dev/DevOverlay";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { supabase } from "@/lib/supabase";
+import { getQuickLogOverlap } from "@/lib/quicklog.functions";
+import { detectAllPatterns } from "@/lib/pattern-detect";
+import { getPhaseOccurrences } from "@/lib/moon";
 import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
 import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
@@ -44,7 +47,7 @@ import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { DAILY_RESET_EVENT, useDailyReset } from "@/lib/use-daily-reset";
 import { getStartOfDayInTz, getTodayInTz, useTimezone } from "@/lib/use-timezone";
-import { currentTzOrFallback, nowYmdInTz } from "@/lib/time";
+import { currentTzOrFallback, nowYmdInTz, isoDayInTz } from "@/lib/time";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -356,6 +359,81 @@ function Index() {
   const [customCountOpen, setCustomCountOpen] = useState(false);
   const [customCount, setCustomCount] = useState<number>(3);
   const { user, loading: authLoading } = useAuth();
+  // v3.97 — home "new patterns" nudge. Deferred after render; detects unread
+  // patterns across all readings (same detection the pattern star uses) and
+  // shows a once-per-session banner into Insights > Patterns.
+  const [newPatternCount, setNewPatternCount] = useState(0);
+  const [showPatternPopup, setShowPatternPopup] = useState(false);
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { data: prefs } = await supabase
+            .from("user_preferences")
+            .select("birth_date, seen_patterns")
+            .eq("user_id", uid)
+            .maybeSingle();
+          const birthDate =
+            (prefs as { birth_date?: string | null } | null)?.birth_date ?? null;
+          const seenArr = (prefs as { seen_patterns?: string[] } | null)
+            ?.seen_patterns;
+          const seen = new Set<string>(Array.isArray(seenArr) ? seenArr : []);
+          const overlap = await getQuickLogOverlap({
+            data: {
+              heroCardId: null,
+              tz: effectiveTz,
+              filters: { timeRange: "365d" },
+            },
+          });
+          const readings: { ymd: string; cardIds: number[] }[] = [];
+          for (const [ymd, list] of Object.entries(overlap.readingsByDate)) {
+            for (const r of list)
+              readings.push({ ymd, cardIds: r.cardIds ?? [] });
+          }
+          if (cancelled || readings.length === 0) return;
+          const now = new Date();
+          const spanDays = 365;
+          const from = new Date(now.getTime() - (spanDays + 45) * 86400000);
+          const monthsAhead = Math.ceil((spanDays + 90) / 30);
+          const newMoons = getPhaseOccurrences("New Moon", from, monthsAhead)
+            .map((d) => isoDayInTz(d, effectiveTz))
+            .sort();
+          const all = detectAllPatterns({ readings, newMoons, birthDate });
+          const unread = all.filter((p) => !seen.has(p.patternId));
+          if (cancelled || unread.length === 0) return;
+          let shownSet = new Set<string>();
+          try {
+            const raw = window.sessionStorage.getItem(
+              "tarotseed:pattern-popup-shown",
+            );
+            if (raw) shownSet = new Set<string>(JSON.parse(raw));
+          } catch {
+            /* ignore */
+          }
+          if (!unread.some((p) => !shownSet.has(p.patternId))) return;
+          setNewPatternCount(unread.length);
+          setShowPatternPopup(true);
+          try {
+            window.sessionStorage.setItem(
+              "tarotseed:pattern-popup-shown",
+              JSON.stringify(unread.map((p) => p.patternId)),
+            );
+          } catch {
+            /* ignore */
+          }
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [user?.id, effectiveTz]);
   // v2.90 — welcome tour: opens once the splash hero card has landed
   // (splashPhase "done"); shows every visit until "Don't show again"
   // (hard-dismissed via the shared hint store — localStorage for anon,
@@ -703,6 +781,85 @@ function Index() {
   // moon strip instead of floating in mid-page whitespace.
   return (
     <>
+      {showPatternPopup && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(var(--topbar-pad, 0px) + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 200,
+            width: "92%",
+            maxWidth: 440,
+            boxSizing: "border-box",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "12px 14px",
+            borderRadius: 12,
+            background: "var(--surface-card)",
+            border: "1px solid var(--accent, var(--gold))",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <span
+            style={{
+              flex: 1,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "var(--color-foreground)",
+            }}
+          >
+            You have {newPatternCount} new pattern
+            {newPatternCount === 1 ? "" : "s"} to explore.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setShowPatternPopup(false);
+              void navigate({
+                to: "/insights",
+                search: { tab: "patterns", openPatterns: "1" },
+              });
+            }}
+            style={{
+              flexShrink: 0,
+              padding: "6px 12px",
+              borderRadius: 999,
+              border: "1px solid var(--accent, var(--gold))",
+              background:
+                "color-mix(in oklab, var(--accent, var(--gold)) 16%, transparent)",
+              color: "var(--accent, var(--gold))",
+              cursor: "pointer",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              whiteSpace: "nowrap",
+            }}
+          >
+            View
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setShowPatternPopup(false)}
+            style={{
+              flexShrink: 0,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--color-foreground)",
+              opacity: 0.6,
+              padding: 2,
+              fontSize: 16,
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     {/* EJ65 — Left fly-out page menu trigger + panel. Home's only
         config is the moon carousel hide toggle. */}
     {!splashActive && (
