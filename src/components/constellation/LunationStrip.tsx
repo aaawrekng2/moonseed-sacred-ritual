@@ -13,7 +13,7 @@
  * Sparse: only days carrying a signal (hero, match, asterism, a reading, or a
  * new/full moon) are drawn. Newest on top. Two lenses: moon phase / day of month.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CalendarDays, Hash, Moon, Sparkles } from "lucide-react";
 import { CalendarDayCell, type DayCellSignals } from "@/components/tabletop/QuickLog";
 import { getPhaseOccurrences } from "@/lib/moon";
@@ -196,6 +196,10 @@ export function LunationStrip({
   patternLens = null,
   patternYmds = null,
 }: Props) {
+  // v3.104 — row-header hover panel: which row's list is open, and which day
+  // in it is hovered (so the matching strip cell blinks).
+  const [openRowKey, setOpenRowKey] = useState<string | null>(null);
+  const [hoveredEntryYmd, setHoveredEntryYmd] = useState<string | null>(null);
 
   const { moonRows, dayRows, numerologyRows, weekdayRows } = useMemo(() => {
     const tz = effectiveTz || "UTC";
@@ -705,36 +709,104 @@ export function LunationStrip({
         {rows.map((row) => {
           // v3.101 — compiled hover tip on the row label: every named pull in
           // this row as "draw name — date".
-          const rowTitle = row.cells
-            .flatMap((c) =>
-              (readingsByDate[c.ymd] ?? [])
-                .map((r) => r.spreadName)
-                .filter((n): n is string => !!n && n.trim().length > 0)
-                .map((n) => {
-                  const p = c.ymd.split("-").map(Number);
-                  return `${n} — ${MONTHS[p[1] - 1]} ${p[2]}`;
-                }),
-            )
-            .join("\n");
+          const rowEntries = row.cells.flatMap((c) =>
+            (readingsByDate[c.ymd] ?? [])
+              .map((r) => r.spreadName)
+              .filter((n): n is string => !!n && n.trim().length > 0)
+              .map((n) => {
+                const p = c.ymd.split("-").map(Number);
+                return {
+                  name: n,
+                  ymd: c.ymd,
+                  label: `${MONTHS[p[1] - 1]} ${p[2]}`,
+                };
+              }),
+          );
           return (
           <div key={row.key} style={{ position: "relative", height: rowH, marginBottom: rowGap }}>
-            <span
-              title={rowTitle || undefined}
+            <div
               style={{
                 position: "absolute",
                 left: 0,
                 top: 7,
                 width: 46,
-                textAlign: "left",
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 9,
-                color: "var(--color-foreground)",
-                opacity: 0.45,
+                zIndex: openRowKey === row.key ? 61 : undefined,
+              }}
+              onMouseEnter={() => {
+                if (rowEntries.length > 0) setOpenRowKey(row.key);
+              }}
+              onMouseLeave={() => {
+                setOpenRowKey(null);
+                setHoveredEntryYmd(null);
               }}
             >
-              {row.label}
-            </span>
+              <span
+                style={{
+                  textAlign: "left",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 9,
+                  color: "var(--color-foreground)",
+                  opacity: rowEntries.length > 0 ? 0.7 : 0.45,
+                  cursor: rowEntries.length > 0 ? "pointer" : undefined,
+                }}
+              >
+                {row.label}
+              </span>
+              {openRowKey === row.key && rowEntries.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 16,
+                    zIndex: 60,
+                    minWidth: 210,
+                    maxHeight: 220,
+                    overflowY: "auto",
+                    padding: 6,
+                    borderRadius: 10,
+                    background: "var(--surface-card)",
+                    border: "1px solid var(--border-subtle)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
+                >
+                  {rowEntries.map((e) => (
+                    <button
+                      key={`${e.ymd}-${e.name}`}
+                      type="button"
+                      onMouseEnter={() => setHoveredEntryYmd(e.ymd)}
+                      onMouseLeave={() => setHoveredEntryYmd(null)}
+                      onClick={() => {
+                        setOpenRowKey(null);
+                        setHoveredEntryYmd(null);
+                        onDayClick?.(e.ymd);
+                      }}
+                      style={{
+                        textAlign: "left",
+                        whiteSpace: "nowrap",
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        border: "none",
+                        background:
+                          hoveredEntryYmd === e.ymd
+                            ? "color-mix(in oklab, var(--accent, var(--gold)) 16%, transparent)"
+                            : "transparent",
+                        color: "var(--color-foreground)",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 12,
+                      }}
+                    >
+                      <span style={{ fontStyle: "italic" }}>{e.name}</span>
+                      <span style={{ opacity: 0.6 }}> — {e.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div
               style={{
                 position: "absolute",
@@ -752,6 +824,7 @@ export function LunationStrip({
                 return (
                 <span
                   key={c.ymd}
+                  className={c.ymd === hoveredEntryYmd ? "animate-pulse" : undefined}
                   style={{
                     position: "absolute",
                     top: cellTop,
@@ -764,10 +837,14 @@ export function LunationStrip({
                     // v3.31 — outline that never nudges layout. Only paints on
                     // the lens that owns the pattern; other lenses scatter its
                     // member cells which would be misleading.
-                    boxShadow: isPatternCell
-                      ? "0 0 0 2px var(--pattern-highlight)"
-                      : undefined,
-                    borderRadius: isPatternCell ? 4 : undefined,
+                    boxShadow:
+                      c.ymd === hoveredEntryYmd
+                        ? "0 0 0 2px var(--accent, var(--gold))"
+                        : isPatternCell
+                          ? "0 0 0 2px var(--pattern-highlight)"
+                          : undefined,
+                    borderRadius:
+                      c.ymd === hoveredEntryYmd || isPatternCell ? 4 : undefined,
                   }}
                 >
                   <CalendarDayCell

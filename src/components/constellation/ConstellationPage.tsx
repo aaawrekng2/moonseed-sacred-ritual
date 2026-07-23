@@ -8101,6 +8101,19 @@ export function ConstellationPage({
                           gap: 4,
                         }}
                       >
+                        {r.spreadName && r.spreadName.trim() !== "" && (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-display)",
+                              fontStyle: "italic",
+                              fontSize: 14,
+                              color: "var(--accent, var(--gold))",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {r.spreadName}
+                          </span>
+                        )}
                         {r.question ? (
                           <span
                             style={{
