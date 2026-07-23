@@ -203,7 +203,11 @@ export function LunationStrip({
     const spanDays = rangeDays(timeRange);
     const cutoff = new Date(now.getTime() - spanDays * DAY_MS);
     const from = new Date(now.getTime() - (spanDays + 45) * DAY_MS);
-    const monthsAhead = Math.ceil((spanDays + 60) / 30);
+    // v3.91 — was + 60; pushed to + 90 so the lookahead always reaches the
+    // NEXT upcoming new moon, which closes (and therefore draws) the current,
+    // in-progress lunation. Without it the newest cycle had no closing boundary
+    // and never got a row, so today's pulls didn't appear.
+    const monthsAhead = Math.ceil((spanDays + 90) / 30);
 
     const newMoons = getPhaseOccurrences("New Moon", from, monthsAhead).sort(
       (a, b) => a.getTime() - b.getTime(),
@@ -394,6 +398,9 @@ export function LunationStrip({
       // (Stepping 24h off the raw instant let the boundary new-moon day land
       // in both rows — the "May 16 shows twice" bug.)
       const startYmd = isoDayInTz(start, tz);
+      // v3.91 — don't draw a cycle that starts after today; it has no data yet
+      // and would render as an empty row above the current cycle.
+      if (startYmd > isoDayInTz(now, tz)) continue;
       const endYmd = isoDayInTz(end, tz);
       const ymds: string[] = [];
       let stepper = new Date(`${startYmd}T12:00:00Z`);
