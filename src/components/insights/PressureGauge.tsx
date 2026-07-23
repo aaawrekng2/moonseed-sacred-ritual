@@ -55,10 +55,10 @@ function sector(
   );
 }
 
-// over-index v -> needle angle. 0× = 180° (left), 5× = 0° (right).
+// over-index v -> needle angle. 0× = 180° (left), 4× = 0° (right, pegged).
 function needleDeg(v: number): number {
-  const clamped = Math.max(0, Math.min(5, v));
-  return 180 - 36 * clamped;
+  const clamped = Math.max(0, Math.min(4, v));
+  return 180 - 45 * clamped;
 }
 
 function formatOneIn(oneInN: number): string {
@@ -119,14 +119,17 @@ export function PressureGauge({
   // Gathering keeps its dial so the "still gathering" state reads.
   const showDial = comparison.status !== "ok" || overIndex > 1;
 
-  const alertFill = gathering
-    ? "var(--gauge-track)"
-    : isStalker
-    ? "var(--gauge-alert)"
-    : "var(--gauge-mid)";
-  const needleColor = isStalker
-    ? "var(--gauge-alert)"
-    : "color-mix(in oklch, var(--color-foreground) 55%, transparent)";
+  // v3.108 — the redline band is always red; the significance flag no longer
+  // decides the color. An obviously over-chance card reads hot on sight.
+  const alertFill = gathering ? "var(--gauge-track)" : "var(--gauge-alert)";
+  // v3.108 — the needle takes the color of the zone it sits in (over-index),
+  // matching the sector boundaries (>=1.76x redline, >0.8x building).
+  const needleColor =
+    overIndex >= 1.76
+      ? "var(--gauge-alert)"
+      : overIndex > 0.8
+      ? "var(--gauge-mid)"
+      : "color-mix(in oklch, var(--color-foreground) 55%, transparent)";
 
   const nAngle = needleDeg(overIndex);
   const [tipX, tipY] = polar(cx, cy, needleLen, nAngle);
@@ -167,7 +170,7 @@ export function PressureGauge({
         <>
           <polygon
             points={needlePts}
-            fill={bare ? "var(--gauge-needle)" : needleColor}
+            fill={needleColor}
             stroke={bare ? "none" : "var(--gauge-stroke)"}
             strokeWidth={strokeW}
             strokeLinejoin="round"

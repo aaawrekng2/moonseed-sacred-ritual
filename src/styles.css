@@ -84,8 +84,8 @@
      gold / accent / teal the Patterns surface already owns. A theme may
      override these if a light background needs it. */
   --gauge-track:               oklch(0.37 0.05 295);
-  --gauge-mid:                 oklch(0.50 0.07 293);
-  --gauge-alert:               oklch(0.65 0.16 42);
+  --gauge-mid:                 oklch(0.80 0.15 90);
+  --gauge-alert:               oklch(0.58 0.20 25);
   --gauge-stroke:              oklch(1 0 0 / 0.9);
   --gauge-well:                oklch(1 0 0 / 0.6);
   --gauge-needle:              oklch(0.18 0.03 295);
