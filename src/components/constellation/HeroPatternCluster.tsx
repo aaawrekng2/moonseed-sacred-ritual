@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useMemo } from "react";
 import { getCardName } from "@/lib/tarot";
 import { getCardMeta } from "@/lib/card-astrology";
 import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
@@ -48,6 +47,8 @@ type ChipModel = {
   value: React.ReactNode;
   hint: string;
   accent?: boolean;
+  // v3.105 — blink (pulse + gold accent) when a value is "pegged".
+  blink?: boolean;
 };
 
 export function HeroPatternCluster({
@@ -268,7 +269,7 @@ export function HeroPatternCluster({
             : `Drawn ${absPct}% ${pct > 0 ? "more" : "less"} often than pure chance would deal it — ${count} vs ~${expected.toFixed(
                 1,
               )} expected across this window.`;
-        return { label: "Vs chance", value, hint };
+        return { label: "Vs chance", value, hint, blink: pct >= 200 };
       })(),
     );
 
@@ -467,81 +468,8 @@ export function HeroPatternCluster({
     return { chips: c, sparkPoints: points };
   }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz, trackReversals]);
 
-  // v3.81 — show/hide individual chips via a master eyeball. The hidden set
-  // persists and is shared by the entry + Patterns grids.
-  const HIDDEN_KEY = "tarotseed.hiddenChips";
-  const [editChips, setEditChips] = useState(false);
-  const [hidden, setHidden] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = window.localStorage.getItem(HIDDEN_KEY);
-      return new Set<string>(raw ? JSON.parse(raw) : []);
-    } catch {
-      return new Set();
-    }
-  });
-  const rootRef = useRef<HTMLDivElement>(null);
-  const toggleChip = (label: string) => {
-    setHidden((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      try {
-        window.localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next]));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  };
-  // Tap the eyeball again, or click anywhere outside the grid, to apply.
-  useEffect(() => {
-    if (!editChips) return;
-    const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setEditChips(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [editChips]);
-  const visibleChips = editChips
-    ? chips
-    : chips.filter((c) => !hidden.has(c.label));
-
   return (
-    <div ref={rootRef} style={{ width: "100%" }}>
-      {/* v3.81 — master eyeball, above the top-left of the grid. Tap to
-          reveal a per-chip eye; tap again (or click away) to apply. */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-start",
-          marginBottom: 6,
-        }}
-      >
-        <button
-          type="button"
-          aria-label={editChips ? "Done choosing chips" : "Show or hide chips"}
-          title={editChips ? "Done" : "Show / hide chips"}
-          onClick={() => setEditChips((v) => !v)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--accent, var(--gold))",
-            padding: 4,
-            display: "inline-flex",
-            opacity: editChips ? 1 : 0.75,
-          }}
-        >
-          {editChips ? (
-            <EyeOff size={18} strokeWidth={1.5} aria-hidden="true" />
-          ) : (
-            <Eye size={18} strokeWidth={1.5} aria-hidden="true" />
-          )}
-        </button>
-      </div>
+    <div style={{ width: "100%" }}>
       <div
         style={{
           display: "grid",
@@ -549,16 +477,16 @@ export function HeroPatternCluster({
           gap: 9,
         }}
       >
-        {visibleChips.map((chip) => (
+        {chips.map((chip) => (
           <div
             key={chip.label}
             title={chip.hint}
+            className={chip.blink ? "animate-pulse" : undefined}
             style={{
-              position: "relative",
-              border: chip.accent
+              border: chip.accent || chip.blink
                 ? "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)"
                 : "1px solid var(--border-subtle)",
-              background: chip.accent
+              background: chip.accent || chip.blink
                 ? "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)"
                 : "var(--surface-elevated, var(--surface-card))",
               borderRadius: 6,
@@ -569,39 +497,8 @@ export function HeroPatternCluster({
               flexDirection: "column",
               gap: 2,
               cursor: "help",
-              opacity: editChips && hidden.has(chip.label) ? 0.4 : 1,
             }}
           >
-            {editChips && (
-              <button
-                type="button"
-                onClick={() => toggleChip(chip.label)}
-                aria-label={
-                  hidden.has(chip.label)
-                    ? `Show ${chip.label}`
-                    : `Hide ${chip.label}`
-                }
-                title={hidden.has(chip.label) ? "Show" : "Hide"}
-                style={{
-                  position: "absolute",
-                  top: 3,
-                  right: 3,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--accent, var(--gold))",
-                  padding: 2,
-                  display: "inline-flex",
-                  zIndex: 1,
-                }}
-              >
-                {hidden.has(chip.label) ? (
-                  <EyeOff size={13} strokeWidth={1.5} aria-hidden="true" />
-                ) : (
-                  <Eye size={13} strokeWidth={1.5} aria-hidden="true" />
-                )}
-              </button>
-            )}
             <span
               style={{
                 fontSize: 9,
@@ -610,7 +507,7 @@ export function HeroPatternCluster({
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 color: "var(--accent, var(--gold))",
-                opacity: chip.accent ? 0.85 : 0.8,
+                opacity: chip.accent || chip.blink ? 0.85 : 0.8,
                 textTransform: "uppercase",
               }}
             >

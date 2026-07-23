@@ -3052,19 +3052,40 @@ export type CardGaugesResult =
 
 export const getCardGauges = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => z.object({ tz: z.string().optional() }).parse(raw ?? {}))
-  .handler(async ({ context }): Promise<CardGaugesResult> => {
+  .inputValidator((raw: unknown) =>
+    z
+      .object({ tz: z.string().optional(), timeRange: z.string().optional() })
+      .parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<CardGaugesResult> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { data: rows, error } = await supabase
+    // v3.105 — the gauge now judges off the selected timeframe (like the
+    // "Vs chance" chip). A "Nd" timeRange scopes to the last N days; anything
+    // else (or absent) keeps the whole-history baseline.
+    const tr = (data as { timeRange?: string } | undefined)?.timeRange;
+    const m = tr ? /^(\d+)d$/.exec(tr) : null;
+    const days = m ? Number(m[1]) : null;
+    const windowed = days !== null;
+    let q = supabase
       .from("readings")
       .select("created_at, card_ids")
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
       .limit(5000);
+    if (days !== null) {
+      q = q.gte(
+        "created_at",
+        new Date(Date.now() - days * 86400000).toISOString(),
+      );
+    }
+    const { data: rows, error } = await q;
     if (error) throw error;
     const readings = (rows ?? []) as Array<{ created_at: string; card_ids: number[] | null }>;
     const draws = drawsFromReadings(readings);
-    if (draws.length < DEFAULT_MIN_SLOTS) return { status: "gathering" };
+    // Short windows can't clear the 60-slot whole-history floor, so use a
+    // lower floor when windowed (still enough to tell a pattern from noise).
+    const floor = windowed ? 10 : DEFAULT_MIN_SLOTS;
+    if (draws.length < floor) return { status: "gathering" };
 
     const now = Date.now();
     const distinct = new Set<number>();
@@ -3072,8 +3093,12 @@ export const getCardGauges = createServerFn({ method: "GET" })
 
     const gauges: Record<number, CardComparison> = {};
     for (const cardId of distinct) {
-      const cmp = cardComparison(cardId, draws, { now });
-      if (cmp.status === "ok" && cmp.overIndex > 1) gauges[cardId] = cmp;
+      const cmp = cardComparison(cardId, draws, { now, minSlots: floor });
+      // Only dial cards genuinely over chance AND pulled at least twice in the
+      // window (kills single-draw noise on short windows).
+      if (cmp.status === "ok" && cmp.overIndex > 1 && cmp.observed >= 2) {
+        gauges[cardId] = cmp;
+      }
     }
     return { status: "ok", gauges };
   });
