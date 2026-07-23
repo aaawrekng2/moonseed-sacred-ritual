@@ -6429,6 +6429,7 @@ export function ConstellationPage({
             />
           ) : (
           <ConstellationWeb
+            timeRange={globalFilters.timeRange}
             heroPick={heroPick}
             constellation={displayedConstellation}
             patternGlyph={

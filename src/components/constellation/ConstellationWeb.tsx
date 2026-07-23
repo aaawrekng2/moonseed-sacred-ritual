@@ -75,6 +75,8 @@ const COMPANION_POSITIONS = [
 ];
 
 type Props = {
+  /** v3.105 — active timeframe; the card gauge judges off this window. */
+  timeRange?: string;
   heroPick: ManualPick | null;
   constellation: CardConstellation | null;
   /** v2.53 — render the connecting lines as flowing plasma (canvas layer).
@@ -231,6 +233,7 @@ export function ConstellationWeb({
   emptyVariant = "prompt",
   patternGlyph = null,
   onPatternClick = undefined,
+  timeRange = undefined,
 }: Props) {
   // EJ35 — resolve oracle card names through the active deck's
   // card_name overrides so the pair-line tooltip and any other
@@ -384,7 +387,7 @@ function ConstellationSvg({
   const tealSet = new Set(tealSelectedIds);
   const candidateSet = new Set(candidateIds);
   const resolveCardName = useAnyDeckCardName();
-  const gauges = useCardGauges();
+  const gauges = useCardGauges(timeRange);
   // EJ27 — read the active deck's seeker-chosen corner radius (stored
   // as a 0-15% value via the deck-import slider). Used to size the
   // selection highlight's borderRadius so its outer silhouette matches

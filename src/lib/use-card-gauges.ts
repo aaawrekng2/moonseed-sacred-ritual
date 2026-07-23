@@ -1,15 +1,14 @@
 /**
- * useCardGauges (v2.51)
+ * useCardGauges (v3.105)
  *
  * Shared, session-cached feed of per-card gauge comparisons for the
- * constellation web. Every ConstellationWeb instance on the page reads from
- * ONE getCardGauges call — the first mount fetches, everyone else reuses the
- * cached map. The map only contains cards drawn MORE than chance (over-index
- * above 1); calm cards are absent, so the web draws no dial on them.
+ * constellation web. The gauge now judges off the SELECTED timeframe (passed
+ * as `timeRange`), so it agrees with the "Vs chance" chip. The cache is keyed
+ * by timeframe, so switching windows refetches once and everyone reuses it.
  *
- * The gauge reflects the seeker's WHOLE history (like the Overview meters),
- * not the constellation's filtered universe — so the ember always means the
- * same thing wherever the web appears.
+ * The map only contains cards drawn MORE than chance (over-index above 1) and
+ * pulled at least twice in the window; calm cards are absent, so the web draws
+ * no dial on them.
  */
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,47 +19,56 @@ import type { CardComparison } from "@/lib/pattern-engine";
 
 export type GaugeMap = Record<number, CardComparison>;
 
-// Module-level session cache shared across every web instance.
-let cache: GaugeMap | null = null;
-let inflight: Promise<GaugeMap> | null = null;
+// Module-level session caches, keyed by timeframe, shared across every web.
+const cache: Map<string, GaugeMap> = new Map();
+const inflight: Map<string, Promise<GaugeMap>> = new Map();
 
-export function useCardGauges(): GaugeMap {
+export function useCardGauges(timeRange?: string): GaugeMap {
   const fn = useServerFn(getCardGauges);
   const { effectiveTz } = useTimezone();
-  const [gauges, setGauges] = useState<GaugeMap>(cache ?? {});
+  const key = timeRange ?? "all";
+  const [gauges, setGauges] = useState<GaugeMap>(cache.get(key) ?? {});
 
   useEffect(() => {
     let cancelled = false;
 
-    if (cache) {
-      setGauges(cache);
+    const cached = cache.get(key);
+    if (cached) {
+      setGauges(cached);
       return;
     }
 
-    if (!inflight) {
-      inflight = (async () => {
+    let p = inflight.get(key);
+    if (!p) {
+      p = (async () => {
         try {
           const headers = await getAuthHeaders();
-          const res = await fn({ data: { tz: effectiveTz }, headers });
+          const res = await fn({
+            data: { tz: effectiveTz, timeRange },
+            headers,
+          });
           const map: GaugeMap = res.status === "ok" ? res.gauges : {};
-          cache = map;
+          cache.set(key, map);
           return map;
         } catch {
           const empty: GaugeMap = {};
-          cache = empty;
+          cache.set(key, empty);
           return empty;
+        } finally {
+          inflight.delete(key);
         }
       })();
+      inflight.set(key, p);
     }
 
-    void inflight.then((map) => {
+    void p.then((map) => {
       if (!cancelled) setGauges(map);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [fn, effectiveTz]);
+  }, [fn, effectiveTz, key, timeRange]);
 
   return gauges;
 }
