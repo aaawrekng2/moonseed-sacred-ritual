@@ -109,8 +109,13 @@ export function HeroPatternCluster({
       const half = Math.floor(buckets / 2);
       const older = counts.slice(0, half).reduce((a, b) => a + b, 0);
       const newer = counts.slice(half).reduce((a, b) => a + b, 0);
-      if (newer > older * 1.25) trendWord = "rising";
-      else if (newer < older * 0.8) trendWord = "fading";
+      // v3.108 — a card well over its chance baseline reads "climbing" even
+      // if the raw rate is flat; otherwise fall back to the recent-vs-earlier
+      // slope with a gentler threshold.
+      const overIdx =
+        stats.windowTotalSlots > 0 ? count / (stats.windowTotalSlots / 78) : 0;
+      if (overIdx >= 2 || newer > older * 1.1) trendWord = "climbing";
+      else if (newer < older * 0.75) trendWord = "cooling";
       else trendWord = "steady";
     }
 
