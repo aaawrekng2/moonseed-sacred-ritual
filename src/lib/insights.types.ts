@@ -58,6 +58,10 @@ export const InsightsFiltersSchema = z.object({
   // from useTimezone(). DEFAULT_FILTERS seeds "UTC" as a safe initial value
   // that is overwritten on mount.
   tz: z.string().min(1),
+  // Optional explicit ISO window. When set, scopes to [rangeStart, rangeEnd)
+  // and overrides the timeRange "last N days" (used to scope a single lunation).
+  rangeStart: z.string().optional(),
+  rangeEnd: z.string().optional(),
 });
 
 export type InsightsFilters = {
@@ -76,6 +80,9 @@ export type InsightsFilters = {
    * aggregate on the seeker's local calendar instead of UTC.
    */
   tz: string;
+  /** Optional explicit ISO window; overrides timeRange when set. */
+  rangeStart?: string;
+  rangeEnd?: string;
 };
 
 export const DEFAULT_FILTERS: InsightsFilters = {

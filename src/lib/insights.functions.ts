@@ -173,7 +173,11 @@ async function fetchFilteredReadings(
     .select(READING_COLUMNS)
     .eq("user_id", userId)
     .is("archived_at", null);
-  if (days !== null) {
+  if (filters.rangeStart || filters.rangeEnd) {
+    // Explicit window (e.g. a single lunation) overrides the days-based range.
+    if (filters.rangeStart) q = q.gte("created_at", filters.rangeStart);
+    if (filters.rangeEnd) q = q.lt("created_at", filters.rangeEnd);
+  } else if (days !== null) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     q = q.gte("created_at", since);
   }
