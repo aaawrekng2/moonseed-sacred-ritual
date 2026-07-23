@@ -49,6 +49,8 @@ const SaveManualInput = z.object({
   note: z.string().max(10000).optional(),
   /** v3.85 — tags to attach to this reading. Optional. */
   tags: z.array(z.string()).optional(),
+  /** v3.90 — optional name for this spread. */
+  spreadName: z.string().max(200).optional(),
   /** Optional ISO timestamp for backdated entries. */
   createdAt: z.string().datetime().optional(),
   /**
@@ -125,6 +127,10 @@ export const saveManualReading = createServerFn({ method: "POST" })
           interpretation: null,
           question: data.question ?? null,
           note: data.note ?? null,
+          // v3.90 — optional spread name (column is nullable; omit when blank).
+          ...(data.spreadName && data.spreadName.trim().length > 0
+            ? { spread_name: data.spreadName.trim() }
+            : {}),
           // v3.88 — only include `tags` when the seeker picked some. Sending an
           // explicit null broke the insert (the column has a default), which
           // failed every save. Omitting the key lets the DB default apply.
