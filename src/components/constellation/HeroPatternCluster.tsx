@@ -91,33 +91,11 @@ export function HeroPatternCluster({
       : null;
 
     // ── trend + sparkline ──
-    let trendWord = STILL;
-    const points: number[] = [];
-    if (tsAsc.length >= 2) {
-      const start = tsAsc[0];
-      const end = Date.now();
-      const span = end - start || 1;
-      const buckets = Math.min(12, Math.max(4, tsAsc.length));
-      const counts = new Array(buckets).fill(0);
-      for (const t of tsAsc) {
-        let b = Math.floor(((t - start) / span) * buckets);
-        if (b >= buckets) b = buckets - 1;
-        if (b < 0) b = 0;
-        counts[b]++;
-      }
-      points.push(...counts);
-      const half = Math.floor(buckets / 2);
-      const older = counts.slice(0, half).reduce((a, b) => a + b, 0);
-      const newer = counts.slice(half).reduce((a, b) => a + b, 0);
-      // v3.108 — a card well over its chance baseline reads "climbing" even
-      // if the raw rate is flat; otherwise fall back to the recent-vs-earlier
-      // slope with a gentler threshold.
-      const overIdx =
-        stats.windowTotalSlots > 0 ? count / (stats.windowTotalSlots / 78) : 0;
-      if (overIdx >= 2 || newer > older * 1.1) trendWord = "climbing";
-      else if (newer < older * 0.75) trendWord = "cooling";
-      else trendWord = "steady";
-    }
+    // v3.109 — trend + sparkline come from the server, bucketed across the
+    // whole selected filter window (not just the card's first->last span), so
+    // the word matches the line.
+    const trendWord = stats.trend ?? STILL;
+    const points: number[] = stats.sparkPoints ?? [];
 
     // ── weekday full split (client, tz-aware) ──
     const wd = new Array(7).fill(0);
@@ -277,6 +255,18 @@ export function HeroPatternCluster({
         return { label: "Vs chance", value, hint, blink: pct >= 200 };
       })(),
     );
+
+    // v3.109 — most over-chance recent run (last 30 days).
+    if (stats.recentRun) {
+      const rr = stats.recentRun;
+      const sign = rr.pct >= 0 ? "+" : "\u2212";
+      c.push({
+        label: "Recent run",
+        value: `${sign}${Math.abs(rr.pct)}% \u00b7 ${rr.count}\u00d7 in ${rr.days}d`,
+        hint: `Its most over-chance recent streak — drawn ${rr.count} times in the last ${rr.days} days, ${Math.abs(rr.pct)}% ${rr.pct >= 0 ? "more" : "less"} than pure chance over that span.`,
+        blink: rr.pct >= 200,
+      });
+    }
 
     c.push({
       label: "Last seen",

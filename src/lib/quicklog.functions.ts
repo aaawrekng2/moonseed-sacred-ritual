@@ -100,6 +100,11 @@ export type QuickLogCardStats = {
   lastSeenMoonPhase: MoonPhaseName | null;
   companions: Array<{ cardId: number; count: number }>;
   journal: QuickLogJournalRow[]; // all readings containing this cardId
+  // v3.109 — trend + sparkline bucketed across the SELECTED window.
+  trend: "climbing" | "cooling" | "steady" | null;
+  sparkPoints: number[];
+  // v3.109 — most over-chance recent run in the last 30 days (or null).
+  recentRun: { count: number; days: number; pct: number } | null;
 };
 
 type ReadingRow = {
@@ -211,6 +216,85 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
     const lastSeenMoonPhase: MoonPhaseName | null =
       matches.length > 0 ? getCurrentMoonPhase(new Date(matches[0].created_at)).phase : null;
 
+    // v3.109 — trend + sparkline bucketed across the SELECTED window, so it
+    // reflects the last-N-days filter (not just the card's first->last span).
+    const nowMs = Date.now();
+    const matchTimes = matches
+      .map((r) => new Date(r.created_at).getTime())
+      .sort((a, b) => a - b);
+    let trend: QuickLogCardStats["trend"] = null;
+    let sparkPoints: number[] = [];
+    if (matchTimes.length >= 2) {
+      const startMs = since ? new Date(since).getTime() : matchTimes[0];
+      const span = Math.max(1, nowMs - startMs);
+      const buckets = Math.min(12, Math.max(4, matchTimes.length));
+      const counts = new Array(buckets).fill(0);
+      for (const t of matchTimes) {
+        let b = Math.floor(((t - startMs) / span) * buckets);
+        if (b < 0) b = 0;
+        if (b >= buckets) b = buckets - 1;
+        counts[b]++;
+      }
+      sparkPoints = counts;
+      const half = Math.floor(buckets / 2);
+      const older = counts.slice(0, half).reduce((a, b) => a + b, 0);
+      const newer = counts.slice(half).reduce((a, b) => a + b, 0);
+      if (newer > older * 1.1) trend = "climbing";
+      else if (newer < older * 0.9) trend = "cooling";
+      else trend = "steady";
+    }
+
+    // v3.109 — most over-chance recent run in the last 30 days.
+    let recentRun: QuickLogCardStats["recentRun"] = null;
+    {
+      const RUN_DAYS = 30;
+      const runSince = new Date(nowMs - RUN_DAYS * 86400000).toISOString();
+      const { data: runRaw } = await supabase
+        .from("readings")
+        .select("created_at, card_ids")
+        .eq("user_id", userId)
+        .gte("created_at", runSince)
+        .order("created_at", { ascending: true });
+      const runEntries = (
+        (runRaw ?? []) as Array<{ created_at: string; card_ids: number[] | null }>
+      )
+        .filter((r) => Array.isArray(r.card_ids))
+        .map((r) => ({
+          t: new Date(r.created_at).getTime(),
+          slots: (r.card_ids ?? []).length,
+          hero: (r.card_ids ?? []).includes(cardId),
+        }));
+      const anchors = runEntries.filter((e) => e.hero).map((e) => e.t);
+      if (anchors.length >= 2) {
+        let best: { count: number; days: number; overIndex: number } | null = null;
+        for (const anchor of anchors) {
+          const days = Math.round((nowMs - anchor) / 86400000);
+          if (days < 3 || days > RUN_DAYS) continue;
+          let count = 0;
+          let slots = 0;
+          for (const e of runEntries) {
+            if (e.t >= anchor) {
+              slots += e.slots;
+              if (e.hero) count++;
+            }
+          }
+          if (count < 2) continue;
+          const expected = slots / 78;
+          const overIndex = expected > 0 ? count / expected : 0;
+          if (!best || overIndex > best.overIndex) {
+            best = { count, days, overIndex };
+          }
+        }
+        if (best) {
+          recentRun = {
+            count: best.count,
+            days: best.days,
+            pct: Math.round((best.overIndex - 1) * 100),
+          };
+        }
+      }
+    }
+
     return {
       count: matches.length,
       lastSeenAt: matches[0]?.created_at ?? null,
@@ -232,6 +316,9 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
         isDeepReading: r.is_deep_reading ?? false,
         moonPhase: r.moon_phase ?? null,
       })),
+      trend,
+      sparkPoints,
+      recentRun,
     };
   });
 
