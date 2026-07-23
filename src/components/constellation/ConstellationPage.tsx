@@ -620,6 +620,7 @@ type ConstellationPageProps = {
   /** v2.18 — render inside the Insights › Patterns tab. Drops the
    *  journal-entry block (question, notes, Save to Journal, backdate)
    *  and reserves the left column for the pattern chip cluster. */
+  autoOpenPatterns?: boolean;
   insightsMode?: boolean;
   /** v2.87 — in insightsMode, the Insights range selector's value, so the
    *  Patterns tab (calendar + data) follows the range the seeker picks
@@ -829,6 +830,7 @@ function buildAtlasGroupSlot(
 export function ConstellationPage({
   onSwitchToTable,
   atlasMode = false,
+  autoOpenPatterns = false,
   insightsMode = false,
   insightsTimeRange,
   lunationMode = false,
@@ -1122,6 +1124,11 @@ export function ConstellationPage({
   const [allPatterns, setAllPatterns] = useState<PatternResult[]>([]);
   const [seenPatterns, setSeenPatterns] = useState<Set<string>>(new Set());
   const [patternsModalOpen, setPatternsModalOpen] = useState(false);
+  // v3.92 — open the All-Patterns modal on arrival when linked with
+  // ?openPatterns=1 (e.g. from the home "new patterns" popup).
+  useEffect(() => {
+    if (autoOpenPatterns) setPatternsModalOpen(true);
+  }, [autoOpenPatterns]);
   const seenHydratedRef = useRef(false);
   useEffect(() => {
     if (seenHydratedRef.current || !user?.id) return;
