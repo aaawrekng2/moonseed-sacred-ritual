@@ -483,10 +483,10 @@ export function HeroPatternCluster({
             title={chip.hint}
             className={chip.blink ? "animate-pulse" : undefined}
             style={{
-              border: chip.accent || chip.blink
+              border: (chip.accent || chip.blink)
                 ? "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)"
                 : "1px solid var(--border-subtle)",
-              background: chip.accent || chip.blink
+              background: (chip.accent || chip.blink)
                 ? "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)"
                 : "var(--surface-elevated, var(--surface-card))",
               borderRadius: 6,
@@ -507,7 +507,7 @@ export function HeroPatternCluster({
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 color: "var(--accent, var(--gold))",
-                opacity: chip.accent || chip.blink ? 0.85 : 0.8,
+                opacity: (chip.accent || chip.blink) ? 0.85 : 0.8,
                 textTransform: "uppercase",
               }}
             >
