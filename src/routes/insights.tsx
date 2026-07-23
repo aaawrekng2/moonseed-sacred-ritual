@@ -68,7 +68,7 @@ export const Route = createFileRoute("/insights")({
       { title: "Insights — Tarot Seed" },
       {
         name: "description",
-        content: "Patterns, rhythms, and most-pulled cards across your readings.",
+        content: "Patterns, rhythms, and stalker cards across your readings.",
       },
     ],
   }),
@@ -90,7 +90,7 @@ const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "patterns", label: "Patterns" },
   { id: "cards", label: "Cards" },
   { id: "calendar", label: "Calendar" },
-  { id: "stalkers", label: "Most pulled" },
+  { id: "stalkers", label: "Stalkers" },
   { id: "stories", label: "Stories" },
   { id: "recap", label: "Lunations" },
 ];
