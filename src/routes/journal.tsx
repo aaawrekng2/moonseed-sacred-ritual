@@ -638,6 +638,15 @@ function JournalPage() {
   const handleReadingDeckChange = useCallback((id: string, deckId: string | null) => {
     setReadings((prev) => prev.map((r) => (r.id === id ? { ...r, deck_id: deckId } : r)));
   }, []);
+  // v3.93 — keep the list in sync when the spread name is edited in the detail.
+  const handleReadingSpreadNameChange = useCallback(
+    (id: string, name: string | null) => {
+      setReadings((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, spread_name: name } : r)),
+      );
+    },
+    [],
+  );
 
   // DA — Load metadata for the optional ?batch=... filter banner.
   useEffect(() => {
@@ -1073,6 +1082,7 @@ function JournalPage() {
             onTagLibraryChange={handleTagLibraryChange}
             onPhotoCountChange={handlePhotoCountChange}
             onDeckChange={handleReadingDeckChange}
+            onSpreadNameChange={handleReadingSpreadNameChange}
             onArchived={(id) => {
               setReadings((prev) => prev.filter((r) => r.id !== id));
               setOpenId(null);
@@ -2199,6 +2209,7 @@ function ReadingDetail({
   onTagLibraryChange,
   onPhotoCountChange,
   onDeckChange,
+  onSpreadNameChange,
   onArchived,
   onRestored,
 }: {
@@ -2215,11 +2226,28 @@ function ReadingDetail({
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
   onDeckChange: (id: string, deckId: string | null) => void;
+  onSpreadNameChange?: (id: string, name: string | null) => void;
   onArchived: (id: string) => void;
   onRestored?: () => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const navigate = useNavigate();
+  // v3.93 — editable spread-name title on the reading detail.
+  const [spreadNameLocal, setSpreadNameLocal] = useState(
+    reading.spread_name ?? "",
+  );
+  useEffect(() => {
+    setSpreadNameLocal(reading.spread_name ?? "");
+  }, [reading.id, reading.spread_name]);
+  const spreadNameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveSpreadName = (val: string) => {
+    const trimmed = val.trim();
+    void supabase
+      .from("readings")
+      .update({ spread_name: trimmed || null } as never)
+      .eq("id", reading.id);
+    onSpreadNameChange?.(reading.id, trimmed || null);
+  };
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
@@ -2552,6 +2580,24 @@ function ReadingDetail({
               <span style={{ opacity: "var(--ro-plus-20)" }}>
                 {formatDateTime(reading.created_at)}
               </span>
+              {/* v3.93 — editable spread-name title on the reading. */}
+              <input
+                value={spreadNameLocal}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSpreadNameLocal(v);
+                  if (spreadNameTimer.current)
+                    clearTimeout(spreadNameTimer.current);
+                  spreadNameTimer.current = setTimeout(
+                    () => saveSpreadName(v),
+                    600,
+                  );
+                }}
+                onBlur={() => saveSpreadName(spreadNameLocal)}
+                placeholder="Name this spread…"
+                className="mt-1 w-full bg-transparent font-display text-[15px] italic normal-case tracking-normal text-foreground outline-none"
+                style={{ border: "none", padding: 0 }}
+              />
             </div>
             {/* EA-7 — mirror the row's right-cluster indicators at the top of the detail. */}
             <div className="flex items-center gap-1.5 shrink-0">
