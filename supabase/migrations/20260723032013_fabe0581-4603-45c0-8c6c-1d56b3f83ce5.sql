@@ -1,0 +1,1 @@
+ALTER TABLE public.readings ADD COLUMN IF NOT EXISTS spread_name text;
