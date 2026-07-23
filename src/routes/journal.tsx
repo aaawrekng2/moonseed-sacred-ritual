@@ -1315,9 +1315,17 @@ function ReadingCard({
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
+            {reading.spread_name && (
+              <div
+                className="mb-0.5 font-display text-[15px] italic leading-snug"
+                style={{ color: "var(--accent)" }}
+              >
+                {reading.spread_name}
+              </div>
+            )}
             <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               <span style={{ opacity: "var(--ro-plus-30)" }}>
-                {formatDateShort(reading.created_at)}{reading.spread_name ? ` · ${reading.spread_name}` : ""} ·{" "}
+                {formatDateShort(reading.created_at)} ·{" "}
                 {formatTimeAgo(reading.created_at)} ·{" "}
                 {spreadLabel(reading.spread_type)}
               </span>
@@ -2595,8 +2603,8 @@ function ReadingDetail({
                 }}
                 onBlur={() => saveSpreadName(spreadNameLocal)}
                 placeholder="Name this spread…"
-                className="mt-1 w-full bg-transparent font-display text-[15px] italic normal-case tracking-normal text-foreground outline-none"
-                style={{ border: "none", padding: 0 }}
+                className="mt-1 w-full bg-transparent font-display text-[18px] italic normal-case tracking-normal outline-none"
+                style={{ border: "none", padding: 0, color: "var(--accent)" }}
               />
             </div>
             {/* EA-7 — mirror the row's right-cluster indicators at the top of the detail. */}
