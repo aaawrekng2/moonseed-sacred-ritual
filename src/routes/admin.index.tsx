@@ -319,6 +319,17 @@ function Sidebar({ tab, setTab, myRole }: { tab: Tab; setTab: (t: Tab) => void; 
       >
         Usage
       </Link>
+      <Link
+        to="/admin/activity"
+        className="flex items-center gap-2 px-2 py-2 text-left transition-opacity hover:opacity-80"
+        style={{
+          ...serif,
+          fontSize: "var(--text-body)",
+          color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+        }}
+      >
+        Activity
+      </Link>
       <div className="mt-2">
         <Link
           to="/"
@@ -483,6 +494,18 @@ function MobileTabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         }}
       >
         Usage
+      </Link>
+      <Link
+        to="/admin/activity"
+        style={{
+          ...display,
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        }}
+      >
+        Activity
       </Link>
       <Link
         to="/"
