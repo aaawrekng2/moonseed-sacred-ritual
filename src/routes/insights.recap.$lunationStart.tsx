@@ -149,8 +149,11 @@ function LunationRecapRoute() {
 
   return (
     <div
-      className="fixed inset-0 z-50"
+      className="fixed inset-x-0 bottom-0 z-50"
       style={{
+        // v3.103 — start below the app TopNav so the top menu stays visible
+        // and clickable while inside a lunation.
+        top: "var(--topbar-pad)",
         background:
           "radial-gradient(ellipse at top, color-mix(in oklab, var(--gold) 8%, var(--background)) 0%, var(--background) 70%)",
         overflowY: "auto",
