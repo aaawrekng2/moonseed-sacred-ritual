@@ -979,6 +979,12 @@ function LunationSpread({
   tz: string;
 }) {
   const aiEnabled = useAIEnabled();
+  const navigate = useNavigate();
+  // v3.100 — pending "investigate this in Patterns?" confirmation.
+  const [investigate, setInvestigate] = useState<{
+    cards: { cardIndex: number; isReversed: boolean }[];
+    label: string;
+  } | null>(null);
   const range = formatLunationRange({
     start: new Date(data.lunationStart),
     end: new Date(data.lunationEnd),
@@ -1264,8 +1270,129 @@ function LunationSpread({
           title="Most pulled"
           rangeLabel="This lunation"
           fullOpacity
+          onInvestigate={(cards, label) => setInvestigate({ cards, label })}
         />
       </div>
+
+      {/* v3.100 — leave-and-investigate confirmation. */}
+      {investigate && (
+        <div
+          onClick={() => setInvestigate(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 300,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            background: "rgba(0,0,0,0.55)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              boxSizing: "border-box",
+              borderRadius: 14,
+              padding: "22px 20px",
+              textAlign: "center",
+              background: "var(--surface-card)",
+              border: "1px solid var(--accent, var(--gold))",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 17,
+                lineHeight: 1.4,
+                color: "var(--color-foreground)",
+              }}
+            >
+              Leave this cycle and investigate
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 17,
+                marginTop: 4,
+                marginBottom: 20,
+                color: "var(--accent, var(--gold))",
+              }}
+            >
+              {investigate.label}?
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => setInvestigate(null)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  color: "var(--color-foreground)",
+                  background: "transparent",
+                  border: "1px solid var(--border, rgba(255,255,255,0.2))",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    window.sessionStorage.setItem(
+                      "tarotseed:investigate-handoff",
+                      JSON.stringify({
+                        cards: investigate.cards,
+                        lens: "moon",
+                      }),
+                    );
+                  } catch {
+                    /* ignore */
+                  }
+                  setInvestigate(null);
+                  void navigate({
+                    to: "/insights",
+                    search: { tab: "patterns" },
+                  });
+                }}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  color: "var(--accent, var(--gold))",
+                  background:
+                    "color-mix(in oklab, var(--accent, var(--gold)) 16%, transparent)",
+                  border: "1px solid var(--accent, var(--gold))",
+                }}
+              >
+                Investigate
+              </button>
+            </div>
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 11,
+                opacity: 0.6,
+                color: "var(--color-foreground)",
+              }}
+            >
+              Opens Patterns with the moon-phase lens.
+            </div>
+          </div>
+        </div>
+      )}
 
       {aiEnabled === true && (
         <div
