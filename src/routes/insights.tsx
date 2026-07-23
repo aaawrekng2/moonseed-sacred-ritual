@@ -68,12 +68,16 @@ export const Route = createFileRoute("/insights")({
       { title: "Insights — Tarot Seed" },
       {
         name: "description",
-        content: "Patterns, rhythms, and stalker cards across your readings.",
+        content: "Patterns, rhythms, and most-pulled cards across your readings.",
       },
     ],
   }),
   validateSearch: (search: Record<string, unknown>) => ({
     tab: typeof search.tab === "string" ? (search.tab as string) : undefined,
+    openPatterns:
+      typeof search.openPatterns === "string"
+        ? (search.openPatterns as string)
+        : undefined,
   }),
   component: InsightsRoute,
 });
@@ -86,9 +90,9 @@ const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "patterns", label: "Patterns" },
   { id: "cards", label: "Cards" },
   { id: "calendar", label: "Calendar" },
-  { id: "stalkers", label: "Stalkers" },
+  { id: "stalkers", label: "Most pulled" },
   { id: "stories", label: "Stories" },
-  { id: "recap", label: "Recap" },
+  { id: "recap", label: "Lunations" },
 ];
 
 // EJ49 — Subtitle wording table. Maps `TimeRange` codes to the
@@ -626,6 +630,7 @@ function InsightsRoute() {
                 insightsMode
                 lunationMode
                 insightsTimeRange={shared.timeRange}
+                autoOpenPatterns={search.openPatterns === "1"}
               />
             </div>
           )}

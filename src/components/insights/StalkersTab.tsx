@@ -289,7 +289,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   return (
     <div className="px-4 pb-12">
       <header className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-lg font-serif italic">Stalkers</h2>
+        <h2 className="text-lg font-serif italic">Most pulled</h2>
         <div className="flex items-center gap-2">
           <Chip icon={<SingleCardIcon />} label="Singles" active={mode === "singles"} onClick={() => setMode("singles")} />
           {twinCount > 0 ? (
@@ -333,7 +333,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       ) : null}
 
       {loading && (
-        <LoadingText className="mb-3">Loading stalkers…</LoadingText>
+        <LoadingText className="mb-3">Loading most pulled…</LoadingText>
       )}
 
       <div className="mx-auto w-full max-w-xl md:max-w-2xl mb-8">
@@ -540,7 +540,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {!loading && filledCount === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <Wand2 className="h-8 w-8 mb-2 opacity-40" />
-          <p className="text-sm font-serif italic">No {mode} stalkers in this time range yet.</p>
+          <p className="text-sm font-serif italic">No {mode} most-pulled cards in this time range yet.</p>
           <p className="text-xs mt-1 opacity-70">Try a wider time range or different filters.</p>
         </div>
       )}
