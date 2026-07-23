@@ -1285,6 +1285,7 @@ export type Database = {
           pattern_id: string | null
           question: string | null
           source: string | null
+          spread_name: string | null
           spread_type: string
           tags: string[]
           tailored_prompt: string | null
@@ -1317,6 +1318,7 @@ export type Database = {
           pattern_id?: string | null
           question?: string | null
           source?: string | null
+          spread_name?: string | null
           spread_type: string
           tags?: string[]
           tailored_prompt?: string | null
@@ -1349,6 +1351,7 @@ export type Database = {
           pattern_id?: string | null
           question?: string | null
           source?: string | null
+          spread_name?: string | null
           spread_type?: string
           tags?: string[]
           tailored_prompt?: string | null
