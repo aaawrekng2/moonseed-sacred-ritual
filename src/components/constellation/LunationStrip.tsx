@@ -28,7 +28,7 @@ const MONTHS = [
 ];
 
 type DayInfo = { date: string; heroDrawn?: boolean; sameDayCardIds?: number[] };
-type Reading = { id: string; cardIds: number[] };
+type Reading = { id: string; cardIds: number[]; spreadName?: string | null };
 
 type Cell = {
   ymd: string;
@@ -343,7 +343,13 @@ export function LunationStrip({
           : parts[2];
       // Replicate the calendar's multi-line tooltip so the shared popover
       // shows identical text on hover.
-      const lines: string[] = [formatDateLong(`${ymd}T00:00:00`)];
+      const cellDrawNames = (readingsByDate[ymd] ?? [])
+        .map((r) => r.spreadName)
+        .filter((n): n is string => !!n && n.trim().length > 0);
+      const lines: string[] = [
+        ...cellDrawNames,
+        formatDateLong(`${ymd}T00:00:00`),
+      ];
       if (heroDrawn && heroCardId != null && heroName) {
         lines.push(`You drew ${heroName} here.`);
       }
@@ -696,9 +702,24 @@ export function LunationStrip({
             </div>
           </div>
         )}
-        {rows.map((row) => (
+        {rows.map((row) => {
+          // v3.101 — compiled hover tip on the row label: every named pull in
+          // this row as "draw name — date".
+          const rowTitle = row.cells
+            .flatMap((c) =>
+              (readingsByDate[c.ymd] ?? [])
+                .map((r) => r.spreadName)
+                .filter((n): n is string => !!n && n.trim().length > 0)
+                .map((n) => {
+                  const p = c.ymd.split("-").map(Number);
+                  return `${n} — ${MONTHS[p[1] - 1]} ${p[2]}`;
+                }),
+            )
+            .join("\n");
+          return (
           <div key={row.key} style={{ position: "relative", height: rowH, marginBottom: rowGap }}>
             <span
+              title={rowTitle || undefined}
               style={{
                 position: "absolute",
                 left: 0,
@@ -808,7 +829,8 @@ export function LunationStrip({
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       )}
     </div>

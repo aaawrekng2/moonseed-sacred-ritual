@@ -1407,7 +1407,12 @@ export function OverlapStrip({
                     // separate lines via whiteSpace: pre-line. Native
                     // title="" fallback (legacy /draw/classic) renders
                     // the newlines too in modern browsers.
-                    const lines: string[] = [dateLabel];
+                    const dayDrawNames = (
+                      overlap?.readingsByDate?.[day.date] ?? []
+                    )
+                      .map((r) => r.spreadName)
+                      .filter((n): n is string => !!n && n.trim().length > 0);
+                    const lines: string[] = [...dayDrawNames, dateLabel];
                     if (day.heroDrawn && heroCardId != null) {
                       lines.push(`You drew ${heroName} here.`);
                     }

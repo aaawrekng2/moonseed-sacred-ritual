@@ -45,6 +45,7 @@ function timeRangeStartIso(timeRange?: string): string | null {
 
 type FilterableRow = {
   spread_type?: string | null;
+  spread_name?: string | null;
   tags?: string[] | null;
   moon_phase?: string | null;
   is_deep_reading?: boolean | null;
@@ -126,7 +127,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
     let q = supabase
       .from("readings")
       .select(
-        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+        "id, created_at, card_ids, card_orientations, question, spread_type, spread_name, tags, moon_phase, is_deep_reading",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -263,6 +264,7 @@ export type QuickLogOverlap = {
       createdAt: string;
       question: string | null;
       cardIds: number[];
+      spreadName: string | null;
       // EK113 — recorded moon phase ("Full Moon" / "New Moon" / …), so the
       // atlas can match moon group slots. Null for readings without one.
       moonPhase: string | null;
@@ -316,7 +318,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
     const { data: rowsRaw } = await supabase
       .from("readings")
       .select(
-        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+        "id, created_at, card_ids, card_orientations, question, spread_type, spread_name, tags, moon_phase, is_deep_reading",
       )
       .eq("user_id", userId)
       .gte("created_at", lowerBound)
@@ -345,6 +347,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
         createdAt: row.created_at,
         question: row.question,
         cardIds: ids,
+        spreadName: row.spread_name ?? null,
         moonPhase: row.moon_phase ?? null,
       });
       const set = (sameDayCardIds[key] = sameDayCardIds[key] ?? new Set());
@@ -526,7 +529,7 @@ export const getCardConstellation = createServerFn({ method: "POST" })
     let cq = supabase
       .from("readings")
       .select(
-        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+        "id, created_at, card_ids, card_orientations, question, spread_type, spread_name, tags, moon_phase, is_deep_reading",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -784,7 +787,7 @@ export const getCardPopoverData = createServerFn({ method: "POST" })
     let q = supabase
       .from("readings")
       .select(
-        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+        "id, created_at, card_ids, card_orientations, question, spread_type, spread_name, tags, moon_phase, is_deep_reading",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
