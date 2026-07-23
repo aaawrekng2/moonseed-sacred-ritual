@@ -156,12 +156,26 @@ function Chip({ icon, active, onClick, label }: {
   );
 }
 
-function selClass(selectedKey: string | number | null, key: string | number): string {
-  if (selectedKey === null) return "";
+function selClass(
+  selectedKey: string | number | null,
+  key: string | number,
+  fullOpacity = false,
+): string {
+  if (fullOpacity || selectedKey === null) return "";
   return selectedKey === key ? "opacity-100" : "opacity-40";
 }
 
-export function StalkersTab({ filters }: { filters: InsightsFilters }) {
+export function StalkersTab({
+  filters,
+  title = "Stalkers",
+  rangeLabel,
+  fullOpacity = false,
+}: {
+  filters: InsightsFilters;
+  title?: string;
+  rangeLabel?: string;
+  fullOpacity?: boolean;
+}) {
   const timeRange = filters.timeRange;
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("singles");
@@ -289,7 +303,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   return (
     <div className="px-4 pb-12">
       <header className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-lg font-serif italic">Stalkers</h2>
+        <h2 className="text-lg font-serif italic">{title}</h2>
         <div className="flex items-center gap-2">
           <Chip icon={<SingleCardIcon />} label="Singles" active={mode === "singles"} onClick={() => setMode("singles")} />
           {twinCount > 0 ? (
@@ -304,7 +318,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
         </div>
       </header>
 
-      <div className="text-xs text-muted-foreground mb-3">{TIME_RANGE_LABELS[timeRange]}</div>
+      <div className="text-xs text-muted-foreground mb-3">{rangeLabel ?? TIME_RANGE_LABELS[timeRange]}</div>
 
       {(mode === "twins" || mode === "triplets") ? (
         <div className="flex items-center gap-2 mb-3">
@@ -350,7 +364,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
             singlesList.map((s) => (
               <div
                 key={s.cardId}
-                className={"transition-opacity duration-200 " + selClass(selectedKey, s.cardId)}
+                className={"transition-opacity duration-200 " + selClass(selectedKey, s.cardId, fullOpacity)}
               >
                 <CardCellWithBadge
                   cardId={s.cardId}
@@ -369,7 +383,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
-                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-2 " + selClass(selectedKey, key)}
+                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-2 " + selClass(selectedKey, key, fullOpacity)}
                     style={{ containerType: "inline-size" }}
                   >
                     <div className="absolute inset-0 -translate-x-1 -translate-y-1">
@@ -395,7 +409,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
-                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-3 " + selClass(selectedKey, key)}
+                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-3 " + selClass(selectedKey, key, fullOpacity)}
                     style={{ containerType: "inline-size" }}
                   >
                     <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
@@ -420,7 +434,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
             reversedList.map((r) => (
               <div
                 key={r.cardId}
-                className={"transition-opacity duration-200 " + selClass(selectedKey, r.cardId)}
+                className={"transition-opacity duration-200 " + selClass(selectedKey, r.cardId, fullOpacity)}
               >
                 <CardCellWithBadge
                   cardId={r.cardId}

@@ -24,6 +24,8 @@ import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
 import { useTrackReversals } from "@/lib/use-track-reversals";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { LunationHint } from "@/components/insights/LunationHint";
+import { StalkersTab } from "@/components/insights/StalkersTab";
+import { DEFAULT_FILTERS } from "@/lib/insights.types";
 import { useTimezone } from "@/lib/use-timezone";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
@@ -1248,6 +1250,21 @@ function LunationSpread({
         >
           gold marks a day you drew · the moons open and crown the cycle
         </div>
+      </div>
+
+      {/* v3.99 — lunation-scoped "Most pulled" (Stalkers layout, full opacity). */}
+      <div style={{ marginTop: 28 }}>
+        <StalkersTab
+          filters={{
+            ...DEFAULT_FILTERS,
+            tz,
+            rangeStart: data.lunationStart,
+            rangeEnd: data.lunationEnd,
+          }}
+          title="Most pulled"
+          rangeLabel="This lunation"
+          fullOpacity
+        />
       </div>
 
       {aiEnabled === true && (
