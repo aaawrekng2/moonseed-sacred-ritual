@@ -97,6 +97,9 @@ export type QuickLogCardStats = {
   // v2.64 — total draw slots across ALL cards in the filtered window. Used to
   // compute the card's over-index vs pure chance: expected = this / 78.
   windowTotalSlots: number;
+  // v3.116 — expected count of the hero in this window (same-universe slots /
+  // universe size). VS CHANCE + RARITY read this.
+  windowExpected: number;
   topMoonPhase: { phase: MoonPhaseName; count: number; total: number } | null;
   lastSeenMoonPhase: MoonPhaseName | null;
   companions: Array<{ cardId: number; count: number }>;
@@ -105,7 +108,7 @@ export type QuickLogCardStats = {
   trend: "climbing" | "cooling" | "steady" | null;
   sparkPoints: number[];
   // v3.109 — most over-chance recent run in the last 30 days (or null).
-  recentRun: { count: number; days: number; pct: number } | null;
+  recentRun: { count: number; days: number; pct: number; expected: number } | null;
 };
 
 type ReadingRow = {
@@ -133,6 +136,24 @@ function poissonUpperTail(k: number, lambda: number): number {
   return Math.max(0, 1 - cdf);
 }
 
+// v3.116 — total card count across the user's oracle deck(s): the "universe" an
+// oracle card is measured against (tarot uses the fixed 78). 0 = no oracle deck.
+async function oracleUniverseSize(supabase: any, userId: string): Promise<number> {
+  const { data: decks } = await supabase
+    .from("custom_decks")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("deck_type", "oracle");
+  const ids = ((decks ?? []) as Array<{ id: string }>).map((d) => d.id);
+  if (ids.length === 0) return 0;
+  const { count } = await supabase
+    .from("custom_deck_cards")
+    .select("deck_id", { count: "exact", head: true })
+    .in("deck_id", ids)
+    .is("archived_at", null);
+  return count ?? 0;
+}
+
 export const getQuickLogCardStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => Input.parse(data))
@@ -142,6 +163,16 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       userId: string;
     };
     const { cardId } = data;
+    // v3.116 — measure this card against its OWN universe: a tarot card (id
+    // 0-77) vs the 78-card tarot slots; an oracle card (id >= 1000) vs its
+    // deck's card count. So a tarot card's odds aren't diluted by oracle pulls
+    // (and vice versa).
+    const heroIsOracle = cardId >= 1000;
+    const inHeroUniverse = (id: number) =>
+      heroIsOracle ? id >= 1000 : id <= 77;
+    const universeSize = heroIsOracle
+      ? await oracleUniverseSize(supabase, userId)
+      : 78;
 
     // Pull all readings for the seeker. Most users have <1k rows; for
     // larger histories the query still completes fast under RLS.
@@ -162,6 +193,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
     let totalCards = 0;
     let totalReversed = 0;
+    let universeSlots = 0; // v3.116 — slots in the hero's universe (tarot|oracle)
     const cardCounts = new Map<number, number>();
 
     for (const r of all) {
@@ -169,6 +201,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       const ors = r.card_orientations ?? [];
       totalCards += ids.length;
       for (let i = 0; i < ids.length; i++) {
+        if (inHeroUniverse(ids[i])) universeSlots++;
         if (ors[i] === true) totalReversed++;
         cardCounts.set(ids[i], (cardCounts.get(ids[i]) ?? 0) + 1);
       }
@@ -277,13 +310,13 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
         .filter((r) => Array.isArray(r.card_ids))
         .map((r) => ({
           t: new Date(r.created_at).getTime(),
-          slots: (r.card_ids ?? []).length,
+          slots: (r.card_ids ?? []).filter(inHeroUniverse).length,
           hero: (r.card_ids ?? []).includes(cardId),
         }));
       const anchors = runEntries.filter((e) => e.hero).map((e) => e.t);
       if (anchors.length >= 2) {
         let best:
-          | { count: number; days: number; overIndex: number; p: number }
+          | { count: number; days: number; overIndex: number; p: number; expected: number }
           | null = null;
         for (const anchor of anchors) {
           const days = Math.round((nowMs - anchor) / 86400000);
@@ -297,13 +330,13 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
             }
           }
           if (count < 2) continue;
-          const expected = slots / 78;
+          const expected = universeSize > 0 ? slots / universeSize : 0;
           const overIndex = expected > 0 ? count / expected : 0;
           const p = poissonUpperTail(count, expected);
           // Lowest p-value wins (most surprising); ties keep the earliest
           // anchor already stored -> the fuller run with the most pulls.
           if (!best || p < best.p) {
-            best = { count, days, overIndex, p };
+            best = { count, days, overIndex, p, expected };
           }
         }
         if (best) {
@@ -311,6 +344,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
             count: best.count,
             days: best.days,
             pct: Math.round((best.overIndex - 1) * 100),
+            expected: best.expected,
           };
         }
       }
@@ -325,6 +359,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       frequencyRank,
       totalDistinctCards,
       windowTotalSlots: totalCards,
+      windowExpected: universeSize > 0 ? universeSlots / universeSize : 0,
       topMoonPhase,
       lastSeenMoonPhase,
       companions,
