@@ -13,6 +13,7 @@ import { getCardMeta } from "@/lib/card-astrology";
 import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase, type MoonPhaseName } from "@/lib/moon";
 import { dayOfWeekInTz, isoDayInTz } from "@/lib/time";
+import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import {
   cardComparison,
   drawsFromReadings,
@@ -352,6 +353,7 @@ export type QuickLogOverlap = {
       question: string | null;
       cardIds: number[];
       spreadName: string | null;
+      drawLabel: string;
       // EK113 — recorded moon phase ("Full Moon" / "New Moon" / …), so the
       // atlas can match moon group slots. Null for readings without one.
       moonPhase: string | null;
@@ -368,6 +370,21 @@ export type QuickLogOverlap = {
 function daysInMonth(year: number, month1: number): number {
   // eslint-disable-next-line no-restricted-syntax -- pure month-length arithmetic; not tz-sensitive
   return new Date(year, month1, 0).getDate();
+}
+
+// v3.110 — best label for a pull: its saved name, else the spread-type label,
+// else "Untitled draw". Lets unnamed pulls still show in strips/tips.
+function drawLabelFor(
+  spreadName: string | null,
+  spreadType: string | null,
+): string {
+  const n = spreadName?.trim();
+  if (n) return n;
+  if (spreadType && isValidSpreadMode(spreadType)) {
+    return SPREAD_META[spreadType as SpreadMode].label;
+  }
+  if (spreadType && spreadType.trim()) return spreadType.trim();
+  return "Untitled draw";
 }
 
 export const getQuickLogOverlap = createServerFn({ method: "POST" })
@@ -435,6 +452,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
         question: row.question,
         cardIds: ids,
         spreadName: row.spread_name ?? null,
+        drawLabel: drawLabelFor(row.spread_name ?? null, row.spread_type ?? null),
         moonPhase: row.moon_phase ?? null,
       });
       const set = (sameDayCardIds[key] = sameDayCardIds[key] ?? new Set());

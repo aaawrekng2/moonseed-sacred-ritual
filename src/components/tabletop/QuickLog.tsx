@@ -1410,7 +1410,7 @@ export function OverlapStrip({
                     const dayDrawNames = (
                       overlap?.readingsByDate?.[day.date] ?? []
                     )
-                      .map((r) => r.spreadName)
+                      .map((r) => r.drawLabel)
                       .filter((n): n is string => !!n && n.trim().length > 0);
                     const lines: string[] = [...dayDrawNames, dateLabel];
                     if (day.heroDrawn && heroCardId != null) {

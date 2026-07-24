@@ -8102,7 +8102,7 @@ export function ConstellationPage({
                           gap: 4,
                         }}
                       >
-                        {r.spreadName && r.spreadName.trim() !== "" && (
+                        {r.drawLabel && r.drawLabel.trim() !== "" && (
                           <span
                             style={{
                               fontFamily: "var(--font-display)",
@@ -8112,7 +8112,7 @@ export function ConstellationPage({
                               lineHeight: 1.3,
                             }}
                           >
-                            {r.spreadName}
+                            {r.drawLabel}
                           </span>
                         )}
                         {r.question ? (

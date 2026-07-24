@@ -28,7 +28,7 @@ const MONTHS = [
 ];
 
 type DayInfo = { date: string; heroDrawn?: boolean; sameDayCardIds?: number[] };
-type Reading = { id: string; cardIds: number[]; spreadName?: string | null };
+type Reading = { id: string; cardIds: number[]; spreadName?: string | null; drawLabel?: string };
 
 type Cell = {
   ymd: string;
@@ -348,7 +348,7 @@ export function LunationStrip({
       // Replicate the calendar's multi-line tooltip so the shared popover
       // shows identical text on hover.
       const cellDrawNames = (readingsByDate[ymd] ?? [])
-        .map((r) => r.spreadName)
+        .map((r) => r.drawLabel)
         .filter((n): n is string => !!n && n.trim().length > 0);
       const lines: string[] = [
         ...cellDrawNames,
@@ -711,7 +711,7 @@ export function LunationStrip({
           // this row as "draw name — date".
           const rowEntries = row.cells.flatMap((c) =>
             (readingsByDate[c.ymd] ?? [])
-              .map((r) => r.spreadName)
+              .map((r) => r.drawLabel)
               .filter((n): n is string => !!n && n.trim().length > 0)
               .map((n) => {
                 const p = c.ymd.split("-").map(Number);
