@@ -2951,6 +2951,24 @@ const ENGINE_SUIT_META: Array<{ key: string; label: string; size: number }> = [
   { key: "pentacles", label: "Pentacles", size: 14 },
 ];
 
+// v3.116 — total card count across the user's oracle deck(s): the "universe" an
+// oracle card is measured against (tarot uses the fixed 78). 0 = no oracle deck.
+async function oracleUniverseSize(supabase: any, userId: string): Promise<number> {
+  const { data: decks } = await supabase
+    .from("custom_decks")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("deck_type", "oracle");
+  const ids = ((decks ?? []) as Array<{ id: string }>).map((d) => d.id);
+  if (ids.length === 0) return 0;
+  const { count } = await supabase
+    .from("custom_deck_cards")
+    .select("deck_id", { count: "exact", head: true })
+    .in("deck_id", ids)
+    .is("archived_at", null);
+  return count ?? 0;
+}
+
 export const getEngineInsights = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw: unknown) =>
@@ -2981,7 +2999,10 @@ export const getEngineInsights = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw error;
     const readings = (rows ?? []) as Array<{ created_at: string; card_ids: number[] | null }>;
-    const draws = drawsFromReadings(readings);
+    // v3.116 — the Overview is tarot-scoped (suits/majors are inherently
+    // tarot), so measure card patterns against the 78-card tarot universe only;
+    // oracle slots no longer dilute the denominator.
+    const draws = drawsFromReadings(readings).filter((d) => d.cardId <= 77);
     const now = Date.now();
     const totalSlots = draws.length;
 
@@ -3107,12 +3128,28 @@ export const getCardGauges = createServerFn({ method: "GET" })
     if (draws.length < floor) return { status: "gathering" };
 
     const now = Date.now();
+    // v3.116 — score each card against its OWN universe: tarot cards vs the
+    // 78-card tarot slots, oracle cards vs that oracle deck's card count. Split
+    // the draws so a tarot card's odds aren't diluted by oracle pulls (and
+    // vice versa).
+    const tarotDraws = draws.filter((d) => d.cardId <= 77);
+    const oracleDraws = draws.filter((d) => d.cardId >= 1000);
+    const oracleSize =
+      oracleDraws.length > 0 ? await oracleUniverseSize(supabase, userId) : 0;
     const distinct = new Set<number>();
     for (const d of draws) distinct.add(d.cardId);
 
     const gauges: Record<number, CardComparison> = {};
     for (const cardId of distinct) {
-      const cmp = cardComparison(cardId, draws, { now, minSlots: floor });
+      const isOracle = cardId >= 1000;
+      const uDraws = isOracle ? oracleDraws : tarotDraws;
+      const dSize = isOracle ? oracleSize : 78;
+      if (isOracle && dSize <= 0) continue; // can't size this oracle universe
+      const cmp = cardComparison(cardId, uDraws, {
+        now,
+        minSlots: floor,
+        deckSize: dSize,
+      });
       // Only dial cards genuinely over chance AND pulled at least twice in the
       // window (kills single-draw noise on short windows).
       if (cmp.status === "ok" && cmp.overIndex > 1 && cmp.observed >= 2) {

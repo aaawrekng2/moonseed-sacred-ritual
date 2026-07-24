@@ -255,8 +255,9 @@ export function HeroPatternCluster({
     // other tiles).
     c.push(
       (() => {
-        const totalSlots = stats.windowTotalSlots ?? 0;
-        const expected = totalSlots / 78;
+        // v3.116 — universe-aware expected from the server (tarot slots / 78,
+        // or oracle slots / oracle-deck size).
+        const expected = stats.windowExpected ?? 0;
         if (count === 0 || expected <= 0) {
           return {
             label: "Vs chance",
@@ -278,35 +279,32 @@ export function HeroPatternCluster({
       })(),
     );
 
-    // v3.109 — most over-chance recent run (last 30 days).
+    // v3.109 / v3.116 — most over-chance recent run (last 30 days). The rarity
+    // ("1 in X") of that streak is now the headline; the over-chance percent
+    // moves into the tooltip. Same Poisson model + hero universe as VS CHANCE.
     if (stats.recentRun) {
       const rr = stats.recentRun;
       const sign = rr.pct >= 0 ? "+" : "\u2212";
+      const pctText = `${sign}${Math.abs(rr.pct)}%`;
+      const runText = `${rr.count}\u00d7 in ${rr.days}d`;
+      const heroName = getCardName(heroCardId) || "this card";
+      const X =
+        rr.count >= 2 && rr.expected > 0 && rr.count > rr.expected
+          ? rarityOneIn(rr.count, rr.expected)
+          : null;
+      const rare = X !== null && X >= 100;
+      const value = rare
+        ? `${formatOneIn(X as number)} \u00b7 ${runText}`
+        : `${pctText} \u00b7 ${runText}`;
+      const hint = rare
+        ? `Drawing ${heroName} ${rr.count}\u00d7 in the last ${rr.days} days — the odds of that by pure chance are about ${formatOneIn(X as number)} (${pctText} over chance).`
+        : `Its most over-chance recent streak — drawn ${rr.count} times in the last ${rr.days} days, ${Math.abs(rr.pct)}% ${rr.pct >= 0 ? "more" : "less"} than pure chance over that span.`;
       c.push({
         label: "Recent run",
-        value: `${sign}${Math.abs(rr.pct)}% \u00b7 ${rr.count}\u00d7 in ${rr.days}d`,
-        hint: `Its most over-chance recent streak — drawn ${rr.count} times in the last ${rr.days} days, ${Math.abs(rr.pct)}% ${rr.pct >= 0 ? "more" : "less"} than pure chance over that span.`,
-        blink: rr.pct >= 200,
+        value,
+        hint,
+        blink: rare ? (X as number) >= 1e6 : rr.pct >= 200,
       });
-    }
-
-    // v3.115 — RARITY: Poisson odds of this many pulls by pure chance. Same k
-    // and lambda as VS CHANCE, so they never contradict. Only when truly rare.
-    {
-      const kR = count;
-      const lambdaR = stats.windowTotalSlots > 0 ? stats.windowTotalSlots / 78 : 0;
-      if (kR >= 2 && lambdaR > 0 && kR > lambdaR) {
-        const X = rarityOneIn(kR, lambdaR);
-        if (X >= 100) {
-          const oneIn = formatOneIn(X);
-          c.push({
-            label: "Rarity",
-            value: oneIn,
-            hint: `Drawing ${getCardName(heroCardId)} ${kR}× in this window — the odds of that by pure chance are about ${oneIn}.`,
-            blink: X >= 1e6,
-          });
-        }
-      }
     }
 
     c.push({
