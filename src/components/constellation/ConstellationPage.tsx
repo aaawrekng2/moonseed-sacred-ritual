@@ -3266,7 +3266,7 @@ export function ConstellationPage({
         return;
       }
       const h =
-        web.getBoundingClientRect().bottom - box.getBoundingClientRect().top;
+        web.getBoundingClientRect().top + SVG_H - box.getBoundingClientRect().top;
       setNoteMaxH(h > 140 ? h : undefined);
     }
     measure();
