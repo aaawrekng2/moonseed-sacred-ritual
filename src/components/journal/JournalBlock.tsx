@@ -35,6 +35,7 @@
  *   - We avoid "pull" as a noun (styling doc terminology lock)
  */
 import { useEffect, useId, useMemo, useState } from "react";
+import { NoteMarkdown } from "@/components/ui/note-markdown";
 
 export type JournalBlockProps = {
   /** The full set of prompts for this surface (typically 3-5).
@@ -515,11 +516,10 @@ function ReadOnlyNote({
         fontSize: "var(--text-body, 14px)",
         color: "var(--color-foreground)",
         lineHeight: 1.65,
-        whiteSpace: "pre-wrap",
         cursor: onRequestEdit ? "pointer" : "default",
       }}
     >
-      {note}
+      <NoteMarkdown source={note} />
     </div>
   );
 }
