@@ -272,16 +272,16 @@ function InsightsRoute() {
   const stalkerFn = useServerFn(getStalkerCards);
   const [engine, setEngine] = useState<EngineInsights | null>(null);
   const engineFn = useServerFn(getEngineInsights);
-  // v2.44 — engine feed for the Overview (meters + suit ring). Runs over the
-  // full history and is filter-independent, so it only refetches on
-  // user / tab / retry, not on every global-filter change.
+  // v2.44 / v3.115 — engine feed for the Overview (meters + suit ring). Now
+  // scoped to the active timeframe (shared.timeRange), so it refetches when the
+  // top-left range changes (as well as user / tab / retry).
   useEffect(() => {
     if (!userId || tab !== "overview") return;
     let cancelled = false;
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const e = await engineFn({ data: { tz: effectiveTz }, headers });
+        const e = await engineFn({ data: { tz: effectiveTz, timeRange: shared.timeRange }, headers });
         if (!cancelled) setEngine(e as EngineInsights);
       } catch {
         if (!cancelled) setEngine(null);
@@ -290,7 +290,7 @@ function InsightsRoute() {
     return () => {
       cancelled = true;
     };
-  }, [userId, tab, fetchNonce, engineFn, effectiveTz]);
+  }, [userId, tab, fetchNonce, engineFn, effectiveTz, shared.timeRange]);
 
   // FU — Lift userTags fetch up so GlobalFilterBar can render Tags section.
   useEffect(() => {
