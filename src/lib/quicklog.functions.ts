@@ -118,6 +118,21 @@ type ReadingRow = {
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+// v3.111 — Poisson upper-tail P(X >= k | lambda). Lower = more surprising;
+// used to rank recent-run windows by statistical surprise so volume over a
+// longer span beats a spiky short window.
+function poissonUpperTail(k: number, lambda: number): number {
+  if (k <= 0) return 1;
+  if (lambda <= 0) return 0;
+  let term = Math.exp(-lambda); // i = 0
+  let cdf = term;
+  for (let i = 1; i < k; i++) {
+    term *= lambda / i;
+    cdf += term;
+  }
+  return Math.max(0, 1 - cdf);
+}
+
 export const getQuickLogCardStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => Input.parse(data))
@@ -267,7 +282,9 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
         }));
       const anchors = runEntries.filter((e) => e.hero).map((e) => e.t);
       if (anchors.length >= 2) {
-        let best: { count: number; days: number; overIndex: number } | null = null;
+        let best:
+          | { count: number; days: number; overIndex: number; p: number }
+          | null = null;
         for (const anchor of anchors) {
           const days = Math.round((nowMs - anchor) / 86400000);
           if (days < 3 || days > RUN_DAYS) continue;
@@ -282,8 +299,11 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
           if (count < 2) continue;
           const expected = slots / 78;
           const overIndex = expected > 0 ? count / expected : 0;
-          if (!best || overIndex > best.overIndex) {
-            best = { count, days, overIndex };
+          const p = poissonUpperTail(count, expected);
+          // Lowest p-value wins (most surprising); ties keep the earliest
+          // anchor already stored -> the fuller run with the most pulls.
+          if (!best || p < best.p) {
+            best = { count, days, overIndex, p };
           }
         }
         if (best) {

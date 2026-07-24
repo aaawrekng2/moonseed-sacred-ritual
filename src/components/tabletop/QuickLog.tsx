@@ -1410,6 +1410,11 @@ export function OverlapStrip({
                     const dayDrawNames = (
                       overlap?.readingsByDate?.[day.date] ?? []
                     )
+                      .filter(
+                        (r) =>
+                          pullSet.size === 0 ||
+                          r.cardIds.some((id) => pullSet.has(id)),
+                      )
                       .map((r) => r.drawLabel)
                       .filter((n): n is string => !!n && n.trim().length > 0);
                     const lines: string[] = [...dayDrawNames, dateLabel];

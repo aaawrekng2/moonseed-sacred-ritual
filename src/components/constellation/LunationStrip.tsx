@@ -348,6 +348,11 @@ export function LunationStrip({
       // Replicate the calendar's multi-line tooltip so the shared popover
       // shows identical text on hover.
       const cellDrawNames = (readingsByDate[ymd] ?? [])
+        .filter(
+          (r) =>
+            pullCardIds.length === 0 ||
+            r.cardIds.some((id) => pullCardIds.includes(id)),
+        )
         .map((r) => r.drawLabel)
         .filter((n): n is string => !!n && n.trim().length > 0);
       const lines: string[] = [
@@ -711,6 +716,11 @@ export function LunationStrip({
           // this row as "draw name — date".
           const rowEntries = row.cells.flatMap((c) =>
             (readingsByDate[c.ymd] ?? [])
+              .filter(
+                (r) =>
+                  pullCardIds.length === 0 ||
+                  r.cardIds.some((id) => pullCardIds.includes(id)),
+              )
               .map((r) => r.drawLabel)
               .filter((n): n is string => !!n && n.trim().length > 0)
               .map((n) => {
