@@ -6,10 +6,10 @@
  * column shows the chip grid + matching readings panel. Full-width
  * 6-month overlap strip sits below.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Feather, Pin, RotateCcw, RotateCw, Sparkles, TrendingUp, X, BookOpen } from "lucide-react";
+import { CalendarIcon, ChevronDown, Pin, RotateCcw, RotateCw, Sparkles, Tag, TrendingUp, X, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -621,6 +621,7 @@ type ConstellationPageProps = {
   /** v2.18 — render inside the Insights › Patterns tab. Drops the
    *  journal-entry block (question, notes, Save to Journal, backdate)
    *  and reserves the left column for the pattern chip cluster. */
+  autoOpenPatterns?: boolean;
   insightsMode?: boolean;
   /** v2.87 — in insightsMode, the Insights range selector's value, so the
    *  Patterns tab (calendar + data) follows the range the seeker picks
@@ -830,6 +831,7 @@ function buildAtlasGroupSlot(
 export function ConstellationPage({
   onSwitchToTable,
   atlasMode = false,
+  autoOpenPatterns = false,
   insightsMode = false,
   insightsTimeRange,
   lunationMode = false,
@@ -1123,6 +1125,11 @@ export function ConstellationPage({
   const [allPatterns, setAllPatterns] = useState<PatternResult[]>([]);
   const [seenPatterns, setSeenPatterns] = useState<Set<string>>(new Set());
   const [patternsModalOpen, setPatternsModalOpen] = useState(false);
+  // v3.92 — open the All-Patterns modal on arrival when linked with
+  // ?openPatterns=1 (e.g. from the home "new patterns" popup).
+  useEffect(() => {
+    if (autoOpenPatterns) setPatternsModalOpen(true);
+  }, [autoOpenPatterns]);
   const seenHydratedRef = useRef(false);
   useEffect(() => {
     if (seenHydratedRef.current || !user?.id) return;
@@ -1168,6 +1175,34 @@ export function ConstellationPage({
     },
     [user?.id],
   );
+  // v3.87 — mark every detected pattern as read (clears the star to grey).
+  const markAllPatternsSeen = useCallback(() => {
+    setSeenPatterns((prev) => {
+      const next = new Set(prev);
+      for (const p of allPatterns) next.add(p.patternId);
+      if (next.size === prev.size) return prev;
+      if (user?.id) {
+        const arr = Array.from(next);
+        void supabase
+          .from("user_preferences")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data: existing }) => {
+            if (existing) {
+              return supabase
+                .from("user_preferences")
+                .update({ seen_patterns: arr } as never)
+                .eq("user_id", user.id);
+            }
+            return supabase
+              .from("user_preferences")
+              .insert({ user_id: user.id, seen_patterns: arr } as never);
+          });
+      }
+      return next;
+    });
+  }, [user?.id, allPatterns]);
   const [calendarRows, setCalendarRows] = useState(3); // rows of 4 months (3 = 12 months, the default; Show less drops to 2/1)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
@@ -1193,6 +1228,36 @@ export function ConstellationPage({
     }
     if (v.lens) setLunationLens(v.lens);
   }, []);
+  // v3.100 — investigate handoff. Arriving on Insights › Patterns from a
+  // lunation's "Most pulled" section: load the chosen card(s) into the slots
+  // and flip the strip to the moon lens, then clear the one-shot handoff.
+  const investigateHydrated = useRef(false);
+  useEffect(() => {
+    if (!insightsMode || !lunationMode || investigateHydrated.current) return;
+    if (typeof window === "undefined") return;
+    investigateHydrated.current = true;
+    let raw: string | null = null;
+    try {
+      raw = window.sessionStorage.getItem("tarotseed:investigate-handoff");
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    try {
+      window.sessionStorage.removeItem("tarotseed:investigate-handoff");
+    } catch {
+      /* ignore */
+    }
+    try {
+      const h = JSON.parse(raw) as {
+        cards?: { cardIndex: number; isReversed: boolean }[];
+        lens?: LunationView["lens"];
+      };
+      applyLunationView({ cards: h.cards ?? [], lens: h.lens ?? "moon" });
+    } catch {
+      /* ignore */
+    }
+  }, [insightsMode, lunationMode, applyLunationView]);
   const getLunationViewState = useCallback(
     () =>
       encodeLunationView({
@@ -3180,13 +3245,53 @@ export function ConstellationPage({
   const [question, setQuestion] = useState<string>("");
   // DY — free-form notes textarea for "Save to Journal" + AI reading.
   const [note, setNote] = useState<string>("");
-  // v3.118 — the draw note renders as Markdown until tapped/focused (the
+  // v3.119 — the draw note renders as Markdown until tapped/focused (the
   // paste-to-scan textarea stays intact); empty notes open straight to editing.
   const [noteEditing, setNoteEditing] = useState(false);
   const noteTaRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
     if (noteEditing) noteTaRef.current?.focus();
   }, [noteEditing]);
+  // v3.85 — tags to attach to this reading (chosen via the tag fly-in panel).
+  const [entryTags, setEntryTags] = useState<string[]>([]);
+  // v3.90 — optional name for this spread/reading.
+  const [spreadName, setSpreadName] = useState<string>("");
+  const [tagPanelOpen, setTagPanelOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const toggleEntryTag = (name: string) => {
+    const t = name.trim();
+    if (!t) return;
+    setEntryTags((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+    );
+  };
+  const createAndAddEntryTag = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    const existing = userTags.find(
+      (u) => u.name.toLowerCase() === name.toLowerCase(),
+    );
+    const uid = user?.id;
+    if (!existing && uid) {
+      try {
+        const { data, error } = await supabase
+          .from("user_tags")
+          .insert({ user_id: uid, name, usage_count: 1 })
+          .select("id,name,usage_count")
+          .single();
+        if (!error && data) {
+          setUserTags((prev) => [
+            ...prev,
+            data as { id: string; name: string; usage_count: number },
+          ]);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setEntryTags((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    setNewTagName("");
+  };
   // v3.50 — "Get AI reading" sheet (clipboard prompt builder).
   const [aiSheetOpen, setAiSheetOpen] = useState<boolean>(false);
   // DY — journaling-prompts modal trigger.
@@ -3326,6 +3431,8 @@ export function ConstellationPage({
           })),
           question: question.trim() || undefined,
           note: fixMojibake(note).trim() || undefined,
+          tags: entryTags.length > 0 ? entryTags : undefined,
+          spreadName: spreadName.trim() || undefined,
           createdAt: backdate ? backdate.toISOString() : undefined,
           // EK31 — Active deck at save time, used by the server to
           // resolve any per-pick deckId that came through as null
@@ -3339,10 +3446,24 @@ export function ConstellationPage({
         return;
       }
       setSaveStatus("saved");
-      // Surface the "Saved" affordance briefly, then reset to idle so the
-      // button is usable again. Page state itself stays — the seeker may
-      // still want to fire AI on the same pull, or save another pass.
-      window.setTimeout(() => setSaveStatus("idle"), 2400);
+      // v3.83 — after a brief "Saved", clear the entry so the page is ready
+      // for a fresh reading. The persist effect writes the cleared state, so
+      // a reload stays clean too.
+      window.setTimeout(() => {
+        setPicks([]);
+        setEntryTags([]);
+        setSpreadName("");
+        setFocusedSlotIdx(null);
+        setTealSelectedIds([]);
+        setQuestion("");
+        setNote("");
+        setBackdate(null);
+        setAiStatus("idle");
+        setAiInterpretation(null);
+        setAiError(null);
+        setSaveStatus("idle");
+        setSaveError(null);
+      }, 1200);
     } catch (e) {
       console.error("[ConstellationPage] saveManualReading threw", e);
       setSaveStatus("error");
@@ -3578,6 +3699,8 @@ export function ConstellationPage({
   // /constellation surface.
   const handleClearAll = () => {
     setPicks([]);
+    setEntryTags([]);
+    setSpreadName("");
     setFocusedSlotIdx(null);
     setTealSelectedIds([]);
     setQuestion("");
@@ -4048,12 +4171,12 @@ export function ConstellationPage({
               calendar. Other surfaces (insights/lunations/atlas) keep it on top. */}
           <div
             style={{
-              // v3.79 — on the manual entry the controls row (filter + days
-              // range) sits at the BOTTOM of the column, below the lens
-              // toggle + strip. On Insights/lunations it stays at the top
-              // (undefined => first flex child).
+              // v3.82 — on the manual entry the controls row (filter + days
+              // range) rides on the "By moon phase" line, just below the
+              // Save/AI block and above the strip. On Insights/lunations it
+              // stays at the top (undefined => first flex child).
               order:
-                !insightsMode && !lunationMode && !atlasMode ? 6 : undefined,
+                !insightsMode && !lunationMode && !atlasMode ? 5 : undefined,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -4076,14 +4199,23 @@ export function ConstellationPage({
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "var(--pattern-highlight)",
-                    opacity: anyUnseen ? 1 : 0.3,
+                    // v3.88 — force this star (and its glow) red; the theme's
+                    // --pattern-highlight is cyan, overridden locally here.
+                    ...({ "--pattern-highlight": "#E24B4A" } as unknown as CSSProperties),
+                    color: anyUnseen
+                      ? "var(--pattern-highlight)"
+                      : "var(--color-foreground-muted)",
+                    opacity: anyUnseen ? 1 : 0.5,
                     cursor: "pointer",
                     flexShrink: 0,
                     borderRadius: "50%",
                   }}
                 >
-                  <Sparkles size={16} strokeWidth={2} />
+                  <Sparkles
+                    size={16}
+                    strokeWidth={2}
+                    fill={anyUnseen ? "currentColor" : "none"}
+                  />
                 </button>
               );
             })()}
@@ -4129,7 +4261,13 @@ export function ConstellationPage({
                 <RotateCw size={16} strokeWidth={2} />
               </button>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                flex:
+                  !insightsMode && !lunationMode && !atlasMode ? "0 1 auto" : 1,
+                minWidth: 0,
+              }}
+            >
           <GlobalFilterBar
             filters={globalFilters}
             onChange={setGlobalFilters}
@@ -4169,6 +4307,14 @@ export function ConstellationPage({
                 userId={user?.id ?? null}
                 getViewState={getLunationViewState}
                 onApply={(vs) => applyLunationView(decodeLunationView(vs))}
+              />
+            )}
+            {/* v3.82 — on the manual entry the "By moon phase" lens toggle
+                rides on this same row, right after the filter + days range. */}
+            {!insightsMode && !lunationMode && !atlasMode && (
+              <LunationLensToggle
+                lens={lunationLens}
+                onLensChange={setLunationLens}
               />
             )}
           </div>
@@ -4835,10 +4981,68 @@ export function ConstellationPage({
                 </PopoverContent>
               </Popover>
               )}
+              {!insightsMode && !lunationMode && (
+                <button
+                  type="button"
+                  aria-label="Tag this reading"
+                  title="Tag this reading"
+                  onClick={() => setTagPanelOpen(true)}
+                  className="inline-flex items-center gap-1"
+                  style={{
+                    height: 30,
+                    padding: "0 10px",
+                    borderRadius: 999,
+                    border: "1px solid var(--border-subtle)",
+                    background: "transparent",
+                    color:
+                      entryTags.length > 0
+                        ? "var(--accent, var(--gold))"
+                        : "var(--color-foreground)",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    opacity: entryTags.length > 0 ? 0.95 : 0.7,
+                  }}
+                >
+                  <Tag size={13} strokeWidth={1.5} />
+                  {entryTags.length > 0 && (
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-caption, 0.75rem)",
+                      }}
+                    >
+                      {entryTags.length}
+                    </span>
+                  )}
+                </button>
+              )}
               {/* v3.70 — the single-line "type or paste card names" field is
                   removed; the larger Notes box below is now the one place to
                   enter or paste a reading, and it fills the slots on paste. */}
             </div>
+            {!insightsMode && !lunationMode && (
+              <input
+                value={spreadName}
+                onChange={(e) => setSpreadName(e.target.value)}
+                placeholder="Name this spread (optional)"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  marginTop: 6,
+                  height: 32,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-subtle)",
+                  background: "transparent",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption, 0.75rem)",
+                  outline: "none",
+                }}
+              />
+            )}
           </div>
           {/* EK120 — atlas left-column tab strip: Draw | Asterism. Sits
               directly under the slot row + paste. Switching collapses the
@@ -5555,7 +5759,9 @@ export function ConstellationPage({
                 gap: 8,
               }}
             >
-              <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
+              {lunationMode && (
+                <LunationLensToggle lens={lunationLens} onLensChange={setLunationLens} />
+              )}
 {lunationLens === "calendar" ? (
         <div>
           <OverlapStrip
@@ -5729,82 +5935,6 @@ export function ConstellationPage({
                 marginTop: 12,
               }}
             >
-              {/* Row: question input + prompts trigger button.
-                  v3.72 — moved BELOW the Notes box via order. */}
-              <div
-                style={{
-                  order: 2,
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "stretch",
-                  width: "100%",
-                }}
-              >
-                <textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Tap to add your question for the cards…"
-                  rows={1}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    minHeight: 36,
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border-subtle)",
-                    background: "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
-                    color: "var(--color-foreground)",
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm, 0.85rem)",
-                    resize: "vertical",
-                    outline: "none",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    // v3.76 — open the prompts modal on the focused (hero)
-                    // card, but if that card has no journaling prompts, open on
-                    // the first card in the spread that DOES, so the modal is
-                    // never empty. Falls back to the hero when none have prompts.
-                    const heroId = heroPick?.cardIndex ?? null;
-                    const heroHasPrompts =
-                      heroId != null &&
-                      (resolvePromptsForFirstCard(heroId)?.length ?? 0) > 0;
-                    let target: number | null = null;
-                    if (!heroHasPrompts) {
-                      const withPrompts = picks.find(
-                        (p) =>
-                          (resolvePromptsForFirstCard(p.cardIndex)?.length ?? 0) > 0,
-                      );
-                      target = withPrompts ? withPrompts.cardIndex : null;
-                    }
-                    setPromptsModalCardId(target);
-                    setPromptsModalOpen(true);
-                  }}
-                  disabled={!heroPick}
-                  aria-label="Browse journaling prompts"
-                  title={heroPick ? "Browse journaling prompts" : "Focus a card to see its prompts"}
-                  style={{
-                    flexShrink: 0,
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    border: "1px solid var(--border-subtle)",
-                    background: "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
-                    color: "var(--accent, var(--gold))",
-                    cursor: heroPick ? "pointer" : "not-allowed",
-                    opacity: heroPick ? 1 : 0.4,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                  }}
-                >
-                  <Feather className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
               {/* Notes textarea — EF2: shortened to 2 rows per spec.
                   Save action moved up into the OverlapStrip pill row. */}
               {!noteEditing && note.trim().length > 0 ? (
@@ -5831,7 +5961,7 @@ export function ConstellationPage({
                     cursor: "text",
                   }}
                 >
-                  {/* v3.118 — saved note renders as Markdown; tap to edit. */}
+                  {/* v3.119 — saved note renders as Markdown; tap to edit. */}
                   <NoteMarkdown source={note} />
                 </div>
               ) : (
@@ -5888,7 +6018,63 @@ export function ConstellationPage({
                   journal. Sits directly under the notes textarea now,
                   decoupled from the calendar so the calendar can move
                   up to the top of its container. */}
-              <div style={{ marginTop: 6, order: 3 }}>
+              <div
+                style={{
+                  marginTop: 6,
+                  order: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* v3.83 — journaling prompt as a plain-text button, before
+                    Save to journal. Opens the prompts modal on the focused
+                    card, or the first spread card that has prompts. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const heroId = heroPick?.cardIndex ?? null;
+                    const heroHasPrompts =
+                      heroId != null &&
+                      (resolvePromptsForFirstCard(heroId)?.length ?? 0) > 0;
+                    let target: number | null = null;
+                    if (!heroHasPrompts) {
+                      const withPrompts = picks.find(
+                        (p) =>
+                          (resolvePromptsForFirstCard(p.cardIndex)?.length ?? 0) >
+                          0,
+                      );
+                      target = withPrompts ? withPrompts.cardIndex : null;
+                    }
+                    setPromptsModalCardId(target);
+                    setPromptsModalOpen(true);
+                  }}
+                  disabled={!heroPick}
+                  title={
+                    heroPick
+                      ? "Browse journaling prompts"
+                      : "Add a card to see its prompts"
+                  }
+                  style={{
+                    flexShrink: 0,
+                    height: 30,
+                    padding: "0 12px",
+                    borderRadius: 999,
+                    border: "1px solid var(--border-subtle)",
+                    background:
+                      "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
+                    color: "var(--accent, var(--gold))",
+                    cursor: heroPick ? "pointer" : "not-allowed",
+                    opacity: heroPick ? 1 : 0.4,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption, 0.75rem)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Add a prompt
+                </button>
                 <OverlapPills
                   mode={overlapMode}
                   onModeChange={setOverlapMode}
@@ -5933,6 +6119,191 @@ export function ConstellationPage({
                 note={note}
                 patterns={allPatterns}
               />
+              {/* v3.85 — tag panel: flies in from the right (same translateX
+                  pattern as the filter drawer). Pick existing tags or create
+                  new ones; they save with the reading. */}
+              {typeof document !== "undefined" &&
+                createPortal(
+                  <div
+                    style={{
+                      position: "fixed",
+                      inset: 0,
+                      zIndex: 300,
+                      pointerEvents: tagPanelOpen ? "auto" : "none",
+                    }}
+                  >
+                    <div
+                      onClick={() => setTagPanelOpen(false)}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "rgba(0,0,0,0.4)",
+                        opacity: tagPanelOpen ? 1 : 0,
+                        transition: "opacity 200ms ease",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        height: "100%",
+                        width: 320,
+                        maxWidth: "85vw",
+                        boxSizing: "border-box",
+                        background: "var(--surface-card)",
+                        borderLeft: "1px solid var(--border-subtle)",
+                        boxShadow: "-8px 0 24px rgba(0,0,0,0.3)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 14,
+                        padding: 16,
+                        overflowY: "auto",
+                        transform: tagPanelOpen
+                          ? "translateX(0)"
+                          : "translateX(100%)",
+                        transition: "transform 240ms ease",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 16,
+                            color: "var(--color-foreground)",
+                          }}
+                        >
+                          Tag this reading
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setTagPanelOpen(false)}
+                          aria-label="Close"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "var(--color-foreground)",
+                            padding: 4,
+                          }}
+                        >
+                          <X size={18} strokeWidth={1.5} />
+                        </button>
+                      </div>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void createAndAddEntryTag();
+                        }}
+                        style={{ display: "flex", gap: 6 }}
+                      >
+                        <input
+                          value={newTagName}
+                          onChange={(e) => setNewTagName(e.target.value)}
+                          placeholder="Create a tag…"
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            height: 32,
+                            padding: "0 10px",
+                            borderRadius: 8,
+                            border: "1px solid var(--border-subtle)",
+                            background: "transparent",
+                            color: "var(--color-foreground)",
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 13,
+                            outline: "none",
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          style={{
+                            flexShrink: 0,
+                            height: 32,
+                            padding: "0 12px",
+                            borderRadius: 8,
+                            border: "1px solid var(--accent, var(--gold))",
+                            background:
+                              "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
+                            color: "var(--accent, var(--gold))",
+                            cursor: "pointer",
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 13,
+                          }}
+                        >
+                          Add
+                        </button>
+                      </form>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {userTags.map((t) => {
+                          const on = entryTags.includes(t.name);
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => toggleEntryTag(t.name)}
+                              style={{
+                                padding: "5px 10px",
+                                borderRadius: 999,
+                                border: `1px solid ${on ? "var(--accent, var(--gold))" : "var(--border-subtle)"}`,
+                                background: on
+                                  ? "color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent)"
+                                  : "transparent",
+                                color: on
+                                  ? "var(--accent, var(--gold))"
+                                  : "var(--color-foreground)",
+                                cursor: "pointer",
+                                fontFamily: "var(--font-serif)",
+                                fontStyle: "italic",
+                                fontSize: 13,
+                              }}
+                            >
+                              {t.name}
+                            </button>
+                          );
+                        })}
+                        {userTags.length === 0 && (
+                          <span
+                            style={{
+                              opacity: 0.6,
+                              fontStyle: "italic",
+                              fontSize: 13,
+                              color: "var(--color-foreground)",
+                            }}
+                          >
+                            No tags yet — create one above.
+                          </span>
+                        )}
+                      </div>
+                      {entryTags.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: "auto",
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 12,
+                            opacity: 0.7,
+                            color: "var(--color-foreground)",
+                          }}
+                        >
+                          {entryTags.length} tag
+                          {entryTags.length === 1 ? "" : "s"} will be saved with
+                          this reading.
+                        </div>
+                      )}
+                    </div>
+                  </div>,
+                  document.body,
+                )}
             </div>
           )}
           {/* EK134 — patterns panel (order 5, bottom of both atlas tabs).
@@ -6098,6 +6469,7 @@ export function ConstellationPage({
             />
           ) : (
           <ConstellationWeb
+            timeRange={globalFilters.timeRange}
             heroPick={heroPick}
             constellation={displayedConstellation}
             patternGlyph={
@@ -6340,6 +6712,7 @@ export function ConstellationPage({
           "Calendars" item. Stays put even when hidden so the calendar can
           always be brought back — the only visible control on Insights →
           Patterns. */}
+      {insightsMode && (
       <div style={{ position: "relative", height: 22, flexShrink: 0 }}>
         <button
           type="button"
@@ -6395,6 +6768,7 @@ export function ConstellationPage({
           )}
         </button>
       </div>
+      )}
       {!lunationMode && insightsMode && calendarState !== "none" && (
         <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
           <OverlapStrip
@@ -6706,6 +7080,7 @@ export function ConstellationPage({
         <AllPatternsModal
           patterns={allPatterns}
           seenIds={seenPatterns}
+          onMarkAllSeen={markAllPatternsSeen}
           cardName={(id) => resolveCardName(id)}
           onSelect={(p) => {
             markPatternSeen(p.patternId);
@@ -7767,6 +8142,19 @@ export function ConstellationPage({
                           gap: 4,
                         }}
                       >
+                        {r.drawLabel && r.drawLabel.trim() !== "" && (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-display)",
+                              fontStyle: "italic",
+                              fontSize: 14,
+                              color: "var(--accent, var(--gold))",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {r.drawLabel}
+                          </span>
+                        )}
                         {r.question ? (
                           <span
                             style={{
