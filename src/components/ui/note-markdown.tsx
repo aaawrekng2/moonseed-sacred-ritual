@@ -103,9 +103,27 @@ const HEADING_STYLE: Record<1 | 2 | 3, CSSProperties> = {
   3: { fontSize: "var(--text-body)", fontWeight: 700, margin: "0.5em 0 0.2em" },
 };
 
-export function NoteMarkdown({ source }: { source: string }): ReactNode {
+export function NoteMarkdown({
+  source,
+  inline = false,
+}: {
+  source: string;
+  inline?: boolean;
+}): ReactNode {
   const text = (source ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   if (!text.trim()) return null;
+
+  // v3.117 — inline mode for compact previews: drop block markers, collapse to
+  // one line, render only inline emphasis / links / emoji (safe inside a <p>).
+  if (inline) {
+    const flat = text
+      .replace(/^#{1,3}\s+/gm, "")
+      .replace(/^\s*[-*]\s+/gm, "\u2022 ")
+      .replace(/^\s*\d+\.\s+/gm, "")
+      .replace(/\n+/g, " ")
+      .trim();
+    return <Fragment>{renderInline(flat)}</Fragment>;
+  }
 
   const lines = text.split("\n");
   const blocks: ReactNode[] = [];
