@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { fixMojibake } from "@/components/ui/note-markdown";
+import { cleanNoteText } from "@/lib/note-text";
 import { useAuth } from "@/lib/auth";
 import { useVersionCheck } from "@/lib/use-version-check";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
@@ -103,7 +103,7 @@ export function DevChip() {
   const aiEnabled = useAIEnabled();
   const [pos, setPos] = useState<Pos>(() => readPos());
   // v3.121 — one-time repair of mojibake in stored note text. Only rewrites
-  // rows whose note actually changes (fixMojibake is a no-op on clean notes).
+  // rows whose note actually changes (cleanNoteText is a no-op on clean notes).
   const [repairMsg, setRepairMsg] = useState<string>("");
   async function repairNotes() {
     setRepairMsg("Repairing\u2026");
@@ -117,7 +117,7 @@ export function DevChip() {
       let repaired = 0;
       for (const r of rows) {
         const original = r.note ?? "";
-        const fixed = fixMojibake(original);
+        const fixed = cleanNoteText(original);
         if (fixed !== original) {
           const { error: upErr } = await supabase
             .from("readings")
