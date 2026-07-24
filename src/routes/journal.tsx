@@ -172,6 +172,8 @@ type ReadingRow = {
   card_ids: number[];
   card_orientations: boolean[] | null;
   interpretation: string | null;
+  // v3.114 — generated column: first 500 chars of note, for the list only.
+  note_preview: string | null;
   created_at: string;
   guide_id: string | null;
   lens_id: string | null;
@@ -413,7 +415,7 @@ function JournalPage() {
         supabase
           .from("readings")
           .select(
-            "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
+            "id,user_id,spread_type,spread_name,card_ids,card_orientations,created_at,guide_id,lens_id,moon_phase,note_preview,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
           )
           .eq("user_id", user.id)
           .is("archived_at", null)
@@ -518,13 +520,11 @@ function JournalPage() {
         if (local !== activeDate) return false;
       }
       if (q.length > 0) {
-        const interp = (r.interpretation ?? "").toLowerCase();
-        const note = (r.note ?? "").toLowerCase();
+        const note = (r.note_preview ?? "").toLowerCase();
         const spread = spreadLabel(r.spread_type).toLowerCase();
         const guide = getGuideById(r.guide_id).name.toLowerCase();
         const tagBlob = (r.tags ?? []).join(" ").toLowerCase();
         if (
-          !interp.includes(q) &&
           !note.includes(q) &&
           !spread.includes(q) &&
           !guide.includes(q) &&
@@ -541,7 +541,7 @@ function JournalPage() {
     [filtered, photoCounts],
   );
   const noteItems = useMemo(
-    () => filtered.filter((r) => (r.note ?? "").trim().length > 0),
+    () => filtered.filter((r) => (r.note_preview ?? "").trim().length > 0),
     [filtered],
   );
   const favItems = useMemo(() => filtered.filter((r) => r.is_favorite), [filtered]);
@@ -570,17 +570,16 @@ function JournalPage() {
     }
     return Array.from(map.values()).sort((a, b) => b.lastActiveAt.localeCompare(a.lastActiveAt));
   }, [readings, patternsById]);
-  const openReading = openId
-    ? (readings.find((r) => r.id === openId) ??
-      (openOverride && openOverride.id === openId ? openOverride : null))
-    : null;
+  // v3.114 — the list rows carry only note_preview, so the detail must render
+  // from the FULL fetched row (openOverride) — never a truncated note.
+  const openReading =
+    openId && openOverride && openOverride.id === openId ? openOverride : null;
 
   // ED-2A — when an Archive row is tapped, the reading isn't in
   // `readings` (it's filtered out by `archived_at IS NULL`). Fetch it
   // on demand so ReadingDetail can render in read-only mode.
   useEffect(() => {
     if (!openId || !user) return;
-    if (readings.find((r) => r.id === openId)) return;
     if (openOverride && openOverride.id === openId) return;
     let cancelled = false;
     void (async () => {
@@ -1096,7 +1095,7 @@ function JournalPage() {
                   const { data: rows } = await supabase
                     .from("readings")
                     .select(
-                      "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
+                      "id,user_id,spread_type,spread_name,card_ids,card_orientations,created_at,guide_id,lens_id,moon_phase,note_preview,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
                     )
                     .eq("user_id", user.id)
                     .is("archived_at", null)
@@ -1138,7 +1137,7 @@ function JournalPage() {
                 const { data: rows } = await supabase
                   .from("readings")
                   .select(
-                    "id,user_id,spread_type,spread_name,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
+                    "id,user_id,spread_type,spread_name,card_ids,card_orientations,created_at,guide_id,lens_id,moon_phase,note_preview,is_favorite,tags,is_deep_reading,mirror_saved,pattern_id,question,import_batch_id,deck_id,card_deck_ids,journal_prompt_used",
                   )
                   .eq("user_id", user.id)
                   .is("archived_at", null)
@@ -1227,10 +1226,10 @@ function ReadingCard({
   const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
-  const hasNote = (reading.note ?? "").trim().length > 0;
+  const hasNote = (reading.note_preview ?? "").trim().length > 0;
   // v3.84 — the seeker's own note body (prompt prefix, if any, stripped) for
   // the scrollable note panel beside the cards.
-  const noteRawFull = (reading.note ?? "").trim();
+  const noteRawFull = (reading.note_preview ?? "").trim();
   const noteSplitIdx = noteRawFull.indexOf("\n\n");
   const noteBody =
     noteSplitIdx >= 0 ? noteRawFull.slice(noteSplitIdx + 2).trim() : noteRawFull;
@@ -1744,7 +1743,7 @@ function NotesView({ items, onOpen }: { items: ReadingRow[]; onOpen: (id: string
                 overflow: "hidden",
               }}
             >
-              {r.note}
+              {r.note_preview}
             </p>
           </button>
         </li>
