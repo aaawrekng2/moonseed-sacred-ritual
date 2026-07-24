@@ -26,28 +26,59 @@ const CP1252_TO_BYTE: Record<number, number> = {
   0x02dc: 0x98, 0x2122: 0x99, 0x0161: 0x9a, 0x203a: 0x9b, 0x0153: 0x9c,
   0x017e: 0x9e, 0x0178: 0x9f,
 };
+// A continuation char = a UTF-8 continuation byte (0x80-0xBF) read as CP1252/
+// Latin-1. Returns that byte, or -1 if the char isn't a continuation.
+function contByte(ch: string): number {
+  const cp = ch.codePointAt(0) ?? -1;
+  if (cp >= 0xa0 && cp <= 0xbf) return cp;
+  const b = CP1252_TO_BYTE[cp];
+  return b !== undefined && b >= 0x80 && b <= 0x9f ? b : -1;
+}
+// v3.120 — repair ONLY the mangled byte-runs in place, so a note that mixes a
+// correctly-stored emoji with a mangled one still gets the mangled one fixed.
+// Real chars, ASCII, and lone accents pass through untouched.
 export function fixMojibake(input: string): string {
   const s = input ?? "";
-  // Signature: a UTF-8 lead byte (C2-F4) read as a single Latin-1/CP1252 char.
   if (!/[Â-ô]/.test(s)) return s;
-  const bytes: number[] = [];
-  for (const ch of s) {
-    const cp = ch.codePointAt(0) ?? 0;
-    if (CP1252_TO_BYTE[cp] !== undefined) bytes.push(CP1252_TO_BYTE[cp]);
-    else if (cp <= 0xff) bytes.push(cp);
-    else return s; // a real multibyte char is present -> not pure mojibake
+  const chars = Array.from(s);
+  let out = "";
+  for (let i = 0; i < chars.length; ) {
+    const lead = chars[i].codePointAt(0) ?? 0;
+    let need = 0;
+    if (lead >= 0xc2 && lead <= 0xdf) need = 1;
+    else if (lead >= 0xe0 && lead <= 0xef) need = 2;
+    else if (lead >= 0xf0 && lead <= 0xf4) need = 3;
+    if (need > 0 && i + need < chars.length) {
+      const bytes = [lead];
+      let ok = true;
+      for (let j = 1; j <= need; j++) {
+        const b = contByte(chars[i + j]);
+        if (b < 0) {
+          ok = false;
+          break;
+        }
+        bytes.push(b);
+      }
+      if (ok) {
+        try {
+          out += new TextDecoder("utf-8", { fatal: true }).decode(
+            Uint8Array.from(bytes),
+          );
+          i += need + 1;
+          continue;
+        } catch {
+          // invalid UTF-8 -> emit the lead char literally below
+        }
+      }
+    }
+    out += chars[i];
+    i += 1;
   }
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(
-      Uint8Array.from(bytes),
-    );
-  } catch {
-    return s;
-  }
+  return out;
 }
 
 const INLINE_RE =
-  /(\\[\\*_#[\]])|(\*\*([^*]+)\*\*)|(_([^_]+)_)|(\*([^*]+)\*)|(\[([^\]]+)\]\(([^)]+)\))/;
+  /(\\[^\w\s])|(\*{2,}([^*]+)\*{2,})|(_([^_]+)_)|(\*([^*]+)\*)|(\[([^\]]+)\]\(([^)]+)\))/;
 
 function safeHref(url: string): string | null {
   const u = url.trim();

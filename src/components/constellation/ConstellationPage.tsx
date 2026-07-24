@@ -3252,6 +3252,27 @@ export function ConstellationPage({
   useEffect(() => {
     if (noteEditing) noteTaRef.current?.focus();
   }, [noteEditing]);
+  // v3.120 — cap the rendered note in a scroll box whose bottom lines up with
+  // the bottom of the constellation column.
+  const webColRef = useRef<HTMLDivElement | null>(null);
+  const noteBoxRef = useRef<HTMLDivElement | null>(null);
+  const [noteMaxH, setNoteMaxH] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    function measure() {
+      const web = webColRef.current;
+      const box = noteBoxRef.current;
+      if (!web || !box) {
+        setNoteMaxH(undefined);
+        return;
+      }
+      const h =
+        web.getBoundingClientRect().bottom - box.getBoundingClientRect().top;
+      setNoteMaxH(h > 140 ? h : undefined);
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [note, noteEditing]);
   // v3.85 — tags to attach to this reading (chosen via the tag fly-in panel).
   const [entryTags, setEntryTags] = useState<string[]>([]);
   // v3.90 — optional name for this spread/reading.
@@ -5939,6 +5960,7 @@ export function ConstellationPage({
                   Save action moved up into the OverlapStrip pill row. */}
               {!noteEditing && note.trim().length > 0 ? (
                 <div
+                  ref={noteBoxRef}
                   onClick={() => setNoteEditing(true)}
                   role="button"
                   tabIndex={0}
@@ -5953,6 +5975,8 @@ export function ConstellationPage({
                     order: 1,
                     width: "100%",
                     minHeight: 140,
+                    maxHeight: noteMaxH,
+                    overflowY: "auto",
                     padding: "8px 10px",
                     borderRadius: 8,
                     border: "1px solid var(--border-subtle)",
@@ -6403,6 +6427,7 @@ export function ConstellationPage({
         </div>
         {/* EJ25 — RIGHT column (was LEFT pre-EJ25): constellation web. */}
         <div
+          ref={webColRef}
           style={{
             display: "flex",
             flexDirection: "column",
