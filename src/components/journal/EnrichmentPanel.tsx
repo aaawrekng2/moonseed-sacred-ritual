@@ -19,6 +19,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
+import { NoteMarkdown } from "@/components/ui/note-markdown";
 import { LoadingText } from "@/components/ui/loading-text";
 import { JournalPrompts } from "@/components/tarot/JournalPrompts";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
@@ -222,6 +223,11 @@ export function EnrichmentPanel({
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
+  // v3.113 — a saved note renders as Markdown by default; tap to edit (raw
+  // textarea). New/empty notes open straight into the editor.
+  const [noteEditing, setNoteEditing] = useState(
+    (reading.note ?? "").trim().length === 0,
+  );
   const [tags, setTags] = useState<string[]>(reading.tags ?? []);
   const [favorite, setFavorite] = useState(reading.is_favorite);
   // v2.10 — Revisit (schedule-to-resurface / reflect) sheet.
@@ -297,6 +303,7 @@ export function EnrichmentPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setNote(reading.note ?? "");
+    setNoteEditing((reading.note ?? "").trim().length === 0);
     setTags(reading.tags ?? []);
     setFavorite(reading.is_favorite);
     setOpenSection(defaultNoteOpen ? "note" : null);
@@ -784,6 +791,31 @@ export function EnrichmentPanel({
       {/* Note editor */}
       {openSection === "note" && (
         <div className="mt-4 flex flex-col gap-3">
+          {!noteEditing && note.trim().length > 0 ? (
+            <div
+              onClick={() => setNoteEditing(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setNoteEditing(true);
+                }
+              }}
+              title="Tap to edit"
+              style={{
+                cursor: "text",
+                padding: "12px 16px",
+                borderRadius: 6,
+                background: "color-mix(in oklch, var(--gold) 5%, transparent)",
+                borderLeft:
+                  "2px solid color-mix(in oklch, var(--gold) 30%, transparent)",
+              }}
+            >
+              <NoteMarkdown source={note} />
+            </div>
+          ) : (
+            <>
           <JournalPromptsSlot
             cardIds={cardIds}
             customCardPromptsByCardId={customCardPromptsByCardId}
@@ -822,6 +854,7 @@ export function EnrichmentPanel({
             onClick={() => {
               // Q14 Fix 6 — persist but keep the note inline; never collapse.
               persistNote(note);
+              setNoteEditing(false);
               setSavedFlash(true);
               if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
               savedFlashTimer.current = setTimeout(() => setSavedFlash(false), 1400);
@@ -849,6 +882,8 @@ export function EnrichmentPanel({
             )}
             {savedFlash ? "Saved" : "Save"}
           </button>
+            </>
+          )}
         </div>
       )}
 
