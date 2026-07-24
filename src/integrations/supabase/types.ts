@@ -1282,6 +1282,7 @@ export type Database = {
           mode: string
           moon_phase: string | null
           note: string | null
+          note_preview: string | null
           pattern_id: string | null
           question: string | null
           source: string | null
@@ -1315,6 +1316,7 @@ export type Database = {
           mode?: string
           moon_phase?: string | null
           note?: string | null
+          note_preview?: string | null
           pattern_id?: string | null
           question?: string | null
           source?: string | null
@@ -1348,6 +1350,7 @@ export type Database = {
           mode?: string
           moon_phase?: string | null
           note?: string | null
+          note_preview?: string | null
           pattern_id?: string | null
           question?: string | null
           source?: string | null
