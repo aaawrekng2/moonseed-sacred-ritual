@@ -51,6 +51,28 @@ type ChipModel = {
   blink?: boolean;
 };
 
+// v3.115 — Poisson "1 in X" rarity of a run (RARITY tile). No new deps.
+function poissonAtLeast(k: number, lambda: number): number {
+  if (k <= 0) return 1;
+  let cdf = 0; // P(X <= k-1)
+  let term = Math.exp(-lambda); // P(X = 0)
+  for (let i = 0; i < k; i++) {
+    cdf += term;
+    term *= lambda / (i + 1);
+  }
+  return Math.max(0, Math.min(1, 1 - cdf));
+}
+function rarityOneIn(k: number, lambda: number): number {
+  const p = poissonAtLeast(k, lambda);
+  return p > 0 ? 1 / p : Infinity;
+}
+function formatOneIn(X: number): string {
+  if (!isFinite(X) || X >= 1e12) return "1 in 1 trillion+";
+  if (X >= 1e9) return `1 in ${(X / 1e9).toFixed(X < 1e10 ? 1 : 0)} billion`;
+  if (X >= 1e6) return `1 in ${(X / 1e6).toFixed(X < 1e7 ? 1 : 0)} million`;
+  return `1 in ${Math.round(X).toLocaleString()}`;
+}
+
 export function HeroPatternCluster({
   heroCardId,
   stats,
@@ -266,6 +288,25 @@ export function HeroPatternCluster({
         hint: `Its most over-chance recent streak — drawn ${rr.count} times in the last ${rr.days} days, ${Math.abs(rr.pct)}% ${rr.pct >= 0 ? "more" : "less"} than pure chance over that span.`,
         blink: rr.pct >= 200,
       });
+    }
+
+    // v3.115 — RARITY: Poisson odds of this many pulls by pure chance. Same k
+    // and lambda as VS CHANCE, so they never contradict. Only when truly rare.
+    {
+      const kR = count;
+      const lambdaR = stats.windowTotalSlots > 0 ? stats.windowTotalSlots / 78 : 0;
+      if (kR >= 2 && lambdaR > 0 && kR > lambdaR) {
+        const X = rarityOneIn(kR, lambdaR);
+        if (X >= 100) {
+          const oneIn = formatOneIn(X);
+          c.push({
+            label: "Rarity",
+            value: oneIn,
+            hint: `Drawing ${getCardName(heroCardId)} ${kR}× in this window — the odds of that by pure chance are about ${oneIn}.`,
+            blink: X >= 1e6,
+          });
+        }
+      }
     }
 
     c.push({

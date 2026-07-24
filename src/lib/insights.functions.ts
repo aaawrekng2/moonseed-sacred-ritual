@@ -2953,27 +2953,46 @@ const ENGINE_SUIT_META: Array<{ key: string; label: string; size: number }> = [
 
 export const getEngineInsights = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => z.object({ tz: z.string().optional() }).parse(raw ?? {}))
-  .handler(async ({ context }): Promise<EngineInsights> => {
+  .inputValidator((raw: unknown) =>
+    z
+      .object({ tz: z.string().optional(), timeRange: z.string().optional() })
+      .parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<EngineInsights> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { data: rows, error } = await supabase
+    // v3.115 — honor the top-left timeframe: scope to the last N days when a
+    // "Nd" range is active; otherwise whole history.
+    const tr = (data as { timeRange?: string } | undefined)?.timeRange;
+    const m = tr ? /^(\d+)d$/.exec(tr) : null;
+    const days = m ? Number(m[1]) : null;
+    const windowed = days !== null;
+    let q = supabase
       .from("readings")
       .select("created_at, card_ids")
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
       .limit(5000);
+    if (days !== null) {
+      q = q.gte(
+        "created_at",
+        new Date(Date.now() - days * 86400000).toISOString(),
+      );
+    }
+    const { data: rows, error } = await q;
     if (error) throw error;
     const readings = (rows ?? []) as Array<{ created_at: string; card_ids: number[] | null }>;
     const draws = drawsFromReadings(readings);
     const now = Date.now();
     const totalSlots = draws.length;
 
-    if (totalSlots < DEFAULT_MIN_SLOTS) {
-      return { status: "gathering", totalSlots, needed: DEFAULT_MIN_SLOTS };
+    // Short windows can't clear the whole-history floor, so use a lower one.
+    const floor = windowed ? 10 : DEFAULT_MIN_SLOTS;
+    if (totalSlots < floor) {
+      return { status: "gathering", totalSlots, needed: floor };
     }
 
     // Meters — top card-dimension patterns, significance-ranked, deduped, cap 3.
-    const detect = detectPatterns(draws, { now, topN: 12 });
+    const detect = detectPatterns(draws, { now, topN: 12, minSlots: floor });
     const meterIds: number[] = [];
     if (detect.status === "ok") {
       for (const p of detect.patterns) {
@@ -3000,7 +3019,7 @@ export const getEngineInsights = createServerFn({ method: "GET" })
     const meters: EngineMeter[] = meterIds.map((cardId) => ({
       cardId,
       cardName: getCardName(cardId),
-      comparison: cardComparison(cardId, draws, { now }),
+      comparison: cardComparison(cardId, draws, { now, minSlots: floor }),
     }));
     const anyStalker = meters.some(
       (m) => m.comparison.status === "ok" && m.comparison.isStalker,
