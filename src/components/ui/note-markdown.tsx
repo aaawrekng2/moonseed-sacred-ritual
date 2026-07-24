@@ -30,7 +30,7 @@ const CP1252_TO_BYTE: Record<number, number> = {
 // Latin-1. Returns that byte, or -1 if the char isn't a continuation.
 function contByte(ch: string): number {
   const cp = ch.codePointAt(0) ?? -1;
-  if (cp >= 0xa0 && cp <= 0xbf) return cp;
+  if (cp >= 0x80 && cp <= 0xbf) return cp;
   const b = CP1252_TO_BYTE[cp];
   return b !== undefined && b >= 0x80 && b <= 0x9f ? b : -1;
 }

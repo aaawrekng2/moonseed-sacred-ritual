@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fixMojibake } from "@/components/ui/note-markdown";
 import { useAuth } from "@/lib/auth";
 import { useVersionCheck } from "@/lib/use-version-check";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
@@ -101,6 +102,37 @@ export function DevChip() {
   const vc = useVersionCheck();
   const aiEnabled = useAIEnabled();
   const [pos, setPos] = useState<Pos>(() => readPos());
+  // v3.121 — one-time repair of mojibake in stored note text. Only rewrites
+  // rows whose note actually changes (fixMojibake is a no-op on clean notes).
+  const [repairMsg, setRepairMsg] = useState<string>("");
+  async function repairNotes() {
+    setRepairMsg("Repairing\u2026");
+    try {
+      const { data, error } = await supabase
+        .from("readings")
+        .select("id, note")
+        .not("note", "is", null);
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{ id: string; note: string | null }>;
+      let repaired = 0;
+      for (const r of rows) {
+        const original = r.note ?? "";
+        const fixed = fixMojibake(original);
+        if (fixed !== original) {
+          const { error: upErr } = await supabase
+            .from("readings")
+            .update({ note: fixed })
+            .eq("id", r.id);
+          if (!upErr) repaired += 1;
+        }
+      }
+      setRepairMsg(`Repaired ${repaired} of ${rows.length}`);
+    } catch (e) {
+      setRepairMsg(
+        "Failed: " + String((e as Error)?.message ?? e).slice(0, 40),
+      );
+    }
+  }
   const draggingRef = useRef<{
     startX: number;
     startY: number;
@@ -361,6 +393,31 @@ export function DevChip() {
           setFacesOn(next);
         }}
       />
+
+      {/* v3.121 — one-time: repair mojibake in stored notes. */}
+      <button
+        type="button"
+        onClick={() => void repairNotes()}
+        disabled={repairMsg === "Repairing\u2026"}
+        style={{
+          marginTop: 8,
+          width: "100%",
+          padding: "6px 8px",
+          borderRadius: 6,
+          border: "1px solid rgba(255,255,255,0.22)",
+          background: "rgba(255,255,255,0.06)",
+          color: "inherit",
+          fontSize: 12,
+          cursor: "pointer",
+        }}
+      >
+        Repair note encoding
+      </button>
+      {repairMsg && (
+        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85 }}>
+          {repairMsg}
+        </div>
+      )}
     </div>
   );
 }
