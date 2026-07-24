@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { NoteMarkdown, fixMojibake } from "@/components/ui/note-markdown";
+import { NoteMarkdown } from "@/components/ui/note-markdown";
+import { cleanNoteText, htmlToMarkdown } from "@/lib/note-text";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
@@ -3451,7 +3452,7 @@ export function ConstellationPage({
             deckId: p.deckId,
           })),
           question: question.trim() || undefined,
-          note: fixMojibake(note).trim() || undefined,
+          note: cleanNoteText(note).trim() || undefined,
           tags: entryTags.length > 0 ? entryTags : undefined,
           spreadName: spreadName.trim() || undefined,
           createdAt: backdate ? backdate.toISOString() : undefined,
@@ -5997,28 +5998,45 @@ export function ConstellationPage({
                   onBlur={() => setNoteEditing(false)}
                   onPaste={(e) => {
                   const text = e.clipboardData?.getData("text") ?? "";
-                  if (!text.trim()) return;
-                  // v3.75 — scan the pasted reading against a MASTER LIST of
-                  // every deck's card names, so an oracle deck's names match
-                  // even when another deck is active. Each filled slot is
-                  // tagged with the deck its card belongs to (deckId), and the
-                  // same card can't fill two slots. We do NOT preventDefault,
-                  // so the text still lands in the note.
-                  const outcome = scanTextForCardsMulti(scanMasterList, text, 78);
-                  if (outcome.picks.length === 0) return;
-                  setPicks((prev) => {
-                    const next = [...prev];
-                    outcome.picks.forEach((item, i) => {
-                      next.push({
-                        id: Date.now() + prev.length + i,
-                        cardIndex: item.pick.cardIndex,
-                        isReversed: item.pick.isReversed,
-                        deckId: item.pick.deckId,
-                        cardName: item.pick.cardName,
+                  const html = e.clipboardData?.getData("text/html") ?? "";
+                  // v3.75 — card auto-placement: scan the pasted PLAIN text
+                  // against a MASTER LIST of every deck's card names so an
+                  // oracle deck's names match even when another deck is active.
+                  if (text.trim()) {
+                    const outcome = scanTextForCardsMulti(
+                      scanMasterList,
+                      text,
+                      78,
+                    );
+                    if (outcome.picks.length > 0) {
+                      setPicks((prev) => {
+                        const next = [...prev];
+                        outcome.picks.forEach((item, i) => {
+                          next.push({
+                            id: Date.now() + prev.length + i,
+                            cardIndex: item.pick.cardIndex,
+                            isReversed: item.pick.isReversed,
+                            deckId: item.pick.deckId,
+                            cardName: item.pick.cardName,
+                          });
+                        });
+                        return next;
                       });
-                    });
-                    return next;
-                  });
+                    }
+                  }
+                  // v3.122 — rich paste: convert Google Docs HTML to clean
+                  // Markdown and insert it at the cursor, so formatting
+                  // survives instead of arriving as escaped plain text.
+                  if (html && html.trim()) {
+                    const md = htmlToMarkdown(html);
+                    if (md) {
+                      e.preventDefault();
+                      const ta = e.currentTarget;
+                      const start = ta.selectionStart ?? note.length;
+                      const end = ta.selectionEnd ?? note.length;
+                      setNote(note.slice(0, start) + md + note.slice(end));
+                    }
+                  }
                 }}
                 placeholder="Write or paste your reading here — your question(s) and the cards you pulled (add 'reversed' for any that were). Any cards you name get placed in the slots for you."
                 rows={6}
