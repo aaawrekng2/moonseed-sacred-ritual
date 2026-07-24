@@ -63,6 +63,7 @@ import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyHero } from "@/components/ui/empty-hero";
+import { NoteMarkdown } from "@/components/ui/note-markdown";
 import { EmptyNote } from "@/components/ui/empty-note";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import { EMPTY_GLOBAL_FILTERS, type GlobalFilters } from "@/lib/filters.types";
@@ -1537,7 +1538,7 @@ function ReadingCard({
                 className="font-display text-[13px] italic leading-snug text-foreground/85 whitespace-pre-wrap"
                 style={{ opacity: "var(--ro-plus-15)" }}
               >
-                {noteBody}
+                <NoteMarkdown inline source={noteBody} />
               </p>
             </div>
           )}
@@ -1580,7 +1581,7 @@ function ReadingCard({
                     className="font-display text-[13px] italic leading-snug text-foreground/85 whitespace-pre-wrap"
                     style={{ opacity: "var(--ro-plus-15)" }}
                   >
-                    {noteBody}
+                    <NoteMarkdown inline source={noteBody} />
                   </p>
                 </div>
               </div>
@@ -1743,7 +1744,7 @@ function NotesView({ items, onOpen }: { items: ReadingRow[]; onOpen: (id: string
                 overflow: "hidden",
               }}
             >
-              {r.note_preview}
+              <NoteMarkdown inline source={r.note_preview ?? ""} />
             </p>
           </button>
         </li>

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bookmark, Pencil, Trash2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { NoteMarkdown } from "@/components/ui/note-markdown";
 
 type BookmarkRow = {
   id: string;
@@ -388,7 +389,7 @@ export function LunationBookmarks({ userId, getViewState, onApply }: Props) {
                                       whiteSpace: "pre-line",
                                     }}
                                   >
-                                    {r.note}
+                                    <NoteMarkdown source={r.note} />
                                   </div>
                                 )}
                                 <div

@@ -34,7 +34,7 @@
  *   - "Reading" = the AI interpretation (not used here directly)
  *   - We avoid "pull" as a noun (styling doc terminology lock)
  */
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { NoteMarkdown } from "@/components/ui/note-markdown";
 
 export type JournalBlockProps = {
@@ -90,6 +90,13 @@ export function JournalBlock({
   }, [prompts, usedPrompt]);
 
   const [pickerIndex, setPickerIndex] = useState<number>(initialIndex);
+  // v3.117 — when not read-only, a saved note renders as Markdown until the
+  // seeker taps/focuses it; blur flips it back to rendered.
+  const [editing, setEditing] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    if (editing) taRef.current?.focus();
+  }, [editing]);
 
   // Re-sync the picker when prompts/usedPrompt change externally
   // (e.g., a different card is selected upstream and the parent
@@ -217,11 +224,32 @@ export function JournalBlock({
             placeholder={labels.emptyPlaceholder}
             onRequestEdit={onRequestEdit}
           />
+        ) : !editing && note.trim().length > 0 ? (
+          // v3.117 — render the saved note as Markdown when not editing; tap
+          // (or focus) to drop into the raw textarea.
+          <div
+            onClick={() => setEditing(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                setEditing(true);
+              }
+            }}
+            title="Tap to edit"
+            style={{ cursor: "text" }}
+          >
+            <NoteMarkdown source={note} />
+          </div>
         ) : (
           <textarea
             id={inputId}
+            ref={taRef}
             value={note}
             onChange={(e) => onChange(e.target.value, usedPrompt)}
+            onFocus={() => setEditing(true)}
+            onBlur={() => setEditing(false)}
             placeholder={labels.emptyPlaceholder}
             rows={Math.max(3, Math.min(10, note.split(/\r?\n/).length + 1))}
             style={{
