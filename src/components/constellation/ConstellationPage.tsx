@@ -1125,6 +1125,15 @@ export function ConstellationPage({
   // v3.34 — all-patterns view.
   const [allPatterns, setAllPatterns] = useState<PatternResult[]>([]);
   const [seenPatterns, setSeenPatterns] = useState<Set<string>>(new Set());
+  // v3.123 — the All-Patterns modal's feed, computed the SAME way as the
+  // home-screen "N new patterns" count: detectAllPatterns over 365d of ALL
+  // readings (fetched in the effect below), filtered to UNREAD. Independent of
+  // the hero card and the insights timeframe, so the modal matches the number.
+  const [allDetected365, setAllDetected365] = useState<PatternResult[]>([]);
+  const newPatterns = useMemo(
+    () => allDetected365.filter((p) => !seenPatterns.has(p.patternId)),
+    [allDetected365, seenPatterns],
+  );
   const [patternsModalOpen, setPatternsModalOpen] = useState(false);
   // v3.92 — open the All-Patterns modal on arrival when linked with
   // ?openPatterns=1 (e.g. from the home "new patterns" popup).
@@ -1180,7 +1189,7 @@ export function ConstellationPage({
   const markAllPatternsSeen = useCallback(() => {
     setSeenPatterns((prev) => {
       const next = new Set(prev);
-      for (const p of allPatterns) next.add(p.patternId);
+      for (const p of newPatterns) next.add(p.patternId);
       if (next.size === prev.size) return prev;
       if (user?.id) {
         const arr = Array.from(next);
@@ -1203,7 +1212,7 @@ export function ConstellationPage({
       }
       return next;
     });
-  }, [user?.id, allPatterns]);
+  }, [user?.id, newPatterns]);
   const [calendarRows, setCalendarRows] = useState(3); // rows of 4 months (3 = 12 months, the default; Show less drops to 2/1)
   const [lunationHydrated, setLunationHydrated] = useState(false);
   const applyLunationView = useCallback((v: Partial<LunationView>) => {
@@ -3707,6 +3716,53 @@ export function ConstellationPage({
     draggingGroup,
   ]);
 
+  // v3.123 — 365d whole-history pattern feed for the All-Patterns modal, built
+  // exactly like the home-screen count (all readings, not hero- or
+  // timeframe-scoped). Only runs where the modal exists (insights / lunations).
+  useEffect(() => {
+    if (!insightsMode && !lunationMode) return;
+    if (!user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const overlap365 = await getQuickLogOverlap({
+          data: {
+            heroCardId: null,
+            tz: effectiveTz,
+            filters: { timeRange: "365d" },
+          },
+        });
+        const readings: { ymd: string; cardIds: number[] }[] = [];
+        for (const [ymd, list] of Object.entries(
+          overlap365.readingsByDate ?? {},
+        )) {
+          for (const r of list)
+            readings.push({ ymd, cardIds: r.cardIds ?? [] });
+        }
+        if (cancelled) return;
+        if (readings.length === 0) {
+          setAllDetected365([]);
+          return;
+        }
+        const now = new Date();
+        const spanDays = 365;
+        const from = new Date(now.getTime() - (spanDays + 45) * 86400000);
+        const monthsAhead = Math.ceil((spanDays + 90) / 30);
+        const newMoons = getPhaseOccurrences("New Moon", from, monthsAhead)
+          .map((d) => isoDayInTz(d, effectiveTz))
+          .sort();
+        setAllDetected365(
+          detectAllPatterns({ readings, newMoons, birthDate }),
+        );
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [insightsMode, lunationMode, user?.id, effectiveTz, birthDate]);
+
   // Reset the active pattern when the hero changes — UNLESS the new hero is the
   // very card that pattern belongs to (the all-patterns drill-down loads a card
   // as hero and wants its pattern to stay isolated instead of being cleared).
@@ -4205,8 +4261,8 @@ export function ConstellationPage({
               width: "100%",
             }}
           >
-            {(insightsMode || lunationMode) && allPatterns.length > 0 && (() => {
-              const anyUnseen = allPatterns.some((p) => !seenPatterns.has(p.patternId));
+            {(insightsMode || lunationMode) && newPatterns.length > 0 && (() => {
+              const anyUnseen = true;
               return (
                 <button
                   type="button"
@@ -7121,7 +7177,7 @@ export function ConstellationPage({
           pill. */}
       {patternsModalOpen && (
         <AllPatternsModal
-          patterns={allPatterns}
+          patterns={newPatterns}
           seenIds={seenPatterns}
           onMarkAllSeen={markAllPatternsSeen}
           cardName={(id) => resolveCardName(id)}
