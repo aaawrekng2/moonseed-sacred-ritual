@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LocateFixed, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
@@ -10,6 +11,12 @@ import { useMoonLocation, setMoonLocation } from "@/lib/moon-location";
 import { geocodeBirthPlace } from "@/lib/geocode-cities";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { FeatureGate } from "@/components/feature-gate/FeatureGate";
+
+// v3.125 — capitalize a plain typed city (e.g. "seattle" -> "Seattle");
+// already-cased labels (geocoded "Bend, Oregon, US") are left intact.
+function prettyLoc(label: string): string {
+  return (label ?? "").replace(/\b([a-z])/g, (ch) => ch.toUpperCase());
+}
 
 /**
  * Moon & Lunar Features section in Settings → Preferences.
@@ -61,15 +68,20 @@ export function MoonFeaturesSection() {
   const moonLoc = useMoonLocation();
   const [cityInput, setCityInput] = useState("");
   const [cityError, setCityError] = useState(false);
+  // v3.125 — once a location is set, collapse the controls into a clear card;
+  // "Change" re-opens the picker.
+  const [editingLocation, setEditingLocation] = useState(false);
   const useDeviceLocation = () => {
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) =>
+        (pos) => {
           setMoonLocation({
             lat: pos.coords.latitude,
             lon: pos.coords.longitude,
             label: "Current location",
-          }),
+          });
+          setEditingLocation(false);
+        },
         () => toast.error("Couldn't get your location. Type a city instead."),
         { timeout: 10000, maximumAge: 60 * 60 * 1000 },
       );
@@ -85,6 +97,7 @@ export function MoonFeaturesSection() {
       setMoonLocation({ lat: hit.latitude, lon: hit.longitude, label: raw });
       setCityInput("");
       setCityError(false);
+      setEditingLocation(false);
       return;
     }
     // v3.124 — fall back to a free, no-key geocoding lookup for cities outside
@@ -107,6 +120,7 @@ export function MoonFeaturesSection() {
         setMoonLocation({ lat: r.latitude, lon: r.longitude, label: label || raw });
         setCityInput("");
         setCityError(false);
+        setEditingLocation(false);
         return;
       }
     } catch {
@@ -180,54 +194,98 @@ export function MoonFeaturesSection() {
                 Sets the moonrise &amp; moonset shown on today&apos;s card. Rise
                 and set times depend on where you are.
               </p>
-              {moonLoc ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-foreground/80">
-                    {moonLoc.label}
-                  </span>
+              {moonLoc && !editingLocation ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-gold/30 bg-gold/[0.06] px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <MapPin className="h-4 w-4 shrink-0 text-gold" aria-hidden />
+                    <div className="flex min-w-0 flex-col">
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
+                        Current location
+                      </span>
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {prettyLoc(moonLoc.label)}
+                      </span>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setMoonLocation(null)}
-                    className="rounded-md border border-foreground/20 px-3 py-1.5 text-xs text-foreground/60 transition-colors hover:border-gold/30 hover:text-gold"
+                    onClick={() => {
+                      setCityInput("");
+                      setCityError(false);
+                      setEditingLocation(true);
+                    }}
+                    className="shrink-0 rounded-md border border-gold/40 px-3 py-1.5 text-xs font-medium text-gold transition-colors hover:bg-gold/15"
                   >
-                    Clear
+                    Change
                   </button>
                 </div>
               ) : (
-                <span className="text-sm text-foreground/50">Not set</span>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={useDeviceLocation}
+                    className="flex items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/15 px-3 py-2.5 text-sm font-medium text-gold transition-colors hover:bg-gold/20"
+                  >
+                    <LocateFixed className="h-4 w-4" aria-hidden />
+                    Use my current location
+                  </button>
+                  <div className="flex items-center gap-3 py-0.5">
+                    <span className="h-px flex-1 bg-foreground/10" />
+                    <span className="text-[11px] uppercase tracking-wide text-foreground/35">
+                      or
+                    </span>
+                    <span className="h-px flex-1 bg-foreground/10" />
+                  </div>
+                  <input
+                    type="text"
+                    value={cityInput}
+                    onChange={(e) => {
+                      setCityInput(e.target.value);
+                      setCityError(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void applyCity();
+                      }
+                    }}
+                    placeholder="Type a city (e.g. Seattle)"
+                    className="rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus:border-gold/40 focus:outline-none"
+                  />
+                  {cityError && (
+                    <span className="text-xs text-destructive">
+                      City not found — try a major city nearby.
+                    </span>
+                  )}
+                  {moonLoc && (
+                    <div className="flex items-center gap-4 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingLocation(false);
+                          setCityInput("");
+                          setCityError(false);
+                        }}
+                        className="text-xs text-foreground/50 transition-colors hover:text-foreground/80"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoonLocation(null);
+                          setEditingLocation(false);
+                          setCityInput("");
+                          setCityError(false);
+                        }}
+                        className="text-xs text-destructive/70 transition-colors hover:text-destructive"
+                      >
+                        Remove location
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={useDeviceLocation}
-                  className="rounded-md border border-gold/40 bg-gold/15 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/20"
-                >
-                  Use my location
-                </button>
-              </div>
-              <div className="flex flex-col gap-1">
-                <input
-                  type="text"
-                  value={cityInput}
-                  onChange={(e) => {
-                    setCityInput(e.target.value);
-                    setCityError(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void applyCity();
-                    }
-                  }}
-                  placeholder="Or type a city (e.g. Seattle)"
-                  className="rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus:border-gold/40 focus:outline-none"
-                />
-                {cityError && (
-                  <span className="text-xs text-destructive">
-                    City not found — try a major city nearby.
-                  </span>
-                )}
-              </div>
             </div>
           )}
 
