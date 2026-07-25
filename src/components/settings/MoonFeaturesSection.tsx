@@ -77,19 +77,42 @@ export function MoonFeaturesSection() {
       toast.error("Location isn't available here. Type a city instead.");
     }
   };
-  const applyCity = () => {
-    const hit = geocodeBirthPlace(cityInput);
-    if (!hit) {
-      setCityError(true);
+  const applyCity = async () => {
+    const raw = cityInput.trim();
+    if (!raw) return;
+    const hit = geocodeBirthPlace(raw);
+    if (hit) {
+      setMoonLocation({ lat: hit.latitude, lon: hit.longitude, label: raw });
+      setCityInput("");
+      setCityError(false);
       return;
     }
-    setMoonLocation({
-      lat: hit.latitude,
-      lon: hit.longitude,
-      label: cityInput.trim(),
-    });
-    setCityInput("");
-    setCityError(false);
+    // v3.124 — fall back to a free, no-key geocoding lookup for cities outside
+    // the built-in list, so any real city resolves to coordinates and saves.
+    try {
+      const res = await fetch(
+        "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&format=json&name=" +
+          encodeURIComponent(raw),
+      );
+      const json = await res.json();
+      const r = json?.results?.[0];
+      if (
+        r &&
+        typeof r.latitude === "number" &&
+        typeof r.longitude === "number"
+      ) {
+        const label = [r.name, r.admin1, r.country_code]
+          .filter(Boolean)
+          .join(", ");
+        setMoonLocation({ lat: r.latitude, lon: r.longitude, label: label || raw });
+        setCityInput("");
+        setCityError(false);
+        return;
+      }
+    } catch {
+      /* network error -> show the not-found message below */
+    }
+    setCityError(true);
   };
 
   return (
@@ -193,7 +216,7 @@ export function MoonFeaturesSection() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      applyCity();
+                      void applyCity();
                     }
                   }}
                   placeholder="Or type a city (e.g. Seattle)"

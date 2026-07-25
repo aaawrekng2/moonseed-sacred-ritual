@@ -1134,6 +1134,9 @@ export function ConstellationPage({
     () => allDetected365.filter((p) => !seenPatterns.has(p.patternId)),
     [allDetected365, seenPatterns],
   );
+  // v3.124 — signature of a pull loaded from the calendar day-list; used to
+  // hide the Echo banner while the slots still exactly match it.
+  const [loadedSig, setLoadedSig] = useState<string | null>(null);
   const [patternsModalOpen, setPatternsModalOpen] = useState(false);
   // v3.92 — open the All-Patterns modal on arrival when linked with
   // ?openPatterns=1 (e.g. from the home "new patterns" popup).
@@ -1429,6 +1432,9 @@ export function ConstellationPage({
         cardName: TAROT_DECK[cardId] ?? null,
       }));
       setPicks(newPicks);
+      // v3.124 — remember this pull's card signature so the Echo banner stays
+      // hidden until the seeker edits it into a genuinely new spread.
+      setLoadedSig(ids.slice().sort((a, b) => a - b).join(","));
       setFocusedSlotIdx(newPicks.length > 0 ? 0 : null);
       setTealSelectedIds([]);
       setQuestion((row.question as string | null) ?? "");
@@ -2907,6 +2913,18 @@ export function ConstellationPage({
 
   // Phase 19 Fix 10 — port the Echo detection to /constellation.
   const echo = useEcho(picks, overlap, overlapMode);
+  // v3.124 — suppress the Echo while the slots exactly match a just-loaded pull
+  // (it's the reading you opened from the calendar, not a new draw). Editing the
+  // spread changes the signature, so the Echo returns for the new pull.
+  const echoSuppressed = useMemo(() => {
+    if (!loadedSig) return false;
+    const cur = picks
+      .map((p) => p.cardIndex)
+      .slice()
+      .sort((a, b) => a - b)
+      .join(",");
+    return cur === loadedSig;
+  }, [loadedSig, picks]);
   const participatingSet = useMemo(
     () => new Set(echo.participatingCardIds),
     [echo.participatingCardIds],
@@ -4196,7 +4214,7 @@ export function ConstellationPage({
       </div>
 
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
-      <EchoBanner echo={echo} />
+      {!echoSuppressed && <EchoBanner echo={echo} />}
 
       {/* EJ25 — two-column grid. Constellation moved to RIGHT column.
           Slot row + chips + question + notes + save sit in LEFT column
