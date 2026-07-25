@@ -135,33 +135,8 @@ export function CardPicker({
   // DW — now respects the parent's active time range (default "all") so the
   // picker's counts line up with the rest of Manual Entry's filter window.
   const [drawnCounts, setDrawnCounts] = useState<Record<number, number>>({});
-  useEffect(() => {
-    if (!user?.id) {
-      setDrawnCounts({});
-      return;
-    }
-    let cancelled = false;
-    void getCardDrawCounts({
-      data: {
-        cardIds: Array.from({ length: 78 }, (_, i) => i),
-        tz: effectiveTz,
-        filters: { timeRange: drawCountTimeRange },
-      },
-    })
-      .then((d) => {
-        if (!cancelled) setDrawnCounts(d.perCard ?? {});
-      })
-      .catch((err) => {
-        // ED4 — surface fetch errors so they don't silently break the
-        // sort + badge UX. Previous silent catch hid a server-side
-        // schema cap that was rejecting 78-id batches.
-        console.error("[CardPicker] drawnCounts fetch failed", err);
-        if (!cancelled) setDrawnCounts({});
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, effectiveTz, drawCountTimeRange]);
+  // v3.124 — the drawn-counts fetch lives below deckCards so it can request
+  // the ACTIVE deck's card ids (oracle ids >= 1000), not just the 78 tarot.
 
   const activeResolve = useActiveDeckImage();
   const specificResolve = useDeckImage(deckId ?? null);
@@ -234,6 +209,41 @@ export function CardPicker({
       cancelled = true;
     };
   }, [deckId, decks]);
+
+  // DU / v3.124 — draw counts per card, powering the "Most drawn" sort + badge.
+  // Requests the ACTIVE deck's card ids (oracle ids >= 1000 for custom decks)
+  // instead of only the 78 tarot ids, so badges/sort work on oracle decks.
+  const drawCountCardIds = useMemo(
+    () =>
+      deckId && deckCards.length > 0
+        ? deckCards.map((c) => c.card_id).slice(0, 200)
+        : Array.from({ length: 78 }, (_, i) => i),
+    [deckId, deckCards],
+  );
+  useEffect(() => {
+    if (!user?.id || drawCountCardIds.length === 0) {
+      setDrawnCounts({});
+      return;
+    }
+    let cancelled = false;
+    void getCardDrawCounts({
+      data: {
+        cardIds: drawCountCardIds,
+        tz: effectiveTz,
+        filters: { timeRange: drawCountTimeRange },
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setDrawnCounts(d.perCard ?? {});
+      })
+      .catch((err) => {
+        console.error("[CardPicker] drawnCounts fetch failed", err);
+        if (!cancelled) setDrawnCounts({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, effectiveTz, drawCountTimeRange, drawCountCardIds]);
 
   const photographed = useMemo(() => new Set(photographedIds), [photographedIds]);
   const excluded = useMemo(() => new Set(excludeCardIds), [excludeCardIds]);
