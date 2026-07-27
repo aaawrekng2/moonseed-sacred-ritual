@@ -1132,11 +1132,11 @@ function ReadingPreferencesSection({
         <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
           <div className="space-y-0.5">
             <Label htmlFor="allow-reversed-cards" className="text-sm">
-              Allow reversed cards
+              Allow reversed cards in draws
             </Label>
             <p className="text-xs text-muted-foreground">
-              Some readers find reversed cards add nuance and depth. When on, cards may appear
-              reversed during draws, with separate interpretations.
+              When on, cards can land reversed when you draw in the app, with
+              separate interpretations. Set the odds below.
             </p>
           </div>
           <Switch
@@ -1144,26 +1144,6 @@ function ReadingPreferencesSection({
             checked={prefs.allow_reversed_cards}
             disabled={savingReversed}
             onCheckedChange={toggleReversed}
-          />
-        </div>
-
-        {/* EK126 — Entry card (home splash) on/off. */}
-        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
-          <div className="space-y-0.5">
-            <Label htmlFor="show-entry-card" className="text-sm">
-              Show entry card on load
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              The TarotSeed gate that opens the app — the full-size card that
-              breathes, then shrinks into your home card. When off, you go
-              straight to home.
-            </p>
-          </div>
-          <Switch
-            id="show-entry-card"
-            checked={splashOn}
-            onCheckedChange={toggleSplash}
-            aria-label="Show entry card on load"
           />
         </div>
 
@@ -1204,8 +1184,29 @@ function ReadingPreferencesSection({
           </div>
         )}
 
-        {/* v2.28 — "Track reversed cards" merged into "Allow reversed cards";
-            reversal data now follows the single allow-reversed switch. */}
+        {/* v3.127 — when in-app reversals are off, offer manual reversal
+            logging so a physical reversal still counts. Reuses the
+            track_reversals column. Both off -> all reversal data hidden. */}
+        {!prefs.allow_reversed_cards && (
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="log-reversals" className="text-sm">
+                Log reversals from my own pulls
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Even with in-app reversals off, mark a card reversed when you
+                enter a reading yourself. Turn this off if you never use
+                reversals — every reversal stat then disappears.
+              </p>
+            </div>
+            <Switch
+              id="log-reversals"
+              checked={prefs.track_reversals}
+              disabled={savingTrackReversals}
+              onCheckedChange={toggleTrackReversals}
+            />
+          </div>
+        )}
 
         <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}

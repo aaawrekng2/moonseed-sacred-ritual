@@ -793,9 +793,9 @@ function OverviewTab({
         data={engine}
         onOpenCard={onOpenCard}
         rangeLabel={
-          shared.timeRange === "all"
+          filters.timeRange === "all"
             ? "all your readings"
-            : (TIME_RANGE_SUFFIX[shared.timeRange] ?? "").replace(/^in /, "") ||
+            : (TIME_RANGE_SUFFIX[filters.timeRange] ?? "").replace(/^in /, "") ||
               "this window"
         }
       />

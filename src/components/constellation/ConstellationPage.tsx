@@ -3625,12 +3625,18 @@ export function ConstellationPage({
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("allow_reversed_cards")
+        .select("allow_reversed_cards, track_reversals")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const row = data as { allow_reversed_cards?: boolean | null } | null;
-      setAllowReversed(Boolean(row?.allow_reversed_cards));
+      const row = data as {
+        allow_reversed_cards?: boolean | null;
+        track_reversals?: boolean | null;
+      } | null;
+      // v3.127 — reversals in play if drawn OR logged (track_reversals).
+      setAllowReversed(
+        row?.allow_reversed_cards === true || row?.track_reversals !== false,
+      );
     })();
     return () => {
       cancelled = true;

@@ -19,6 +19,7 @@ import { TopNav } from "@/components/nav/TopNav";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { LayoutGrid } from "lucide-react";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 import { cn } from "@/lib/utils";
 import {
   SmartCardInput,
@@ -137,6 +138,9 @@ export function ManualEntryBuilder({
   const { user: authUser, loading: authLoading } = useAuth();
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const [showCountHint, setShowCountHint] = useState(false);
+  // v3.127 — offer the reversed toggle only when reversals are in play
+  // (drawn or logged); hidden entirely for seekers who never use reversals.
+  const { trackReversals: reversalsInPlay } = useTrackReversals();
   // EJ69 — Page menu fly-out state. Holds the Draw action (and any
   // future per-page toggles for the manual entry surface).
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
@@ -838,7 +842,7 @@ export function ManualEntryBuilder({
                   // reversal is part of what happened. Always offer the
                   // toggle regardless of the digital allow_reversed_cards
                   // preference (which only governs digital randomization).
-                  showReversedToggle={true}
+                  showReversedToggle={reversalsInPlay}
                   title={
                     labels[pickerSlot]
                       ? `Pick — ${labels[pickerSlot]}`
