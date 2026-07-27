@@ -67,6 +67,21 @@ function formatOneIn(oneInN: number): string {
   return `~1 in ${Math.round(oneInN).toLocaleString()}`;
 }
 
+// v3.129 — probability of drawing a card at least `k` times when chance would
+// deal it `lambda` times (Poisson upper tail). Used to state the odds for any
+// over-drawn card, matching the observed/expected numbers the gauge shows.
+function poissonAtLeast(k: number, lambda: number): number {
+  if (k <= 0) return 1;
+  if (lambda <= 0) return 0;
+  let cdf = 0;
+  let term = Math.exp(-lambda); // P(X = 0)
+  for (let i = 0; i < k; i++) {
+    cdf += term;
+    term *= lambda / (i + 1);
+  }
+  return Math.max(0, Math.min(1, 1 - cdf));
+}
+
 export function PressureGauge({
   comparison,
   size = "lg",
@@ -116,6 +131,16 @@ export function PressureGauge({
   const gathering = comparison.status === "gathering";
   const isStalker = comparison.status === "ok" && comparison.isStalker;
   const overIndex = comparison.status === "ok" ? comparison.overIndex : 0;
+  // v3.129 — odds of the actual over-draw, from the numbers shown. Decoupled
+  // from isStalker so a clearly over-drawn card (dial in the red) still states
+  // its odds even if it doesn't clear the strict, Bonferroni-adjusted bar.
+  const oddsProb =
+    comparison.status === "ok"
+      ? poissonAtLeast(comparison.observed, comparison.expected)
+      : 0;
+  const oddsOneIn = oddsProb > 0 ? 1 / oddsProb : Infinity;
+  const showOdds =
+    comparison.status === "ok" && overIndex > 1 && oddsOneIn >= 3;
 
   // v2.49 — the dial only renders once the needle leaves the calm zone
   // (building or redline). Calm cards show the card + numbers, no dial.
@@ -336,7 +361,7 @@ export function PressureGauge({
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: d.label,
-              color: isStalker
+              color: showOdds
                 ? "var(--gauge-alert)"
                 : "var(--color-foreground)",
               marginTop: 8,
@@ -345,8 +370,8 @@ export function PressureGauge({
               marginInline: "auto",
             }}
           >
-            {isStalker && comparison.best
-              ? `In ${rangeLabel}, you drew it ${comparison.observed} times \u2014 about ${overIndex.toFixed(1)}\u00d7 what chance alone would deal (~${comparison.expected.toFixed(1)}). The odds of that are ${formatOneIn(comparison.best.oneInN)}.`
+            {showOdds
+              ? `In ${rangeLabel}, you drew it ${comparison.observed} times \u2014 about ${overIndex.toFixed(1)}\u00d7 what chance alone would deal (~${comparison.expected.toFixed(1)}). The odds of that are ${formatOneIn(oddsOneIn)}.`
               : `In ${rangeLabel}, you drew it ${comparison.observed} times \u2014 about ${overIndex.toFixed(1)}\u00d7 what chance alone would deal (~${comparison.expected.toFixed(1)}).`}
           </div>
         </div>
