@@ -789,18 +789,20 @@ function OverviewTab({
         </div>
       )}
 
-      <StalkerMeterRow
-        data={engine}
-        onOpenCard={onOpenCard}
-        rangeLabel={
-          filters.timeRange === "all"
-            ? "all your readings"
-            : (TIME_RANGE_SUFFIX[filters.timeRange] ?? "").replace(/^in /, "") ||
-              "this window"
-        }
-      />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        <StalkerMeterRow
+          data={engine}
+          onOpenCard={onOpenCard}
+          rangeLabel={
+            filters.timeRange === "all"
+              ? "all your readings"
+              : (TIME_RANGE_SUFFIX[filters.timeRange] ?? "").replace(/^in /, "") ||
+                "this window"
+          }
+        />
 
-      <SuitTrendsChart filters={filters} />
+        <SuitTrendsChart filters={filters} />
+      </div>
 
       <SuitCompositionRing data={engine} />
 
