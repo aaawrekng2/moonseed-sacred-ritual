@@ -28,6 +28,7 @@ import { analyzeSpread } from "@/lib/spread-structure";
 import { SpreadCombinationsStrip } from "@/components/tabletop/SpreadCombinationsStrip";
 import { AllPatternsModal } from "./AllPatternsModal";
 import { AiReadingSheet } from "@/components/reading/AiReadingSheet";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 
 /* ---------------------------------------------------------------------------
  * v3.40 — structural group-frequency patterns (suit / number / court).
@@ -838,6 +839,8 @@ export function ConstellationPage({
   lunationMode = false,
 }: ConstellationPageProps = {}) {
   const { user } = useAuth();
+  // v3.126 — AI surfaces are hidden entirely for accounts without AI access.
+  const aiEnabled = useAIEnabled();
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -6213,7 +6216,9 @@ export function ConstellationPage({
                   // fly-out menu; this row now shows only Save to journal.
                   saveOnly
                   // v3.50 — "Get AI reading" sits beside Save to journal.
-                  onGetAiReading={() => setAiSheetOpen(true)}
+                  onGetAiReading={
+                    aiEnabled === true ? () => setAiSheetOpen(true) : undefined
+                  }
                   aiDisabled={
                     !canSubmit ||
                     (atlasMode && atlasGroupSlots.length > 0)
@@ -7010,8 +7015,9 @@ export function ConstellationPage({
               </div>
             ))}
           </div>
-          {/* Get AI Reading button — hidden on insights Patterns (v2.27) */}
-          {!insightsMode && !lunationMode && (
+          {/* Get AI Reading button — hidden on insights Patterns (v2.27) and
+              on AI-off accounts (v3.126). */}
+          {!insightsMode && !lunationMode && aiEnabled === true && (
           <button
             type="button"
             onClick={() => void handleGetAIReading()}
