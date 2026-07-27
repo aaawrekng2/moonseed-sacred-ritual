@@ -75,6 +75,7 @@ export function PressureGauge({
   onCardClick,
   bare = false,
   bareWidth,
+  rangeLabel = "this window",
 }: {
   comparison: CardComparison | null;
   size?: Size;
@@ -85,6 +86,8 @@ export function PressureGauge({
    *  overlay the same dial on constellation web cards. */
   bare?: boolean;
   bareWidth?: number;
+  /** v3.126 — plain-language time window used in the readout sentence. */
+  rangeLabel?: string;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [hover, setHover] = useState(false);
@@ -344,154 +347,22 @@ export function PressureGauge({
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: d.label,
-              color: "var(--color-foreground)",
-              marginTop: 4,
-            }}
-          >
-            drawn {comparison.observed}&times; &middot; expected ~{comparison.expected.toFixed(1)}&times;
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: d.sub,
-              marginTop: 5,
-              color: isStalker ? "var(--gauge-alert)" : "var(--color-foreground-muted)",
+              color: isStalker
+                ? "var(--gauge-alert)"
+                : "var(--color-foreground)",
+              marginTop: 6,
+              lineHeight: 1.55,
+              maxWidth: 280,
+              marginInline: "auto",
             }}
           >
             {isStalker && comparison.best
-              ? `past the redline · ${formatOneIn(comparison.best.oneInN)}`
-              : `within normal range · #${comparison.rank} of ${comparison.deckSize}`}
+              ? `In ${rangeLabel}, chance would deal about ${comparison.expected.toFixed(1)} draws \u2014 you drew it ${comparison.observed} times. The odds of that are ${formatOneIn(comparison.best.oneInN)}.`
+              : `In ${rangeLabel}, chance would deal about ${comparison.expected.toFixed(1)} draws \u2014 you drew it ${comparison.observed} times, within the normal range.`}
           </div>
         </div>
       ) : null}
 
-      {comparison.status === "ok" && size !== "sm" && (
-        <div
-          style={{ marginTop: 8, width: "100%", maxWidth: W, position: "relative" }}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-        >
-          <button
-            type="button"
-            onClick={() => setHelpOpen((o) => !o)}
-            aria-expanded={helpVisible}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              margin: "0 auto",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: d.sub,
-              color: "var(--gauge-alert)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "2px 6px",
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 15,
-                height: 15,
-                borderRadius: "50%",
-                border: "1px solid var(--gauge-alert)",
-                fontStyle: "normal",
-                fontSize: 10,
-                lineHeight: 1,
-              }}
-            >
-              ?
-            </span>
-            what this means
-          </button>
-
-          {helpVisible && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "min(320px, 86vw)",
-                maxHeight: "min(70vh, 440px)",
-                overflowY: "auto",
-                zIndex: "var(--z-popover, 50)" as unknown as number,
-                textAlign: "left",
-                background: "var(--surface-elevated)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-md, 10px)",
-                padding: "12px 14px",
-                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
-              }}
-            >
-              {zoneDial}
-              <div style={{ height: 1, background: "var(--border-subtle)", margin: "8px 0 10px" }} />
-              {(() => {
-                const c = comparison;
-                if (c.status !== "ok") return null;
-                const rows: Array<[string, string, string]> = [
-                  [
-                    "var(--gauge-alert)",
-                    "The needle",
-                    "how hard this card outruns chance. Dead left is exactly as often as a random deck would deal it; the further right, the more it's seeking you out.",
-                  ],
-                  [
-                    "var(--color-foreground)",
-                    `Drawn ${c.observed}\u00d7 \u00b7 expected ~${c.expected.toFixed(1)}\u00d7`,
-                    "your real pulls versus what pure luck would land across the same number of draws.",
-                  ],
-                ];
-                if (isStalker) {
-                  rows.push([
-                    "var(--gauge-alert)",
-                    "The redline",
-                    "once the needle crosses into the ember zone, the gap is too large for chance to explain \u2014 the card is genuinely following you.",
-                  ]);
-                }
-                if (isStalker && c.best) {
-                  rows.push([
-                    "color-mix(in oklch, var(--color-foreground) 55%, transparent)",
-                    formatOneIn(c.best.oneInN),
-                    "the odds of this much repetition by luck alone. The rarer it is, the more the pattern means.",
-                  ]);
-                }
-                rows.push([
-                  "var(--gauge-mid)",
-                  `#${c.rank} of ${c.deckSize}`,
-                  "where it ranks against every card by over-presence. Separate from the needle \u2014 that's this card vs. chance; this is this card vs. the rest of the deck.",
-                ]);
-                return (
-                  <>
-                    {rows.map(([sw, lab, rest], i) => swatchRow(sw, lab, rest, `s${i}`))}
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: d.sub,
-                        color: "var(--color-foreground-muted)",
-                        lineHeight: 1.5,
-                        marginTop: 2,
-                      }}
-                    >
-                      {c.kind === "acute"
-                        ? "Acute \u2014 a recent burst; it's been close lately. "
-                        : c.kind === "chronic"
-                        ? "Chronic \u2014 a slow, steady over-presence across your whole history. "
-                        : ""}
-                      Below 60 draws the gauge stays quiet, until a pattern can be told from coincidence.
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -14,9 +14,11 @@ import type { EngineInsights } from "@/lib/insights.functions";
 export function StalkerMeterRow({
   data,
   onOpenCard,
+  rangeLabel,
 }: {
   data: EngineInsights | null;
   onOpenCard: (cardId: number) => void;
+  rangeLabel: string;
 }) {
   if (!data) return null;
 
@@ -91,6 +93,7 @@ export function StalkerMeterRow({
               comparison={m.comparison}
               size="md"
               cardId={m.cardId}
+              rangeLabel={rangeLabel}
               onCardClick={() => onOpenCard(m.cardId)}
             />
           </div>

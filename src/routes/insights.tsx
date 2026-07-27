@@ -789,7 +789,16 @@ function OverviewTab({
         </div>
       )}
 
-      <StalkerMeterRow data={engine} onOpenCard={onOpenCard} />
+      <StalkerMeterRow
+        data={engine}
+        onOpenCard={onOpenCard}
+        rangeLabel={
+          shared.timeRange === "all"
+            ? "all your readings"
+            : (TIME_RANGE_SUFFIX[shared.timeRange] ?? "").replace(/^in /, "") ||
+              "this window"
+        }
+      />
 
       <SuitTrendsChart filters={filters} />
 
