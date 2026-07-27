@@ -62,7 +62,12 @@ export type SuitBucket = {
   pentacles: number;
 };
 
-export type SuitGranularity = "daily" | "weekly" | "monthly";
+export type SuitGranularity =
+  | "daily"
+  | "weekly"
+  | "fortnightly"
+  | "monthly"
+  | "quarterly";
 
 /**
  * ES-4 — Older readings predate the `moon_phase` column; derive a
@@ -2574,6 +2579,9 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
 // ============================================================================
 const SuitTrendsInputSchema = InsightsFiltersSchema.extend({
   tz: z.string().min(1).default("UTC"),
+  granularity: z
+    .enum(["daily", "weekly", "fortnightly", "monthly", "quarterly"])
+    .optional(),
 });
 
 export const getSuitTrends = createServerFn({ method: "GET" })
@@ -2587,8 +2595,9 @@ export const getSuitTrends = createServerFn({ method: "GET" })
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
 
     const effectiveDays = days ?? 9999;
-    const granularity: SuitGranularity =
+    const autoGranularity: SuitGranularity =
       effectiveDays <= 31 ? "daily" : effectiveDays <= 180 ? "weekly" : "monthly";
+    const granularity: SuitGranularity = data.granularity ?? autoGranularity;
 
     const isoDay = (d: Date) => {
       try {
@@ -2647,10 +2656,56 @@ export const getSuitTrends = createServerFn({ method: "GET" })
       return `${fmtPart(startDate, { month: "short", day: "numeric" })}–${fmtPart(endDate, { month: "short", day: "numeric" })}`;
     };
 
-    const keyOf = (d: Date) =>
-      granularity === "daily" ? isoDay(d) : granularity === "weekly" ? isoWeek(d) : isoMonth(d);
-    const labelOf = (d: Date) =>
-      granularity === "daily" ? dayLabel(d) : granularity === "weekly" ? weekLabel(d) : monthLabel(d);
+    const isoFortnight = (d: Date) => {
+      const [yy, mm, dd] = isoDayInTz(d, tz).split("-").map(Number);
+      const epochDays = Math.floor(Date.UTC(yy, mm - 1, dd) / 86400000);
+      return `FN${String(Math.floor(epochDays / 14)).padStart(7, "0")}`;
+    };
+    const fortnightLabel = (d: Date) => {
+      const [yy, mm, dd] = isoDayInTz(d, tz).split("-").map(Number);
+      const epochDays = Math.floor(Date.UTC(yy, mm - 1, dd) / 86400000);
+      const start = new Date(Math.floor(epochDays / 14) * 14 * 86400000);
+      const startYmd = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}-${String(start.getUTCDate()).padStart(2, "0")}`;
+      return fmtPart(parseIsoDay(startYmd, tz), { month: "short", day: "numeric" });
+    };
+    const isoQuarter = (d: Date) => {
+      const [yy, mm] = isoDayInTz(d, tz).split("-").map(Number);
+      return `${yy}-Q${Math.floor((mm - 1) / 3) + 1}`;
+    };
+    const quarterLabel = (d: Date) => {
+      const [yy, mm] = isoDayInTz(d, tz).split("-").map(Number);
+      const q = Math.floor((mm - 1) / 3) + 1;
+      return effectiveDays > 365 ? `Q${q} ${yy}` : `Q${q}`;
+    };
+
+    const keyOf = (d: Date) => {
+      switch (granularity) {
+        case "daily":
+          return isoDay(d);
+        case "weekly":
+          return isoWeek(d);
+        case "fortnightly":
+          return isoFortnight(d);
+        case "quarterly":
+          return isoQuarter(d);
+        default:
+          return isoMonth(d);
+      }
+    };
+    const labelOf = (d: Date) => {
+      switch (granularity) {
+        case "daily":
+          return dayLabel(d);
+        case "weekly":
+          return weekLabel(d);
+        case "fortnightly":
+          return fortnightLabel(d);
+        case "quarterly":
+          return quarterLabel(d);
+        default:
+          return monthLabel(d);
+      }
+    };
 
     type BucketAcc = SuitBucket & { _firstDate: Date };
     const buckets: Record<string, BucketAcc> = {};
@@ -2934,6 +2989,8 @@ export type EngineInsights =
       totalSlots: number;
       meters: EngineMeter[]; // up to 3, significance-ranked; falls back to the single most-elevated
       anyStalker: boolean;
+      topPulled: { cardId: number; cardName: string; count: number }[];
+      topComparison: CardComparison | null;
       suits: EngineSuit[]; // all 5 suits, volume + over-presence
       majorMinor: {
         major: number;
@@ -3046,6 +3103,25 @@ export const getEngineInsights = createServerFn({ method: "GET" })
       (m) => m.comparison.status === "ok" && m.comparison.isStalker,
     );
 
+    // v3.130 — most-pulled ranking (raw counts) for the Overview: the single
+    // most-pulled card leads; the next four ride below as badged thumbnails.
+    // The lead card's comparison drives the odds sentence.
+    const pullCounts = new Map<number, number>();
+    for (const d of draws)
+      pullCounts.set(d.cardId, (pullCounts.get(d.cardId) ?? 0) + 1);
+    const topPulled = [...pullCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+      .slice(0, 6)
+      .map(([cardId, count]) => ({
+        cardId,
+        cardName: getCardName(cardId),
+        count,
+      }));
+    const topComparison =
+      topPulled.length > 0
+        ? cardComparison(topPulled[0].cardId, draws, { now, minSlots: floor })
+        : null;
+
     // Suit composition — all 5 suits, observed vs expected + corrected over-flag.
     const suitObs: Record<string, number> = {};
     for (const d of draws) {
@@ -3078,7 +3154,16 @@ export const getEngineInsights = createServerFn({ method: "GET" })
       minorExpected: (totalSlots * 56) / DECK_SIZE,
     };
 
-    return { status: "ok", totalSlots, meters, anyStalker, suits, majorMinor };
+    return {
+      status: "ok",
+      totalSlots,
+      meters,
+      anyStalker,
+      topPulled,
+      topComparison,
+      suits,
+      majorMinor,
+    };
   });
 
 // ─── v2.51 — per-card gauge feed for the constellation web ───────────────────
