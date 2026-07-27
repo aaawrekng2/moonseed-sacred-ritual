@@ -333,32 +333,21 @@ export function PressureGauge({
         <div style={{ textAlign: "center", marginTop: 8 }}>
           <div
             style={{
-              fontFamily: "var(--font-display)",
-              fontStyle: "italic",
-              fontSize: d.big,
-              color: isStalker ? "var(--gauge-alert)" : "var(--color-foreground)",
-              lineHeight: 1,
-            }}
-          >
-            {overIndex.toFixed(1)}&times;
-          </div>
-          <div
-            style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: d.label,
               color: isStalker
                 ? "var(--gauge-alert)"
                 : "var(--color-foreground)",
-              marginTop: 6,
+              marginTop: 8,
               lineHeight: 1.55,
-              maxWidth: 280,
+              maxWidth: 300,
               marginInline: "auto",
             }}
           >
             {isStalker && comparison.best
-              ? `In ${rangeLabel}, chance would deal about ${comparison.expected.toFixed(1)} draws \u2014 you drew it ${comparison.observed} times. The odds of that are ${formatOneIn(comparison.best.oneInN)}.`
-              : `In ${rangeLabel}, chance would deal about ${comparison.expected.toFixed(1)} draws \u2014 you drew it ${comparison.observed} times, within the normal range.`}
+              ? `In ${rangeLabel}, you drew it ${comparison.observed} times \u2014 about ${overIndex.toFixed(1)}\u00d7 what chance alone would deal (~${comparison.expected.toFixed(1)}). The odds of that are ${formatOneIn(comparison.best.oneInN)}.`
+              : `In ${rangeLabel}, you drew it ${comparison.observed} times \u2014 about ${overIndex.toFixed(1)}\u00d7 what chance alone would deal (~${comparison.expected.toFixed(1)}).`}
           </div>
         </div>
       ) : null}
