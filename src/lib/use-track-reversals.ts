@@ -40,18 +40,20 @@ export function useTrackReversals(): TrackReversalsState {
     const load = async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("allow_reversed_cards")
+        .select("allow_reversed_cards, track_reversals")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const row = data as { allow_reversed_cards?: boolean | null } | null;
-      setState({
-        trackReversals:
-          typeof row?.allow_reversed_cards === "boolean"
-            ? row.allow_reversed_cards
-            : false,
-        loaded: true,
-      });
+      const row = data as {
+        allow_reversed_cards?: boolean | null;
+        track_reversals?: boolean | null;
+      } | null;
+      // v3.127 — reversals are "in play" (and all reversal data shows) if the
+      // app DRAWS them OR the seeker LOGS them from their own pulls
+      // (track_reversals, default on). Both off -> reversal data hidden.
+      const drawsReversed = row?.allow_reversed_cards === true;
+      const logsReversed = row?.track_reversals !== false;
+      setState({ trackReversals: drawsReversed || logsReversed, loaded: true });
     };
     void load();
     const onChanged = () => {
