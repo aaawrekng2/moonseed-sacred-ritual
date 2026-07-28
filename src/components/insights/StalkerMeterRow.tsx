@@ -52,6 +52,10 @@ function readout(
   return showOdds ? `${base} The odds of that are ${formatOneIn(oneIn)}.` : base;
 }
 
+// v3.132 — the Overview count badge now uses the SAME implementation as the
+// constellation hero gold badge (AtlasWeb EK104): a solid gold disc with dark
+// serif text, subtle border + drop shadow. Sized 26px on the hero card, 18px
+// on the thumbnails.
 function CountBadge({
   count,
   big,
@@ -61,24 +65,31 @@ function CountBadge({
   big?: boolean;
   title?: string;
 }) {
+  const size = big ? 26 : 18;
   return (
     <div
       title={title}
       style={{
         position: "absolute",
-        top: big ? 6 : 3,
-        right: big ? 6 : 3,
-        zIndex: 2,
-        background: "rgba(0,0,0,0.72)",
-        color: "var(--gold)",
-        border: "1px solid var(--gold)",
-        borderRadius: 999,
+        top: big ? 6 : 2,
+        right: big ? 6 : 2,
+        zIndex: 3,
+        width: size,
+        height: size,
+        borderRadius: 9999,
+        background:
+          "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
+        border:
+          "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--background)",
         fontFamily: "var(--font-serif)",
         fontStyle: "italic",
-        fontWeight: 600,
-        fontSize: big ? 13 : 10,
+        fontSize: big ? 12 : 10,
         lineHeight: 1,
-        padding: big ? "3px 8px" : "2px 5px",
         cursor: "help",
       }}
     >
