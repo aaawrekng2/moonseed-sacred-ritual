@@ -1,17 +1,18 @@
 /**
- * StalkerMeterRow (v3.134)
+ * StalkerMeterRow (v3.135)
  *
- * The Overview's most-present block: the single most-pulled card shown large
- * (with its gold pull-count badge) at the TOP, then the header, then the
- * plain-language odds sentence. The rest of the ranked cards live in the
- * separate MostPulledStrip below the Suit Trends row. Pure presentational —
- * all data comes from getEngineInsights via the `data` prop.
+ * The Overview's most-present block, laid out as a row: the single most-pulled
+ * card shown large on the LEFT (sized to roughly match the Suit Trends box
+ * height), and the header + plain-language odds sentence in a vertically-
+ * centered column to its RIGHT. Pure presentational — data from
+ * getEngineInsights via the `data` prop.
  */
 import { PulledCard } from "@/components/insights/PulledCard";
 import type { EngineInsights } from "@/lib/insights.functions";
 import type { CardComparison } from "@/lib/pattern-engine";
 
-const CARD_W = 190;
+// ~ the Suit Trends box height (fixed 300px chart + chrome) at RWS card aspect.
+const CARD_W = 230;
 
 function poissonAtLeast(k: number, lambda: number): number {
   if (k <= 0) return 1;
@@ -99,14 +100,7 @@ export function StalkerMeterRow({
     : "Your most-present card";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        alignItems: "flex-start",
-      }}
-    >
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       <PulledCard
         cardId={big.cardId}
         cardName={big.cardName}
@@ -118,34 +112,38 @@ export function StalkerMeterRow({
       />
 
       <div
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-          opacity: 0.9,
-          textAlign: "left",
-          marginTop: 14,
-        }}
+        className="flex flex-col justify-center gap-2"
+        style={{ flex: 1 }}
       >
-        {header}
-      </div>
-
-      {sentence && (
         <div
           style={{
-            fontFamily: "var(--font-serif)",
+            fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: "var(--text-body-sm)",
+            fontSize: "var(--text-heading-md)",
             color: "var(--color-foreground)",
+            opacity: 0.9,
             textAlign: "left",
-            lineHeight: 1.55,
-            maxWidth: 320,
           }}
         >
-          {sentence}
+          {header}
         </div>
-      )}
+
+        {sentence && (
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              textAlign: "left",
+              lineHeight: 1.55,
+              maxWidth: 360,
+            }}
+          >
+            {sentence}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
