@@ -4,24 +4,34 @@ import { InsightCard } from "./InsightCard";
 export function RhythmHeatmap({
   days,
   onTap,
+  windowDays = 30,
+  inlineTotal = false,
 }: {
   days: Array<{ date: string; count: number }>;
   onTap?: () => void;
+  /** How many trailing days to show (the parent supplies up to 60). */
+  windowDays?: number;
+  /** Fold the spread total into the title and hide the bottom caption. */
+  inlineTotal?: boolean;
 }) {
   // EJ41 — defensive: parent may pass undefined on partial payloads.
   const safeDays = Array.isArray(days) ? days : [];
-  const max = Math.max(1, ...safeDays.map((d) => d.count));
-  const total = safeDays.reduce((a, b) => a + b.count, 0);
+  const shown = windowDays > 0 ? safeDays.slice(-windowDays) : safeDays;
+  const max = Math.max(1, ...shown.map((d) => d.count));
+  const total = shown.reduce((a, b) => a + b.count, 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   // 26-05-08-Q11 — Pan rhythm strip to the most recent day on mount.
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollLeft = el.scrollWidth;
-  }, [safeDays.length]);
+  }, [shown.length]);
+
+  const spreadsText = `${total} spread${total === 1 ? "" : "s"} in the last ${windowDays} days`;
+
   return (
     <InsightCard
-      title="Rhythm — last 30 days"
-      caption={`${total} spread${total === 1 ? "" : "s"} in the last 30 days.`}
+      title={inlineTotal ? `Rhythm — ${spreadsText}` : `Rhythm — last ${windowDays} days`}
+      caption={inlineTotal ? undefined : `${spreadsText}.`}
       onTap={onTap}
     >
       <div
@@ -29,7 +39,7 @@ export function RhythmHeatmap({
         className="flex gap-1 overflow-x-auto pb-1"
         style={{ scrollbarWidth: "none" }}
       >
-        {safeDays.map((d) => {
+        {shown.map((d) => {
           const intensity = d.count === 0 ? 0.08 : 0.2 + (d.count / max) * 0.8;
           return (
             <div

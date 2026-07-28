@@ -100,7 +100,7 @@ export function StalkerMeterRow({
     : "Your most-present card";
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+    <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center">
       <PulledCard
         cardId={big.cardId}
         cardName={big.cardName}
@@ -113,7 +113,7 @@ export function StalkerMeterRow({
 
       <div
         className="flex flex-col justify-center gap-2"
-        style={{ flex: 1 }}
+        style={{ width: CARD_W }}
       >
         <div
           style={{
@@ -137,7 +137,6 @@ export function StalkerMeterRow({
               color: "var(--color-foreground)",
               textAlign: "left",
               lineHeight: 1.55,
-              maxWidth: 360,
             }}
           >
             {sentence}

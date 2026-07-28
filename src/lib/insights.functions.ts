@@ -314,9 +314,10 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
       suitCounts.Wands + suitCounts.Cups + suitCounts.Swords + suitCounts.Pentacles;
     const majorMinorDenom = majors + minors;
 
-    // last 30 days bucket regardless of filter window — the rhythm card is fixed.
+    // last 60 days bucket regardless of filter window — each rhythm card slices
+    // this to its own window (stat-grid card = 30, Overview copy = 60).
     const readingsByDay: Array<{ date: string; count: number }> = [];
-    for (let i = 29; i >= 0; i -= 1) {
+    for (let i = 59; i >= 0; i -= 1) {
       const d = addDaysInTz(new Date(), -i, data.tz);
       const key = isoDayInTz(d, data.tz);
       readingsByDay.push({ date: key, count: dayCounts[key] ?? 0 });
