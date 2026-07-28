@@ -71,9 +71,13 @@ function CountBadge({
       title={title}
       style={{
         position: "absolute",
-        top: big ? 6 : 2,
-        right: big ? 6 : 2,
-        zIndex: 3,
+        // v3.133 — bottom-right corner, centered on the corner so it floats
+        // half-outside the card, mirroring the constellation gold pull badge
+        // (ConstellationWeb bottom-right + AtlasWeb translate-centered anchor).
+        right: 0,
+        bottom: 0,
+        transform: "translate(50%, 50%)",
+        zIndex: 5,
         width: size,
         height: size,
         borderRadius: 9999,
@@ -213,7 +217,7 @@ export function StalkerMeterRow({
         </button>
 
         {thumbs.length > 0 && (
-          <div style={{ display: "flex", gap: THUMB_GAP, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: THUMB_GAP, marginTop: 22 }}>
             {thumbs.map((t) => (
               <button
                 key={t.cardId}
