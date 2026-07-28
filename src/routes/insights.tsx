@@ -795,14 +795,16 @@ function OverviewTab({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <StalkerMeterRow
           data={engine}
           onOpenCard={onOpenCard}
           rangeLabel={rangeLabel}
         />
 
-        <SuitTrendsChart filters={filters} />
+        <div className="min-w-0 flex-1">
+          <SuitTrendsChart filters={filters} />
+        </div>
       </div>
 
       <MostPulledStrip
@@ -811,7 +813,12 @@ function OverviewTab({
         rangeLabel={rangeLabel}
       />
 
-      <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={onTapCalendar} />
+      <RhythmHeatmap
+        days={overview.readingsByDay ?? []}
+        onTap={onTapCalendar}
+        windowDays={60}
+        inlineTotal
+      />
 
       <SuitCompositionRing data={engine} />
 
