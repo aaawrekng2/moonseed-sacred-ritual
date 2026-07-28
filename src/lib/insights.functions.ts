@@ -3110,13 +3110,13 @@ export const getEngineInsights = createServerFn({ method: "GET" })
     const pullCounts = new Map<number, number>();
     for (const d of draws)
       pullCounts.set(d.cardId, (pullCounts.get(d.cardId) ?? 0) + 1);
-    const topPulled = [...pullCounts.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-      .map(([cardId, count]) => ({
-        cardId,
-        cardName: getCardName(cardId),
-        count,
-      }));
+    // v3.137 — include every tarot card (0..DECK_SIZE-1); undrawn cards (count
+    // 0) ride the strip faded with a "0" badge. Sorted by count desc, then id.
+    const topPulled = Array.from({ length: DECK_SIZE }, (_, cardId) => ({
+      cardId,
+      cardName: getCardName(cardId),
+      count: pullCounts.get(cardId) ?? 0,
+    })).sort((a, b) => b.count - a.count || a.cardId - b.cardId);
     const topComparison =
       topPulled.length > 0
         ? cardComparison(topPulled[0].cardId, draws, { now, minSlots: floor })
