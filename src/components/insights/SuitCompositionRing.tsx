@@ -9,14 +9,7 @@
  * Pure presentational — data comes from getEngineInsights.
  */
 import type { EngineInsights } from "@/lib/insights.functions";
-
-const SUIT_FILL: Record<string, string> = {
-  majors: "color-mix(in oklch, var(--accent) 88%, white)",
-  wands: "color-mix(in oklch, var(--accent) 55%, oklch(0.62 0.20 35))",
-  cups: "color-mix(in oklch, var(--accent) 40%, oklch(0.45 0.13 240))",
-  swords: "color-mix(in oklch, var(--accent) 30%, oklch(0.78 0.02 250))",
-  pentacles: "color-mix(in oklch, var(--accent) 35%, oklch(0.55 0.10 145))",
-};
+import { SUIT_COLORS } from "@/lib/suit-colors";
 
 function dashFor(frac: number, startFrac: number, circ: number) {
   const on = Math.max(0, frac * circ);
@@ -109,7 +102,7 @@ export function SuitCompositionRing({ data }: { data: EngineInsights | null }) {
                   cy={cy}
                   r={R}
                   fill="none"
-                  stroke={SUIT_FILL[o.key]}
+                  stroke={SUIT_COLORS[o.key]}
                   strokeWidth={TH}
                   strokeDasharray={seg.da}
                   strokeDashoffset={seg.off}
@@ -214,7 +207,7 @@ export function SuitCompositionRing({ data }: { data: EngineInsights | null }) {
                 width: 10,
                 height: 10,
                 borderRadius: 3,
-                background: SUIT_FILL[s.key],
+                background: SUIT_COLORS[s.key],
                 outline: s.isOver ? "1.5px solid var(--gold)" : "none",
                 outlineOffset: 1,
               }}
