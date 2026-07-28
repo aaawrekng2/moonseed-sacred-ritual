@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,20 +19,10 @@ import {
   type SuitBucket,
   type SuitGranularity,
 } from "@/lib/insights.functions";
+import { SUIT_COLORS } from "@/lib/suit-colors";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { useTimezone } from "@/lib/use-timezone";
-
-// v3.130 — element-based suit colors, clearly distinct on the dark crimson
-// ground: Major = violet, Wands = orange (fire), Cups = blue (water),
-// Swords = gold (air), Pentacles = green (earth).
-const SUIT_COLOR: Record<string, string> = {
-  major: "#a855f7",
-  wands: "#f97316",
-  cups: "#3b82f6",
-  swords: "#eab308",
-  pentacles: "#22c55e",
-};
 
 const SUIT_LABEL: Record<string, string> = {
   major: "Major Arcana",
@@ -41,6 +35,7 @@ const SUIT_LABEL: Record<string, string> = {
 const SUITS = ["major", "wands", "cups", "swords", "pentacles"] as const;
 
 type Mode = "pct" | "count";
+type ChartType = "line" | "bar" | "area";
 
 const GRAN_OPTIONS: Array<{ id: SuitGranularity; label: string }> = [
   { id: "daily", label: "Day" },
@@ -49,6 +44,18 @@ const GRAN_OPTIONS: Array<{ id: SuitGranularity; label: string }> = [
   { id: "monthly", label: "Month" },
   { id: "quarterly", label: "Quarter" },
 ];
+
+const selectStyle: CSSProperties = {
+  background: "color-mix(in oklch, var(--gold) 12%, transparent)",
+  color: "var(--gold)",
+  border: "1px solid var(--border-subtle)",
+  borderRadius: 999,
+  padding: "4px 10px",
+  fontFamily: "var(--font-serif)",
+  fontStyle: "italic",
+  fontSize: 12,
+  cursor: "pointer",
+};
 
 export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   const fn = useServerFn(getSuitTrends);
@@ -59,6 +66,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("pct");
+  const [chartType, setChartType] = useState<ChartType>("line");
   // null = let the server auto-pick a sensible bucket size for the range.
   const [gran, setGran] = useState<SuitGranularity | null>(null);
 
@@ -119,6 +127,86 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   const selectedGran: SuitGranularity = gran ?? data.granularity;
   const hasChart = Array.isArray(data.buckets) && data.buckets.length >= 2;
 
+  const axisTick = {
+    fontSize: "var(--text-caption)",
+    fill: "var(--color-foreground)",
+    opacity: 0.7,
+    fontFamily: "var(--font-serif)",
+    fontStyle: "italic",
+  } as const;
+
+  // Shared chart children (axes/grid/tooltip/legend). React flattens arrays, so
+  // recharts still discovers each element by type.
+  const axes = [
+    <CartesianGrid key="g" strokeDasharray="3 3" stroke="var(--border-subtle)" />,
+    <XAxis key="x" dataKey="label" tick={axisTick} stroke="var(--border-default)" />,
+    <YAxis
+      key="y"
+      tick={axisTick}
+      stroke="var(--border-default)"
+      tickFormatter={(v) => (mode === "pct" ? `${v}%` : String(v))}
+    />,
+    <Tooltip
+      key="t"
+      contentStyle={{
+        background: "var(--surface-elevated)",
+        border: "1px solid var(--border-default)",
+        borderRadius: 8,
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: "var(--text-caption)",
+      }}
+      formatter={(value: number, name: string) => [
+        mode === "pct" ? `${value}%` : value,
+        SUIT_LABEL[name] ?? name,
+      ]}
+      labelStyle={{
+        color: "var(--color-foreground)",
+        fontWeight: 500,
+        marginBottom: 4,
+      }}
+    />,
+    <Legend
+      key="l"
+      wrapperStyle={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: "var(--text-caption)",
+        paddingTop: 8,
+      }}
+      formatter={(value) => SUIT_LABEL[value as string] ?? value}
+    />,
+  ];
+
+  const series =
+    chartType === "line"
+      ? SUITS.map((s) => (
+          <Line
+            key={s}
+            type="monotone"
+            dataKey={s}
+            stroke={SUIT_COLORS[s]}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+          />
+        ))
+      : chartType === "bar"
+        ? SUITS.map((s) => (
+            <Bar key={s} dataKey={s} stackId="a" fill={SUIT_COLORS[s]} />
+          ))
+        : SUITS.map((s) => (
+            <Area
+              key={s}
+              type="monotone"
+              dataKey={s}
+              stackId="a"
+              stroke={SUIT_COLORS[s]}
+              fill={SUIT_COLORS[s]}
+              fillOpacity={0.45}
+            />
+          ));
+
   return (
     <section
       style={{
@@ -175,17 +263,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             value={selectedGran}
             onChange={(e) => setGran(e.target.value as SuitGranularity)}
             aria-label="Bucket each data point by"
-            style={{
-              background: "color-mix(in oklch, var(--gold) 12%, transparent)",
-              color: "var(--gold)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: 999,
-              padding: "4px 10px",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
+            style={selectStyle}
           >
             {GRAN_OPTIONS.map((o) => (
               <option key={o.id} value={o.id} style={{ color: "#000" }}>
@@ -194,111 +272,67 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             ))}
           </select>
 
-          <div
-            className="flex gap-1 rounded-full p-0.5"
-            style={{ background: "var(--surface-card)" }}
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as Mode)}
+            aria-label="Show as percent or count"
+            style={selectStyle}
           >
-            {(
-              [
-                { id: "pct", label: "%" },
-                { id: "count", label: "Count" },
-              ] as const
-            ).map((it) => (
-              <button
-                key={it.id}
-                type="button"
-                onClick={() => setMode(it.id)}
-                className="rounded-full px-2 py-1 text-xs"
-                style={{
-                  background:
-                    mode === it.id
-                      ? "color-mix(in oklch, var(--gold) 24%, transparent)"
-                      : "transparent",
-                  color:
-                    mode === it.id
-                      ? "var(--gold)"
-                      : "var(--color-foreground)",
-                  fontStyle: "italic",
-                  opacity: mode === it.id ? 1 : 0.7,
-                }}
-              >
-                {it.label}
-              </button>
-            ))}
-          </div>
+            <option value="pct" style={{ color: "#000" }}>
+              Percent
+            </option>
+            <option value="count" style={{ color: "#000" }}>
+              Count
+            </option>
+          </select>
+
+          <select
+            value={chartType}
+            onChange={(e) => setChartType(e.target.value as ChartType)}
+            aria-label="Chart type"
+            style={selectStyle}
+          >
+            <option value="line" style={{ color: "#000" }}>
+              Line
+            </option>
+            <option value="bar" style={{ color: "#000" }}>
+              Stacked bar
+            </option>
+            <option value="area" style={{ color: "#000" }}>
+              Stacked area
+            </option>
+          </select>
         </div>
       </div>
 
       {hasChart ? (
-        <div style={{ width: "100%", height: 280 }}>
+        <div style={{ width: "100%", height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{ top: 8, right: 16, bottom: 8, left: -8 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-              <XAxis
-                dataKey="label"
-                tick={{
-                  fontSize: "var(--text-caption)",
-                  fill: "var(--color-foreground)",
-                  opacity: 0.7,
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                }}
-                stroke="var(--border-default)"
-              />
-              <YAxis
-                tick={{
-                  fontSize: "var(--text-caption)",
-                  fill: "var(--color-foreground)",
-                  opacity: 0.7,
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                }}
-                stroke="var(--border-default)"
-                tickFormatter={(v) => (mode === "pct" ? `${v}%` : String(v))}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--surface-elevated)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption)",
-                }}
-                formatter={(value: number, name: string) => [
-                  mode === "pct" ? `${value}%` : value,
-                  SUIT_LABEL[name] ?? name,
-                ]}
-                labelStyle={{
-                  color: "var(--color-foreground)",
-                  fontWeight: 500,
-                  marginBottom: 4,
-                }}
-              />
-              <Legend
-                wrapperStyle={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption)",
-                  paddingTop: 8,
-                }}
-                formatter={(value) => SUIT_LABEL[value as string] ?? value}
-              />
-              {SUITS.map((s) => (
-                <Line
-                  key={s}
-                  type="monotone"
-                  dataKey={s}
-                  stroke={SUIT_COLOR[s]}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-              ))}
-            </LineChart>
+            {chartType === "line" ? (
+              <LineChart
+                data={chartData}
+                margin={{ top: 8, right: 16, bottom: 8, left: -8 }}
+              >
+                {axes}
+                {series}
+              </LineChart>
+            ) : chartType === "bar" ? (
+              <BarChart
+                data={chartData}
+                margin={{ top: 8, right: 16, bottom: 8, left: -8 }}
+              >
+                {axes}
+                {series}
+              </BarChart>
+            ) : (
+              <AreaChart
+                data={chartData}
+                margin={{ top: 8, right: 16, bottom: 8, left: -8 }}
+              >
+                {axes}
+                {series}
+              </AreaChart>
+            )}
           </ResponsiveContainer>
         </div>
       ) : (

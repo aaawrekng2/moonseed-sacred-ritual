@@ -52,13 +52,23 @@ function readout(
   return showOdds ? `${base} The odds of that are ${formatOneIn(oneIn)}.` : base;
 }
 
-function CountBadge({ count, big }: { count: number; big?: boolean }) {
+function CountBadge({
+  count,
+  big,
+  title,
+}: {
+  count: number;
+  big?: boolean;
+  title?: string;
+}) {
   return (
     <div
+      title={title}
       style={{
         position: "absolute",
         top: big ? 6 : 3,
         right: big ? 6 : 3,
+        zIndex: 2,
         background: "rgba(0,0,0,0.72)",
         color: "var(--gold)",
         border: "1px solid var(--gold)",
@@ -69,7 +79,7 @@ function CountBadge({ count, big }: { count: number; big?: boolean }) {
         fontSize: big ? 13 : 10,
         lineHeight: 1,
         padding: big ? "3px 8px" : "2px 5px",
-        pointerEvents: "none",
+        cursor: "help",
       }}
     >
       {count}
@@ -134,7 +144,7 @@ export function StalkerMeterRow({
         display: "flex",
         flexDirection: "column",
         gap: 10,
-        alignItems: "center",
+        alignItems: "flex-start",
       }}
     >
       <div
@@ -144,7 +154,7 @@ export function StalkerMeterRow({
           fontSize: "var(--text-heading-md)",
           color: "var(--color-foreground)",
           opacity: 0.9,
-          textAlign: "center",
+          textAlign: "left",
         }}
       >
         {header}
@@ -157,7 +167,7 @@ export function StalkerMeterRow({
             fontStyle: "italic",
             fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
-            textAlign: "center",
+            textAlign: "left",
             lineHeight: 1.55,
             maxWidth: 320,
           }}
@@ -179,11 +189,16 @@ export function StalkerMeterRow({
             background: "none",
             cursor: "pointer",
             lineHeight: 0,
+            minHeight: Math.round(CARD_W * 1.5),
           }}
           aria-label={`${big.cardName}, drawn ${big.count} times — open card trace`}
         >
           <CardImage cardId={big.cardId} size="custom" widthPx={CARD_W} />
-          <CountBadge count={big.count} big />
+          <CountBadge
+            count={big.count}
+            big
+            title={`Pulled ${big.count} times in ${rangeLabel} — your most-drawn card`}
+          />
         </button>
 
         {thumbs.length > 0 && (
@@ -200,11 +215,15 @@ export function StalkerMeterRow({
                   background: "none",
                   cursor: "pointer",
                   lineHeight: 0,
+                  minHeight: Math.round(THUMB_W * 1.5),
                 }}
                 aria-label={`${t.cardName}, drawn ${t.count} times — open card trace`}
               >
                 <CardImage cardId={t.cardId} size="custom" widthPx={THUMB_W} />
-                <CountBadge count={t.count} />
+                <CountBadge
+                  count={t.count}
+                  title={`Pulled ${t.count} times in ${rangeLabel}`}
+                />
               </button>
             ))}
           </div>
