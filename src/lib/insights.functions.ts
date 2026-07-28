@@ -3111,7 +3111,6 @@ export const getEngineInsights = createServerFn({ method: "GET" })
       pullCounts.set(d.cardId, (pullCounts.get(d.cardId) ?? 0) + 1);
     const topPulled = [...pullCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-      .slice(0, 6)
       .map(([cardId, count]) => ({
         cardId,
         cardName: getCardName(cardId),

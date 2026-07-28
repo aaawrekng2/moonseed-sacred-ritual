@@ -1,19 +1,17 @@
 /**
- * StalkerMeterRow (v3.130)
+ * StalkerMeterRow (v3.134)
  *
  * The Overview's most-present block: the single most-pulled card shown large
- * with a pull-count badge and the plain-language odds sentence above it, then
- * a row of the next four most-pulled cards as badged thumbnails. Tapping any
- * card opens its Card Trace. Pure presentational — all data comes from
- * getEngineInsights via the `data` prop.
+ * (with its gold pull-count badge) at the TOP, then the header, then the
+ * plain-language odds sentence. The rest of the ranked cards live in the
+ * separate MostPulledStrip below the Suit Trends row. Pure presentational —
+ * all data comes from getEngineInsights via the `data` prop.
  */
-import { CardImage } from "@/components/card/CardImage";
+import { PulledCard } from "@/components/insights/PulledCard";
 import type { EngineInsights } from "@/lib/insights.functions";
 import type { CardComparison } from "@/lib/pattern-engine";
 
 const CARD_W = 190;
-const THUMB_GAP = 6;
-const THUMB_W = Math.floor((CARD_W - THUMB_GAP * 3) / 4); // 4 thumbs span card width
 
 function poissonAtLeast(k: number, lambda: number): number {
   if (k <= 0) return 1;
@@ -33,8 +31,6 @@ function formatOneIn(oneInN: number): string {
   return `~1 in ${Math.round(oneInN).toLocaleString()}`;
 }
 
-// v3.130 — the plain-language readout, now placed above the card and with the
-// bare "(~expected)" figure removed at the seeker's request.
 function readout(
   comparison: CardComparison | null,
   rangeLabel: string,
@@ -50,56 +46,6 @@ function readout(
     1,
   )}× what chance alone would deal.`;
   return showOdds ? `${base} The odds of that are ${formatOneIn(oneIn)}.` : base;
-}
-
-// v3.132 — the Overview count badge now uses the SAME implementation as the
-// constellation hero gold badge (AtlasWeb EK104): a solid gold disc with dark
-// serif text, subtle border + drop shadow. Sized 26px on the hero card, 18px
-// on the thumbnails.
-function CountBadge({
-  count,
-  big,
-  title,
-}: {
-  count: number;
-  big?: boolean;
-  title?: string;
-}) {
-  const size = big ? 26 : 18;
-  return (
-    <div
-      title={title}
-      style={{
-        position: "absolute",
-        // v3.133 — bottom-right corner, centered on the corner so it floats
-        // half-outside the card, mirroring the constellation gold pull badge
-        // (ConstellationWeb bottom-right + AtlasWeb translate-centered anchor).
-        right: 0,
-        bottom: 0,
-        transform: "translate(50%, 50%)",
-        zIndex: 5,
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        background:
-          "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
-        border:
-          "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "var(--background)",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: big ? 12 : 10,
-        lineHeight: 1,
-        cursor: "help",
-      }}
-    >
-      {count}
-    </div>
-  );
 }
 
 export function StalkerMeterRow({
@@ -147,7 +93,6 @@ export function StalkerMeterRow({
   if (!topPulled || topPulled.length === 0) return null;
 
   const big = topPulled[0];
-  const thumbs = topPulled.slice(1, 5);
   const sentence = readout(topComparison, rangeLabel);
   const header = anyStalker
     ? "What's been following you"
@@ -158,10 +103,20 @@ export function StalkerMeterRow({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 8,
         alignItems: "flex-start",
       }}
     >
+      <PulledCard
+        cardId={big.cardId}
+        cardName={big.cardName}
+        count={big.count}
+        widthPx={CARD_W}
+        big
+        title={`Pulled ${big.count} times in ${rangeLabel} — your most-drawn card`}
+        onClick={() => onOpenCard(big.cardId)}
+      />
+
       <div
         style={{
           fontFamily: "var(--font-display)",
@@ -170,6 +125,7 @@ export function StalkerMeterRow({
           color: "var(--color-foreground)",
           opacity: 0.9,
           textAlign: "left",
+          marginTop: 14,
         }}
       >
         {header}
@@ -190,60 +146,6 @@ export function StalkerMeterRow({
           {sentence}
         </div>
       )}
-
-      <div style={{ width: CARD_W }}>
-        <button
-          type="button"
-          onClick={() => onOpenCard(big.cardId)}
-          style={{
-            position: "relative",
-            display: "block",
-            width: "100%",
-            padding: 0,
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            lineHeight: 0,
-            minHeight: Math.round(CARD_W * 1.5),
-          }}
-          aria-label={`${big.cardName}, drawn ${big.count} times — open card trace`}
-        >
-          <CardImage cardId={big.cardId} size="custom" widthPx={CARD_W} />
-          <CountBadge
-            count={big.count}
-            big
-            title={`Pulled ${big.count} times in ${rangeLabel} — your most-drawn card`}
-          />
-        </button>
-
-        {thumbs.length > 0 && (
-          <div style={{ display: "flex", gap: THUMB_GAP, marginTop: 22 }}>
-            {thumbs.map((t) => (
-              <button
-                key={t.cardId}
-                type="button"
-                onClick={() => onOpenCard(t.cardId)}
-                style={{
-                  position: "relative",
-                  padding: 0,
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  lineHeight: 0,
-                  minHeight: Math.round(THUMB_W * 1.5),
-                }}
-                aria-label={`${t.cardName}, drawn ${t.count} times — open card trace`}
-              >
-                <CardImage cardId={t.cardId} size="custom" widthPx={THUMB_W} />
-                <CountBadge
-                  count={t.count}
-                  title={`Pulled ${t.count} times in ${rangeLabel}`}
-                />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

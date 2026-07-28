@@ -19,6 +19,7 @@ import {
   type EngineInsights,
 } from "@/lib/insights.functions";
 import { StalkerMeterRow } from "@/components/insights/StalkerMeterRow";
+import { MostPulledStrip } from "@/components/insights/MostPulledStrip";
 import { SuitCompositionRing } from "@/components/insights/SuitCompositionRing";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -764,6 +765,11 @@ function OverviewTab({
   }
 
   const lowData = overview.totalReadings < 5;
+  const rangeLabel =
+    filters.timeRange === "all"
+      ? "all your readings"
+      : (TIME_RANGE_SUFFIX[filters.timeRange] ?? "").replace(/^in /, "") ||
+        "this window";
 
   return (
     <div className="space-y-10 md:space-y-4">
@@ -793,18 +799,19 @@ function OverviewTab({
         <StalkerMeterRow
           data={engine}
           onOpenCard={onOpenCard}
-          rangeLabel={
-            filters.timeRange === "all"
-              ? "all your readings"
-              : (TIME_RANGE_SUFFIX[filters.timeRange] ?? "").replace(/^in /, "") ||
-                "this window"
-          }
+          rangeLabel={rangeLabel}
         />
 
         <div className="lg:col-span-2">
           <SuitTrendsChart filters={filters} />
         </div>
       </div>
+
+      <MostPulledStrip
+        data={engine}
+        onOpenCard={onOpenCard}
+        rangeLabel={rangeLabel}
+      />
 
       <SuitCompositionRing data={engine} />
 
