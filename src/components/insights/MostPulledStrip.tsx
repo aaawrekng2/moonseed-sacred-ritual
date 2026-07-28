@@ -1,10 +1,10 @@
 /**
- * MostPulledStrip (v3.134)
+ * MostPulledStrip (v3.135)
  *
- * A full-width, horizontally-scrolling strip of every card the seeker has
- * pulled in the active window, ranked by count (the #1 card is shown large in
- * the most-present block above, so it's excluded here). Each tile is ~50%
- * larger than the old thumbnails and carries the same gold pull-count badge.
+ * A bare, full-width, horizontally-scrolling strip of every card the seeker has
+ * pulled in the active window (ranked by count; the #1 card is shown large in
+ * the most-present block above, so it's excluded here). No border, heading, or
+ * caption — just the cards. Each tile carries the gold pull-count badge.
  */
 import { PulledCard } from "@/components/insights/PulledCard";
 import type { EngineInsights } from "@/lib/insights.functions";
@@ -25,63 +25,27 @@ export function MostPulledStrip({
   const W = 65; // ~50% larger than the old 43px thumbnails
 
   return (
-    <section
+    <div
       style={{
-        background: "var(--surface-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-md, 10px)",
-        padding: 16,
         display: "flex",
-        flexDirection: "column",
-        gap: 10,
+        gap: 16,
+        overflowX: "auto",
+        paddingTop: 6,
+        paddingBottom: 18,
+        paddingRight: 16,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: "var(--text-heading-md)",
-            margin: 0,
-          }}
-        >
-          Your most-pulled cards
-        </h3>
-        <p
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption)",
-            opacity: 0.7,
-            margin: 0,
-          }}
-        >
-          Ranked by how often you drew them — scroll for more.
-        </p>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          overflowX: "auto",
-          paddingTop: 6,
-          paddingBottom: 18,
-          paddingRight: 16,
-        }}
-      >
-        {cards.map((c) => (
-          <PulledCard
-            key={c.cardId}
-            cardId={c.cardId}
-            cardName={c.cardName}
-            count={c.count}
-            widthPx={W}
-            title={`Pulled ${c.count} times in ${rangeLabel}`}
-            onClick={() => onOpenCard(c.cardId)}
-          />
-        ))}
-      </div>
-    </section>
+      {cards.map((c) => (
+        <PulledCard
+          key={c.cardId}
+          cardId={c.cardId}
+          cardName={c.cardName}
+          count={c.count}
+          widthPx={W}
+          title={`Pulled ${c.count} times in ${rangeLabel}`}
+          onClick={() => onOpenCard(c.cardId)}
+        />
+      ))}
+    </div>
   );
 }
