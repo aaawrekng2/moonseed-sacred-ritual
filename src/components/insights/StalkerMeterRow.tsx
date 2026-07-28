@@ -90,17 +90,14 @@ export function StalkerMeterRow({
     );
   }
 
-  const { topPulled, topComparison, anyStalker } = data;
+  const { topPulled, topComparison } = data;
   if (!topPulled || topPulled.length === 0) return null;
 
   const big = topPulled[0];
   const sentence = readout(topComparison, rangeLabel);
-  const header = anyStalker
-    ? "What's been following you"
-    : "Your most-present card";
 
   return (
-    <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center">
+    <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start">
       <PulledCard
         cardId={big.cardId}
         cardName={big.cardName}
@@ -111,10 +108,7 @@ export function StalkerMeterRow({
         onClick={() => onOpenCard(big.cardId)}
       />
 
-      <div
-        className="flex flex-col justify-center gap-2"
-        style={{ width: CARD_W }}
-      >
+      <div className="flex flex-col gap-2" style={{ width: CARD_W }}>
         <div
           style={{
             fontFamily: "var(--font-display)",
@@ -123,9 +117,12 @@ export function StalkerMeterRow({
             color: "var(--color-foreground)",
             opacity: 0.9,
             textAlign: "left",
+            textTransform: "uppercase",
+            lineHeight: 1.1,
           }}
         >
-          {header}
+          <div>Your most</div>
+          <div>drawn card</div>
         </div>
 
         {sentence && (

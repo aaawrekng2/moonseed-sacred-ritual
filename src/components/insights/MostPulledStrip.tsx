@@ -42,7 +42,12 @@ export function MostPulledStrip({
           cardName={c.cardName}
           count={c.count}
           widthPx={W}
-          title={`Pulled ${c.count} times in ${rangeLabel}`}
+          faded={c.count === 0}
+          title={
+            c.count === 0
+              ? `Not drawn in ${rangeLabel}`
+              : `Pulled ${c.count} times in ${rangeLabel}`
+          }
           onClick={() => onOpenCard(c.cardId)}
         />
       ))}

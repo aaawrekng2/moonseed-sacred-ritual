@@ -59,6 +59,7 @@ export function PulledCard({
   big,
   title,
   onClick,
+  faded,
 }: {
   cardId: number;
   cardName: string;
@@ -67,6 +68,7 @@ export function PulledCard({
   big?: boolean;
   title?: string;
   onClick?: () => void;
+  faded?: boolean;
 }) {
   return (
     <button
@@ -86,7 +88,9 @@ export function PulledCard({
       }}
       aria-label={`${cardName}, drawn ${count} times — open card trace`}
     >
-      <CardImage cardId={cardId} size="custom" widthPx={widthPx} />
+      <span style={{ display: "block", lineHeight: 0, opacity: faded ? 0.4 : 1 }}>
+        <CardImage cardId={cardId} size="custom" widthPx={widthPx} />
+      </span>
       <CountBadge count={count} big={big} title={title} />
     </button>
   );
