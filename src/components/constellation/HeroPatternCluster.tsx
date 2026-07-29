@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { getCardName } from "@/lib/tarot";
@@ -26,6 +26,18 @@ type Props = {
 
 const STILL = "still gathering";
 const DAY = 86400000;
+
+// v3.146 — per-chip visibility (this device). Which chip labels the seeker hid.
+const HIDDEN_CHIPS_LS = "tarotseed:hero-chips-hidden";
+function loadHiddenChips(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_CHIPS_LS);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function daysAgo(iso: string): number {
@@ -87,7 +99,28 @@ export function HeroPatternCluster({
   const count = stats.count;
   const enough = count >= 2;
   const aiEnabled = useAIEnabled();
-  const [chipsHidden, setChipsHidden] = useState(false);
+  // v3.146 — the eyeball opens an EDIT mode; each chip then shows its own eyeball
+  // to hide/show it individually. Hidden set persists on this device.
+  const [editChips, setEditChips] = useState(false);
+  const [hiddenChips, setHiddenChips] = useState<Set<string>>(loadHiddenChips);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        HIDDEN_CHIPS_LS,
+        JSON.stringify([...hiddenChips]),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [hiddenChips]);
+  const toggleChip = (label: string) =>
+    setHiddenChips((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
 
   const tsAsc = useMemo(
     () =>
@@ -530,14 +563,18 @@ export function HeroPatternCluster({
     return { chips: c, sparkPoints: points };
   }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz, trackReversals, aiEnabled]);
 
+  const shownChips = editChips
+    ? chips
+    : chips.filter((chip) => !hiddenChips.has(chip.label));
+
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
         <button
           type="button"
-          onClick={() => setChipsHidden((h) => !h)}
-          aria-label={chipsHidden ? "Show chips" : "Hide chips"}
-          title={chipsHidden ? "Show insight chips" : "Hide insight chips"}
+          onClick={() => setEditChips((e) => !e)}
+          aria-label={editChips ? "Done editing chips" : "Edit which chips show"}
+          title={editChips ? "Done editing chips" : "Edit which chips show"}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -553,15 +590,10 @@ export function HeroPatternCluster({
             padding: 0,
           }}
         >
-          {chipsHidden ? (
-            <EyeOff size={15} strokeWidth={1.5} />
-          ) : (
-            <Eye size={15} strokeWidth={1.5} />
-          )}
-          {chipsHidden ? "Show chips" : "Hide chips"}
+          <Eye size={15} strokeWidth={1.5} />
+          {editChips ? "Done" : "Edit chips"}
         </button>
       </div>
-      {!chipsHidden && (
       <div
         style={{
           display: "grid",
@@ -569,12 +601,16 @@ export function HeroPatternCluster({
           gap: 9,
         }}
       >
-        {chips.map((chip) => (
+        {shownChips.map((chip) => {
+          const chipHidden = hiddenChips.has(chip.label);
+          return (
           <div
             key={chip.label}
             title={chip.hint}
             className={chip.blink ? "animate-pulse" : undefined}
             style={{
+              position: "relative",
+              opacity: editChips && chipHidden ? 0.4 : 1,
               border: (chip.accent || chip.blink)
                 ? "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)"
                 : "1px solid var(--border-subtle)",
@@ -591,6 +627,33 @@ export function HeroPatternCluster({
               cursor: "help",
             }}
           >
+            {editChips && (
+              <button
+                type="button"
+                onClick={() => toggleChip(chip.label)}
+                aria-label={chipHidden ? `Show ${chip.label}` : `Hide ${chip.label}`}
+                title={chipHidden ? `Show ${chip.label}` : `Hide ${chip.label}`}
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  right: 2,
+                  zIndex: 2,
+                  border: "none",
+                  background: "var(--surface-card, var(--surface-elevated))",
+                  borderRadius: 4,
+                  padding: 2,
+                  cursor: "pointer",
+                  color: "var(--accent, var(--gold))",
+                  display: "inline-flex",
+                }}
+              >
+                {chipHidden ? (
+                  <EyeOff size={12} strokeWidth={1.5} />
+                ) : (
+                  <Eye size={12} strokeWidth={1.5} />
+                )}
+              </button>
+            )}
             <span
               style={{
                 fontSize: 9,
@@ -626,9 +689,9 @@ export function HeroPatternCluster({
               {chip.value}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
-      )}
     </div>
   );
 }

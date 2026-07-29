@@ -1105,39 +1105,6 @@ export function ConstellationPage({
     if (persisted.note) setNote(persisted.note);
   }, []);
 
-  // v3.145 — persist the constellation state (this device) once hydration has run.
-  // This wires the previously-missing save: card slots, asterism, filters, view,
-  // question and note now survive a reload. (Suit Trends settings persist in
-  // PatternsSuitTrends.)
-  useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        LS_KEY,
-        JSON.stringify({
-          picks,
-          focusedSlotIdx,
-          tealSelectedIds,
-          globalFilters,
-          overlapMode,
-          question,
-          note,
-        }),
-      );
-    } catch {
-      /* ignore */
-    }
-  }, [
-    hydrated,
-    picks,
-    focusedSlotIdx,
-    tealSelectedIds,
-    globalFilters,
-    overlapMode,
-    question,
-    note,
-  ]);
-
   // v2.87 — in the Insights › Patterns tab, follow the Insights range
   // selector instead of ConstellationPage's own hidden/persisted range, so
   // the calendar (and the tab's data) reflect the range the seeker actually
@@ -3355,6 +3322,40 @@ export function ConstellationPage({
   const [question, setQuestion] = useState<string>("");
   // DY — free-form notes textarea for "Save to Journal" + AI reading.
   const [note, setNote] = useState<string>("");
+
+  // v3.145 — persist the constellation state (this device) once hydration has run.
+  // This wires the previously-missing save: card slots, asterism, filters, view,
+  // question and note now survive a reload. (Suit Trends settings persist in
+  // PatternsSuitTrends.)
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        LS_KEY,
+        JSON.stringify({
+          picks,
+          focusedSlotIdx,
+          tealSelectedIds,
+          globalFilters,
+          overlapMode,
+          question,
+          note,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [
+    hydrated,
+    picks,
+    focusedSlotIdx,
+    tealSelectedIds,
+    globalFilters,
+    overlapMode,
+    question,
+    note,
+  ]);
+
   // v3.119 — the draw note renders as Markdown until tapped/focused (the
   // paste-to-scan textarea stays intact); empty notes open straight to editing.
   const [noteEditing, setNoteEditing] = useState(false);

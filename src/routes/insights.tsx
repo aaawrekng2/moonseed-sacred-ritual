@@ -831,7 +831,7 @@ function OverviewTab({
           />
         )}
         <ReversalStat rate={overview.reversalRate} onTap={() => log("reversal")} />
-        <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={onTapCalendar} />
+        <RhythmHeatmap days={overview.readingsByDay ?? []} onTap={onTapCalendar} windowDays={60} />
       </div>
 
     </div>
