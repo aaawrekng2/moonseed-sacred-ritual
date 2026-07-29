@@ -6052,6 +6052,14 @@ export function ConstellationPage({
           patternYmds={activePattern ? new Set(activePattern.memberYmds) : null}
         />
         )}
+            {insightsMode && (
+              <div style={{ marginTop: 8 }}>
+                <PatternsSuitTrends
+                  allReadings={allReadingsForTrends}
+                  displayedReadings={displayedReadingsForTrends}
+                />
+              </div>
+            )}
             </div>
           )}
           {insightsMode && !lunationMode && picks.length > 0 && heroPick && (
@@ -7010,14 +7018,6 @@ export function ConstellationPage({
             monthsToShow={calendarMonthsToShow}
             calendarNumberMode={calendarNumberMode}
             birthDate={birthDate}
-          />
-        </div>
-      )}
-      {insightsMode && (
-        <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
-          <PatternsSuitTrends
-            allReadings={allReadingsForTrends}
-            displayedReadings={displayedReadingsForTrends}
           />
         </div>
       )}
