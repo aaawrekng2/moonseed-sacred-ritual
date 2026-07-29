@@ -113,11 +113,15 @@ export function PatternsSuitTrends({
   timeframeDays: number;
 }) {
   const [scope, setScope] = useState<Scope>("all");
-  const [gran, setGran] = useState<Gran>(() => pickGran(timeframeDays));
-  // v3.142 - re-snap to the timeframe-appropriate bucket when the range changes.
+  const [gran, setGran] = useState<Gran>(() =>
+    scope === "all" ? pickGran(timeframeDays) : "daily",
+  );
+  // v3.143 - re-snap the bucket: timeframe-based for the whole range, but DAY for
+  // "displayed days" so each highlighted day is its own point and the chart updates
+  // live as you hover cards / add slots / build an asterism.
   useEffect(() => {
-    setGran(pickGran(timeframeDays));
-  }, [timeframeDays]);
+    setGran(scope === "all" ? pickGran(timeframeDays) : "daily");
+  }, [scope, timeframeDays]);
   const [mode, setMode] = useState<Mode>("pct");
   const [chartType, setChartType] = useState<ChartType>("line");
 
