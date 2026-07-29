@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useAIEnabled } from "@/lib/use-ai-enabled";
 import { getCardName } from "@/lib/tarot";
 import { getCardMeta } from "@/lib/card-astrology";
 import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
@@ -84,6 +86,8 @@ export function HeroPatternCluster({
   const meaning = TAROT_MEANINGS[heroCardId] ?? null;
   const count = stats.count;
   const enough = count >= 2;
+  const aiEnabled = useAIEnabled();
+  const [chipsHidden, setChipsHidden] = useState(false);
 
   const tsAsc = useMemo(
     () =>
@@ -284,27 +288,33 @@ export function HeroPatternCluster({
     // moves into the tooltip. Same Poisson model + hero universe as VS CHANCE.
     if (stats.recentRun) {
       const rr = stats.recentRun;
-      const sign = rr.pct >= 0 ? "+" : "\u2212";
-      const pctText = `${sign}${Math.abs(rr.pct)}%`;
-      const runText = `${rr.count}\u00d7 in ${rr.days}d`;
+      // v3.141 - measure the run up to the card's LAST draw (not to today) and
+      // only show it when genuinely impressive (odds rarer than ~1 in 20).
+      const runTimes = tsAsc.slice(-Math.max(rr.count, 1));
+      const spanDays =
+        runTimes.length >= 2
+          ? Math.max(1, Math.round((runTimes[runTimes.length - 1] - runTimes[0]) / DAY))
+          : 1;
+      const expectedSpan = rr.days > 0 ? (rr.expected * spanDays) / rr.days : rr.expected;
+      const overIndex = expectedSpan > 0 ? rr.count / expectedSpan : 0;
+      const pct = Math.round((overIndex - 1) * 100);
+      const sign = pct >= 0 ? "+" : "\u2212";
+      const pctText = `${sign}${Math.abs(pct)}%`;
+      const runText = `${rr.count}\u00d7 in ${spanDays}d`;
       const heroName = getCardName(heroCardId) || "this card";
       const X =
-        rr.count >= 2 && rr.expected > 0 && rr.count > rr.expected
-          ? rarityOneIn(rr.count, rr.expected)
+        rr.count >= 2 && expectedSpan > 0 && rr.count > expectedSpan
+          ? rarityOneIn(rr.count, expectedSpan)
           : null;
-      const rare = X !== null && X >= 100;
-      const value = rare
-        ? `${formatOneIn(X as number)} \u00b7 ${runText}`
-        : `${pctText} \u00b7 ${runText}`;
-      const hint = rare
-        ? `Drawing ${heroName} ${rr.count}\u00d7 in the last ${rr.days} days — the odds of that by pure chance are about ${formatOneIn(X as number)} (${pctText} over chance).`
-        : `Its most over-chance recent streak — drawn ${rr.count} times in the last ${rr.days} days, ${Math.abs(rr.pct)}% ${rr.pct >= 0 ? "more" : "less"} than pure chance over that span.`;
-      c.push({
-        label: "Recent run",
-        value,
-        hint,
-        blink: rare ? (X as number) >= 1e6 : rr.pct >= 200,
-      });
+      const impressive = X !== null && X >= 20;
+      if (impressive) {
+        const rare = (X as number) >= 100;
+        const value = rare
+          ? `${formatOneIn(X as number)} \u00b7 ${runText}`
+          : `${pctText} \u00b7 ${runText}`;
+        const hint = `Drawing ${heroName} ${rr.count}\u00d7 within ${spanDays} day${spanDays === 1 ? "" : "s"} — the odds by pure chance are about ${formatOneIn(X as number)} (${pctText} over chance).`;
+        c.push({ label: "Recent run", value, hint, blink: (X as number) >= 1e6 });
+      }
     }
 
     c.push({
@@ -327,15 +337,18 @@ export function HeroPatternCluster({
         : "No appearances yet in this window.",
     });
 
-    c.push({
-      label: "Weekday",
-      value: stats.topDayOfWeek
-        ? `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`
-        : STILL,
-      hint: wdList.length
-        ? `Full split — ${listCounts(wdList)}.`
-        : "Not enough pulls to see a weekday pattern.",
-    });
+    // v3.141 - only show Weekday when one weekday is a real majority.
+    if (
+      stats.topDayOfWeek &&
+      stats.topDayOfWeek.count >= 2 &&
+      stats.topDayOfWeek.count / stats.topDayOfWeek.total > 0.5
+    ) {
+      c.push({
+        label: "Weekday",
+        value: `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`,
+        hint: `Full split — ${listCounts(wdList)}.`,
+      });
+    }
 
     c.push({
       label: "Moon phase",
@@ -442,20 +455,34 @@ export function HeroPatternCluster({
       });
     }
 
-    c.push({
-      label: "Trend",
-      value: enough ? trendWord : STILL,
-      hint: enough
-        ? `Drawn over time it's ${trendWord} — the sparkline tracks pulls per period across the window.`
-        : "Draw it a few more times to see a trend.",
-    });
+    // v3.141 - trend word derived from the SAME sparkline it sits beside:
+    // recent-half pulls vs earlier-half. Hidden when there's too little to tell.
+    if (points.length >= 4) {
+      const half = Math.floor(points.length / 2);
+      const early = points.slice(0, half).reduce((a, b) => a + b, 0);
+      const recent = points.slice(points.length - half).reduce((a, b) => a + b, 0);
+      const word = recent > early ? "climbing" : recent < early ? "cooling" : "steady";
+      c.push({
+        label: "Trend",
+        value: word,
+        hint: `Comparing the recent half of the window to the earlier half, it's ${word} — the sparkline tracks pulls per period.`,
+      });
+    }
 
+    // v3.141 - include the CURRENT ongoing gap (last draw -> today).
+    const trailingGap = tsAsc.length
+      ? Math.round((Date.now() - tsAsc[tsAsc.length - 1]) / DAY)
+      : null;
+    const longestSilence =
+      tsAsc.length > 0 ? Math.max(longestGap ?? 0, trailingGap ?? 0) : null;
     c.push({
       label: "Longest silence",
-      value: longestGap != null ? `${longestGap} days` : STILL,
+      value: longestSilence != null ? `${longestSilence} days` : STILL,
       hint:
-        longestGap != null
-          ? `The longest stretch it went unseen between pulls — ${longestGap} days.`
+        longestSilence != null
+          ? `The longest stretch it went unseen — ${longestSilence} days${
+              trailingGap != null && trailingGap >= (longestGap ?? 0) ? " (still ongoing)" : ""
+            }.`
           : "Not enough pulls to measure a silence.",
     });
 
@@ -467,24 +494,25 @@ export function HeroPatternCluster({
         : "No tags on its readings yet.",
     });
 
-    c.push({
-      label: "Position",
-      value: topPos ? `Often ${ordinal(topPos[0] + 1)} · ${topPos[1]} of ${count}` : STILL,
-      hint: posList.length
-        ? `Where it lands in the spread — ${listCounts(
-            posList.map(([p, cc]) => [ordinal(p + 1), cc] as [string, number]),
-          )}.`
-        : "Not enough pulls to see a position pattern.",
-    });
+    // v3.141 - only show Position when one slot clearly dominates (not evenly split).
+    if (topPos && topPos[1] >= 2 && topPos[1] / count > 0.5) {
+      c.push({
+        label: "Position",
+        value: `Often ${ordinal(topPos[0] + 1)} · ${topPos[1]} of ${count}`,
+        hint: `Where it lands in the spread — ${listCounts(
+          posList.map(([p, cc]) => [ordinal(p + 1), cc] as [string, number]),
+        )}.`,
+      });
+    }
 
-    c.push({
-      label: "Deep-read rate",
-      value: count === 0 ? STILL : `${deepCount} of ${count}`,
-      hint:
-        count === 0
-          ? "No pulls yet to measure."
-          : `Taken into a deep reading ${deepCount} of ${count} times.`,
-    });
+    // v3.141 - deep-read rate only shows when the seeker has AI turned on.
+    if (aiEnabled === true && count > 0) {
+      c.push({
+        label: "Deep-read rate",
+        value: `${deepCount} of ${count}`,
+        hint: `Taken into a deep reading ${deepCount} of ${count} times.`,
+      });
+    }
 
     // ── keywords chip ──
     const upright = meaning?.uprightKeywords ?? [];
@@ -500,10 +528,40 @@ export function HeroPatternCluster({
     }
 
     return { chips: c, sparkPoints: points };
-  }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz, trackReversals]);
+  }, [tsAsc, stats, drawCounts, heroCardId, meta, meaning, count, enough, tz, trackReversals, aiEnabled]);
 
   return (
     <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+        <button
+          type="button"
+          onClick={() => setChipsHidden((h) => !h)}
+          aria-label={chipsHidden ? "Show chips" : "Hide chips"}
+          title={chipsHidden ? "Show insight chips" : "Hide insight chips"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            color: "var(--accent, var(--gold))",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 12,
+            opacity: 0.75,
+            padding: 0,
+          }}
+        >
+          {chipsHidden ? (
+            <EyeOff size={15} strokeWidth={1.5} />
+          ) : (
+            <Eye size={15} strokeWidth={1.5} />
+          )}
+          {chipsHidden ? "Show chips" : "Hide chips"}
+        </button>
+      </div>
+      {!chipsHidden && (
       <div
         style={{
           display: "grid",
@@ -570,6 +628,7 @@ export function HeroPatternCluster({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
