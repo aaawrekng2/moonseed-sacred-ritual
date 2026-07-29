@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Pin, RotateCcw, RotateCw, Sparkles, Tag, TrendingUp, X, BookOpen } from "lucide-react";
+import { CalendarIcon, ChevronDown, Eraser, Pin, RotateCcw, RotateCw, Sparkles, Tag, TrendingUp, X, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort, formatTimeAgo } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -4407,6 +4407,31 @@ export function ConstellationPage({
               >
                 <RotateCw size={16} strokeWidth={2} />
               </button>
+              {insightsMode && (
+                <button
+                  type="button"
+                  aria-label="Clear card slots"
+                  title="Clear card slots"
+                  disabled={picks.length === 0}
+                  onClick={() => {
+                    setPicks([]);
+                    setFocusedSlotIdx(0);
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--color-foreground)",
+                    opacity: picks.length ? 0.85 : 0.28,
+                    cursor: picks.length ? "pointer" : "default",
+                  }}
+                >
+                  <Eraser size={16} strokeWidth={2} />
+                </button>
+              )}
             </div>
             <div
               style={{
@@ -6040,6 +6065,11 @@ export function ConstellationPage({
                 <PatternsSuitTrends
                   allReadings={allReadingsForTrends}
                   displayedReadings={displayedReadingsForTrends}
+                  timeframeDays={
+                    /^(\d+)d$/.test(globalFilters.timeRange ?? "")
+                      ? Number((globalFilters.timeRange ?? "").replace(/d$/, ""))
+                      : 9999
+                  }
                 />
               </div>
             )}
