@@ -7,7 +7,7 @@
  * A scope dropdown switches the data source between the entire timeframe and
  * only the days currently displayed on the calendar (slots / asterism / hover).
  */
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   LineChart,
   Line,
@@ -30,6 +30,15 @@ type Scope = "all" | "displayed";
 type Gran = "daily" | "weekly" | "fortnightly" | "monthly" | "quarterly";
 type Mode = "pct" | "count";
 type ChartType = "line" | "bar" | "area";
+
+// v3.142 - default bucket size relative to the "Last X days" being viewed.
+function pickGran(days: number): Gran {
+  if (days <= 31) return "daily";
+  if (days <= 92) return "weekly";
+  if (days <= 210) return "fortnightly";
+  if (days <= 450) return "monthly";
+  return "quarterly";
+}
 
 const SUIT_LABEL: Record<string, string> = {
   major: "Major Arcana",
@@ -97,12 +106,18 @@ const selectStyle: CSSProperties = {
 export function PatternsSuitTrends({
   allReadings,
   displayedReadings,
+  timeframeDays,
 }: {
   allReadings: TrendReading[];
   displayedReadings: TrendReading[];
+  timeframeDays: number;
 }) {
   const [scope, setScope] = useState<Scope>("all");
-  const [gran, setGran] = useState<Gran>("monthly");
+  const [gran, setGran] = useState<Gran>(() => pickGran(timeframeDays));
+  // v3.142 - re-snap to the timeframe-appropriate bucket when the range changes.
+  useEffect(() => {
+    setGran(pickGran(timeframeDays));
+  }, [timeframeDays]);
   const [mode, setMode] = useState<Mode>("pct");
   const [chartType, setChartType] = useState<ChartType>("line");
 

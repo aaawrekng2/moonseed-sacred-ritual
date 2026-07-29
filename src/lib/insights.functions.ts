@@ -2597,7 +2597,15 @@ export const getSuitTrends = createServerFn({ method: "GET" })
 
     const effectiveDays = days ?? 9999;
     const autoGranularity: SuitGranularity =
-      effectiveDays <= 31 ? "daily" : effectiveDays <= 180 ? "weekly" : "monthly";
+      effectiveDays <= 31
+        ? "daily"
+        : effectiveDays <= 92
+          ? "weekly"
+          : effectiveDays <= 210
+            ? "fortnightly"
+            : effectiveDays <= 450
+              ? "monthly"
+              : "quarterly";
     const granularity: SuitGranularity = data.granularity ?? autoGranularity;
 
     const isoDay = (d: Date) => {
