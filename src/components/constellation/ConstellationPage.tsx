@@ -3193,30 +3193,10 @@ export function ConstellationPage({
   // the teal logic has been split off cleanly.
   const matchedReadings = heroMatchedReadings;
 
-  // v3.138 — data for the Patterns Suit Trends chart. `displayedYmds` is the
-  // union of days currently shown on the calendar: slot co-occurrence (all
-  // picked cards together, per pull/day mode), teal asterism, and the hovered-
-  // card / atlas strokes already computed above.
-  const displayedYmds = useMemo(() => {
-    const s = new Set<string>(hoverStrokeYmds);
-    if (atlasMode) for (const d of atlasMatch.ymds) s.add(d);
-    // v3.141 - any day the calendar shows because a slotted / asterism / atlas
-    // card appears on it (not just full co-occurrence). Keeps asterism-boxed days
-    // in the set after the hover ends, and works for single-card asterisms.
-    const activeIds = new Set<number>([
-      ...picks.map((p) => p.cardIndex),
-      ...tealSelectedIds,
-      ...(atlasMode ? atlasSelectedCardIds : []),
-    ]);
-    if (activeIds.size > 0 && overlap?.readingsByDate) {
-      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-        if (readings.some((r) => r.cardIds.some((id) => activeIds.has(id))))
-          s.add(date);
-      }
-    }
-    return s;
-  }, [hoverStrokeYmds, atlasMode, atlasMatch, atlasSelectedCardIds, picks, tealSelectedIds, overlap]);
-
+  // v3.144 — data for the Patterns Suit Trends chart. "Displayed days" is now the
+  // qualifying PULLS: readings that contain one of your slotted / asterism /
+  // hovered cards. We tally each qualifying pull's full spread — NOT every card
+  // from the unrelated pulls that happened the same day.
   const allReadingsForTrends = useMemo(() => {
     const out: Array<{ date: string; cardIds: number[] }> = [];
     if (overlap?.readingsByDate)
@@ -3226,13 +3206,34 @@ export function ConstellationPage({
   }, [overlap]);
 
   const displayedReadingsForTrends = useMemo(() => {
+    const relevant = new Set<number>([
+      ...picks.map((p) => p.cardIndex),
+      ...tealSelectedIds,
+      ...(atlasMode ? atlasSelectedCardIds : []),
+      ...(hoverCardId != null ? [hoverCardId] : []),
+      ...(hoveredPair ? [hoveredPair.a, hoveredPair.b] : []),
+      ...(atlasAsterismHoverIds ?? []),
+    ]);
     const out: Array<{ date: string; cardIds: number[] }> = [];
-    if (overlap?.readingsByDate)
-      for (const ymd of displayedYmds)
-        for (const r of overlap.readingsByDate[ymd] ?? [])
-          out.push({ date: ymd, cardIds: r.cardIds });
+    if (relevant.size > 0 && overlap?.readingsByDate) {
+      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+        for (const r of readings) {
+          if (r.cardIds.some((id) => relevant.has(id)))
+            out.push({ date, cardIds: r.cardIds });
+        }
+      }
+    }
     return out;
-  }, [overlap, displayedYmds]);
+  }, [
+    overlap,
+    picks,
+    tealSelectedIds,
+    atlasMode,
+    atlasSelectedCardIds,
+    hoverCardId,
+    hoveredPair,
+    atlasAsterismHoverIds,
+  ]);
 
   // Phase 24 — candidate-extension cards. When 2+ teal cards are selected,
   // walk visible months and find every other card in the constellation
