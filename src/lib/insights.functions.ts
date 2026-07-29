@@ -314,13 +314,25 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
       suitCounts.Wands + suitCounts.Cups + suitCounts.Swords + suitCounts.Pentacles;
     const majorMinorDenom = majors + minors;
 
-    // last 60 days bucket regardless of filter window — each rhythm card slices
-    // this to its own window (stat-grid card = 30, Overview copy = 60).
+    // v3.146 — the Rhythm heatmap always spans the last 60 days regardless of the
+    // top timeframe filter, so count reading dates over a fixed 60-day window here
+    // (the main `rows` are scoped to the filter and would leave older cells dark).
+    const rhythmSinceIso = new Date(Date.now() - 61 * 86400000).toISOString();
+    const { data: rhythmRows } = await supabase
+      .from("readings")
+      .select("created_at")
+      .eq("user_id", userId)
+      .gte("created_at", rhythmSinceIso);
+    const rhythmDayCounts: Record<string, number> = {};
+    for (const rr of (rhythmRows ?? []) as Array<{ created_at: string }>) {
+      const k = ymd(rr.created_at, data.tz);
+      rhythmDayCounts[k] = (rhythmDayCounts[k] ?? 0) + 1;
+    }
     const readingsByDay: Array<{ date: string; count: number }> = [];
     for (let i = 59; i >= 0; i -= 1) {
       const d = addDaysInTz(new Date(), -i, data.tz);
       const key = isoDayInTz(d, data.tz);
-      readingsByDay.push({ date: key, count: dayCounts[key] ?? 0 });
+      readingsByDay.push({ date: key, count: rhythmDayCounts[key] ?? 0 });
     }
 
     const topGuideEntry = Object.entries(guideCounts).sort((a, b) => b[1] - a[1])[0];
