@@ -872,18 +872,14 @@ export function ConstellationPage({
 
   // EK85 — hover tips on this surface now read the unified hover-snooze
   // store (System B retired). The manual-entry hover renders the master
-  // CardRichPopover popover; popoverFilters feeds it an all-time window.
+  // CardRichPopover popover. popoverFilters is defined below, after
+  // globalFilters, so it can follow the active filter in insightsMode.
   const { snoozed } = useHoverSnooze();
   const hoverTipsOn = !snoozed;
   const hoverTipsEnabled = !snoozed;
   const toggleHoverTips = () => {
     if (snoozed) clearSnooze();
     else applySnooze("indefinite");
-  };
-  const popoverFilters: InsightsFilters = {
-    ...DEFAULT_FILTERS,
-    timeRange: "all",
-    tz: effectiveTz,
   };
 
   // EK68 — calendar number mode: day-of-month ("dates", default) vs the
@@ -1379,6 +1375,36 @@ export function ConstellationPage({
 
   const filterPayload = useMemo(() => toFilterPayload(globalFilters), [globalFilters]);
   const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
+
+  // EK135 - hover popover filter envelope. On the Insights > Patterns surface
+  // the popover count MUST match the hero gold badge and the FREQUENCY chip,
+  // both scoped by globalFilters (timeRange + tags/spreads/moon/deep/reversed).
+  // This was previously hardcoded to an all-time window, so the popover
+  // reported all-time appearances (e.g. 37) while the badge/chip showed the
+  // filtered pulls (e.g. 11). The manual-entry tabletop has no active timeframe
+  // filter, so it keeps the deliberate all-time window.
+  const popoverFilters: InsightsFilters = useMemo(
+    () =>
+      insightsMode
+        ? {
+            ...DEFAULT_FILTERS,
+            timeRange: (globalFilters.timeRange ??
+              DEFAULT_FILTERS.timeRange) as InsightsFilters["timeRange"],
+            tagIds: globalFilters.tags,
+            spreadTypes: globalFilters.spreadTypes,
+            moonPhases:
+              globalFilters.moonPhases as InsightsFilters["moonPhases"],
+            reversedOnly: globalFilters.reversedOnly,
+            deepOnly: globalFilters.deepOnly,
+            tz: effectiveTz,
+          }
+        : {
+            ...DEFAULT_FILTERS,
+            timeRange: "all",
+            tz: effectiveTz,
+          },
+    [insightsMode, globalFilters, effectiveTz],
+  );
 
   // DR — readings modal open state.
   // EC — `modalMode` tracks WHICH dataset the modal is showing:
