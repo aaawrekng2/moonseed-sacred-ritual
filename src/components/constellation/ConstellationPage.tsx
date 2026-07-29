@@ -142,6 +142,7 @@ import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { PageMenu, type PageMenuSection } from "@/components/nav/PageMenu";
 import { PageMenuTrigger } from "@/components/nav/PageMenuTrigger";
 import { LunationStrip } from "@/components/constellation/LunationStrip";
+import { PatternsSuitTrends } from "@/components/constellation/PatternsSuitTrends";
 import { LunationBookmarks } from "@/components/constellation/LunationBookmarks";
 import { Eye, EyeOff, Hash, Layers, LayoutGrid, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -3191,6 +3192,64 @@ export function ConstellationPage({
   // matchedReadings; they now resolve to the hero-anchored list since
   // the teal logic has been split off cleanly.
   const matchedReadings = heroMatchedReadings;
+
+  // v3.138 — data for the Patterns Suit Trends chart. `displayedYmds` is the
+  // union of days currently shown on the calendar: slot co-occurrence (all
+  // picked cards together, per pull/day mode), teal asterism, and the hovered-
+  // card / atlas strokes already computed above.
+  const displayedYmds = useMemo(() => {
+    const s = new Set<string>(hoverStrokeYmds);
+    if (atlasMode) for (const d of atlasMatch.ymds) s.add(d);
+    const pickIds = picks.map((p) => p.cardIndex);
+    const tealArr = tealSelectedIds;
+    if (overlap?.readingsByDate) {
+      for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
+        const dayCards = new Set<number>();
+        for (const r of readings) for (const id of r.cardIds) dayCards.add(id);
+        if (pickIds.length > 0) {
+          const pickHit =
+            overlapMode === "pull"
+              ? readings.some((r) => {
+                  const cs = new Set(r.cardIds);
+                  return pickIds.every((id) => cs.has(id));
+                })
+              : pickIds.every((id) => dayCards.has(id));
+          if (pickHit) {
+            s.add(date);
+            continue;
+          }
+        }
+        if (tealArr.length >= 2) {
+          const tealHit =
+            overlapMode === "pull"
+              ? readings.some((r) => {
+                  const cs = new Set(r.cardIds);
+                  return tealArr.every((id) => cs.has(id));
+                })
+              : tealArr.every((id) => dayCards.has(id));
+          if (tealHit) s.add(date);
+        }
+      }
+    }
+    return s;
+  }, [hoverStrokeYmds, atlasMode, atlasMatch, picks, tealSelectedIds, overlap, overlapMode]);
+
+  const allReadingsForTrends = useMemo(() => {
+    const out: Array<{ date: string; cardIds: number[] }> = [];
+    if (overlap?.readingsByDate)
+      for (const [date, rs] of Object.entries(overlap.readingsByDate))
+        for (const r of rs) out.push({ date, cardIds: r.cardIds });
+    return out;
+  }, [overlap]);
+
+  const displayedReadingsForTrends = useMemo(() => {
+    const out: Array<{ date: string; cardIds: number[] }> = [];
+    if (overlap?.readingsByDate)
+      for (const ymd of displayedYmds)
+        for (const r of overlap.readingsByDate[ymd] ?? [])
+          out.push({ date: ymd, cardIds: r.cardIds });
+    return out;
+  }, [overlap, displayedYmds]);
 
   // Phase 24 — candidate-extension cards. When 2+ teal cards are selected,
   // walk visible months and find every other card in the constellation
@@ -6954,6 +7013,14 @@ export function ConstellationPage({
           />
         </div>
       )}
+      {insightsMode && (
+        <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
+          <PatternsSuitTrends
+            allReadings={allReadingsForTrends}
+            displayedReadings={displayedReadingsForTrends}
+          />
+        </div>
+      )}
         </>
       )}
 
@@ -7705,6 +7772,33 @@ export function ConstellationPage({
               >
                 {activePopover.tooltipText}
               </div>
+              {(() => {
+                const dayCards = (
+                  overlap?.readingsByDate?.[activePopover.date] ?? []
+                )
+                  .flatMap((r) => r.cardIds)
+                  .filter((id) => id >= 0 && id <= 77);
+                if (dayCards.length === 0) return null;
+                return (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 4,
+                      marginTop: 8,
+                    }}
+                  >
+                    {dayCards.map((id, i) => (
+                      <CardImage
+                        key={`${id}-${i}`}
+                        cardId={id}
+                        size="custom"
+                        widthPx={30}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
             </RichPopover>
           );
         })()}
