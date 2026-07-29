@@ -107,6 +107,12 @@ export function PatternsSuitTrends({
   const [chartType, setChartType] = useState<ChartType>("line");
 
   const source = scope === "all" ? allReadings : displayedReadings;
+  const dayCount = new Set(source.map((r) => r.date)).size;
+  const readingCount = source.length;
+  const subtitle =
+    scope === "all"
+      ? `Entire timeframe — ${readingCount} reading${readingCount === 1 ? "" : "s"}`
+      : `Displayed days — ${dayCount} day${dayCount === 1 ? "" : "s"} · ${readingCount} reading${readingCount === 1 ? "" : "s"}`;
 
   const chartData = useMemo(() => {
     const buckets = new Map<
@@ -225,8 +231,8 @@ export function PatternsSuitTrends({
           <h3 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: "var(--text-heading-md)", margin: 0 }}>
             Suit Trends
           </h3>
-          <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "var(--text-caption)", opacity: 0.7, margin: 0 }}>
-            {scope === "all" ? "Distribution of suits over time" : "Suits across the days shown on the calendar"}
+          <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "var(--text-body-sm)", color: "var(--gold)", opacity: 0.95, margin: 0 }}>
+            {subtitle}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

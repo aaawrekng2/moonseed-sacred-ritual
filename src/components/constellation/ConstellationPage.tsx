@@ -7773,9 +7773,24 @@ export function ConstellationPage({
                 {activePopover.tooltipText}
               </div>
               {(() => {
-                const dayCards = (
-                  overlap?.readingsByDate?.[activePopover.date] ?? []
-                )
+                // v3.140 — show the spread(s) from that day whose draw contained
+                // a slotted or asterism card (the draws that caused the highlight),
+                // not every card drawn that day. Falls back to all when nothing is
+                // selected.
+                const dayReadings =
+                  overlap?.readingsByDate?.[activePopover.date] ?? [];
+                const targetIds = new Set<number>([
+                  ...picks.map((p) => p.cardIndex),
+                  ...tealSelectedIds,
+                  ...(atlasMode ? atlasSelectedCardIds : []),
+                ]);
+                const qualifying =
+                  targetIds.size > 0
+                    ? dayReadings.filter((r) =>
+                        r.cardIds.some((id) => targetIds.has(id)),
+                      )
+                    : dayReadings;
+                const dayCards = qualifying
                   .flatMap((r) => r.cardIds)
                   .filter((id) => id >= 0 && id <= 77);
                 if (dayCards.length === 0) return null;
