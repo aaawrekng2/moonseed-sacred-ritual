@@ -3200,39 +3200,22 @@ export function ConstellationPage({
   const displayedYmds = useMemo(() => {
     const s = new Set<string>(hoverStrokeYmds);
     if (atlasMode) for (const d of atlasMatch.ymds) s.add(d);
-    const pickIds = picks.map((p) => p.cardIndex);
-    const tealArr = tealSelectedIds;
-    if (overlap?.readingsByDate) {
+    // v3.141 - any day the calendar shows because a slotted / asterism / atlas
+    // card appears on it (not just full co-occurrence). Keeps asterism-boxed days
+    // in the set after the hover ends, and works for single-card asterisms.
+    const activeIds = new Set<number>([
+      ...picks.map((p) => p.cardIndex),
+      ...tealSelectedIds,
+      ...(atlasMode ? atlasSelectedCardIds : []),
+    ]);
+    if (activeIds.size > 0 && overlap?.readingsByDate) {
       for (const [date, readings] of Object.entries(overlap.readingsByDate)) {
-        const dayCards = new Set<number>();
-        for (const r of readings) for (const id of r.cardIds) dayCards.add(id);
-        if (pickIds.length > 0) {
-          const pickHit =
-            overlapMode === "pull"
-              ? readings.some((r) => {
-                  const cs = new Set(r.cardIds);
-                  return pickIds.every((id) => cs.has(id));
-                })
-              : pickIds.every((id) => dayCards.has(id));
-          if (pickHit) {
-            s.add(date);
-            continue;
-          }
-        }
-        if (tealArr.length >= 2) {
-          const tealHit =
-            overlapMode === "pull"
-              ? readings.some((r) => {
-                  const cs = new Set(r.cardIds);
-                  return tealArr.every((id) => cs.has(id));
-                })
-              : tealArr.every((id) => dayCards.has(id));
-          if (tealHit) s.add(date);
-        }
+        if (readings.some((r) => r.cardIds.some((id) => activeIds.has(id))))
+          s.add(date);
       }
     }
     return s;
-  }, [hoverStrokeYmds, atlasMode, atlasMatch, picks, tealSelectedIds, overlap, overlapMode]);
+  }, [hoverStrokeYmds, atlasMode, atlasMatch, atlasSelectedCardIds, picks, tealSelectedIds, overlap]);
 
   const allReadingsForTrends = useMemo(() => {
     const out: Array<{ date: string; cardIds: number[] }> = [];
@@ -7808,7 +7791,7 @@ export function ConstellationPage({
                         key={`${id}-${i}`}
                         cardId={id}
                         size="custom"
-                        widthPx={30}
+                        widthPx={45}
                       />
                     ))}
                   </div>
