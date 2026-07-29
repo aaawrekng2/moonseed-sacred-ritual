@@ -1080,9 +1080,11 @@ export function ConstellationPage({
   // we need to apply the saved state without race-conditioning with
   // user-driven updates that might fire in the same tick.
   const hydratedFromStorageRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     if (hydratedFromStorageRef.current) return;
     hydratedFromStorageRef.current = true;
+    setHydrated(true);
     const persisted = loadPersisted();
     if (!persisted) return;
     if (persisted.picks?.length) {
@@ -1102,6 +1104,40 @@ export function ConstellationPage({
     if (persisted.question) setQuestion(persisted.question);
     if (persisted.note) setNote(persisted.note);
   }, []);
+
+  // v3.145 — persist the constellation state (this device) once hydration has run.
+  // This wires the previously-missing save: card slots, asterism, filters, view,
+  // question and note now survive a reload. (Suit Trends settings persist in
+  // PatternsSuitTrends.)
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        LS_KEY,
+        JSON.stringify({
+          picks,
+          focusedSlotIdx,
+          tealSelectedIds,
+          globalFilters,
+          overlapMode,
+          question,
+          note,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [
+    hydrated,
+    picks,
+    focusedSlotIdx,
+    tealSelectedIds,
+    globalFilters,
+    overlapMode,
+    question,
+    note,
+  ]);
+
   // v2.87 — in the Insights › Patterns tab, follow the Insights range
   // selector instead of ConstellationPage's own hidden/persisted range, so
   // the calendar (and the tab's data) reflect the range the seeker actually
