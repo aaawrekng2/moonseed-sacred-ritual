@@ -7,7 +7,7 @@
  * A scope dropdown switches the data source between the entire timeframe and
  * only the days currently displayed on the calendar (slots / asterism / hover).
  */
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   LineChart,
   Line,
@@ -38,6 +38,18 @@ function pickGran(days: number): Gran {
   if (days <= 210) return "fortnightly";
   if (days <= 450) return "monthly";
   return "quarterly";
+}
+
+// v3.145 - persist the Suit Trends settings on this device.
+const PST_LS = "tarotseed:patterns-suit-trends";
+type SavedPST = { scope?: Scope; gran?: Gran; mode?: Mode; chartType?: ChartType };
+function loadPST(): SavedPST {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(PST_LS) || "{}") as SavedPST;
+  } catch {
+    return {};
+  }
 }
 
 const SUIT_LABEL: Record<string, string> = {
@@ -112,18 +124,39 @@ export function PatternsSuitTrends({
   displayedReadings: TrendReading[];
   timeframeDays: number;
 }) {
-  const [scope, setScope] = useState<Scope>("all");
-  const [gran, setGran] = useState<Gran>(() =>
-    scope === "all" ? pickGran(timeframeDays) : "daily",
+  const [savedPST] = useState<SavedPST>(loadPST);
+  const [scope, setScope] = useState<Scope>(savedPST.scope ?? "all");
+  const [gran, setGran] = useState<Gran>(
+    savedPST.gran ??
+      ((savedPST.scope ?? "all") === "all" ? pickGran(timeframeDays) : "daily"),
   );
-  // v3.143 - re-snap the bucket: timeframe-based for the whole range, but DAY for
-  // "displayed days" so each highlighted day is its own point and the chart updates
-  // live as you hover cards / add slots / build an asterism.
+  const [mode, setMode] = useState<Mode>(savedPST.mode ?? "pct");
+  const [chartType, setChartType] = useState<ChartType>(
+    savedPST.chartType ?? "line",
+  );
+  // v3.145 - re-snap the bucket on scope/timeframe change (skip first mount so a
+  // saved bucket sticks); Day for "displayed days" so each highlighted day is its
+  // own point and the chart updates live as you hover / add slots / build asterisms.
+  const granMounted = useRef(false);
   useEffect(() => {
+    if (!granMounted.current) {
+      granMounted.current = true;
+      return;
+    }
     setGran(scope === "all" ? pickGran(timeframeDays) : "daily");
   }, [scope, timeframeDays]);
-  const [mode, setMode] = useState<Mode>("pct");
-  const [chartType, setChartType] = useState<ChartType>("line");
+  // v3.145 - persist settings on this device.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        PST_LS,
+        JSON.stringify({ scope, gran, mode, chartType }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [scope, gran, mode, chartType]);
 
   const source = scope === "all" ? allReadings : displayedReadings;
   const dayCount = new Set(source.map((r) => r.date)).size;
