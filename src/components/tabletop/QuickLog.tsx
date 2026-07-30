@@ -400,6 +400,10 @@ type CalendarDayCellProps = {
   /** v3.13 — day-number font size (default 11). The lunation strip passes a
    *  smaller size for half-width split cells so two digits fit without spilling. */
   numberFontSize?: number;
+  /** v3.151 — vertically center the day number (on the row line) instead of
+   *  bottom-aligning it. The lunation strip (Insights › Patterns) passes true;
+   *  the month grid and overlap strip keep the default bottom alignment. */
+  centerNumber?: boolean;
   onDayClick?: (date: string, readingIds: string[]) => void;
   onDayHover?: (info: {
     date: string;
@@ -445,6 +449,7 @@ export function CalendarDayCell({
   fullMoonOpacity = 1,
   fillHeight = false,
   numberFontSize = 11,
+  centerNumber = false,
   onDayClick,
   onDayHover,
   onDayHoverEnd,
@@ -602,9 +607,9 @@ export function CalendarDayCell({
             position: "absolute",
             inset: 0,
             display: "flex",
-            alignItems: "flex-end",
+            alignItems: centerNumber ? "center" : "flex-end",
             justifyContent: "flex-start",
-            padding: "0 0 1px 2px",
+            padding: centerNumber ? "0 0 0 2px" : "0 0 1px 2px",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: numberFontSize,
