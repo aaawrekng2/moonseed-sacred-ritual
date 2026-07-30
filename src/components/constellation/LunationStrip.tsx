@@ -742,7 +742,8 @@ export function LunationStrip({
               style={{
                 position: "absolute",
                 left: 0,
-                top: 7,
+                /* v3.152 — nudge the row date labels up 10px (7 → -3). */
+                top: -3,
                 width: 46,
                 zIndex: openRowKey === row.key ? 61 : undefined,
               }}

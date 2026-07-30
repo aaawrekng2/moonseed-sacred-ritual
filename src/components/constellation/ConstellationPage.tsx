@@ -6903,6 +6903,11 @@ export function ConstellationPage({
                 marginLeft: 30,
                 width: SVG_W - 60,
                 maxWidth: "100%",
+                /* v3.152 — the negative margin overlaps the element above; lift
+                   the cluster into its own stacking layer so "Edit chips" (and
+                   the chip controls) stay clickable instead of being covered. */
+                position: "relative",
+                zIndex: 30,
               }}
             >
               {cardStats ? (
