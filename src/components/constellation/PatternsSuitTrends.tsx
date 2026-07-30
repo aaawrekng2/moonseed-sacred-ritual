@@ -161,10 +161,15 @@ export function PatternsSuitTrends({
   const source = scope === "all" ? allReadings : displayedReadings;
   const dayCount = new Set(source.map((r) => r.date)).size;
   const readingCount = source.length;
+  // v3.149 — total cards pulled across the in-scope readings (sum of each
+  // reading's full card list). Recomputes with the scope, so it reflects the
+  // entire timeframe or just the displayed days.
+  const cardCount = source.reduce((a, r) => a + (r.cardIds?.length ?? 0), 0);
+  const cardsText = `${cardCount} card${cardCount === 1 ? "" : "s"} pulled`;
   const subtitle =
     scope === "all"
-      ? `Entire timeframe — ${readingCount} reading${readingCount === 1 ? "" : "s"}`
-      : `Displayed days — ${dayCount} day${dayCount === 1 ? "" : "s"} · ${readingCount} reading${readingCount === 1 ? "" : "s"}`;
+      ? `Entire timeframe — ${readingCount} reading${readingCount === 1 ? "" : "s"} · ${cardsText}`
+      : `Displayed days — ${dayCount} day${dayCount === 1 ? "" : "s"} · ${readingCount} reading${readingCount === 1 ? "" : "s"} · ${cardsText}`;
 
   const chartData = useMemo(() => {
     const buckets = new Map<

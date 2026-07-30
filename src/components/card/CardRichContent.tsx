@@ -155,6 +155,7 @@ export function CardRichContent({
   onNodeHover,
   onNodeClick,
   headerInfo,
+  fixedMonthCounts,
 }: {
   cardId: number;
   stats: CardPopoverData | null;
@@ -184,6 +185,12 @@ export function CardRichContent({
   onNodeClick?: (cardId: number) => void;
   /** EK88 — optional ⓘ content shown next to the card name in the header. */
   headerInfo?: ReactNode;
+  /** EK136 — 12-month frequency histogram data from a FIXED 12-month
+   *  window, independent of the active filter. When provided it overrides
+   *  the filtered pd.monthCounts for the sparkline so all 12 bars fill in
+   *  regardless of the timeframe filter. The filtered `count` prop is
+   *  unaffected. */
+  fixedMonthCounts?: number[] | null;
 }) {
   const { trackReversals } = useTrackReversals();
   const tarotMeaning = TAROT_MEANINGS[cardId];
@@ -224,7 +231,7 @@ export function CardRichContent({
   const topMoonPhase = pd?.topMoonPhase ?? null;
   const topTimeBucket = pd?.topTimeBucket ?? null;
   const topDayOfWeek = pd?.topDayOfWeek ?? null;
-  const monthCounts = pd?.monthCounts ?? null;
+  const monthCounts = (fixedMonthCounts ?? pd?.monthCounts) ?? null;
   const longestGapDays = pd?.longestGapDays ?? null;
   const avgSpacingDays = pd?.avgSpacingDays ?? null;
   const topTag = pd?.topTag ?? null;

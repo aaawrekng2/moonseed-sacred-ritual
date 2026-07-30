@@ -803,7 +803,7 @@ function OverviewTab({
         />
 
         <div className="min-w-0 flex-1">
-          <SuitTrendsChart filters={filters} />
+          <SuitTrendsChart filters={filters} rangeLabel={rangeLabel} />
         </div>
       </div>
 
