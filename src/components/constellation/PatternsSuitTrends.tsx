@@ -23,11 +23,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { SUIT_COLORS } from "@/lib/suit-colors";
+import { getPhaseOccurrences } from "@/lib/moon";
 
 export type TrendReading = { date: string; cardIds: number[] };
 
 type Scope = "all" | "displayed";
-type Gran = "daily" | "weekly" | "fortnightly" | "monthly" | "quarterly";
+type Gran = "daily" | "weekly" | "fortnightly" | "monthly" | "lunation" | "quarterly";
 type Mode = "pct" | "count";
 type ChartType = "line" | "bar" | "area";
 
@@ -100,6 +101,30 @@ function keyLabel(dateStr: string, gran: Gran): { key: string; label: string } {
   return {
     key: `W${String(Math.floor(monday / 86400000)).padStart(7, "0")}`,
     label: `${MON[md.getUTCMonth()]} ${md.getUTCDate()}`,
+  };
+}
+
+// v3.150 — Lunation bucket for a reading day: the latest new moon at-or-before
+// the reading. `newMoons` is a sorted (ascending) list precomputed once per
+// render for the data range, so this stays a cheap lookup. Key sorts
+// chronologically; label is the opening new moon date (UTC, matching the other
+// grans in this file).
+function lunationKeyLabel(
+  dateStr: string,
+  newMoons: Date[],
+): { key: string; label: string } {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return { key: dateStr, label: dateStr };
+  const t = Date.UTC(y, m - 1, d, 12);
+  let chosen = newMoons[0] ?? new Date(t);
+  for (const nm of newMoons) {
+    if (nm.getTime() <= t) chosen = nm;
+    else break;
+  }
+  const days = Math.floor(chosen.getTime() / 86400000);
+  return {
+    key: `L${String(days).padStart(7, "0")}`,
+    label: `\uD83C\uDF11 ${MON[chosen.getUTCMonth()]} ${chosen.getUTCDate()}`,
   };
 }
 
@@ -176,8 +201,27 @@ export function PatternsSuitTrends({
       string,
       { label: string; major: number; wands: number; cups: number; swords: number; pentacles: number }
     >();
+    // v3.150 — precompute new moons spanning the data when bucketing by lunation.
+    const newMoons: Date[] = [];
+    if (gran === "lunation" && source.length > 0) {
+      const times = source.map((r) => {
+        const [yy, mm, dd] = r.date.split("-").map(Number);
+        return Date.UTC(yy, mm - 1, dd, 12);
+      });
+      const from = Math.min(...times) - 45 * 86400000;
+      const monthsAhead =
+        Math.ceil((Date.now() - from) / (30 * 86400000)) + 2;
+      newMoons.push(
+        ...getPhaseOccurrences("New Moon", new Date(from), monthsAhead).sort(
+          (a, b) => a.getTime() - b.getTime(),
+        ),
+      );
+    }
     for (const r of source) {
-      const { key, label } = keyLabel(r.date, gran);
+      const { key, label } =
+        gran === "lunation"
+          ? lunationKeyLabel(r.date, newMoons)
+          : keyLabel(r.date, gran);
       let b = buckets.get(key);
       if (!b) {
         b = { label, major: 0, wands: 0, cups: 0, swords: 0, pentacles: 0 };
@@ -302,6 +346,7 @@ export function PatternsSuitTrends({
             <option value="weekly" style={{ color: "#000" }}>Week</option>
             <option value="fortnightly" style={{ color: "#000" }}>Fortnight</option>
             <option value="monthly" style={{ color: "#000" }}>Month</option>
+            <option value="lunation" style={{ color: "#000" }}>Lunation</option>
             <option value="quarterly" style={{ color: "#000" }}>Quarter</option>
           </select>
           <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} aria-label="Percent or count" style={selectStyle}>
