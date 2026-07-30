@@ -597,11 +597,15 @@ export function LunationStrip({
   // v3.10 — numerology & weekday use half-height cells so their many wrapped
   // rows pack compactly. Other lenses keep the full 22px square cell.
   const compact = cols > 0;
-  const cellH = compact ? 11 : 22;
-  const rowH = compact ? 13 : 24;
+  // v3.151 — shorter date cells, vertically centered on the row line (Insights ›
+  // Patterns / lunations calendar). trackTop = middle of the shorter row; cellTop
+  // centers the (shorter) square on that line, and the day number is centered too
+  // (centerNumber on CalendarDayCell) so it sits on the line instead of the floor.
+  const cellH = compact ? 9 : 16;
+  const rowH = compact ? 12 : 20;
   const rowGap = compact ? 1 : 2;
-  const trackTop = compact ? 6 : 12;
-  const cellTop = compact ? 1 : 2;
+  const trackTop = Math.round(rowH / 2);
+  const cellTop = trackTop - cellH / 2;
   const pullSize = new Set(pullCardIds).size;
 
   return (
@@ -881,6 +885,7 @@ export function LunationStrip({
                     fullMoonOpacity={0.5}
                     fillHeight={compact || !!c.split}
                     numberFontSize={c.split ? 8 : 11}
+                    centerNumber
                     onDayClick={onDayClick ? (date) => onDayClick(date) : undefined}
                     onDayHover={onDayHover}
                     onDayHoverEnd={onDayHoverEnd}

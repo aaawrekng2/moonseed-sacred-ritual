@@ -6125,7 +6125,8 @@ export function ConstellationPage({
         />
         )}
             {insightsMode && (
-              <div style={{ marginTop: 8 }}>
+              /* v3.151 — pull Suit Trends up 35px (marginTop 8 → -27). */
+              <div style={{ marginTop: -27 }}>
                 <PatternsSuitTrends
                   allReadings={allReadingsForTrends}
                   displayedReadings={displayedReadingsForTrends}
@@ -6897,7 +6898,8 @@ export function ConstellationPage({
           {lunationMode && picks.length > 0 && heroPick && (
             <div
               style={{
-                marginTop: 12,
+                /* v3.151 — pull the chip cluster up 35px (marginTop 12 → -23). */
+                marginTop: -23,
                 marginLeft: 30,
                 width: SVG_W - 60,
                 maxWidth: "100%",
