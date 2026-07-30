@@ -2600,7 +2600,7 @@ const SuitTrendsInputSchema = InsightsFiltersSchema.extend({
 export const getSuitTrends = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw: unknown) => SuitTrendsInputSchema.parse(raw))
-  .handler(async ({ data, context }): Promise<{ buckets: SuitBucket[]; granularity: SuitGranularity }> => {
+  .handler(async ({ data, context }): Promise<{ buckets: SuitBucket[]; granularity: SuitGranularity; totalReadings: number; totalCards: number }> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
     const tz = data.tz || "UTC";
     const isPremium = await getIsPremium(supabase, userId);
@@ -2760,7 +2760,16 @@ export const getSuitTrends = createServerFn({ method: "GET" })
       .sort((a, b) => a.key.localeCompare(b.key))
       .map(({ _firstDate: _omit, ...rest }) => rest);
 
-    return { buckets: result, granularity };
+    // v3.149 — totals for the chart caption ("N readings · M cards pulled").
+    // totalCards counts only in-range tarot cards (0..77), matching the suit
+    // buckets; totalReadings is the number of in-range readings.
+    const totalReadings = rows.length;
+    const totalCards = result.reduce(
+      (a, b) => a + b.major + b.wands + b.cups + b.swords + b.pentacles,
+      0,
+    );
+
+    return { buckets: result, granularity, totalReadings, totalCards };
   });
 
 // ============================================================================

@@ -57,12 +57,14 @@ const selectStyle: CSSProperties = {
   cursor: "pointer",
 };
 
-export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
+export function SuitTrendsChart({ filters, rangeLabel }: { filters: InsightsFilters; rangeLabel?: string }) {
   const fn = useServerFn(getSuitTrends);
   const { effectiveTz } = useTimezone();
   const [data, setData] = useState<{
     buckets: SuitBucket[];
     granularity: SuitGranularity;
+    totalReadings: number;
+    totalCards: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("pct");
@@ -207,6 +209,14 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             />
           ));
 
+  // v3.149 — caption totals: "N readings · M cards pulled in <range>".
+  const statsLine =
+    data
+      ? `${data.totalReadings} reading${data.totalReadings === 1 ? "" : "s"} · ` +
+        `${data.totalCards} card${data.totalCards === 1 ? "" : "s"} pulled` +
+        `${rangeLabel ? ` in ${rangeLabel}` : ""}`
+      : null;
+
   return (
     <section
       style={{
@@ -248,7 +258,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
               margin: 0,
             }}
           >
-            Distribution of suits over time
+            {statsLine ?? "Distribution of suits over time"}
           </p>
         </div>
         <div

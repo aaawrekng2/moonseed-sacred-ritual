@@ -259,6 +259,13 @@ export function CardRichPopoverContent({
     preload?.constellation ?? null,
   );
   const [stats, setStats] = useState<CardPopoverData | null>(preload?.stats ?? null);
+  // EK136 — 12-month frequency data from a FIXED 12-month window,
+  // independent of the active filter. Preload (manual entry) supplies its
+  // own stats so we seed from those; the insights fetch below replaces it
+  // with a true 365d-window pull so all 12 bars fill regardless of filter.
+  const [fixedMonthCounts, setFixedMonthCounts] = useState<number[] | null>(
+    preload?.stats?.monthCounts ?? null,
+  );
   const [rank, setRank] = useState<{ rank: number; universe: number } | null>(
     preload?.rank ?? null,
   );
@@ -275,14 +282,30 @@ export function CardRichPopoverContent({
       try {
         const headers = await getAuthHeaders();
         const envelope = toEnvelope(filters);
-        const [c, d, dc] = await Promise.all([
+        // EK136 — fixed 12-month envelope for the frequency sparkline: ignores
+        // ALL active filters (timeframe + tags/spreads/moon/reversed/deep) so the
+        // histogram is a stable 12-month baseline, like the Rhythm heatmap.
+        const fixedEnvelope: typeof envelope = {
+          timeRange: "365d",
+          tags: [],
+          spreadTypes: [],
+          moonPhases: [],
+          reversedOnly: false,
+          deepOnly: false,
+        };
+        const [c, d, dc, dFixed] = await Promise.all([
           constFn({ data: { heroCardId: cardId, tz, filters: envelope }, headers }),
           dataFn({ data: { cardIds: [cardId], tz, filters: envelope }, headers }),
           rankFn({ data: { cardIds: [cardId], tz, filters: envelope }, headers }),
+          dataFn({ data: { cardIds: [cardId], tz, filters: fixedEnvelope }, headers }),
         ]);
         if (!alive) return;
         setConstellation(c);
         setStats((d as Record<number, CardPopoverData>)[cardId] ?? null);
+        setFixedMonthCounts(
+          ((dFixed as Record<number, CardPopoverData>)[cardId] ?? null)
+            ?.monthCounts ?? null,
+        );
         const r = dc as { perCardRank: Record<number, number>; rankUniverseSize: number };
         const rk = r.perCardRank?.[cardId];
         setRank(typeof rk === "number" ? { rank: rk, universe: r.rankUniverseSize } : null);
@@ -576,6 +599,7 @@ export function CardRichPopoverContent({
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}
         headerInfo={headerInfo}
+        fixedMonthCounts={fixedMonthCounts}
       />
     </div>
       {/* EK78 — nested dive popover for a constellation node. Recursive: the
