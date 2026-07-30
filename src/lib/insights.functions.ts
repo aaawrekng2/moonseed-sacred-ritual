@@ -32,7 +32,7 @@ import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
-import { getCurrentMoonPhase } from "@/lib/moon";
+import { getCurrentMoonPhase, getPhaseOccurrences } from "@/lib/moon";
 import {
   isoDayInTz,
   addDaysInTz,
@@ -67,6 +67,7 @@ export type SuitGranularity =
   | "weekly"
   | "fortnightly"
   | "monthly"
+  | "lunation"
   | "quarterly";
 
 /**
@@ -2593,7 +2594,7 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
 const SuitTrendsInputSchema = InsightsFiltersSchema.extend({
   tz: z.string().min(1).default("UTC"),
   granularity: z
-    .enum(["daily", "weekly", "fortnightly", "monthly", "quarterly"])
+    .enum(["daily", "weekly", "fortnightly", "monthly", "lunation", "quarterly"])
     .optional(),
 });
 
@@ -2699,6 +2700,33 @@ export const getSuitTrends = createServerFn({ method: "GET" })
       return effectiveDays > 365 ? `Q${q} ${yy}` : `Q${q}`;
     };
 
+    // v3.150 — Lunation bucketing: group readings by lunar cycle (new moon →
+    // next new moon), labeled by the opening new moon. Precompute the new moons
+    // spanning the data so each reading maps to its cycle without a per-row
+    // astronomy search.
+    const rowTimes = rows.map((r) => new Date(r.created_at).getTime());
+    const lunFrom =
+      rowTimes.length > 0 ? Math.min(...rowTimes) - 45 * 86400000 : Date.now();
+    const newMoons: Date[] =
+      granularity === "lunation" && rowTimes.length > 0
+        ? getPhaseOccurrences(
+            "New Moon",
+            new Date(lunFrom),
+            Math.ceil((Date.now() - lunFrom) / (30 * 86400000)) + 2,
+          ).sort((a, b) => a.getTime() - b.getTime())
+        : [];
+    const lunationStartOf = (d: Date): Date => {
+      let chosen = newMoons[0] ?? d;
+      for (const nm of newMoons) {
+        if (nm.getTime() <= d.getTime()) chosen = nm;
+        else break;
+      }
+      return chosen;
+    };
+    const lunationKey = (d: Date) => `L${isoDayInTz(lunationStartOf(d), tz)}`;
+    const lunationLabel = (d: Date) =>
+      `\uD83C\uDF11 ${fmtPart(lunationStartOf(d), { month: "short", day: "numeric" })}`;
+
     const keyOf = (d: Date) => {
       switch (granularity) {
         case "daily":
@@ -2707,6 +2735,8 @@ export const getSuitTrends = createServerFn({ method: "GET" })
           return isoWeek(d);
         case "fortnightly":
           return isoFortnight(d);
+        case "lunation":
+          return lunationKey(d);
         case "quarterly":
           return isoQuarter(d);
         default:
@@ -2721,6 +2751,8 @@ export const getSuitTrends = createServerFn({ method: "GET" })
           return weekLabel(d);
         case "fortnightly":
           return fortnightLabel(d);
+        case "lunation":
+          return lunationLabel(d);
         case "quarterly":
           return quarterLabel(d);
         default:

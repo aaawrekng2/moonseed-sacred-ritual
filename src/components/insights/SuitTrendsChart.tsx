@@ -42,6 +42,7 @@ const GRAN_OPTIONS: Array<{ id: SuitGranularity; label: string }> = [
   { id: "weekly", label: "Week" },
   { id: "fortnightly", label: "Fortnight" },
   { id: "monthly", label: "Month" },
+  { id: "lunation", label: "Lunation" },
   { id: "quarterly", label: "Quarter" },
 ];
 
